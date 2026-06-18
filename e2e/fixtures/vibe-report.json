@@ -1,0 +1,15 @@
+{
+  "id": "e2e-report-uuid-001",
+  "venueId": "ChIJe2etest001",
+  "venueName": "The Electric Garden",
+  "vibeScore": 8.5,
+  "vibeTags": ["Lively", "Trendy", "Great Cocktails", "Group Friendly"],
+  "energyLevel": "High",
+  "musicVibe": "Loud / Dance",
+  "crowdType": "Packed",
+  "bestFor": ["Date Night", "Group Night Out"],
+  "summary": "A buzzing garden bar with creative cocktails and a rotating DJ lineup. The crowd is fun and welcoming — perfect for a group night out in Brooklyn.",
+  "fromPhoto": false,
+  "confidence": 0.88,
+  "generatedAt": "2026-06-18T22:00:00.000Z"
+}

@@ -17,10 +17,12 @@ interface VibeCheckInputProps {
     photoUrl?: string;
   }) => void;
   isLoading?: boolean;
+  /** Pre-fill the venue name field (e.g. from URL query params) */
+  initialVenueName?: string;
 }
 
-export function VibeCheckInput({ onSubmit, isLoading = false }: VibeCheckInputProps) {
-  const [venueName, setVenueName] = useState("");
+export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName = "" }: VibeCheckInputProps) {
+  const [venueName, setVenueName] = useState(initialVenueName);
   const [description, setDescription] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
 
