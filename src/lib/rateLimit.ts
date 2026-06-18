@@ -1,0 +1,81 @@
+// ============================================================
+// Night Vibe Checker — In-memory rate limiter
+//
+// Keyed by arbitrary string (typically client IP).
+// Each key gets up to `max` requests per `windowMs` rolling window.
+//
+// Limitations: in-memory only — does not persist across
+// serverless function invocations. For production multi-region
+// deployments replace with Upstash Redis (@upstash/ratelimit).
+// ============================================================
+
+interface RateLimitEntry {
+  count: number;
+  windowStart: number; // epoch ms
+}
+
+// Module-level Map survives across requests in a long-running Node process.
+// In edge / serverless this resets per cold start — acceptable for MVP.
+const store = new Map<string, RateLimitEntry>();
+
+export const RATE_LIMIT_MAX = 10;          // requests allowed per window
+export const RATE_LIMIT_WINDOW_MS = 60_000; // 1-minute sliding window
+
+/**
+ * Check and increment the rate limit counter for `key`.
+ *
+ * Returns `{ allowed: true }` when under the limit.
+ * Returns `{ allowed: false, retryAfterMs }` when exceeded.
+ */
+export function checkRateLimit(
+  key: string,
+  max: number = RATE_LIMIT_MAX,
+  windowMs: number = RATE_LIMIT_WINDOW_MS
+): { allowed: boolean; retryAfterMs?: number } {
+  const now = Date.now();
+  const entry = store.get(key);
+
+  // New key or expired window — start a fresh window
+  if (!entry || now - entry.windowStart >= windowMs) {
+    store.set(key, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+
+  if (entry.count >= max) {
+    const retryAfterMs = windowMs - (now - entry.windowStart);
+    return { allowed: false, retryAfterMs };
+  }
+
+  entry.count += 1;
+  return { allowed: true };
+}
+
+/**
+ * Return how many requests remain in the current window for `key`.
+ * Returns `max` for unknown keys (no requests made yet).
+ */
+export function getRemainingRequests(
+  key: string,
+  max: number = RATE_LIMIT_MAX,
+  windowMs: number = RATE_LIMIT_WINDOW_MS
+): number {
+  const now = Date.now();
+  const entry = store.get(key);
+  if (!entry || now - entry.windowStart >= windowMs) return max;
+  return Math.max(0, max - entry.count);
+}
+
+/** Purge expired entries — call periodically to prevent unbounded memory growth. */
+export function pruneExpiredEntries(
+  windowMs: number = RATE_LIMIT_WINDOW_MS
+): void {
+  const now = Date.now();
+  for (const [key, entry] of store.entries()) {
+    if (now - entry.windowStart >= windowMs) store.delete(key);
+  }
+}
+
+/** Reset entire store — intended for use in test suites only. */
+export function resetRateLimitStore(): void {
+  store.clear();
+}
