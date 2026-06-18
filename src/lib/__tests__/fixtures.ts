@@ -11,6 +11,7 @@
 // ============================================================
 
 import type { VibeReport, VenueBasic, VenueDetail, VibeInput } from "../../types";
+import { vi } from "vitest";
 
 // ── Factory functions ────────────────────────────────────────────────────────
 
@@ -155,3 +156,27 @@ export const RAW_AI_RESPONSE_MISSING_FIELDS = JSON.stringify({
  */
 export const RAW_AI_RESPONSE_INVALID =
   "Sorry, I cannot analyze venues. Here is some lorem ipsum: dolor sit amet...";
+
+// ── Mock OpenAI client factory ───────────────────────────────────────────────
+
+/**
+ * Build a minimal mock OpenAI client whose `chat.completions.create` resolves
+ * with the provided `content` string (as if it were the raw text from GPT-4o).
+ *
+ * Use `setOpenAIClient(makeMockOpenAIClient(...) as any)` in tests to inject
+ * this without triggering the real SDK or requiring OPENAI_API_KEY.
+ *
+ * The returned object also exposes `_create` — a direct reference to the
+ * underlying vi.fn() — so tests can assert call counts and arguments:
+ *   expect(mock._create).toHaveBeenCalledOnce();
+ */
+export function makeMockOpenAIClient(content: string = RAW_AI_RESPONSE_VALID) {
+  const create = vi.fn().mockResolvedValue({
+    choices: [{ message: { content } }],
+  });
+  return {
+    chat: { completions: { create } },
+    /** Direct reference to the spy for call-count assertions in tests. */
+    _create: create,
+  };
+}

@@ -5,6 +5,14 @@
 
 import type { VenueBasic, VenueDetail } from "@/types";
 
+// --------------- Guard against accidental client import -----
+
+if (typeof window !== "undefined") {
+  throw new Error(
+    "[places.ts] This module is server-side only. Do not import it in Client Components."
+  );
+}
+
 const PLACES_BASE = "https://maps.googleapis.com/maps/api/place";
 
 function apiKey(): string {
