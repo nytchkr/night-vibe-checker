@@ -1,21 +1,22 @@
 // ============================================================
-// POST /api/saved-spots  — save a venue for the authenticated user
-// DELETE /api/saved-spots — remove a saved venue
+// GET    /api/saved-spots  — list saved venues for authenticated user
+// POST   /api/saved-spots  — save a venue for the authenticated user
+// DELETE /api/saved-spots  — remove a saved venue
 //
-// Both methods require a valid Supabase JWT in:
+// All methods require a valid Supabase JWT in:
 //   Authorization: Bearer <access_token>
 //
 // POST body:   { venueId: string; venueName: string }
 // DELETE body: { venueId: string }
 //
-// Returns: APIResponse<{ saved: boolean }>
+// Returns: APIResponse<{ saved: boolean }> | APIResponse<{ spots: SavedSpot[] }>
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
-import type { APIResponse } from "@/types";
+import type { APIResponse, SavedSpot, VibeTagValue } from "@/types";
 
 // --------------- Schema definitions ------------------------
 
@@ -57,6 +58,65 @@ async function getUserIdFromToken(
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) return null;
   return data.user.id;
+}
+
+// --------------- GET handler --------------------------------
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const requestId = uuidv4();
+  const generatedAt = new Date().toISOString();
+  const meta = { cached: false, generatedAt, requestId };
+
+  const userId = await getUserIdFromToken(req.headers.get("Authorization"));
+  if (!userId) {
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "UNAUTHORIZED", message: "Valid authentication token required." }, meta },
+      { status: 401 }
+    );
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "SERVER_MISCONFIGURED", message: "Service unavailable." }, meta },
+      { status: 500 }
+    );
+  }
+
+  const adminClient = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { data, error } = await adminClient
+    .from("saved_spots")
+    .select("*, venues(name, address, place_id)")
+    .eq("user_id", userId)
+    .order("saved_at", { ascending: false });
+
+  if (error) {
+    console.error("[saved-spots GET] DB error:", error);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch saved spots." }, meta },
+      { status: 500 }
+    );
+  }
+
+  const spots: SavedSpot[] = (data ?? []).map((row) => ({
+    id: row.id as string,
+    userId: row.user_id as string,
+    venueId: (row.venues as { place_id?: string } | null)?.place_id ?? (row.venue_id as string),
+    venueName: (row.venues as { name?: string } | null)?.name ?? "",
+    address: (row.venues as { address?: string } | null)?.address ?? "",
+    vibeScoreSnapshot: row.vibe_score_snapshot ?? undefined,
+    savedAt: row.saved_at as string,
+    tags: ((row.tags_snapshot as string[]) ?? []) as VibeTagValue[],
+  }));
+
+  return NextResponse.json<APIResponse<{ spots: SavedSpot[] }>>(
+    { status: "success", data: { spots }, meta },
+    { status: 200 }
+  );
 }
 
 // --------------- POST handler ------------------------------

@@ -10,12 +10,15 @@
 import type { VibeReport as VibeReportType } from "@/types";
 import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
+import { ShareButton } from "./ShareButton";
 
 interface VibeReportProps {
   report?: VibeReportType;
   isLoading: boolean;
   /** Optional error message to display instead of report */
   error?: string;
+  /** Called when share link is copied to clipboard on desktop */
+  onShareCopied?: () => void;
 }
 
 // --------------- Skeleton helpers --------------------------
@@ -56,7 +59,7 @@ function ConfidencePill({ confidence }: { confidence: number }) {
 
 // --------------- Main component ----------------------------
 
-export function VibeReport({ report, isLoading, error }: VibeReportProps) {
+export function VibeReport({ report, isLoading, error, onShareCopied }: VibeReportProps) {
   // Error state
   if (error) {
     return (
@@ -181,7 +184,13 @@ export function VibeReport({ report, isLoading, error }: VibeReportProps) {
           {report.fromPhoto ? "Photo analysis" : "Text analysis"} ·{" "}
           {new Date(report.generatedAt).toLocaleString()}
         </span>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <ShareButton
+            venueName={report.venueName}
+            vibeScore={report.vibeScore}
+            summary={report.summary}
+            onCopied={onShareCopied}
+          />
           {report.bestFor.slice(0, 2).map((label) => (
             <VibeTagBadge key={label} tag={label} variant="secondary" />
           ))}

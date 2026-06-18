@@ -1,22 +1,10 @@
 "use client";
 
-// ============================================================
-// Profile Page  /profile
-//
-// Placeholder UI for:
-//   - Saved Spots   (will be backed by Supabase saved_spots table)
-//   - Past Vibe Checks (will be backed by Supabase check_ins table)
-//
-// Supabase auth wiring is deferred to a future sprint.
-// ============================================================
-
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { Session } from "@supabase/supabase-js";
+import { createBrowserClient } from "@/lib/supabase";
 import type { SavedSpot, CheckIn } from "@/types";
-
-// --------------- Placeholder data (empty for now) ----------
-
-const savedSpots: SavedSpot[] = [];
-const pastVibeChecks: CheckIn[] = [];
 
 // --------------- Section header ----------------------------
 
@@ -75,7 +63,6 @@ function SavedSpotRow({ spot }: { spot: SavedSpot }) {
         transition-all duration-150
       "
     >
-      {/* Score snapshot pill */}
       <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center">
         {spot.vibeScoreSnapshot != null ? (
           <span className="text-cyan-400 text-xs font-bold tabular-nums">
@@ -85,27 +72,11 @@ function SavedSpotRow({ spot }: { spot: SavedSpot }) {
           <span className="text-white/25 text-xs">?</span>
         )}
       </div>
-
-      {/* Name + address */}
       <div className="flex-1 min-w-0">
         <p className="text-white font-medium text-sm truncate">{spot.venueName}</p>
         <p className="text-white/35 text-xs truncate">{spot.address}</p>
       </div>
-
-      {/* Chevron */}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width={14}
-        height={14}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-white/25 flex-shrink-0"
-        aria-hidden="true"
-      >
+      <svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="text-white/25 flex-shrink-0" aria-hidden="true">
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </Link>
@@ -115,11 +86,7 @@ function SavedSpotRow({ spot }: { spot: SavedSpot }) {
 // --------------- Past check-in row -------------------------
 
 function CheckInRow({ checkIn }: { checkIn: CheckIn }) {
-  const date = new Date(checkIn.checkedInAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
+  const date = new Date(checkIn.checkedInAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   return (
     <Link
       href={`/venues/${checkIn.venueId}`}
@@ -130,114 +97,212 @@ function CheckInRow({ checkIn }: { checkIn: CheckIn }) {
         transition-all duration-150
       "
     >
-      {/* Date badge */}
       <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0 flex flex-col items-center justify-center leading-none gap-0.5">
-        <span className="text-white/50 text-[9px] uppercase tracking-wide">
-          {date.split(" ")[0]}
-        </span>
+        <span className="text-white/50 text-[9px] uppercase tracking-wide">{date.split(" ")[0]}</span>
         <span className="text-white text-xs font-bold">{date.split(" ")[1]}</span>
       </div>
-
-      {/* Venue name + note */}
       <div className="flex-1 min-w-0">
         <p className="text-white font-medium text-sm truncate">{checkIn.venueName}</p>
-        {checkIn.note && (
-          <p className="text-white/35 text-xs truncate">{checkIn.note}</p>
-        )}
+        {checkIn.note && <p className="text-white/35 text-xs truncate">{checkIn.note}</p>}
       </div>
-
-      {/* Chevron */}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width={14}
-        height={14}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-white/25 flex-shrink-0"
-        aria-hidden="true"
-      >
+      <svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="text-white/25 flex-shrink-0" aria-hidden="true">
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </Link>
   );
 }
 
-// --------------- Auth placeholder banner -------------------
+// --------------- Auth banner --------------------------------
 
-function AuthBanner() {
-  return (
-    <div className="rounded-2xl bg-[#1E1E2E] border border-white/10 p-5 flex items-center gap-4">
-      {/* Avatar placeholder */}
-      <div className="w-14 h-14 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width={24}
-          height={24}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-white/30"
-          aria-hidden="true"
+interface AuthBannerProps {
+  session: Session | null;
+  email: string;
+  setEmail: (v: string) => void;
+  otpSent: boolean;
+  onSignIn: () => void;
+  onSignOut: () => void;
+  signingIn: boolean;
+}
+
+function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, signingIn }: AuthBannerProps) {
+  // Signed-in state
+  if (session) {
+    return (
+      <div className="rounded-2xl bg-[#1E1E2E] border border-white/10 p-5 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex-shrink-0 flex items-center justify-center">
+          <span className="text-white font-bold text-lg uppercase">
+            {session.user.email?.[0] ?? "?"}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-sm">Signed in</p>
+          <p className="text-white/40 text-xs mt-0.5 truncate">{session.user.email}</p>
+        </div>
+        <button
+          onClick={onSignOut}
+          className="
+            flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold
+            text-white/70 bg-white/10 border border-white/10
+            hover:bg-white/20 hover:text-white
+            transition-all duration-150
+          "
         >
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-          <circle cx={12} cy={7} r={4} />
-        </svg>
+          Sign out
+        </button>
       </div>
+    );
+  }
 
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-semibold text-sm">Sign in to save spots</p>
-        <p className="text-white/40 text-xs mt-0.5">
-          Your vibe history syncs across devices once you sign in.
-        </p>
+  // OTP sent state
+  if (otpSent) {
+    return (
+      <div className="rounded-2xl bg-[#1E1E2E] border border-white/10 p-5 text-center space-y-2">
+        <p className="text-white font-semibold text-sm">Check your email</p>
+        <p className="text-white/40 text-xs">We sent a magic link to <strong className="text-white/60">{email}</strong>. Click it to sign in.</p>
       </div>
+    );
+  }
 
-      {/* TODO: wire Supabase auth — for now this is a placeholder */}
-      <button
-        disabled
-        aria-label="Sign in (coming soon)"
-        title="Auth coming soon"
-        className="
-          flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold
-          text-white/50 bg-white/10 border border-white/10
-          cursor-not-allowed opacity-60
-        "
-      >
-        Sign in
-      </button>
+  // Sign-in form
+  return (
+    <div className="rounded-2xl bg-[#1E1E2E] border border-white/10 p-5 space-y-3">
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="text-white/30" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx={12} cy={7} r={4} />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-sm">Sign in to save spots</p>
+          <p className="text-white/40 text-xs mt-0.5">Your vibe history syncs across devices once you sign in.</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && onSignIn()}
+          placeholder="your@email.com"
+          className="
+            flex-1 px-3 py-2 rounded-xl text-xs text-white
+            bg-white/[0.07] border border-white/10
+            placeholder:text-white/25
+            focus:outline-none focus:border-purple-500/60
+            transition-colors duration-150
+          "
+        />
+        <button
+          onClick={onSignIn}
+          disabled={!email.trim() || signingIn}
+          className="
+            px-4 py-2 rounded-xl text-xs font-semibold text-white
+            bg-gradient-to-r from-purple-600 to-pink-600
+            hover:from-purple-500 hover:to-pink-500
+            disabled:opacity-50 disabled:cursor-not-allowed
+            transition-all duration-150
+          "
+        >
+          {signingIn ? "Sending…" : "Send link"}
+        </button>
+      </div>
     </div>
   );
 }
 
-// --------------- Main page component -----------------------
+// --------------- Main page ---------------------------------
 
 export default function ProfilePage() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [savedSpots, setSavedSpots] = useState<SavedSpot[]>([]);
+  const [pastVibeChecks] = useState<CheckIn[]>([]);
+  const [loadingSpots, setLoadingSpots] = useState(false);
+  const [email, setEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+
+  useEffect(() => {
+    const client = createBrowserClient();
+
+    client.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session) fetchSavedSpots(data.session.access_token);
+    });
+
+    const { data: { subscription } } = client.auth.onAuthStateChange((_event, sess) => {
+      setSession(sess);
+      if (sess) {
+        fetchSavedSpots(sess.access_token);
+      } else {
+        setSavedSpots([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function fetchSavedSpots(token: string) {
+    setLoadingSpots(true);
+    try {
+      const res = await fetch("/api/saved-spots", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setSavedSpots(json.data?.spots ?? []);
+    } finally {
+      setLoadingSpots(false);
+    }
+  }
+
+  async function handleSignIn() {
+    if (!email.trim()) return;
+    setSigningIn(true);
+    try {
+      const client = createBrowserClient();
+      await client.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+      setOtpSent(true);
+    } finally {
+      setSigningIn(false);
+    }
+  }
+
+  async function handleSignOut() {
+    const client = createBrowserClient();
+    await client.auth.signOut();
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
-      {/* Header */}
       <header className="sticky top-0 z-40 bg-[#0A0A0F]/90 backdrop-blur-xl border-b border-white/10 px-4">
         <div className="max-w-lg mx-auto py-4">
           <h1 className="text-white font-bold text-xl">Profile</h1>
         </div>
       </header>
 
-      {/* Content */}
       <div className="max-w-lg mx-auto px-4 py-6 space-y-8">
+        <AuthBanner
+          session={session}
+          email={email}
+          setEmail={setEmail}
+          otpSent={otpSent}
+          onSignIn={handleSignIn}
+          onSignOut={handleSignOut}
+          signingIn={signingIn}
+        />
 
-        {/* Auth / identity placeholder */}
-        <AuthBanner />
-
-        {/* ---- Saved Spots section ---- */}
+        {/* Saved Spots */}
         <section aria-label="Saved spots">
           <SectionHeader title="Saved Spots" count={savedSpots.length} />
-
-          {savedSpots.length === 0 ? (
+          {loadingSpots ? (
+            <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-8 flex justify-center">
+              <span className="text-white/30 text-sm">Loading…</span>
+            </div>
+          ) : savedSpots.length === 0 ? (
             <EmptyStateCard
               icon="🔖"
               message="Spots you save will appear here. Browse venues and tap the bookmark icon to save."
@@ -246,18 +311,15 @@ export default function ProfilePage() {
           ) : (
             <ul className="space-y-2 list-none">
               {savedSpots.map((spot) => (
-                <li key={spot.id}>
-                  <SavedSpotRow spot={spot} />
-                </li>
+                <li key={spot.id}><SavedSpotRow spot={spot} /></li>
               ))}
             </ul>
           )}
         </section>
 
-        {/* ---- Past Vibe Checks section ---- */}
+        {/* Past Vibe Checks */}
         <section aria-label="Past vibe checks">
           <SectionHeader title="Past Vibe Checks" count={pastVibeChecks.length} />
-
           {pastVibeChecks.length === 0 ? (
             <EmptyStateCard
               icon="🎛️"
@@ -267,15 +329,12 @@ export default function ProfilePage() {
           ) : (
             <ul className="space-y-2 list-none">
               {pastVibeChecks.map((ci) => (
-                <li key={ci.id}>
-                  <CheckInRow checkIn={ci} />
-                </li>
+                <li key={ci.id}><CheckInRow checkIn={ci} /></li>
               ))}
             </ul>
           )}
         </section>
 
-        {/* Bottom spacer for nav clearance */}
         <div className="h-4" aria-hidden="true" />
       </div>
     </div>

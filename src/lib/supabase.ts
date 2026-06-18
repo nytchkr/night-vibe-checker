@@ -65,3 +65,16 @@ export const supabaseAdmin: SupabaseClient =
 if (process.env.NODE_ENV !== "production") {
   globalThis.__supabaseAdmin = supabaseAdmin;
 }
+
+// --------------- Browser client (client components only) ----
+// Creates a new client per call with session persistence via localStorage.
+// Safe to call from "use client" components — never call server-side.
+
+export function createBrowserClient(): SupabaseClient {
+  return createClient(supabaseUrl!, supabaseAnonKey!, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+  });
+}
