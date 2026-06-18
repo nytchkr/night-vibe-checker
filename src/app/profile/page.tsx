@@ -83,6 +83,24 @@ function SavedSpotRow({ spot }: { spot: SavedSpot }) {
   );
 }
 
+// --------------- Saved spot row skeleton -------------------
+
+function SavedSpotRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 animate-pulse">
+      {/* Avatar placeholder */}
+      <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
+      {/* Text lines */}
+      <div className="flex-1 space-y-2">
+        <div className="h-3 bg-white/10 rounded w-2/3" />
+        <div className="h-2.5 bg-white/10 rounded w-1/2" />
+      </div>
+      {/* Chevron placeholder */}
+      <div className="w-3.5 h-3.5 rounded bg-white/10 flex-shrink-0" />
+    </div>
+  );
+}
+
 // --------------- Past check-in row -------------------------
 
 function CheckInRow({ checkIn }: { checkIn: CheckIn }) {
@@ -299,9 +317,12 @@ export default function ProfilePage() {
         <section aria-label="Saved spots">
           <SectionHeader title="Saved Spots" count={savedSpots.length} />
           {loadingSpots ? (
-            <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-8 flex justify-center">
-              <span className="text-white/30 text-sm">Loading…</span>
-            </div>
+            <ul className="space-y-2 list-none" aria-label="Loading saved spots" role="status">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <li key={i}><SavedSpotRowSkeleton /></li>
+              ))}
+              <span className="sr-only">Loading saved spots…</span>
+            </ul>
           ) : savedSpots.length === 0 ? (
             <EmptyStateCard
               icon="🔖"

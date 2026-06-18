@@ -11,6 +11,7 @@ import type { VibeReport as VibeReportType } from "@/types";
 import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
 import { ShareButton } from "./ShareButton";
+import { SaveSpotButton } from "./SaveSpotButton";
 
 interface VibeReportProps {
   report?: VibeReportType;
@@ -185,6 +186,11 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
           {new Date(report.generatedAt).toLocaleString()}
         </span>
         <div className="flex items-center gap-3">
+          <SaveSpotButton
+            venueId={report.venueId}
+            venueName={report.venueName}
+            vibeScoreSnapshot={report.vibeScore}
+          />
           <ShareButton
             venueName={report.venueName}
             vibeScore={report.vibeScore}

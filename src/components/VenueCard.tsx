@@ -12,6 +12,7 @@
 import type { VenueBasic } from "@/types";
 import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
+import { SaveSpotButton } from "./SaveSpotButton";
 
 interface VenueCardProps {
   venue: VenueBasic;
@@ -23,6 +24,10 @@ interface VenueCardProps {
   /** True while a vibe check for this venue is in flight */
   isChecking?: boolean;
   className?: string;
+  /** Initial saved state for the SaveSpotButton; omit to auto-fetch */
+  isSaved?: boolean;
+  /** Called after a save/unsave toggle completes */
+  onSaveToggle?: (venueId: string, saved: boolean) => void;
 }
 
 // --------------- Price level helper -----------------------
@@ -112,17 +117,31 @@ function FullCard({
   topTags,
   onVibeCheck,
   isChecking,
+  isSaved,
+  onSaveToggle,
   className,
 }: Omit<VenueCardProps, "variant">) {
   return (
     <div
       className={`
-        rounded-2xl bg-white/5 border border-white/10
+        relative rounded-2xl bg-white/5 border border-white/10
         hover:bg-white/[0.07] hover:border-white/20
         transition-all duration-200 p-4
         ${className ?? ""}
       `}
     >
+      {/* Save button — top-right overlay */}
+      <div className="absolute top-3 right-3 z-10">
+        <SaveSpotButton
+          venueId={venue.placeId}
+          venueName={venue.name}
+          address={venue.address}
+          vibeScoreSnapshot={venue.cachedVibeScore}
+          isSaved={isSaved}
+          className="w-8 h-8"
+        />
+      </div>
+
       <div className="flex items-center gap-4">
         {/* Score ring or placeholder */}
         {venue.cachedVibeScore != null ? (
@@ -199,7 +218,9 @@ function FullCard({
 
 export function VenueCard({ variant = "full", ...props }: VenueCardProps) {
   if (variant === "compact") {
-    return <CompactCard {...props} />;
+    // CompactCard does not expose save UI (MVP scope)
+    const { isSaved: _isSaved, onSaveToggle: _onSaveToggle, ...compactProps } = props;
+    return <CompactCard {...compactProps} />;
   }
   return <FullCard {...props} />;
 }

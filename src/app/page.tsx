@@ -12,7 +12,7 @@
 // - Dark theme: bg-[#0A0A0F], cards bg-[#141420], neon cyan accents
 // ============================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { VenueCard } from "@/components/VenueCard";
@@ -220,37 +220,91 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
   const [checkingVenueId, setCheckingVenueId] = useState<string | null>(null);
+  // Track user coordinates from geolocation (optional — improves search quality)
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  // True once the user has typed something and triggered a search
+  const [hasSearched, setHasSearched] = useState(false);
+  // Prevent the mount fetch from running more than once
+  const mountFetchDone = useRef(false);
 
   // Fetch venues from the API whenever search changes.
-  const fetchVenues = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setVenues([]);
-      setLoading(false);
+  const fetchVenues = useCallback(
+    async (query: string, coords?: { lat: number; lng: number } | null) => {
+      if (!query.trim()) {
+        setVenues([]);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+      setLoading(true);
       setError(null);
+      try {
+        const params = new URLSearchParams({ q: query.trim() });
+        const resolvedCoords = coords !== undefined ? coords : userCoords;
+        if (resolvedCoords) {
+          params.set("lat", String(resolvedCoords.lat));
+          params.set("lng", String(resolvedCoords.lng));
+        }
+        const res = await fetch(`/api/venues?${params.toString()}`);
+        if (!res.ok) {
+          throw new Error(`Request failed: ${res.status}`);
+        }
+        const json = await res.json();
+        const list: VenueBasic[] = Array.isArray(json) ? json : (json.data ?? []);
+        setVenues(list);
+      } catch (err) {
+        console.error("[HomePage] Failed to fetch venues", err);
+        setError("Could not load venues. Please try again.");
+        setVenues([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userCoords]
+  );
+
+  // Mount-time default fetch: geolocation → "bars" nearby, fallback → "nightlife"
+  useEffect(() => {
+    if (mountFetchDone.current) return;
+    mountFetchDone.current = true;
+
+    setLoading(true);
+
+    const doFallback = () => {
+      fetchVenues("nightlife", null);
+    };
+
+    if (!navigator.geolocation) {
+      doFallback();
       return;
     }
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({ q: query.trim() });
-      const res = await fetch(`/api/venues?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error(`Request failed: ${res.status}`);
-      }
-      const json = await res.json();
-      const list: VenueBasic[] = Array.isArray(json) ? json : (json.data ?? []);
-      setVenues(list);
-    } catch (err) {
-      console.error("[HomePage] Failed to fetch venues", err);
-      setError("Could not load venues. Please try again.");
-      setVenues([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+
+    // 3-second timeout — if geolocation doesn't respond, fall back
+    const timeoutId = setTimeout(doFallback, 3000);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        clearTimeout(timeoutId);
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setUserCoords(coords);
+        fetchVenues("bars", coords);
+      },
+      () => {
+        // Permission denied or error
+        clearTimeout(timeoutId);
+        doFallback();
+      },
+      { timeout: 3000, maximumAge: 300_000 }
+    );
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced search effect — 300 ms after last keystroke
   useEffect(() => {
+    if (!search.trim()) return; // Let mount fetch handle the blank-query state
+    setHasSearched(true);
     const timer = setTimeout(() => {
       fetchVenues(search);
     }, 300);
@@ -275,8 +329,10 @@ export default function HomePage() {
     );
   }
 
+  // Only show empty state when the user has typed something and the results came back empty.
+  // Do NOT show it on initial mount while the default fetch is running or has just loaded.
   const showEmpty =
-    !loading && !error && (search.trim() === "" || filteredVenues.length === 0);
+    !loading && !error && hasSearched && search.trim() !== "" && filteredVenues.length === 0;
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
