@@ -144,9 +144,11 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
   // Signed-in state
   if (session) {
     return (
-      <div className="rounded-2xl bg-[#1E1E2E] border border-white/10 p-5 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex-shrink-0 flex items-center justify-center">
-          <span className="text-white font-bold text-lg uppercase">
+      <div className="rounded-2xl border border-white/[0.09] p-5 flex items-center gap-4"
+        style={{ background: "linear-gradient(135deg, rgba(168,85,247,0.08) 0%, rgba(30,30,46,0.6) 100%)" }}>
+        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex-shrink-0 flex items-center justify-center shadow-lg"
+          style={{ boxShadow: "0 0 20px rgba(168,85,247,0.35)" }}>
+          <span className="text-white font-bold text-base uppercase">
             {session.user.email?.[0] ?? "?"}
           </span>
         </div>
@@ -156,12 +158,7 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
         </div>
         <button
           onClick={onSignOut}
-          className="
-            flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold
-            text-white/70 bg-white/10 border border-white/10
-            hover:bg-white/20 hover:text-white
-            transition-all duration-150
-          "
+          className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-white/60 bg-white/[0.07] border border-white/10 hover:bg-white/[0.12] hover:text-white transition-all duration-150"
         >
           Sign out
         </button>
@@ -172,26 +169,32 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
   // OTP sent state
   if (otpSent) {
     return (
-      <div className="rounded-2xl bg-[#1E1E2E] border border-white/10 p-5 text-center space-y-2">
+      <div className="rounded-2xl bg-[#1E1E2E]/60 border border-purple-500/20 p-6 text-center space-y-3">
+        <div className="text-3xl">📨</div>
         <p className="text-white font-semibold text-sm">Check your email</p>
-        <p className="text-white/40 text-xs">We sent a magic link to <strong className="text-white/60">{email}</strong>. Click it to sign in.</p>
+        <p className="text-white/40 text-xs leading-relaxed">
+          We sent a magic link to{" "}
+          <strong className="text-white/70">{email}</strong>.{" "}
+          Click it to sign in.
+        </p>
       </div>
     );
   }
 
   // Sign-in form
   return (
-    <div className="rounded-2xl bg-[#1E1E2E] border border-white/10 p-5 space-y-3">
-      <div className="flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="text-white/30" aria-hidden="true">
+    <div className="rounded-2xl border border-white/[0.09] p-5 space-y-4"
+      style={{ background: "rgba(255,255,255,0.03)" }}>
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-white/[0.07] flex-shrink-0 flex items-center justify-center mt-0.5">
+          <svg xmlns="http://www.w3.org/2000/svg" width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="text-white/30" aria-hidden="true">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
             <circle cx={12} cy={7} r={4} />
           </svg>
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-semibold text-sm">Sign in to save spots</p>
-          <p className="text-white/40 text-xs mt-0.5">Your vibe history syncs across devices once you sign in.</p>
+          <p className="text-white/35 text-xs mt-0.5 leading-relaxed">Your saved venues and vibe history sync across devices.</p>
         </div>
       </div>
       <div className="flex gap-2">
@@ -201,24 +204,13 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && onSignIn()}
           placeholder="your@email.com"
-          className="
-            flex-1 px-3 py-2 rounded-xl text-xs text-white
-            bg-white/[0.07] border border-white/10
-            placeholder:text-white/25
-            focus:outline-none focus:border-purple-500/60
-            transition-colors duration-150
-          "
+          className="flex-1 px-3.5 py-2.5 rounded-xl text-sm text-white bg-white/[0.06] border border-white/[0.09] placeholder:text-white/25 focus:outline-none focus:border-purple-500/50 transition-colors duration-150"
         />
         <button
           onClick={onSignIn}
           disabled={!email.trim() || signingIn}
-          className="
-            px-4 py-2 rounded-xl text-xs font-semibold text-white
-            bg-gradient-to-r from-purple-600 to-pink-600
-            hover:from-purple-500 hover:to-pink-500
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-all duration-150
-          "
+          className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 whitespace-nowrap"
+          style={{ boxShadow: "0 0 16px rgba(168,85,247,0.2)" }}
         >
           {signingIn ? "Sending…" : "Send link"}
         </button>
@@ -294,13 +286,19 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/90 backdrop-blur-xl border-b border-white/10 px-4">
+      <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
         <div className="max-w-lg mx-auto py-4">
-          <h1 className="text-white font-bold text-xl">Profile</h1>
+          <p className="text-white/40 text-[11px] font-semibold uppercase tracking-[0.22em]">
+            Your night log
+          </p>
+          <h1 className="mt-1 text-white font-extrabold text-2xl tracking-tight">Profile</h1>
+          <p className="mt-1.5 text-white/45 text-sm">
+            Saved spots and vibe history stay here.
+          </p>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-8">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-32">
         <AuthBanner
           session={session}
           email={email}

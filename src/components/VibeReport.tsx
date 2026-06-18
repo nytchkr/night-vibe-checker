@@ -1,12 +1,5 @@
 "use client";
 
-// ============================================================
-// VibeReport
-//
-// Full vibe report display component.
-// Renders skeleton placeholders when isLoading=true.
-// ============================================================
-
 import type { VibeReport as VibeReportType } from "@/types";
 import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
@@ -16,192 +9,161 @@ import { SaveSpotButton } from "./SaveSpotButton";
 interface VibeReportProps {
   report?: VibeReportType;
   isLoading: boolean;
-  /** Optional error message to display instead of report */
   error?: string;
-  /** Called when share link is copied to clipboard on desktop */
   onShareCopied?: () => void;
 }
 
-// --------------- Skeleton helpers --------------------------
-
-function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
+function SkeletonPulse({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <div
-      className={`animate-pulse rounded-md bg-white/10 ${className}`}
-      style={style}
-      aria-hidden="true"
-    />
+    <div className={`animate-pulse rounded-md bg-white/10 ${className}`} style={style} aria-hidden="true" />
   );
 }
 
-// --------------- Label row ---------------------------------
-
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2 border-b border-white/10 last:border-0">
-      <span className="text-white/50 text-sm">{label}</span>
-      <span className="text-white font-medium text-sm text-right">{value}</span>
+    <div className="flex items-center justify-between gap-4 py-2.5 border-b border-white/[0.07] last:border-0">
+      <span className="text-white/40 text-xs font-medium uppercase tracking-wide flex-shrink-0">{label}</span>
+      <span className="text-white text-sm text-right">{value}</span>
     </div>
   );
 }
 
-// --------------- Confidence indicator ----------------------
-
-function ConfidencePill({ confidence }: { confidence: number }) {
-  const pct = Math.round(confidence * 100);
-  const color =
-    pct >= 70 ? "text-emerald-400" : pct >= 40 ? "text-amber-400" : "text-rose-400";
+function EnergyBar({ level }: { level: string }) {
+  const pct = { Low: 25, Medium: 50, High: 75, Intense: 100 }[level] ?? 50;
+  const color = pct >= 75 ? "#FF2D78" : pct >= 50 ? "#a855f7" : "#00F5D4";
   return (
-    <span className={`text-xs font-medium ${color}`}>
-      {pct}% confidence
-    </span>
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: color, boxShadow: `0 0 6px ${color}88` }}
+        />
+      </div>
+      <span className="text-white/50 text-xs w-12 text-right">{level}</span>
+    </div>
   );
 }
 
-// --------------- Main component ----------------------------
-
 export function VibeReport({ report, isLoading, error, onShareCopied }: VibeReportProps) {
-  // Error state
   if (error) {
     return (
-      <div
-        role="alert"
-        className="rounded-2xl bg-rose-950/60 border border-rose-500/40 p-6 text-center"
-      >
+      <div role="alert" className="rounded-2xl bg-rose-950/60 border border-rose-500/40 p-6 text-center">
         <p className="text-rose-300 font-medium">{error}</p>
-        <p className="text-rose-400/60 text-sm mt-1">
-          Try searching for a different venue.
-        </p>
+        <p className="text-rose-400/60 text-sm mt-1">Try searching for a different venue.</p>
       </div>
     );
   }
 
-  // Loading skeleton
   if (isLoading) {
     return (
-      <div
-        role="status"
-        aria-label="Loading vibe report"
-        className="rounded-2xl bg-white/5 border border-white/10 p-6 space-y-6"
-      >
-        {/* Header row */}
+      <div role="status" aria-label="Loading vibe report" className="rounded-2xl bg-white/[0.04] border border-white/10 p-6 space-y-6">
         <div className="flex items-center gap-5">
-          {/* Score ring skeleton */}
           <div className="w-[100px] h-[100px] rounded-full bg-white/10 animate-pulse flex-shrink-0" />
           <div className="flex-1 space-y-3">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
+            <SkeletonPulse className="h-5 w-3/4" />
+            <SkeletonPulse className="h-3 w-1/2" />
+            <SkeletonPulse className="h-3 w-1/3" />
           </div>
         </div>
-        {/* Tags skeleton */}
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-7 rounded-full" style={{ width: `${60 + i * 12}px` }} />
+            <SkeletonPulse key={i} className="h-7 rounded-full" style={{ width: `${60 + i * 12}px` }} />
           ))}
         </div>
-        {/* Info rows skeleton */}
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-4 w-full" />
+            <SkeletonPulse key={i} className="h-4 w-full" />
           ))}
         </div>
-        {/* Summary skeleton */}
         <div className="space-y-2">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-5/6" />
-          <Skeleton className="h-3 w-4/6" />
+          <SkeletonPulse className="h-3 w-full" />
+          <SkeletonPulse className="h-3 w-5/6" />
+          <SkeletonPulse className="h-3 w-4/6" />
         </div>
         <span className="sr-only">Loading…</span>
       </div>
     );
   }
 
-  // Empty state — no report yet and not loading
   if (!report) {
     return (
-      <div className="rounded-2xl bg-white/5 border border-white/10 p-8 text-center">
-        <p className="text-white/40 text-sm">
-          Search for a venue to see its vibe report.
-        </p>
+      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-8 text-center">
+        <p className="text-white/40 text-sm">Search for a venue to see its vibe report.</p>
       </div>
     );
   }
 
-  // Full report
+  const confidencePct = Math.round(report.confidence * 100);
+  const confidenceColor = confidencePct >= 70 ? "text-emerald-400" : confidencePct >= 40 ? "text-amber-400" : "text-rose-400";
+
   return (
     <article
-      className="rounded-2xl bg-white/5 border border-white/10 p-6 space-y-6"
+      className="space-y-4"
       aria-label={`Vibe report for ${report.venueName}`}
     >
-      {/* Header: score ring + venue name */}
-      <header className="flex items-center gap-5">
-        <VibeScoreRing score={report.vibeScore} size={100} strokeWidth={9} />
-        <div className="min-w-0">
-          <h2 className="text-white font-bold text-xl leading-tight truncate">
-            {report.venueName}
-          </h2>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className="text-white/40 text-xs capitalize">
-              {report.energyLevel} energy · {report.crowdType}
+      {/* Score card */}
+      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5"
+        style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)" }}>
+        <div className="flex items-start gap-4">
+          <VibeScoreRing score={report.vibeScore} size={88} strokeWidth={8} className="flex-shrink-0" />
+          <div className="flex-1 min-w-0 pt-1">
+            <h2 className="text-white font-bold text-lg leading-tight">{report.venueName}</h2>
+            <p className="text-white/40 text-xs mt-1 capitalize">
+              {report.crowdType} · {report.energyLevel} energy
+            </p>
+            <div className="mt-2">
+              <EnergyBar level={report.energyLevel} />
+            </div>
+            <span className={`text-xs font-medium mt-1.5 block ${confidenceColor}`}>
+              {confidencePct}% confidence
             </span>
           </div>
-          <div className="mt-1">
-            <ConfidencePill confidence={report.confidence} />
+          {/* Action buttons in top-right of card */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <SaveSpotButton
+              venueId={report.venueId}
+              venueName={report.venueName}
+              vibeScoreSnapshot={report.vibeScore}
+              className="w-8 h-8 text-white/50 hover:text-white"
+            />
+            <ShareButton
+              venueName={report.venueName}
+              vibeScore={report.vibeScore}
+              summary={report.summary}
+              onCopied={onShareCopied}
+            />
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Vibe tags */}
-      <section aria-label="Vibe tags">
-        <div className="flex flex-wrap gap-2">
-          {report.vibeTags.map((tag) => (
-            <VibeTagBadge key={tag} tag={tag} variant="primary" />
-          ))}
-        </div>
-      </section>
+      <div className="flex flex-wrap gap-2 px-1">
+        {report.vibeTags.map((tag) => (
+          <VibeTagBadge key={tag} tag={tag} variant="primary" />
+        ))}
+      </div>
 
       {/* Detail rows */}
-      <section
-        className="rounded-xl bg-white/[0.03] border border-white/10 px-4 py-1"
-        aria-label="Venue details"
-      >
+      <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] px-4 py-1">
         <InfoRow label="Music" value={report.musicVibe} />
         <InfoRow label="Crowd" value={report.crowdType} />
-        <InfoRow label="Energy" value={report.energyLevel} />
-        <InfoRow
-          label="Best for"
-          value={report.bestFor.join(", ")}
-        />
-      </section>
+        <InfoRow label="Best for" value={report.bestFor.join(", ")} />
+      </div>
 
       {/* AI summary */}
-      <section aria-label="AI summary">
-        <p className="text-white/80 text-sm leading-relaxed">{report.summary}</p>
-      </section>
+      <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] p-4">
+        <p className="text-white/70 text-sm leading-relaxed">{report.summary}</p>
+        {report.fromPhoto && (
+          <p className="text-white/30 text-xs mt-2 flex items-center gap-1.5">
+            <span>📸</span> AI analysis via photo
+          </p>
+        )}
+      </div>
 
-      {/* Footer meta */}
-      <footer className="flex items-center justify-between flex-wrap gap-2">
-        <span className="text-white/25 text-xs">
-          {report.fromPhoto ? "Photo analysis" : "Text analysis"} ·{" "}
-          {new Date(report.generatedAt).toLocaleString()}
-        </span>
-        <div className="flex items-center gap-3">
-          <SaveSpotButton
-            venueId={report.venueId}
-            venueName={report.venueName}
-            vibeScoreSnapshot={report.vibeScore}
-          />
-          <ShareButton
-            venueName={report.venueName}
-            vibeScore={report.vibeScore}
-            summary={report.summary}
-            onCopied={onShareCopied}
-          />
-          {report.bestFor.slice(0, 2).map((label) => (
-            <VibeTagBadge key={label} tag={label} variant="secondary" />
-          ))}
-        </div>
-      </footer>
+      {/* Timestamp */}
+      <p className="text-white/20 text-xs text-center pb-2">
+        {new Date(report.generatedAt).toLocaleString()}
+      </p>
     </article>
   );
 }

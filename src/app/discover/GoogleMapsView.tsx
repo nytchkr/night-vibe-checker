@@ -24,7 +24,7 @@ interface GoogleMapsViewProps {
 // Attempt to import @vis.gl/react-google-maps.
 // The import is wrapped in a try/catch at the module level via
 // React.lazy / dynamic, so if the package is missing the parent
-// catches it and shows MapComingSoon instead.
+// catches it and shows the map preview fallback instead.
 let VisGlMap: React.ComponentType<{
   apiKey: string;
   defaultCenter: { lat: number; lng: number };
@@ -89,7 +89,7 @@ function IframeMap({
     <iframe
       title="Nearby venues map"
       src={src}
-      className="w-full h-52 rounded-2xl border border-white/10"
+      className="w-full h-72 rounded-[1.75rem] border border-white/10"
       loading="lazy"
       referrerPolicy="no-referrer-when-downgrade"
       allowFullScreen
@@ -109,7 +109,7 @@ function SelectedVenuePanel({
   onClose: () => void;
 }) {
   return (
-    <div className="relative">
+    <div className="relative rounded-[1.75rem] border border-white/10 bg-[#141420] p-2">
       <button
         onClick={onClose}
         aria-label="Close venue panel"
@@ -162,12 +162,15 @@ export default function GoogleMapsView({
 
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl overflow-hidden border border-white/10">
+        <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#141420]">
+          <div className="absolute left-4 top-4 z-10 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[11px] font-semibold text-white/80 backdrop-blur">
+            {venues.length} nearby
+          </div>
           <MapComp
             apiKey={apiKey}
             defaultCenter={center}
             defaultZoom={14}
-            style={{ height: "14rem", width: "100%" }}
+            style={{ height: "18rem", width: "100%" }}
           >
             {venues.map((venue) => (
               <MarkerComp

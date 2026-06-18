@@ -16,7 +16,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { VenueCard } from "@/components/VenueCard";
-import { VibeScoreRing } from "@/components/VibeScoreRing";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { VenueBasic } from "@/types";
 
@@ -152,23 +151,6 @@ function FilterChips({ active, onChange }: FilterChipsProps) {
         );
       })}
     </div>
-  );
-}
-
-// --------------- Small score ring for card augmentation ------
-
-interface SmallScoreRingProps {
-  score: number;
-}
-
-function SmallScoreRing({ score }: SmallScoreRingProps) {
-  return (
-    <VibeScoreRing
-      score={score}
-      size={40}
-      strokeWidth={4}
-      className="flex-shrink-0"
-    />
   );
 }
 
@@ -335,13 +317,22 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/90 backdrop-blur-xl border-b border-white/10 px-4 pt-safe">
-        <div className="max-w-lg mx-auto py-4 space-y-3">
-          <h1 className="text-gradient-vibe text-2xl font-extrabold tracking-tight">
-            NightVibe
-          </h1>
+      <header className="sticky top-0 z-40 bg-[#0A0A0F]/95 backdrop-blur-xl border-b border-white/[0.08] px-4">
+        <div className="max-w-lg mx-auto pt-4 pb-3 space-y-3">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-white/40 text-[11px] font-semibold uppercase tracking-[0.22em]">
+                Nightlife scanner
+              </p>
+              <h1 className="text-gradient-vibe mt-1 text-3xl font-extrabold tracking-tight">
+                NightVibe
+              </h1>
+            </div>
+            <span className="mb-1 rounded-full border border-[#00F5D4]/25 bg-[#00F5D4]/10 px-3 py-1 text-[11px] font-bold text-[#00F5D4]">
+              Live scores
+            </span>
+          </div>
           <SearchInput value={search} onChange={setSearch} />
-          {/* Filter chips always visible */}
           <FilterChips active={activeFilter} onChange={setActiveFilter} />
         </div>
       </header>
@@ -351,6 +342,27 @@ export default function HomePage() {
         className="max-w-lg mx-auto px-4 py-4 space-y-3 pb-32"
         aria-label="Venue feed"
       >
+        {!loading && !error && filteredVenues.length > 0 && (
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-white/35 text-[11px] font-semibold uppercase tracking-[0.2em]">
+                  Tonight
+                </p>
+                <p className="mt-1 text-white text-sm font-semibold">
+                  {filteredVenues.length} spots ready to scan
+                </p>
+              </div>
+              <Link
+                href="/discover"
+                className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1.5 text-xs font-semibold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white"
+              >
+                Map
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Error banner */}
         {error && (
           <div
@@ -381,13 +393,7 @@ export default function HomePage() {
         {!loading && filteredVenues.length > 0 && (
           <ul className="space-y-3 list-none" aria-label="Venue results">
             {filteredVenues.map((venue) => (
-              <li key={venue.placeId} className="relative">
-                {/* Overlay small score ring on card if cached score exists */}
-                {venue.cachedVibeScore != null && (
-                  <div className="absolute top-3 right-3 z-10 pointer-events-none">
-                    <SmallScoreRing score={venue.cachedVibeScore} />
-                  </div>
-                )}
+              <li key={venue.placeId}>
                 <VenueCard
                   venue={venue}
                   variant="full"
