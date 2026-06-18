@@ -30,14 +30,14 @@ interface EmptyStateCardProps {
 
 function EmptyStateCard({ icon, message, cta }: EmptyStateCardProps) {
   return (
-    <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-8 flex flex-col items-center gap-3 text-center">
-      <span className="text-3xl" aria-hidden="true">{icon}</span>
-      <p className="text-white/40 text-sm max-w-xs">{message}</p>
+    <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 flex flex-col items-center gap-2.5 text-center">
+      <span className="text-2xl" aria-hidden="true">{icon}</span>
+      <p className="text-white/40 text-sm leading-relaxed max-w-xs">{message}</p>
       {cta && (
         <Link
           href={cta.href}
           className="
-            mt-1 px-4 py-2 rounded-xl text-xs font-semibold text-white
+            mt-0.5 px-4 py-2 rounded-xl text-xs font-semibold text-white
             bg-gradient-to-r from-purple-600 to-pink-600
             hover:from-purple-500 hover:to-pink-500
             focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400
@@ -298,7 +298,7 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-32">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-44">
         <AuthBanner
           session={session}
           email={email}
@@ -352,7 +352,7 @@ export default function ProfilePage() {
           )}
         </section>
 
-        <div className="h-4" aria-hidden="true" />
+        <div className="h-6" aria-hidden="true" />
       </div>
     </div>
   );

@@ -202,8 +202,6 @@ export default function HomePage() {
   const [checkingVenueId, setCheckingVenueId] = useState<string | null>(null);
   // Track user coordinates from geolocation (optional — improves search quality)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  // True once the user has typed something and triggered a search
-  const [hasSearched, setHasSearched] = useState(false);
   // Prevent the mount fetch from running more than once
   const mountFetchDone = useRef(false);
 
@@ -284,7 +282,6 @@ export default function HomePage() {
   // Debounced search effect — 300 ms after last keystroke
   useEffect(() => {
     if (!search.trim()) return; // Let mount fetch handle the blank-query state
-    setHasSearched(true);
     const timer = setTimeout(() => {
       fetchVenues(search);
     }, 300);
@@ -309,10 +306,7 @@ export default function HomePage() {
     );
   }
 
-  // Only show empty state when the user has typed something and the results came back empty.
-  // Do NOT show it on initial mount while the default fetch is running or has just loaded.
-  const showEmpty =
-    !loading && !error && hasSearched && search.trim() !== "" && filteredVenues.length === 0;
+  const showEmpty = !loading && !error && filteredVenues.length === 0;
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
@@ -416,7 +410,7 @@ export default function HomePage() {
         href="/vibe-check"
         aria-label="Check a vibe"
         className="
-          fixed bottom-8 right-5 z-50
+          fixed bottom-28 right-5 z-40
           w-14 h-14 rounded-full
           flex items-center justify-center
           bg-[#00F5D4] hover:bg-[#00dfc0]
