@@ -46,6 +46,10 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const pathname = usePathname();
 
+  if (pathname.startsWith("/agent-board")) {
+    return null;
+  }
+
   return (
     <nav
       aria-label="Main navigation"

@@ -601,17 +601,19 @@ test.describe("Save spot flow", () => {
     // Inject a fake Supabase session so SaveSpotButton finds a token
     // (getSession() reads localStorage without network validation)
     await page.addInitScript(() => {
-      localStorage.setItem(
+      const fakeSession = JSON.stringify({
+        access_token: "fake-e2e-token",
+        refresh_token: "fake-e2e-refresh",
+        token_type: "bearer",
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: { id: "e2e-user-id", email: "test@night.vibe", role: "authenticated" },
+      });
+
+      [
         "sb-gfsbqewkrcyclbktfyfk-auth-token",
-        JSON.stringify({
-          access_token: "fake-e2e-token",
-          refresh_token: "fake-e2e-refresh",
-          token_type: "bearer",
-          expires_in: 3600,
-          expires_at: Math.floor(Date.now() / 1000) + 3600,
-          user: { id: "e2e-user-id", email: "test@night.vibe", role: "authenticated" },
-        })
-      );
+        "sb-onlpwglwnqoivuykywrk-auth-token",
+      ].forEach((key) => localStorage.setItem(key, fakeSession));
     });
 
     await mockVibeCheck(page);
