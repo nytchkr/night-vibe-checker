@@ -83,7 +83,7 @@ export async function GET(
     const { data, error } = await supabaseAdmin
       .from("vibe_reports")
       .select("*")
-      .eq("venue_id", id)
+      .eq("place_id", id)
       .order("generated_at", { ascending: false })
       .limit(1)
       .single();
@@ -93,8 +93,8 @@ export async function GET(
       report = {
         id: data.id,
         venueId: data.venue_id,
-        venueName: data.venue_name,
-        vibeScore: data.vibe_score,
+        venueName: venue?.name ?? "Venue",
+        vibeScore: Number(data.vibe_score),
         energyLevel: data.energy_level,
         vibeTags: data.vibe_tags ?? [],
         musicVibe: data.music_vibe,
@@ -103,8 +103,12 @@ export async function GET(
         summary: data.summary,
         generatedAt: data.generated_at,
         fromPhoto: data.from_photo ?? false,
-        confidence: data.confidence ?? 1,
+        confidence: Number(data.confidence ?? 1),
       };
+
+      if (venue) {
+        venue.cachedVibeScore = report.vibeScore;
+      }
     }
   } catch (err) {
     // Non-fatal — log and continue with report = null

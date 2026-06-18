@@ -7,21 +7,15 @@
 // Key decisions:
 //   - jsdom environment: lets us import Next.js server utilities that
 //     reference browser globals without crashing.
-//   - @/ alias matches the tsconfig.json paths so imports work without
-//     modification in test files.
+//   - @/ alias is configured manually so imports work without modification.
 //   - Coverage thresholds are conservative for an MVP — focus on the AI
 //     parsing logic and route handlers that protect against data corruption.
 // ============================================================
 
 import { defineConfig } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
 import path from "path";
 
 export default defineConfig({
-  plugins: [
-    // Automatically resolves path aliases from tsconfig.json (e.g. @/ → src/)
-    tsconfigPaths(),
-  ],
   test: {
     // node environment: the unit/integration tests target server-side modules
     // (AI, routes, rate limiter). ai.ts explicitly throws when window is defined,
@@ -62,7 +56,7 @@ export default defineConfig({
       },
     },
 
-    // Resolve the same aliases manually as a fallback (belt-and-suspenders)
+    // Resolve the same alias used by tsconfig.json.
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },

@@ -77,7 +77,7 @@ import {
   makeVibeReport,
   makeVenueBasic,
   makeVenueDetail,
-} from "../../lib/__tests__/fixtures";
+} from "../../../lib/__tests__/fixtures";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

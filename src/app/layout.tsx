@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
@@ -17,11 +17,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "NightVibe",
   description: "AI-powered nightlife vibe checker — find your scene tonight.",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 // --------------- Bottom nav icons (inline SVG, no external deps) -----

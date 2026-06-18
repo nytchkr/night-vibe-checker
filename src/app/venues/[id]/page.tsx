@@ -182,7 +182,7 @@ export default function VenueDetailPage() {
           throw new Error(`Venue not found (${res.status})`);
         }
         const json = await res.json();
-        const data: VenueBasic = json.data ?? json;
+        const data: VenueBasic = json.data?.venue ?? json.data ?? json;
         if (!cancelled) setVenue(data);
       } catch (err) {
         if (!cancelled) {

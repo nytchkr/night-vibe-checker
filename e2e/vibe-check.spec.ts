@@ -426,7 +426,7 @@ test.describe("Vibe Check flow", () => {
     // Mock clipboard before clicking Share (navigator.share is not available in Chromium)
     await page.evaluate(() => {
       // Remove native share to force clipboard fallback
-      delete (window.navigator as Record<string, unknown>).share;
+      delete (window.navigator as unknown as Record<string, unknown>).share;
       Object.defineProperty(navigator, "clipboard", {
         value: { writeText: async () => {} },
         configurable: true,
@@ -676,7 +676,7 @@ test.describe("Share flow", () => {
 
     // Mock navigator.clipboard for the copy-link fallback
     await page.evaluate(() => {
-      delete (window.navigator as Record<string, unknown>).share;
+      delete (window.navigator as unknown as Record<string, unknown>).share;
       Object.defineProperty(navigator, "clipboard", {
         value: { writeText: async () => {} },
         configurable: true,

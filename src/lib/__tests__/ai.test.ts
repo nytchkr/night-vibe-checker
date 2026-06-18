@@ -457,8 +457,8 @@ describe("Zod schema parsing", () => {
     const result = await analyzeVibe(makeVibeInput());
 
     // The parsed result must not carry through the unexpected field
-    expect((result as Record<string, unknown>).unknownField).toBeUndefined();
-    expect((result as Record<string, unknown>).anotherExtra).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).unknownField).toBeUndefined();
+    expect((result as unknown as Record<string, unknown>).anotherExtra).toBeUndefined();
     // And the report should be valid (not a fallback)
     expect(result.confidence).toBeGreaterThan(0.2);
   });
