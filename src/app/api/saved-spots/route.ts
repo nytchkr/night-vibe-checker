@@ -90,7 +90,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await adminClient
     .from("saved_spots")
-    .select("*, venues(name, address, place_id)")
+    .select("id, user_id, venue_id, venue_name, vibe_score_snapshot, tags_snapshot, saved_at")
     .eq("user_id", userId)
     .order("saved_at", { ascending: false });
 
@@ -105,9 +105,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const spots: SavedSpot[] = (data ?? []).map((row) => ({
     id: row.id as string,
     userId: row.user_id as string,
-    venueId: (row.venues as { place_id?: string } | null)?.place_id ?? (row.venue_id as string),
-    venueName: (row.venues as { name?: string } | null)?.name ?? "",
-    address: (row.venues as { address?: string } | null)?.address ?? "",
+    venueId: row.venue_id as string,
+    venueName: (row.venue_name as string) ?? "",
+    address: "",
     vibeScoreSnapshot: row.vibe_score_snapshot ?? undefined,
     savedAt: row.saved_at as string,
     tags: ((row.tags_snapshot as string[]) ?? []) as VibeTagValue[],
