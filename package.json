@@ -18,8 +18,10 @@
     "db:reset": "supabase db reset"
   },
   "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "^2.43.4",
-    "next": "14.2.3",
+    "@vis.gl/react-google-maps": "^1.8.3",
+    "next": "^16.2.9",
     "openai": "^4.47.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -27,6 +29,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.46.0",
     "@tailwindcss/typography": "^0.5.13",
     "@types/node": "^20.14.2",
     "@types/react": "^18.3.3",
@@ -40,8 +43,7 @@
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5",
-    "vitest": "^1.6.0",
-    "@playwright/test": "^1.46.0",
-    "vite-tsconfig-paths": "^5.0.1"
+    "vite-tsconfig-paths": "^5.0.1",
+    "vitest": "^1.6.0"
   }
 }

@@ -204,7 +204,7 @@ function EmptyState({ query, activeFilter }: { query: string; activeFilter: Filt
       <p className="text-white/40 text-xs max-w-xs">
         {hasFilter
           ? "Try removing the filter or adjusting your search terms."
-          : "Check the spelling or try a broader term like "bar" or "lounge"."}
+          : `Check the spelling or try a broader term like "bar" or "lounge".`}
       </p>
     </div>
   );

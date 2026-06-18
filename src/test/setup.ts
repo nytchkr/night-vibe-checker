@@ -24,7 +24,7 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.OPENAI_API_KEY = "sk-test-key-000000000000";
 process.env.GOOGLE_PLACES_API_KEY = "places-test-key";
-process.env.NODE_ENV = "test";
+// NODE_ENV is read-only in TypeScript strict mode — already "test" when vitest runs
 
 // ── Console silencing ────────────────────────────────────────────────────────
 // Suppress expected warning/error output that would otherwise clutter the

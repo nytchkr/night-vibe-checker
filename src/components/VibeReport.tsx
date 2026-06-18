@@ -20,10 +20,11 @@ interface VibeReportProps {
 
 // --------------- Skeleton helpers --------------------------
 
-function Skeleton({ className = "" }: { className?: string }) {
+function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
       className={`animate-pulse rounded-md bg-white/10 ${className}`}
+      style={style}
       aria-hidden="true"
     />
   );
