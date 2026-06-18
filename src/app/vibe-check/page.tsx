@@ -17,7 +17,7 @@ function VibeCheckInner() {
   const [report, setReport] = useState<VibeReportType | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleSubmit = useCallback(async (input: { venueName: string; description?: string; photoUrl?: string }) => {
+  const handleSubmit = useCallback(async (input: { venueName: string; description?: string; photoBase64?: string }) => {
     setCurrentVenueName(input.venueName); setPageState("processing");
     try {
       const res = await fetch("/api/vibe-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...input, ...(prefillVenueId ? { venueId: prefillVenueId } : {}) }) });

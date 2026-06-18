@@ -8,13 +8,13 @@
 // and optional photo URL, then calls onSubmit.
 // ============================================================
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef } from "react";
 
 interface VibeCheckInputProps {
   onSubmit: (input: {
     venueName: string;
     description?: string;
-    photoUrl?: string;
+    photoBase64?: string;
   }) => void;
   isLoading?: boolean;
   /** Pre-fill the venue name field (e.g. from URL query params) */
@@ -24,7 +24,25 @@ interface VibeCheckInputProps {
 export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName = "" }: VibeCheckInputProps) {
   const [venueName, setVenueName] = useState(initialVenueName);
   const [description, setDescription] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [photoBase64, setPhotoBase64] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setPhotoBase64(result); // full data URL; API strips the prefix
+      setPreviewUrl(result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function updateVenueName(value: string) {
+    setVenueName(value);
+  }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,7 +51,7 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
     onSubmit({
       venueName: venueName.trim(),
       description: description.trim() || undefined,
-      photoUrl: photoUrl.trim() || undefined,
+      photoBase64: photoBase64 ?? undefined,
     });
   }
 
@@ -56,7 +74,8 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
           type="text"
           required
           value={venueName}
-          onChange={(e) => setVenueName(e.target.value)}
+          onChange={(e) => updateVenueName(e.currentTarget.value)}
+          onInput={(e) => updateVenueName(e.currentTarget.value)}
           placeholder="e.g. The Midnight Lounge"
           disabled={isLoading}
           className="
@@ -97,31 +116,56 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
         />
       </div>
 
-      {/* Photo URL — optional */}
+      {/* Photo upload — optional */}
       <div className="space-y-1.5">
         <label
-          htmlFor="photoUrl"
+          htmlFor="photoUpload"
           className="block text-sm font-medium text-white/70"
         >
-          Photo URL{" "}
+          Photo{" "}
           <span className="text-white/30 font-normal text-xs">(optional)</span>
         </label>
-        <input
-          id="photoUrl"
-          type="url"
-          value={photoUrl}
-          onChange={(e) => setPhotoUrl(e.target.value)}
-          placeholder="https://example.com/venue-photo.jpg"
-          disabled={isLoading}
-          className="
-            w-full rounded-xl bg-white/[0.07] border border-white/10
-            text-white placeholder:text-white/30 text-sm
-            px-4 py-3
-            focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/40
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-colors duration-150
-          "
-        />
+
+        {previewUrl ? (
+          <div className="relative w-full rounded-xl overflow-hidden border border-white/10">
+            <img
+              src={previewUrl}
+              alt="Photo preview"
+              data-testid="photo-preview"
+              className="w-full max-h-48 object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => { setPhotoBase64(null); setPreviewUrl(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+              className="absolute top-2 right-2 rounded-full bg-black/60 border border-white/20 text-white/70 hover:text-white px-2 py-0.5 text-xs"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <label
+            htmlFor="photoUpload"
+            className="
+              flex flex-col items-center justify-center gap-1.5
+              w-full rounded-xl border border-dashed border-white/20
+              bg-white/[0.03] hover:bg-white/[0.06]
+              px-4 py-5 cursor-pointer transition-colors duration-150
+              text-white/40 hover:text-white/60 text-sm
+            "
+          >
+            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Upload a photo</span>
+            <input
+              ref={fileInputRef}
+              id="photoUpload"
+              type="file"
+              accept="image/*"
+              disabled={isLoading}
+              onChange={handleFileChange}
+              className="sr-only"
+            />
+          </label>
+        )}
       </div>
 
       {/* Submit */}

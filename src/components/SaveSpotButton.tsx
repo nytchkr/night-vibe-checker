@@ -125,8 +125,10 @@ export function SaveSpotButton({
       });
 
       if (!res.ok) {
-        // Revert optimistic update on failure
         setSaved(!nextSaved);
+      } else if (nextSaved) {
+        setTooltip("Saved!");
+        setTimeout(() => setTooltip(null), 2000);
       }
     } catch {
       // Network error — revert

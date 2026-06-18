@@ -550,13 +550,14 @@ test.describe("Happy path — venue search to vibe report", () => {
 
 // Photo upload flow
 test.describe("Photo upload flow", () => {
-  // VibeCheckInput accepts a photo URL (text field), not a file input — this test
-  // requires a file-upload UI that has not yet been built. Skip until implemented.
-  test.skip("user selects a file, preview appears, submits, report shows visual analysis note", async ({
+  test("user selects a file, preview appears, submits, report shows visual analysis note", async ({
     page,
   }) => {
     await mockVibeCheck(page, MOCK_VIBE_REPORT_FROM_PHOTO);
     await page.goto("/vibe-check");
+
+    // Fill venue name first — submit is disabled without it
+    await page.getByLabel(/venue name/i).fill("Photo Venue");
 
     // The photo upload input on VibeCheckInput
     const fileInput = page.locator('input[type="file"]');
@@ -594,20 +595,41 @@ test.describe("Photo upload flow", () => {
 
 // Save spot flow
 test.describe("Save spot flow", () => {
-  // NV-009 (save spot feature) is not yet implemented — VibeReport has no save/bookmark
-  // button. This test will pass once NV-009 lands.
-  test.skip("user clicks save on a vibe report, sees confirmation toast, spot appears in saved list", async ({
+  test("user clicks save on a vibe report, sees confirmation toast", async ({
     page,
   }) => {
+    // Inject a fake Supabase session so SaveSpotButton finds a token
+    // (getSession() reads localStorage without network validation)
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "sb-gfsbqewkrcyclbktfyfk-auth-token",
+        JSON.stringify({
+          access_token: "fake-e2e-token",
+          refresh_token: "fake-e2e-refresh",
+          token_type: "bearer",
+          expires_in: 3600,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+          user: { id: "e2e-user-id", email: "test@night.vibe", role: "authenticated" },
+        })
+      );
+    });
+
     await mockVibeCheck(page);
 
-    // Mock the save endpoint
+    // Mock both GET (initial saved-state check) and POST (save action)
     await page.route("**/api/saved-spots", (route) => {
-      if (route.request().method() === "POST") {
+      const method = route.request().method();
+      if (method === "GET") {
         route.fulfill({
-          status: 201,
+          status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ status: "success", data: { id: "saved-spot-001" } }),
+          body: JSON.stringify({ status: "success", data: { spots: [] } }),
+        });
+      } else if (method === "POST") {
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ status: "success", data: { saved: true } }),
         });
       } else {
         route.continue();
@@ -622,15 +644,14 @@ test.describe("Save spot flow", () => {
     // Wait for report
     await expect(page.getByText(/buzzing garden bar/i)).toBeVisible({ timeout: 10_000 });
 
-    // Click save
+    // Click save — button aria-label starts with "Save"
     await page
-      .getByRole("button", { name: /save|bookmark|add to saved/i })
-      .first()
+      .getByRole("button", { name: /save the electric garden/i })
       .click();
 
-    // Confirmation toast must appear
+    // SaveSpotButton shows "Saved!" tooltip on success
     await expect(
-      page.getByText(/saved|added to your spots|bookmark/i)
+      page.getByText(/saved!/i)
     ).toBeVisible({ timeout: 5000 });
   });
 });
