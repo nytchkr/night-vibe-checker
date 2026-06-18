@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { SavedSpot, CheckIn } from "@/types";
 
 // --------------- Section header ----------------------------
@@ -87,16 +88,13 @@ function SavedSpotRow({ spot }: { spot: SavedSpot }) {
 
 function SavedSpotRowSkeleton() {
   return (
-    <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 animate-pulse">
-      {/* Avatar placeholder */}
-      <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
-      {/* Text lines */}
+    <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10">
+      <Skeleton className="w-10 h-10 rounded-full flex-shrink-0 bg-white/10" />
       <div className="flex-1 space-y-2">
-        <div className="h-3 bg-white/10 rounded w-2/3" />
-        <div className="h-2.5 bg-white/10 rounded w-1/2" />
+        <Skeleton className="h-3 w-2/3 bg-white/10" />
+        <Skeleton className="h-2.5 w-1/2 bg-white/10" />
       </div>
-      {/* Chevron placeholder */}
-      <div className="w-3.5 h-3.5 rounded bg-white/10 flex-shrink-0" />
+      <Skeleton className="w-3.5 h-3.5 rounded flex-shrink-0 bg-white/10" />
     </div>
   );
 }

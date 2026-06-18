@@ -4,22 +4,50 @@
 
 /* ============================================================
    Night Vibe Checker — Global Styles
+   shadcn/ui dark (zinc) theme variables merged with brand tokens
    ============================================================ */
 
-/* --------------- Design tokens (CSS variables) -------------- */
+@layer base {
+  :root {
+    /* shadcn/ui dark overrides — always dark for this app */
+    --background: 240 6% 4%;      /* #0A0A0F */
+    --foreground: 0 0% 98%;
+    --card: 240 10% 10%;          /* #141420 */
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 270 70% 55%;       /* purple-600 */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 8% 18%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 8% 18%;
+    --muted-foreground: 240 5% 55%;
+    --accent: 174 100% 48%;       /* neon-cyan #00F5D4 */
+    --accent-foreground: 240 6% 4%;
+    --destructive: 338 87% 58%;   /* neon-magenta #FF2D78 */
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 8% 18%;
+    --input: 240 8% 18%;
+    --ring: 270 70% 55%;
+    --radius: 0.75rem;
 
-:root {
-  --neon-cyan: #00F5D4;
-  --neon-magenta: #FF2D78;
-  --bg-deep: #0A0A0F;
-  --bg-card: #141420;
-  --bg-elevated: #1E1E2E;
-  --font-inter: "Inter", system-ui, sans-serif;
+    /* Night Vibe brand tokens */
+    --neon-cyan: #00F5D4;
+    --neon-magenta: #FF2D78;
+    --bg-deep: #0A0A0F;
+    --bg-card: #141420;
+    --bg-elevated: #1E1E2E;
+    --font-inter: "Inter", system-ui, sans-serif;
+  }
 }
 
 /* --------------- Base body styles --------------------------- */
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   *,
   *::before,
   *::after {
@@ -32,21 +60,18 @@
   }
 
   body {
+    @apply bg-background text-foreground;
     background-color: var(--bg-deep);
-    color: #ffffff;
     font-family: var(--font-inter);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
   }
 
-  /* Remove default button / input styles to keep design consistent */
   button {
     cursor: pointer;
   }
 
-  /* Scrollbar styling for webkit browsers */
   ::-webkit-scrollbar {
     width: 4px;
     height: 4px;

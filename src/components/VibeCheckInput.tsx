@@ -9,6 +9,10 @@
 // ============================================================
 
 import { useState, FormEvent, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface VibeCheckInputProps {
   onSubmit: (input: {
@@ -63,13 +67,10 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
     >
       {/* Venue name — required */}
       <div className="space-y-1.5">
-        <label
-          htmlFor="venueName"
-          className="block text-sm font-medium text-white/70"
-        >
+        <Label htmlFor="venueName" className="text-white/70">
           Venue name <span className="text-rose-400" aria-hidden="true">*</span>
-        </label>
-        <input
+        </Label>
+        <Input
           id="venueName"
           type="text"
           required
@@ -78,41 +79,24 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
           onInput={(e) => updateVenueName(e.currentTarget.value)}
           placeholder="e.g. The Midnight Lounge"
           disabled={isLoading}
-          className="
-            w-full rounded-xl bg-white/[0.07] border border-white/10
-            text-white placeholder:text-white/30 text-sm
-            px-4 py-3
-            focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/40
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-colors duration-150
-          "
+          className="bg-white/[0.07] border-white/10 text-white placeholder:text-white/30 focus-visible:ring-cyan-400/40 focus-visible:border-cyan-400/60"
         />
       </div>
 
       {/* Description — optional */}
       <div className="space-y-1.5">
-        <label
-          htmlFor="description"
-          className="block text-sm font-medium text-white/70"
-        >
+        <Label htmlFor="description" className="text-white/70">
           Description{" "}
           <span className="text-white/30 font-normal text-xs">(optional)</span>
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           id="description"
           rows={3}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe the vibe, what you saw, or anything notable…"
           disabled={isLoading}
-          className="
-            w-full rounded-xl bg-white/[0.07] border border-white/10
-            text-white placeholder:text-white/30 text-sm
-            px-4 py-3 resize-none
-            focus:outline-none focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/40
-            disabled:opacity-50 disabled:cursor-not-allowed
-            transition-colors duration-150
-          "
+          className="bg-white/[0.07] border-white/10 text-white placeholder:text-white/30 focus-visible:ring-cyan-400/40 focus-visible:border-cyan-400/60 resize-none"
         />
       </div>
 
@@ -169,27 +153,20 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
       </div>
 
       {/* Submit */}
-      <button
+      <Button
         type="submit"
         disabled={isLoading || !venueName.trim()}
-        className="
-          w-full py-3 rounded-xl text-sm font-semibold text-white
-          bg-gradient-to-r from-purple-600 to-pink-600
-          hover:from-purple-500 hover:to-pink-500
-          disabled:opacity-50 disabled:cursor-not-allowed
-          focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400
-          transition-all duration-150
-        "
+        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold"
       >
         {isLoading ? (
-          <span className="flex items-center justify-center gap-2">
+          <span className="flex items-center gap-2">
             <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
             Checking vibe…
           </span>
         ) : (
           "Check Vibe"
         )}
-      </button>
+      </Button>
     </form>
   );
 }

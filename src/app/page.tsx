@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { VenueCard } from "@/components/VenueCard";
 import { VibeScoreRing } from "@/components/VibeScoreRing";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { VenueBasic } from "@/types";
 
 // --------------- Filter chip config -------------------------
@@ -49,20 +50,17 @@ const FILTER_TYPE_MAP: Record<FilterKey, string[]> = {
 
 function VenueCardSkeleton() {
   return (
-    <div className="rounded-2xl bg-[#141420] border border-white/10 p-4 flex items-center gap-4 animate-pulse">
-      {/* Score ring placeholder */}
-      <div className="w-[72px] h-[72px] rounded-full bg-white/10 flex-shrink-0" />
-      {/* Text lines */}
+    <div className="rounded-2xl bg-[#141420] border border-white/10 p-4 flex items-center gap-4">
+      <Skeleton className="w-[72px] h-[72px] rounded-full flex-shrink-0 bg-white/10" />
       <div className="flex-1 space-y-3">
-        <div className="h-4 bg-white/10 rounded-md w-3/4" />
-        <div className="h-3 bg-white/10 rounded-md w-1/2" />
+        <Skeleton className="h-4 w-3/4 bg-white/10" />
+        <Skeleton className="h-3 w-1/2 bg-white/10" />
         <div className="flex gap-2">
-          <div className="h-5 bg-white/10 rounded-full w-16" />
-          <div className="h-5 bg-white/10 rounded-full w-12" />
+          <Skeleton className="h-5 w-16 rounded-full bg-white/10" />
+          <Skeleton className="h-5 w-12 rounded-full bg-white/10" />
         </div>
       </div>
-      {/* Button placeholder */}
-      <div className="w-24 h-9 bg-white/10 rounded-xl flex-shrink-0" />
+      <Skeleton className="w-24 h-9 rounded-xl flex-shrink-0 bg-white/10" />
     </div>
   );
 }
