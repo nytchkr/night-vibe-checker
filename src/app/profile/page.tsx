@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
-import { createBrowserClient } from "@/lib/supabase";
+import { createBrowserClient } from "@/lib/supabase-browser";
 import type { SavedSpot, CheckIn } from "@/types";
 
 // --------------- Section header ----------------------------

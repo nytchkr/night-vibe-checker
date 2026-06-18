@@ -49,7 +49,7 @@ export function ShareButton({ venueName, vibeScore, summary, onCopied }: ShareBu
       "
     >
       <ShareIcon />
-      <span>{copied ? "Copied!" : "Share"}</span>
+      <span>{copied ? "Copied to clipboard!" : "Share"}</span>
     </button>
   );
 }
