@@ -6,10 +6,9 @@
 -- this stage of the MVP.
 -- ============================================================
 
-create extension if not exists "uuid-ossp";
-
+-- gen_random_uuid() is built-in from PG13+ — no extension needed
 create table if not exists public.saved_spots (
-  id                  uuid primary key default uuid_generate_v4(),
+  id                  uuid primary key default gen_random_uuid(),
   user_id             uuid not null references auth.users(id) on delete cascade,
   -- Google Places place_id — NOT a FK to a venues table
   venue_id            text not null,

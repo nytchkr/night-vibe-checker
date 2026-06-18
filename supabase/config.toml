@@ -1,8 +1,8 @@
 # Supabase local dev config
 # Switch between projects with: supabase link --project-ref <ref>
 #
-# Production project ref: gfsbqewkrcyclbktfyfk
-# Dev project ref:        (fill in after creating the dev project)
+# Production project ref: gfsbqewkrcyclbktfyfk  (account: your main account)
+# Dev project ref:        onlpwglwnqoivuykywrk  (account: dev@dashurl.site)
 
 [api]
 enabled = true
