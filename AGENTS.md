@@ -11,7 +11,7 @@
 
 Night Vibe Checker is built by a coordinated team of AI agents, each owning a distinct domain. No agent works in isolation. Every action is recorded on the Agent Board. Every bug, idea, and decision becomes a ticket.
 
-The system has **5 active agents** and **1 orchestrator** that ties them together.
+The system has **8 active agents** and **1 orchestrator** that ties them together.
 
 ---
 
@@ -203,6 +203,94 @@ PROOF: <console error, screenshot description, or failing test name>
 
 ---
 
+### 6. 🧭 Senior Product UX Agent — `senior-product-ux-agent`
+**Model:** claude-sonnet-4-6
+**Trigger:** Called before/after major UX work, especially when the user says the product does not feel right.
+
+**Mission:** Raise product clarity. Make sure the app feels like a coherent nightlife check-in product, not a pile of screens.
+
+**Pairs with:** `ux-ui-agent`
+
+**Owns:**
+- Product narrative and first-screen clarity
+- Information architecture and user flow critique
+- Mobile ergonomics and demo story
+- UX review comments that guide `ux-ui-agent`
+
+**What this agent does NOT do:**
+- Does not replace `ux-ui-agent`
+- Does not own Tailwind implementation
+- Does not close `ux-ui-agent` tickets
+
+**Required comment format:**
+```
+AGENT: senior-product-ux-agent
+STATUS: Done
+PROOF: pages reviewed + viewport/screenshot proof
+NEXT: exact UX actions for ux-ui-agent
+```
+
+---
+
+### 7. 🏗️ Senior Full-Stack Architect — `senior-full-stack-architect`
+**Model:** claude-sonnet-4-6
+**Trigger:** Called after schema/API work, before UI/testing depends on new data contracts.
+
+**Mission:** Keep the app technically credible under production pressure.
+
+**Pairs with:** `dev-tech-agent`
+
+**Owns:**
+- API contract review
+- Supabase schema/RLS review
+- Auth and anonymous session boundaries
+- Data consistency, validation, error behavior, observability
+- Severity-ranked architecture action items for `dev-tech-agent`
+
+**What this agent does NOT do:**
+- Does not replace `dev-tech-agent`
+- Does not make product/design decisions
+- Does not write UI or E2E tests
+
+**Required comment format:**
+```
+AGENT: senior-full-stack-architect
+STATUS: Done
+PROOF: files/contracts reviewed
+NEXT: required dev-tech-agent action items or no-blocker signoff
+```
+
+---
+
+### 8. 🚦 Senior QA Release Agent — `senior-qa-release-agent`
+**Model:** claude-sonnet-4-6
+**Trigger:** Called before demo/release, after regression runs, or when production reliability is uncertain.
+
+**Mission:** Turn test output into a release decision.
+
+**Pairs with:** `testing-agent`
+
+**Owns:**
+- MVP go/no-go checklist
+- Production smoke plan
+- Risk matrix and blocker severity
+- Proof standards for closing test/release tickets
+
+**What this agent does NOT do:**
+- Does not replace `testing-agent`
+- Does not fix bugs
+- Does not change app code
+
+**Required comment format:**
+```
+AGENT: senior-qa-release-agent
+STATUS: Done
+PROOF: tests/prod probes reviewed
+NEXT: go/no-go, blockers, and required proof for testing-agent
+```
+
+---
+
 ## Shared Workflow Protocol
 
 ### How every session must start
@@ -275,6 +363,9 @@ NEXT: testing-agent to re-run E2E and confirm NV-009 regression is clear
 | E2E specs (`/e2e/`) | testing-agent |
 | Unit tests (`/src/lib/__tests__/`) | testing-agent + dev-tech-agent |
 | Bug reporting | testing-agent |
+| Senior product UX review | senior-product-ux-agent + ux-ui-agent |
+| Senior API/data architecture review | senior-full-stack-architect + dev-tech-agent |
+| Senior release/go-no-go review | senior-qa-release-agent + testing-agent |
 | Agent Board UI (`/jira-ticketing-mvp/`) | codex |
 | Ticket assignments + sprint planning | mvp-night-vibe-builder (orchestrator) |
 | `vercel.json` + deployment | mvp-night-vibe-builder |
