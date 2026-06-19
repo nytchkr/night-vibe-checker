@@ -45,6 +45,17 @@ function getSessionId(): string {
   return id;
 }
 
+function manualVenueIdFromName(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  return `manual:${slug || "venue"}`;
+}
+
 // --------------- Back icon ----------------------------------
 
 function BackIcon() {
@@ -79,12 +90,13 @@ function CheckInInner() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const trimmedVenueName = venueName.trim();
       const res = await fetch("/api/check-ins", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          venueId: prefillVenueId || venueName.trim(),
-          venueName: venueName.trim(),
+          venueId: prefillVenueId || manualVenueIdFromName(trimmedVenueName),
+          venueName: trimmedVenueName,
           crowdLevel,
           vibeScore,
           sessionId: getSessionId(),

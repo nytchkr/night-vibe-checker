@@ -94,6 +94,46 @@ test.describe("Live check-in MVP flow", () => {
     expect(payload).not.toHaveProperty("waitTime");
   });
 
+  test("uses a safe manual venue id when no venue is prefilled", async ({ page }) => {
+    let checkInPayload: Record<string, unknown> | null = null;
+
+    await page.route("**/api/check-ins", async (route) => {
+      const payload = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
+      checkInPayload = payload;
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "success",
+          data: {
+            checkIn: {
+              id: "checkin-manual-venue",
+              venueId: payload.venueId,
+              venueName: payload.venueName,
+              crowdLevel: payload.crowdLevel,
+              vibeScore: payload.vibeScore,
+              tags: [],
+              createdAt: new Date().toISOString(),
+            },
+          },
+          meta: { cached: false, generatedAt: new Date().toISOString(), requestId: "e2e-manual-venue" },
+        }),
+      });
+    });
+
+    await page.goto("/vibe-check");
+    await page.getByLabel(/venue name/i).fill("The Neon Lounge");
+    await page.getByRole("button", { name: "Packed" }).click();
+    await page.getByRole("button", { name: "Submit" }).click();
+
+    await expect(page.getByRole("heading", { name: "Vibe sent ✓", level: 2 })).toBeVisible();
+    expect(checkInPayload).toMatchObject({
+      venueId: "manual:the-neon-lounge",
+      venueName: "The Neon Lounge",
+      crowdLevel: "packed",
+    });
+  });
+
   test("returns to the feed with the submitted check-in visible", async ({ page }) => {
     const submittedAt = new Date().toISOString();
     let savedCheckIn: Record<string, unknown> | null = null;

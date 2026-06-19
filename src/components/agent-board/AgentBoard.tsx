@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { createClient } from "@supabase/supabase-js";
 
-type TicketStatus = "Backlog" | "Selected" | "In Progress" | "Review" | "Done" | string;
+type TicketStatus = "Backlog" | "Selected" | "In Progress" | "Blocker" | "Review" | "Done" | string;
 
 type AgentBoardTicket = {
   id: string;
@@ -58,7 +58,7 @@ type AgentBoardAgent = {
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-const BOARD_COLUMNS = ["Backlog", "Selected", "In Progress", "Review", "Done"] as const;
+const BOARD_COLUMNS = ["Backlog", "Selected", "In Progress", "Blocker", "Review", "Done"] as const;
 const ADMIN_AGENT_ID = "codex";
 const DEFAULT_AGENT_BOARD_SUPABASE_URL = "https://gfsbqewkrcyclbktfyfk.supabase.co";
 const DEFAULT_AGENT_BOARD_SUPABASE_ANON_KEY = "sb_publishable_JysdJo98nqOq3piVQA6LXw_vYb3Jyv_";
@@ -102,10 +102,10 @@ function shortTime(value: string | null) {
 function statusTone(status: string | null) {
   const lower = status?.toLowerCase() ?? "";
   if (lower.includes("done") || lower.includes("active")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (lower.includes("blocker") || lower.includes("blocked")) return "border-rose-200 bg-rose-50 text-rose-700";
   if (lower.includes("review")) return "border-violet-200 bg-violet-50 text-violet-700";
   if (lower.includes("progress")) return "border-amber-200 bg-amber-50 text-amber-700";
   if (lower.includes("selected")) return "border-blue-200 bg-blue-50 text-blue-700";
-  if (lower.includes("blocked")) return "border-rose-200 bg-rose-50 text-rose-700";
   return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
@@ -129,6 +129,7 @@ function columnAccent(status: string) {
   if (status === "Backlog") return "border-t-slate-400";
   if (status === "Selected") return "border-t-blue-500";
   if (status === "In Progress") return "border-t-amber-500";
+  if (status === "Blocker") return "border-t-rose-500";
   if (status === "Review") return "border-t-violet-500";
   return "border-t-emerald-500";
 }

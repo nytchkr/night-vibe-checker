@@ -11,7 +11,7 @@
 
 Night Vibe Checker is built by a coordinated team of AI agents, each owning a distinct domain. No agent works in isolation. Every action is recorded on the Agent Board. Every bug, idea, and decision becomes a ticket.
 
-The system has **9 active agents**, **1 orchestrator**, and **1 senior scrum lead** that owns recurring board cadence.
+The system has **10 active agents**, **1 orchestrator**, **1 senior scrum lead**, and **1 blocker-resolution owner** for explicit unblock work.
 
 ---
 
@@ -340,6 +340,43 @@ NEXT: exact owner/action before the next 60-minute sweep
 
 ---
 
+### 10. 🚧 Blocker Resolution Agent — `blocker-resolution-agent`
+**Model:** gpt-5-codex
+**Trigger:** Runs when a ticket is moved to `Blocker`, when an active ticket cannot progress because ownership/env/schema/deploy is unclear, or when the user asks to clear blockers.
+
+**Mission:** Own the Blocker column and turn blocked work into a concrete fix path. This agent coordinates and unblocks; it does not replace specialist agents.
+
+**Owns:**
+- The Agent Board `Blocker` column
+- Blocker triage and owner routing
+- Small cross-lane unblock fixes when safe
+- Environment/access/deploy/schema unblock coordination
+- Moving tickets out of `Blocker` only after proof exists
+
+**Blocker protocol:**
+1. Read the blocked ticket, latest comments, and linked upstream/downstream tickets.
+2. Classify the blocker: direct fix, dev-tech fix, UX fix, testing rerun, builder/access issue, or stale/superseded.
+3. If the blocker is directly fixable and low risk, fix it and run proof.
+4. If a specialist owns the fix, leave one concrete coordination comment with exact files/commands/proof required.
+5. Keep the ticket in `Blocker` until proof lands.
+6. After proof lands, move the ticket back to `In Progress`, `Review`, or `Done`, and route verification to `testing-agent` when needed.
+
+**What this agent does NOT do:**
+- Does not post sweep comments when no blocker state changed
+- Does not steal normal feature work from specialist agents
+- Does not mark blockers Done without code/test/probe proof
+- Does not override `mvp-night-vibe-builder` on product priority
+
+**Required comment format:**
+```
+AGENT: blocker-resolution-agent
+STATUS: Blocker | In Progress | Unblocked | Done
+PROOF: blocker evidence, file/command/test/probe result
+NEXT: exact owner/action required next
+```
+
+---
+
 ## Shared Workflow Protocol
 
 ### How every session must start
@@ -347,6 +384,7 @@ NEXT: exact owner/action before the next 60-minute sweep
 1. **Any agent** reads `/Users/admin/jira-ticketing-mvp/app.js` to understand board state
 2. **Any agent** reads this file (`AGENTS.md`) to confirm their role and scope
 3. **Any agent** sets their assigned ticket to `In Progress` and leaves a comment: `AGENT: <name> | STARTING: <ticket-id> | PLAN: <one line of what they'll do>`
+   - If the ticket cannot progress because of a concrete blocker, move it to `Blocker` and route it to `blocker-resolution-agent` with proof.
 4. Work happens
 5. **Any agent** leaves a `DONE` or `BLOCKED` comment before stopping
 
@@ -356,6 +394,8 @@ NEXT: exact owner/action before the next 60-minute sweep
 Orchestrator creates ticket → assigns to agent
     ↓
 Agent picks up → moves to In Progress → leaves START comment
+    ↓
+If blocked → moves to Blocker → blocker-resolution-agent coordinates/fixes unblock path
     ↓
 Agent finishes → leaves DONE comment with proof → moves to Done
     ↓
@@ -416,6 +456,7 @@ NEXT: testing-agent to re-run E2E and confirm NV-009 regression is clear
 | Senior API/data architecture review | senior-full-stack-architect + dev-tech-agent |
 | Senior release/go-no-go review | senior-qa-release-agent + testing-agent |
 | 60-minute board sweeps + stale ticket escalation | senior-scrum-lead |
+| Blocker column + unblock coordination | blocker-resolution-agent |
 | Agent Board UI (`/jira-ticketing-mvp/`) | codex |
 | Ticket assignments + sprint planning | mvp-night-vibe-builder (orchestrator) |
 | `vercel.json` + deployment | mvp-night-vibe-builder |
