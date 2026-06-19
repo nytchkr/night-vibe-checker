@@ -208,16 +208,23 @@ export default function DiscoverPage() {
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/10 px-4">
+      <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/10 px-4 relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 120% at 90% 0%, rgba(255,45,120,0.10) 0%, transparent 60%), radial-gradient(ellipse 50% 100% at 10% 0%, rgba(0,245,212,0.08) 0%, transparent 60%)",
+          }}
+        />
         <div className="max-w-lg mx-auto py-4">
-          <p className="text-white/40 text-[11px] font-semibold uppercase tracking-[0.22em]">
+          <p className="text-[#FF2D78]/60 text-[10px] font-bold uppercase tracking-[0.3em]">
             Explore
           </p>
-          <h1 className="mt-1 text-white font-extrabold text-2xl leading-none tracking-tight">
+          <h1 className="mt-1 text-white font-black text-[1.75rem] leading-none tracking-[-0.02em]">
             Map the night
           </h1>
-          <p className="text-white/45 text-sm mt-2">
-            Scan nearby energy, then jump straight into a vibe check.
+          <p className="text-white/40 text-xs mt-2 font-medium">
+            Scan nearby energy — jump straight into a vibe check
           </p>
         </div>
       </header>

@@ -126,6 +126,19 @@
   }
 }
 
+/* --------------- Keyframe animations ------------------------ */
+
+@keyframes vibeCTAPulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(0,245,212,0.45), 0 0 36px rgba(0,245,212,0.15); }
+  50%       { box-shadow: 0 0 28px rgba(0,245,212,0.65), 0 0 52px rgba(0,245,212,0.25); }
+}
+
+@keyframes vibeScoreReveal {
+  0%   { opacity: 0; transform: scale(0.85); }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 /* --------------- Component classes -------------------------- */
 
 @layer components {

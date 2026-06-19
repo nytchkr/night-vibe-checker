@@ -108,20 +108,21 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
       className="space-y-4"
       aria-label={`Vibe report for ${report.venueName}`}
     >
-      {/* Score card */}
+      {/* Score card — atmospheric reveal */}
       <Card
-        className="overflow-hidden rounded-[24px] border-white/10 text-white shadow-none"
+        className="overflow-hidden rounded-[24px] border-white/15 text-white shadow-none"
         style={{
           background:
-            "linear-gradient(135deg, rgba(34,211,238,0.11), rgba(168,85,247,0.08) 44%, rgba(255,45,120,0.10))",
-          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 60px rgba(0,0,0,0.22)",
+            "linear-gradient(135deg, rgba(34,211,238,0.13), rgba(168,85,247,0.09) 44%, rgba(255,45,120,0.12))",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 24px 72px rgba(0,0,0,0.3), 0 0 48px rgba(0,245,212,0.07)",
+          animation: "vibeScoreReveal 0.5s cubic-bezier(0.22,1,0.36,1) both",
         }}
       >
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
-            <VibeScoreRing score={report.vibeScore} size={88} strokeWidth={8} className="flex-shrink-0" />
+            <VibeScoreRing score={report.vibeScore} size={100} strokeWidth={9} className="flex-shrink-0" />
             <div className="min-w-0 flex-1 pt-1">
-              <h2 className="text-lg font-bold leading-tight text-white">{report.venueName}</h2>
+              <h2 className="text-xl font-black leading-tight text-white tracking-[-0.01em]">{report.venueName}</h2>
               <p className="mt-1 text-xs capitalize text-white/45">
                 {report.crowdType} · {report.energyLevel} energy
               </p>

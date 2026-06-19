@@ -57,7 +57,26 @@ function VibeCheckInner() {
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
       {/* Sticky header — back button + title */}
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/90 backdrop-blur-xl border-b border-white/[0.08]">
+      <header className="sticky top-0 z-40 bg-[#0A0A0F]/90 backdrop-blur-xl border-b border-white/[0.08] relative overflow-hidden">
+        {pageState === "processing" && (
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full"
+            style={{
+              background:
+                "radial-gradient(ellipse 80% 200% at 50% -50%, rgba(0,245,212,0.15) 0%, transparent 70%)",
+              animation: "vibeOuterPulse 2.4s ease-out infinite",
+            }}
+          />
+        )}
+        {pageState === "result" && (
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full"
+            style={{
+              background:
+                "radial-gradient(ellipse 80% 200% at 20% -50%, rgba(0,245,212,0.1) 0%, transparent 70%), radial-gradient(ellipse 60% 150% at 80% -50%, rgba(255,45,120,0.08) 0%, transparent 70%)",
+            }}
+          />
+        )}
         <div className="max-w-lg mx-auto px-4 h-14 flex items-center gap-3">
           <Link
             href="/"
@@ -67,11 +86,11 @@ function VibeCheckInner() {
             <BackIcon />
           </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="text-white font-bold text-base leading-tight">
+            <h1 className={`font-bold text-base leading-tight ${pageState === "processing" ? "text-[#00F5D4]" : "text-white"}`}>
               {pageState === "result" && report
                 ? report.venueName
                 : pageState === "processing"
-                ? "Analyzing vibe…"
+                ? "Reading the vibe…"
                 : "Check the Vibe"}
             </h1>
             {pageState === "input" && (

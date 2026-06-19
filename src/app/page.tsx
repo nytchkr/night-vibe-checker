@@ -311,18 +311,35 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/95 backdrop-blur-xl border-b border-white/[0.08] px-4">
-        <div className="max-w-lg mx-auto pt-4 pb-3 space-y-3">
+      <header className="sticky top-0 z-40 bg-[#0A0A0F]/95 backdrop-blur-xl border-b border-white/[0.08] px-4 relative overflow-hidden">
+        {/* Atmospheric radial glow behind hero */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 120% at 15% -10%, rgba(0,245,212,0.14) 0%, transparent 65%), radial-gradient(ellipse 60% 100% at 85% -10%, rgba(255,45,120,0.10) 0%, transparent 65%)",
+          }}
+        />
+        <div className="max-w-lg mx-auto pt-5 pb-3 space-y-3">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <p className="text-white/40 text-[11px] font-semibold uppercase tracking-[0.22em]">
+              <p className="text-[#00F5D4]/70 text-[10px] font-bold uppercase tracking-[0.32em]">
                 Nightlife scanner
               </p>
-              <h1 className="text-gradient-vibe mt-1 text-3xl font-extrabold tracking-tight">
+              <h1
+                className="text-gradient-vibe mt-1 text-[2.25rem] font-black tracking-[-0.02em] leading-none"
+                style={{ textShadow: "0 0 48px rgba(0,245,212,0.22), 0 0 80px rgba(255,45,120,0.12)" }}
+              >
                 NightVibe
               </h1>
+              <p className="mt-2 text-white/35 text-[11px] font-medium tracking-wide">
+                Read the room before you walk in
+              </p>
             </div>
-            <span className="mb-1 rounded-full border border-[#00F5D4]/25 bg-[#00F5D4]/10 px-3 py-1 text-[11px] font-bold text-[#00F5D4]">
+            <span
+              className="mb-5 rounded-full border border-[#00F5D4]/30 bg-[#00F5D4]/10 px-3 py-1 text-[11px] font-bold text-[#00F5D4] flex-shrink-0"
+              style={{ boxShadow: "0 0 12px rgba(0,245,212,0.18)" }}
+            >
               Live scores
             </span>
           </div>

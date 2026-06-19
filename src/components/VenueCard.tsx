@@ -128,13 +128,20 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
       className={`
         group relative overflow-hidden rounded-[22px] border p-4 transition-all duration-200
         border-white/[0.09] bg-white/[0.04]
-        hover:border-white/[0.18] hover:bg-white/[0.065]
+        hover:border-[#00F5D4]/30 hover:bg-white/[0.065]
         ${className ?? ""}
       `}
       style={{
         background:
           "linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025) 52%, rgba(34,211,238,0.045))",
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 34px rgba(0,0,0,0.18)",
+        transition: "box-shadow 0.2s ease, border-color 0.2s ease",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 34px rgba(0,0,0,0.18), 0 0 24px rgba(0,245,212,0.12)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 34px rgba(0,0,0,0.18)";
       }}
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-cyan-300/0 via-cyan-300/45 to-pink-300/0" />
@@ -161,9 +168,9 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
 
           {/* Info */}
           <div className="flex-1 min-w-0 pr-8">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm" aria-hidden="true">{venueEmoji(venue.type)}</span>
-              <h3 className="text-white font-semibold text-[15px] leading-snug truncate">{venue.name}</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xl leading-none" aria-hidden="true">{venueEmoji(venue.type)}</span>
+              <h3 className="text-white font-bold text-[15px] leading-snug truncate">{venue.name}</h3>
             </div>
             <p className="text-white/35 text-xs truncate mt-0.5">{venue.address}</p>
             <div className="flex items-center gap-2 mt-1.5">
@@ -197,15 +204,19 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
               onClick={() => onVibeCheck?.(venue)}
               disabled={isChecking}
               aria-label={`Check vibe for ${venue.name}`}
-              className="h-9 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 text-xs font-bold text-white hover:from-purple-500 hover:to-pink-500 focus-visible:ring-purple-400"
-              style={{ boxShadow: "0 0 16px rgba(168,85,247,0.2)" }}
+              className="h-9 rounded-full px-4 text-xs font-bold text-[#0A0A0F] focus-visible:ring-[#00F5D4]/60 transition-all duration-150 active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, #00F5D4 0%, #00c9b0 100%)",
+                boxShadow: "0 0 18px rgba(0,245,212,0.45), 0 0 36px rgba(0,245,212,0.15)",
+                animation: isChecking ? undefined : "vibeCTAPulse 2.4s ease-in-out infinite",
+              }}
             >
               {isChecking ? (
                 <span className="flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  <span className="w-3 h-3 rounded-full border-2 border-[#0A0A0F]/40 border-t-[#0A0A0F] animate-spin" />
                   Checking...
                 </span>
-              ) : venue.cachedVibeScore != null ? "Re-check Vibe" : "Check Vibe"}
+              ) : venue.cachedVibeScore != null ? "Re-check Vibe" : "Check Vibe →"}
             </Button>
           </div>
         </div>

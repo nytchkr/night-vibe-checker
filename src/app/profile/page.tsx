@@ -286,14 +286,23 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
+      <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4 relative overflow-hidden">
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 120% at 0% 0%, rgba(168,85,247,0.12) 0%, transparent 60%)",
+          }}
+        />
         <div className="max-w-lg mx-auto py-4">
-          <p className="text-white/40 text-[11px] font-semibold uppercase tracking-[0.22em]">
+          <p className="text-[#a855f7]/70 text-[10px] font-bold uppercase tracking-[0.3em]">
             Your night log
           </p>
-          <h1 className="mt-1 text-white font-extrabold text-2xl tracking-tight">Profile</h1>
-          <p className="mt-1.5 text-white/45 text-sm">
-            Saved spots and vibe history stay here.
+          <h1 className="mt-1 text-white font-black text-2xl tracking-[-0.01em]">
+            My Vibes
+          </h1>
+          <p className="mt-1.5 text-white/40 text-[11px]">
+            Your saved spots &amp; vibe history
           </p>
         </div>
       </header>

@@ -4,9 +4,19 @@
 // VibeCheckProcessing
 //
 // Loading screen shown while the AI is analyzing a venue.
-// Features a pulsing animated ring and descriptive copy.
+// Features a pulsing animated ring and atmospheric copy.
 // Pure CSS animations — no external deps.
 // ============================================================
+
+import { useEffect, useState } from "react";
+
+const VIBE_HINTS = [
+  "Scanning crowd energy…",
+  "Reading the atmosphere…",
+  "Tuning into the frequency…",
+  "Decoding the scene…",
+  "Feeling the pulse…",
+];
 
 interface VibeCheckProcessingProps {
   /** Name of the venue being analyzed */
@@ -14,11 +24,20 @@ interface VibeCheckProcessingProps {
 }
 
 export function VibeCheckProcessing({ venueName }: VibeCheckProcessingProps) {
+  const [hintIndex, setHintIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHintIndex((i) => (i + 1) % VIBE_HINTS.length);
+    }, 1200);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div
       role="status"
       aria-label={`Analyzing vibe for ${venueName}`}
-      className="flex flex-col items-center justify-center gap-6 py-12 px-6 text-center"
+      className="flex flex-col items-center justify-center gap-7 py-16 px-6 text-center"
     >
       {/* Animated pulsing ring */}
       <div className="relative flex items-center justify-center" style={{ width: 120, height: 120 }}>
@@ -76,19 +95,31 @@ export function VibeCheckProcessing({ venueName }: VibeCheckProcessingProps) {
             0%, 100% { opacity: 1; transform: scale(1); }
             50%       { opacity: 0.5; transform: scale(0.7); }
           }
+          @keyframes vibeHintFade {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
         `}</style>
       </div>
 
       {/* Primary copy */}
-      <div className="space-y-2">
-        <p className="text-white font-semibold text-lg leading-snug">
-          Analyzing the vibe at{" "}
-          <span className="text-cyan-400">{venueName}</span>
-          &hellip;
+      <div className="space-y-3">
+        <p className="text-white font-black text-2xl leading-snug tracking-[-0.01em]">
+          <span
+            className="text-gradient-vibe"
+            style={{ textShadow: "0 0 32px rgba(0,245,212,0.3)" }}
+          >
+            {venueName}
+          </span>
         </p>
-
-        {/* Subtext */}
-        <p className="text-white/40 text-sm">This takes about 5 seconds</p>
+        <p
+          className="text-[#00F5D4]/80 text-sm font-semibold tracking-wide"
+          key={hintIndex}
+          style={{ animation: "vibeHintFade 0.4s ease-in-out" }}
+        >
+          {VIBE_HINTS[hintIndex]}
+        </p>
+        <p className="text-white/30 text-xs">This takes about 5 seconds</p>
       </div>
 
       {/* Animated dots for extra liveliness */}

@@ -67,17 +67,35 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
     >
       {/* Hero intro — only shown when no venue is pre-filled */}
       {!initialVenueName && (
-        <div className="text-center py-4 space-y-2">
-          <div className="text-4xl mb-3" aria-hidden="true">🎛️</div>
-          <h2 className="text-white font-bold text-xl">What's the vibe?</h2>
+        <div className="text-center py-6 space-y-3">
+          <div
+            className="text-5xl mb-2"
+            aria-hidden="true"
+            style={{ filter: "drop-shadow(0 0 18px rgba(0,245,212,0.5))" }}
+          >
+            🎛️
+          </div>
+          <h2
+            className="text-white font-black text-2xl tracking-[-0.01em]"
+            style={{ textShadow: "0 0 30px rgba(0,245,212,0.2)" }}
+          >
+            What's the vibe?
+          </h2>
           <p className="text-white/40 text-sm max-w-xs mx-auto leading-relaxed">
-            Enter a venue name and our AI will score the energy, crowd, and atmosphere.
+            Name any bar, club, or lounge — our AI reads the energy,
+            crowd, and atmosphere.
           </p>
         </div>
       )}
 
       {/* Form card */}
-      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5 space-y-5">
+      <div
+        className="rounded-2xl border border-white/10 p-5 space-y-5"
+        style={{
+          background: "linear-gradient(145deg, rgba(0,245,212,0.04), rgba(255,255,255,0.03) 50%, rgba(168,85,247,0.04))",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)",
+        }}
+      >
       {/* Venue name — required */}
       <div className="space-y-1.5">
         <Label htmlFor="venueName" className="text-white/70">
@@ -169,16 +187,19 @@ export function VibeCheckInput({ onSubmit, isLoading = false, initialVenueName =
       <Button
         type="submit"
         disabled={isLoading || !venueName.trim()}
-        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold py-3"
-        style={{ boxShadow: "0 0 20px rgba(168,85,247,0.25)" }}
+        className="w-full font-bold py-3 text-[#0A0A0F] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 active:scale-[0.99]"
+        style={{
+          background: "linear-gradient(135deg, #00F5D4 0%, #00c9b0 100%)",
+          boxShadow: venueName.trim() ? "0 0 28px rgba(0,245,212,0.5), 0 0 56px rgba(0,245,212,0.15)" : undefined,
+        }}
       >
         {isLoading ? (
           <span className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-            Checking vibe…
+            <span className="w-4 h-4 rounded-full border-2 border-[#0A0A0F]/40 border-t-[#0A0A0F] animate-spin" />
+            Reading the vibe…
           </span>
         ) : (
-          "Check Vibe"
+          "Check Vibe →"
         )}
       </Button>
       </div>

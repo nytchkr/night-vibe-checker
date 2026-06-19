@@ -124,8 +124,9 @@ export function VibeScoreRing({
           filter="url(#vibeGlow)"
         />
         <defs>
-          <filter id="vibeGlow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="3" result="blur" />
+          {/* Score-proportional glow: cyan at low scores, magenta at high */}
+          <filter id="vibeGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation={1.5 + (animatedScore / 10) * 5} result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
