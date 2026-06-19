@@ -60,13 +60,15 @@ type LoadState = "idle" | "loading" | "ready" | "error";
 
 const BOARD_COLUMNS = ["Backlog", "Selected", "In Progress", "Review", "Done"] as const;
 const ADMIN_AGENT_ID = "codex";
+const DEFAULT_AGENT_BOARD_SUPABASE_URL = "https://gfsbqewkrcyclbktfyfk.supabase.co";
+const DEFAULT_AGENT_BOARD_SUPABASE_ANON_KEY = "sb_publishable_JysdJo98nqOq3piVQA6LXw_vYb3Jyv_";
 
 const agentBoardUrl =
   process.env.NEXT_PUBLIC_AGENT_BOARD_SUPABASE_URL ??
-  process.env.NEXT_PUBLIC_SUPABASE_URL;
+  DEFAULT_AGENT_BOARD_SUPABASE_URL;
 const agentBoardAnonKey =
   process.env.NEXT_PUBLIC_AGENT_BOARD_SUPABASE_ANON_KEY ??
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  DEFAULT_AGENT_BOARD_SUPABASE_ANON_KEY;
 
 function createAgentBoardClient() {
   if (!agentBoardUrl || !agentBoardAnonKey) {
