@@ -1,11 +1,57 @@
 "use client";
 
+// ============================================================
+// VenueCard  — NV-041 update
+//
+// Added props:
+//   crowdBadge: "quiet" | "moderate" | "packed" | "wild"
+//               → colored badge on card
+//   lastReportedAt: ISO string → shows "X min ago" or "Just now"
+//
+// Full card: shows crowd badge + time since last report
+// Compact card: compact popup for map view, unchanged
+// ============================================================
+
 import type { VenueBasic } from "@/types";
 import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
 import { SaveSpotButton } from "./SaveSpotButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+
+// --------------- Crowd badge types -------------------------
+
+export type CrowdLevel = "quiet" | "moderate" | "packed" | "wild";
+
+const CROWD_CFG: Record<CrowdLevel, { label: string; bg: string; text: string; glow: string }> = {
+  quiet:    { label: "Quiet",    bg: "rgba(34,197,94,0.15)",  text: "#4ade80", glow: "0 0 8px rgba(34,197,94,0.3)"   },
+  moderate: { label: "Moderate", bg: "rgba(251,191,36,0.15)", text: "#fbbf24", glow: "0 0 8px rgba(251,191,36,0.3)"  },
+  packed:   { label: "Packed",   bg: "rgba(249,115,22,0.15)", text: "#fb923c", glow: "0 0 8px rgba(249,115,22,0.3)"  },
+  wild:     { label: "Wild",     bg: "rgba(255,45,120,0.18)", text: "#FF2D78", glow: "0 0 8px rgba(255,45,120,0.4)"  },
+};
+
+function CrowdBadge({ level }: { level: CrowdLevel }) {
+  const cfg = CROWD_CFG[level];
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+      style={{ background: cfg.bg, color: cfg.text, boxShadow: cfg.glow }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+function timeAgo(isoString: string): string {
+  const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000 / 60);
+  if (diff < 1) return "Just now";
+  if (diff === 1) return "1 min ago";
+  if (diff < 60) return `${diff} min ago`;
+  const h = Math.floor(diff / 60);
+  return h === 1 ? "1 hr ago" : `${h} hr ago`;
+}
+
+// --------------- Props --------------------------------------
 
 interface VenueCardProps {
   venue: VenueBasic;
@@ -16,9 +62,14 @@ interface VenueCardProps {
   className?: string;
   isSaved?: boolean;
   onSaveToggle?: (venueId: string, saved: boolean) => void;
+  /** Live crowd level from check-ins (NV-041) */
+  crowdBadge?: CrowdLevel;
+  /** ISO string of most recent check-in (NV-041) */
+  lastReportedAt?: string;
 }
 
-// Map venue type → emoji accent
+// --------------- Venue type emoji ---------------------------
+
 const VENUE_TYPE_EMOJI: Record<string, string> = {
   bar: "🍸",
   bars: "🍸",
@@ -55,17 +106,11 @@ function StarRating({ rating }: { rating?: number }) {
   );
 }
 
-// Placeholder ring when no vibe score exists
 function NoScorePlaceholder({ size }: { size: number }) {
   return (
     <div
       className="flex-shrink-0 rounded-full flex items-center justify-center"
-      style={{
-        width: size,
-        height: size,
-        background: "rgba(255,255,255,0.04)",
-        border: "2px dashed rgba(255,255,255,0.12)",
-      }}
+      style={{ width: size, height: size, background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.12)" }}
       aria-label="Vibe not checked yet"
     >
       <span className="text-white/20 text-sm font-bold">?</span>
@@ -73,14 +118,13 @@ function NoScorePlaceholder({ size }: { size: number }) {
   );
 }
 
+// --------------- Compact card -------------------------------
+
 function CompactCard({ venue, topTags, onVibeCheck, isChecking }: Omit<VenueCardProps, "variant" | "className">) {
   return (
     <Card
       className="w-56 overflow-hidden rounded-2xl border-white/10 bg-zinc-950/95 text-white shadow-2xl"
-      style={{
-        background: "linear-gradient(145deg, rgba(24,24,27,0.98), rgba(39,39,42,0.92))",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-      }}
+      style={{ background: "linear-gradient(145deg, rgba(24,24,27,0.98), rgba(39,39,42,0.92))", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
     >
       <CardContent className="p-3">
         <div className="flex items-center gap-3">
@@ -122,7 +166,18 @@ function CompactCard({ venue, topTags, onVibeCheck, isChecking }: Omit<VenueCard
   );
 }
 
-function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className }: Omit<VenueCardProps, "variant">) {
+// --------------- Full card ----------------------------------
+
+function FullCard({
+  venue,
+  topTags,
+  onVibeCheck,
+  isChecking,
+  isSaved,
+  className,
+  crowdBadge,
+  lastReportedAt,
+}: Omit<VenueCardProps, "variant">) {
   return (
     <Card
       className={`
@@ -132,8 +187,7 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
         ${className ?? ""}
       `}
       style={{
-        background:
-          "linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025) 52%, rgba(34,211,238,0.045))",
+        background: "linear-gradient(145deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025) 52%, rgba(34,211,238,0.045))",
         boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 34px rgba(0,0,0,0.18)",
         transition: "box-shadow 0.2s ease, border-color 0.2s ease",
       }}
@@ -159,14 +213,12 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Score ring or placeholder */}
           {venue.cachedVibeScore != null ? (
             <VibeScoreRing score={venue.cachedVibeScore} size={68} strokeWidth={7} className="flex-shrink-0" />
           ) : (
             <NoScorePlaceholder size={68} />
           )}
 
-          {/* Info */}
           <div className="flex-1 min-w-0 pr-8">
             <div className="flex items-center gap-2">
               <span className="text-xl leading-none" aria-hidden="true">{venueEmoji(venue.type)}</span>
@@ -180,6 +232,17 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
                 {venue.type.replace(/_/g, " ")}
               </span>
             </div>
+
+            {/* Crowd badge + time since last report (NV-041) */}
+            {(crowdBadge || lastReportedAt) && (
+              <div className="flex items-center gap-2 mt-2">
+                {crowdBadge && <CrowdBadge level={crowdBadge} />}
+                {lastReportedAt && (
+                  <span className="text-white/30 text-[10px]">{timeAgo(lastReportedAt)}</span>
+                )}
+              </div>
+            )}
+
             {topTags && topTags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {topTags.slice(0, 3).map((t) => (
@@ -190,9 +253,9 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
           </div>
         </div>
 
-        {/* CTA row below content */}
+        {/* CTA row */}
         <div className="mt-3 flex items-center justify-between gap-3">
-          {venue.cachedVibeScore != null && (
+          {venue.cachedVibeScore != null && !crowdBadge && (
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: "0 0 6px #34d39999" }} />
               <span className="text-emerald-400/70 text-xs">Vibe scored</span>
@@ -203,7 +266,7 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
               type="button"
               onClick={() => onVibeCheck?.(venue)}
               disabled={isChecking}
-              aria-label={`Check vibe for ${venue.name}`}
+              aria-label={`Check in at ${venue.name}`}
               className="h-9 rounded-full px-4 text-xs font-bold text-[#0A0A0F] focus-visible:ring-[#00F5D4]/60 transition-all duration-150 active:scale-95"
               style={{
                 background: "linear-gradient(135deg, #00F5D4 0%, #00c9b0 100%)",
@@ -216,7 +279,7 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
                   <span className="w-3 h-3 rounded-full border-2 border-[#0A0A0F]/40 border-t-[#0A0A0F] animate-spin" />
                   Checking...
                 </span>
-              ) : venue.cachedVibeScore != null ? "Re-check Vibe" : "Check Vibe →"}
+              ) : "Check In →"}
             </Button>
           </div>
         </div>
@@ -225,9 +288,11 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
   );
 }
 
+// --------------- Export -------------------------------------
+
 export function VenueCard({ variant = "full", ...props }: VenueCardProps) {
   if (variant === "compact") {
-    const { isSaved: _isSaved, onSaveToggle: _onSaveToggle, ...compactProps } = props;
+    const { isSaved: _isSaved, onSaveToggle: _onSaveToggle, crowdBadge: _cb, lastReportedAt: _lr, ...compactProps } = props;
     return <CompactCard {...compactProps} />;
   }
   return <FullCard {...props} />;

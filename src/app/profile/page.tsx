@@ -1,5 +1,15 @@
 "use client";
 
+// ============================================================
+// Profile Page  — NV-041
+//
+// Changes:
+//   - "My Check-ins" section header (was "Past Vibe Checks")
+//   - Check-in rows show crowd badge + vibe score + time
+//   - Empty state: "You haven't checked in anywhere yet. Be the first!"
+//   - "Saved Spots" section header preserved for saved venues
+// ============================================================
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
@@ -36,13 +46,7 @@ function EmptyStateCard({ icon, message, cta }: EmptyStateCardProps) {
       {cta && (
         <Link
           href={cta.href}
-          className="
-            mt-0.5 px-4 py-2 rounded-xl text-xs font-semibold text-white
-            bg-gradient-to-r from-purple-600 to-pink-600
-            hover:from-purple-500 hover:to-pink-500
-            focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400
-            transition-all duration-150
-          "
+          className="mt-0.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 transition-all duration-150"
         >
           {cta.label}
         </Link>
@@ -57,12 +61,7 @@ function SavedSpotRow({ spot }: { spot: SavedSpot }) {
   return (
     <Link
       href={`/venues/${spot.venueId}`}
-      className="
-        flex items-center gap-3 px-4 py-3.5
-        rounded-2xl bg-white/5 border border-white/10
-        hover:bg-white/[0.07] hover:border-white/20
-        transition-all duration-150
-      "
+      className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/[0.07] hover:border-white/20 transition-all duration-150"
     >
       <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0 flex items-center justify-center">
         {spot.vibeScoreSnapshot != null ? (
@@ -99,19 +98,38 @@ function SavedSpotRowSkeleton() {
   );
 }
 
-// --------------- Past check-in row -------------------------
+// --------------- Crowd badge (NV-041) ----------------------
+
+type CrowdLevel = "quiet" | "moderate" | "packed" | "wild";
+
+const CROWD_BADGE: Record<CrowdLevel, { label: string; bg: string; text: string }> = {
+  quiet:    { label: "Quiet",    bg: "rgba(34,197,94,0.15)",  text: "#4ade80" },
+  moderate: { label: "Moderate", bg: "rgba(251,191,36,0.15)", text: "#fbbf24" },
+  packed:   { label: "Packed",   bg: "rgba(249,115,22,0.15)", text: "#fb923c" },
+  wild:     { label: "Wild",     bg: "rgba(255,45,120,0.18)", text: "#FF2D78" },
+};
+
+function CrowdBadge({ level }: { level: string }) {
+  const cfg = CROWD_BADGE[level as CrowdLevel];
+  if (!cfg) return null;
+  return (
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+      style={{ background: cfg.bg, color: cfg.text }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+// --------------- Check-in row (NV-041) ---------------------
 
 function CheckInRow({ checkIn }: { checkIn: CheckIn }) {
   const date = new Date(checkIn.checkedInAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   return (
     <Link
       href={`/venues/${checkIn.venueId}`}
-      className="
-        flex items-center gap-3 px-4 py-3.5
-        rounded-2xl bg-white/5 border border-white/10
-        hover:bg-white/[0.07] hover:border-white/20
-        transition-all duration-150
-      "
+      className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/[0.07] hover:border-white/20 transition-all duration-150"
     >
       <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0 flex flex-col items-center justify-center leading-none gap-0.5">
         <span className="text-white/50 text-[9px] uppercase tracking-wide">{date.split(" ")[0]}</span>
@@ -119,7 +137,10 @@ function CheckInRow({ checkIn }: { checkIn: CheckIn }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-white font-medium text-sm truncate">{checkIn.venueName}</p>
-        {checkIn.note && <p className="text-white/35 text-xs truncate">{checkIn.note}</p>}
+        <div className="flex items-center gap-2 mt-1">
+          {checkIn.note && <CrowdBadge level={checkIn.note} />}
+          <span className="text-white/35 text-xs">{date}</span>
+        </div>
       </div>
       <svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="text-white/25 flex-shrink-0" aria-hidden="true">
         <polyline points="9 18 15 12 9 6" />
@@ -141,7 +162,6 @@ interface AuthBannerProps {
 }
 
 function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, signingIn }: AuthBannerProps) {
-  // Signed-in state
   if (session) {
     return (
       <div className="rounded-2xl border border-white/[0.09] p-5 flex items-center gap-4"
@@ -166,7 +186,6 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
     );
   }
 
-  // OTP sent state
   if (otpSent) {
     return (
       <div className="rounded-2xl bg-[#1E1E2E]/60 border border-purple-500/20 p-6 text-center space-y-3">
@@ -181,7 +200,6 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
     );
   }
 
-  // Sign-in form
   return (
     <div className="rounded-2xl border border-white/[0.09] p-5 space-y-4"
       style={{ background: "rgba(255,255,255,0.03)" }}>
@@ -193,8 +211,8 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold text-sm">Sign in to save spots</p>
-          <p className="text-white/35 text-xs mt-0.5 leading-relaxed">Your saved venues and vibe history sync across devices.</p>
+          <p className="text-white font-semibold text-sm">Sign in to track check-ins</p>
+          <p className="text-white/35 text-xs mt-0.5 leading-relaxed">Your check-in history and saved venues sync across devices.</p>
         </div>
       </div>
       <div className="flex gap-2">
@@ -224,7 +242,7 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
 export default function ProfilePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [savedSpots, setSavedSpots] = useState<SavedSpot[]>([]);
-  const [pastVibeChecks] = useState<CheckIn[]>([]);
+  const [pastCheckIns] = useState<CheckIn[]>([]);
   const [loadingSpots, setLoadingSpots] = useState(false);
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -289,10 +307,7 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4 relative overflow-hidden">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full"
-          style={{
-            background:
-              "radial-gradient(ellipse 70% 120% at 0% 0%, rgba(168,85,247,0.12) 0%, transparent 60%)",
-          }}
+          style={{ background: "radial-gradient(ellipse 70% 120% at 0% 0%, rgba(168,85,247,0.12) 0%, transparent 60%)" }}
         />
         <div className="max-w-lg mx-auto py-4">
           <p className="text-[#a855f7]/70 text-[10px] font-bold uppercase tracking-[0.3em]">
@@ -302,7 +317,7 @@ export default function ProfilePage() {
             My Vibes
           </h1>
           <p className="mt-1.5 text-white/40 text-[11px]">
-            Your saved spots &amp; vibe history
+            Your check-ins &amp; saved spots
           </p>
         </div>
       </header>
@@ -326,6 +341,34 @@ export default function ProfilePage() {
           <span className="text-xs text-cyan-200/70">Admin</span>
         </Link>
 
+        {/* My Check-ins — NV-041 */}
+        <section aria-label="My check-ins">
+          <SectionHeader
+            title="My Check-ins"
+            count={pastCheckIns.length}
+          />
+          {pastCheckIns.length === 0 ? (
+            <EmptyStateCard
+              icon="📍"
+              message={
+                session
+                  ? "You haven't checked in anywhere yet. Be the first!"
+                  : "Sign in to see your check-in history."
+              }
+              cta={session
+                ? { label: "Check In Now", href: "/vibe-check" }
+                : undefined
+              }
+            />
+          ) : (
+            <ul className="space-y-2 list-none">
+              {pastCheckIns.map((ci) => (
+                <li key={ci.id}><CheckInRow checkIn={ci} /></li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         {/* Saved Spots */}
         <section aria-label="Saved spots">
           <SectionHeader title="Saved Spots" count={savedSpots.length} />
@@ -346,24 +389,6 @@ export default function ProfilePage() {
             <ul className="space-y-2 list-none">
               {savedSpots.map((spot) => (
                 <li key={spot.id}><SavedSpotRow spot={spot} /></li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* Past Vibe Checks */}
-        <section aria-label="Past vibe checks">
-          <SectionHeader title="Past Vibe Checks" count={pastVibeChecks.length} />
-          {pastVibeChecks.length === 0 ? (
-            <EmptyStateCard
-              icon="🎛️"
-              message="Vibe checks you run will be saved here so you can revisit past reports."
-              cta={{ label: "Check a Vibe", href: "/vibe-check" }}
-            />
-          ) : (
-            <ul className="space-y-2 list-none">
-              {pastVibeChecks.map((ci) => (
-                <li key={ci.id}><CheckInRow checkIn={ci} /></li>
               ))}
             </ul>
           )}
