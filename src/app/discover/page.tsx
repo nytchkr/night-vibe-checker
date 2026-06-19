@@ -4,7 +4,7 @@
 // Discover Page  (/discover)
 //
 // Shows a map view of nearby venues when a Google Maps API key
-// is configured (NEXT_PUBLIC_GOOGLE_MAPS_KEY).
+// is configured (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY).
 //
 // Fallback: if the key is absent the map is replaced with a
 // friendly placeholder and a list of nearby venues fetched
@@ -154,7 +154,7 @@ export default function DiscoverPage() {
   const router = useRouter();
   const hasMapsKey =
     typeof process !== "undefined" &&
-    Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY);
+    Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
 
   const [venues, setVenues] = useState<VenueBasic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -228,7 +228,7 @@ export default function DiscoverPage() {
         <section aria-label="Map view">
           {hasMapsKey ? (
             <GoogleMapsView
-              apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY as string}
+              apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string}
               venues={venues}
               onVenueSelect={handleVibeCheck}
             />

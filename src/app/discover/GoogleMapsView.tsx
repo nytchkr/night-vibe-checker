@@ -4,7 +4,7 @@
 // GoogleMapsView
 //
 // Dynamically imported by /discover/page.tsx only when
-// NEXT_PUBLIC_GOOGLE_MAPS_KEY is present.
+// NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is present.
 //
 // Tries to use @vis.gl/react-google-maps if installed.
 // If the package is absent (import throws) it renders a

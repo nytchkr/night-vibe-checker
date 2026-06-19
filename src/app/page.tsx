@@ -410,7 +410,7 @@ export default function HomePage() {
         href="/vibe-check"
         aria-label="Check a vibe"
         className="
-          fixed bottom-28 right-5 z-40
+          fixed bottom-28 right-5 z-50
           w-14 h-14 rounded-full
           flex items-center justify-center
           bg-[#00F5D4] hover:bg-[#00dfc0]
