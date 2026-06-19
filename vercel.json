@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/jobs/refresh-busyness",
-      "schedule": "*/35 * * * *"
+      "schedule": "0 2 * * *"
     }
   ],
   "buildCommand": "npm run build",
