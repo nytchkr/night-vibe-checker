@@ -1,7 +1,17 @@
 import { expect, test } from "@playwright/test";
 
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "nightvibe-admin-2026";
+
 test.describe("Agent Board admin route", () => {
   test("renders mocked live board data without the customer bottom nav", async ({ page }) => {
+    await page.context().addCookies([
+      {
+        name: "agent_board_auth",
+        value: ADMIN_PASSWORD,
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
     await page.route("**/rest/v1/agent_board_tickets?*", (route) =>
       route.fulfill({
         status: 200,
