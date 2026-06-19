@@ -20,6 +20,9 @@ export interface LiveCheckIn {
   createdAt: string;
 }
 
+/** Shape returned to unauthenticated callers — never includes userId or sessionId. */
+export type PublicCheckIn = Omit<LiveCheckIn, "userId" | "sessionId">;
+
 export interface CheckInSummary {
   venueId: string;
   avgVibeScore: number;

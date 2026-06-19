@@ -144,6 +144,8 @@ function EmptyState() {
 
 // --------------- Main page ----------------------------------
 
+const VISIBILITY_REFRESH_MS = 60_000; // 60 seconds
+
 function deduplicateCheckIns(rows: LiveCheckIn[]): DedupedCheckIn[] {
   const seen = new Map<string, DedupedCheckIn>();
   for (const ci of rows) {
@@ -156,25 +158,52 @@ function deduplicateCheckIns(rows: LiveCheckIn[]): DedupedCheckIn[] {
 export default function HomePage() {
   const [checkIns, setCheckIns] = useState<DedupedCheckIn[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fetchedRef = useRef(false);
+  // Epoch-ms of last successful fetch — used by visibilitychange guard
+  const lastFetchedAtRef = useRef<number>(0);
 
+  const fetchFeed = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+    try {
+      const res = await fetch("/api/check-ins?limit=20");
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      const rows: LiveCheckIn[] = json?.data?.checkIns ?? [];
+      setCheckIns(deduplicateCheckIns(rows));
+      lastFetchedAtRef.current = Date.now();
+    } catch {
+      setError("Could not load the feed. Tap to retry.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Initial load — fetchedRef guard prevents double-fetch in StrictMode
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
+    fetchFeed(false);
+  }, [fetchFeed]);
 
-    fetch("/api/check-ins?limit=20")
-      .then((res) => {
-        if (!res.ok) throw new Error(`${res.status}`);
-        return res.json();
-      })
-      .then((json) => {
-        const rows: LiveCheckIn[] = json?.data?.checkIns ?? [];
-        setCheckIns(deduplicateCheckIns(rows));
-      })
-      .catch(() => setError("Could not load the feed. Tap to retry."))
-      .finally(() => setLoading(false));
-  }, []);
+  // Auto-refresh when tab regains focus after >60s since last fetch (NV-068)
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastFetchedAtRef.current >= VISIBILITY_REFRESH_MS) {
+        fetchFeed(true);
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [fetchFeed]);
 
   const isEmpty = !loading && !error && checkIns.length === 0;
 
@@ -208,11 +237,29 @@ export default function HomePage() {
       {/* Feed */}
       <section className="max-w-lg mx-auto px-4 pb-32 space-y-3" aria-label="Live vibe feed">
 
-        {/* Section label */}
+        {/* Section label + Refresh pill (NV-068) */}
         {!loading && !error && checkIns.length > 0 && (
-          <p className="text-white/35 text-[11px] font-semibold uppercase tracking-[0.2em] mb-1">
-            Right now
-          </p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-white/35 text-[11px] font-semibold uppercase tracking-[0.2em]">
+              Right now
+            </p>
+            <button
+              onClick={() => fetchFeed(true)}
+              disabled={refreshing}
+              aria-label="Refresh feed"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold text-white/50 border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:text-white/70 transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
+            >
+              {refreshing ? (
+                <span className="inline-block w-3 h-3 border border-white/30 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                </svg>
+              )}
+              Refresh
+            </button>
+          </div>
         )}
 
         {/* Error */}
@@ -220,16 +267,7 @@ export default function HomePage() {
           <div role="alert" className="rounded-2xl bg-rose-950/60 border border-rose-500/40 px-4 py-3 text-sm text-rose-300 flex items-center justify-between">
             <span>{error}</span>
             <button
-              onClick={() => {
-                setError(null);
-                setLoading(true);
-                fetchedRef.current = false;
-                fetch("/api/check-ins?limit=20")
-                  .then((r) => r.json())
-                  .then((j) => setCheckIns(deduplicateCheckIns(j?.data?.checkIns ?? [])))
-                  .catch(() => setError("Could not load the feed. Tap to retry."))
-                  .finally(() => setLoading(false));
-              }}
+              onClick={() => fetchFeed(false)}
               className="underline text-rose-200 hover:text-white ml-2 focus:outline-none"
             >
               Retry

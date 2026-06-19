@@ -14,7 +14,7 @@ import { z } from "zod";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse } from "@/types";
-import type { LiveCheckIn, CheckInSummary, CrowdLevel } from "@/types/checkIn";
+import type { LiveCheckIn, PublicCheckIn, CheckInSummary, CrowdLevel } from "@/types/checkIn";
 
 // --------------- Zod schemas --------------------------------
 
@@ -143,6 +143,12 @@ function rowToCheckIn(row: Record<string, unknown>): LiveCheckIn {
   };
 }
 
+/** Strip userId/sessionId before sending to unauthenticated callers. */
+function toPublicCheckIn(ci: LiveCheckIn): PublicCheckIn {
+  const { userId: _u, sessionId: _s, ...pub } = ci;
+  return pub;
+}
+
 async function hasRecentDuplicateCheckIn(args: {
   client: SupabaseClient;
   venueId: string;
@@ -258,9 +264,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const checkIn = rowToCheckIn(data as Record<string, unknown>);
+  const checkIn = toPublicCheckIn(rowToCheckIn(data as Record<string, unknown>));
 
-  return NextResponse.json<APIResponse<{ checkIn: LiveCheckIn }>>(
+  return NextResponse.json<APIResponse<{ checkIn: PublicCheckIn }>>(
     { status: "success", data: { checkIn }, meta },
     { status: 201 }
   );
@@ -291,7 +297,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const safeLimit = Math.min(limit, 50);
     const { data, error } = await anonClient
       .from("check_ins")
-      .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, user_id, session_id, created_at")
+      .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, created_at")
       .order("created_at", { ascending: false })
       .limit(safeLimit);
 
@@ -303,8 +309,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const checkIns: LiveCheckIn[] = ((data ?? []) as Record<string, unknown>[]).map(rowToCheckIn);
-    return NextResponse.json<APIResponse<{ checkIns: LiveCheckIn[] }>>(
+    const checkIns: PublicCheckIn[] = ((data ?? []) as Record<string, unknown>[]).map((row) =>
+      toPublicCheckIn(rowToCheckIn(row))
+    );
+    return NextResponse.json<APIResponse<{ checkIns: PublicCheckIn[] }>>(
       { status: "success", data: { checkIns }, meta },
       { status: 200 }
     );
@@ -320,7 +328,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await anonClient
     .from("check_ins")
-    .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, user_id, session_id, created_at")
+    .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, created_at")
     .eq("venue_id", venueId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -334,7 +342,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const rows = (data ?? []) as Record<string, unknown>[];
-  const checkIns: LiveCheckIn[] = rows.map(rowToCheckIn);
+  const checkIns: PublicCheckIn[] = rows.map((row) => toPublicCheckIn(rowToCheckIn(row)));
 
   const {
     data: summaryData,
@@ -375,7 +383,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     lastReportAt,
   };
 
-  return NextResponse.json<APIResponse<{ checkIns: LiveCheckIn[]; summary: CheckInSummary }>>(
+  return NextResponse.json<APIResponse<{ checkIns: PublicCheckIn[]; summary: CheckInSummary }>>(
     { status: "success", data: { checkIns, summary }, meta },
     { status: 200 }
   );
