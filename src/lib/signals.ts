@@ -3,7 +3,9 @@ import type { CrowdFeel, ReportedBusyness } from "@/types";
 
 const LOOKBACK_MINUTES = 120;
 const HALF_LIFE_MINUTES = 45;
-const MIN_EFFECTIVE_REPORTS_FOR_RATIO = 2;
+// Minimum effective weight (N_eff = Σw) required before writing mf_ratio.
+// Below this threshold mf_ratio stays null so the UI doesn't show spurious data.
+const MIN_NEFF_FOR_RATIO = 2;
 
 type SignalCheckInRow = {
   id: string;
@@ -14,54 +16,71 @@ type SignalCheckInRow = {
   created_at: string;
 };
 
+// Maps crowd-reported busyness to a 0-100 score.
+// dead=16 (barely alive), moderate=50, packed=84 (very full).
 function busynessToScore(busyness: ReportedBusyness): number {
-  if (busyness === "dead") return 20;
-  if (busyness === "packed") return 90;
-  return 55;
+  if (busyness === "dead") return 16;
+  if (busyness === "packed") return 84;
+  return 50; // moderate
 }
 
-function crowdFeelToMaleRatio(crowdFeel: CrowdFeel): number | null {
-  if (crowdFeel === "mostly_male") return 0.8;
-  if (crowdFeel === "mostly_female") return 0.2;
-  if (crowdFeel === "balanced") return 0.5;
-  return null;
+// Maps crowd_feel to a 0-100 male-ratio value for the M/F signal.
+// mostly_male=100, balanced=50, mixed=50 (neutral), mostly_female=0.
+// All four values are valid; no nulls — every check-in contributes.
+function crowdFeelToMaleValue(crowdFeel: CrowdFeel): number {
+  if (crowdFeel === "mostly_male") return 100;
+  if (crowdFeel === "mostly_female") return 0;
+  return 50; // balanced or mixed both anchor at 50
 }
 
+// Recomputes the M/F and busyness signal from a set of recent check-in rows.
+//
+// Recency weight: w = 0.5 ^ (age_minutes / 45)  (half-life = 45 minutes)
+// M/F ratio:     mf_ratio = Σ(maleValue × w) / Σw  (0-100 scale, 100 = all male)
+// Agreement:     how consistently reports lean in one direction
+//                  1.0 = unanimous, 0.5 = split, 0.0 = completely opposed
+// Confidence:    N_eff / (N_eff + 3) × agreement
+// N_eff < 2:     mf_ratio stays null (not enough signal to publish a ratio)
 export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date.now()) {
-  let effectiveWeight = 0;
+  // N_eff = Σw across all check-ins (used for both busyness and ratio gating)
+  let nEff = 0;
   let weightedBusyness = 0;
-  let ratioWeight = 0;
-  let weightedMaleRatio = 0;
-  let agreementWeight = 0;
+  let weightedMaleValue = 0;
+  // agreement numerator: how far each report departs from neutral (50)
+  let agreementNumer = 0;
 
   for (const row of rows) {
     const ageMinutes = Math.max(0, (nowMs - new Date(row.created_at).getTime()) / 60_000);
-    const weight = Math.pow(0.5, ageMinutes / HALF_LIFE_MINUTES);
-    effectiveWeight += weight;
-    weightedBusyness += busynessToScore(row.busyness) * weight;
+    const w = Math.pow(0.5, ageMinutes / HALF_LIFE_MINUTES);
 
-    const maleRatio = crowdFeelToMaleRatio(row.crowd_feel);
-    if (maleRatio == null) continue;
+    nEff += w;
+    weightedBusyness += busynessToScore(row.busyness) * w;
 
-    ratioWeight += weight;
-    weightedMaleRatio += maleRatio * weight;
-    agreementWeight += Math.abs(maleRatio - 0.5) * 2 * weight;
+    const maleValue = crowdFeelToMaleValue(row.crowd_feel);
+    weightedMaleValue += maleValue * w;
+    // |maleValue - 50| / 50 scales 0-1; 1.0 = fully male or female, 0 = balanced
+    agreementNumer += (Math.abs(maleValue - 50) / 50) * w;
   }
 
-  const busyness0To100 =
-    effectiveWeight > 0 ? Math.round(weightedBusyness / effectiveWeight) : null;
-  const rawMfRatio = ratioWeight > 0 ? Math.round((weightedMaleRatio / ratioWeight) * 100) : null;
-  const mfRatio = ratioWeight >= MIN_EFFECTIVE_REPORTS_FOR_RATIO ? rawMfRatio : null;
-  const agreement = ratioWeight > 0 ? agreementWeight / ratioWeight : 0;
-  const confidence0To1 =
-    effectiveWeight > 0 ? (effectiveWeight / (effectiveWeight + 3)) * agreement : 0;
+  const busyness0To100 = nEff > 0 ? Math.round(weightedBusyness / nEff) : null;
+
+  // Raw ratio in 0-100 range (% male)
+  const rawMfRatio = nEff > 0 ? Math.round(weightedMaleValue / nEff) : null;
+
+  // Only publish ratio when there is enough effective weight
+  const mfRatio = nEff >= MIN_NEFF_FOR_RATIO ? rawMfRatio : null;
+
+  // agreement ∈ [0, 1]: 1 means all reports perfectly male or female, 0 means balanced
+  const agreement = nEff > 0 ? agreementNumer / nEff : 0;
+  const confidence0To1 = nEff > 0 ? (nEff / (nEff + 3)) * agreement : 0;
 
   return {
     busyness0To100,
-    busynessSource: effectiveWeight > 0 ? ("crowd" as const) : null,
+    busynessSource: nEff > 0 ? ("crowd" as const) : null,
     mfRatio,
     confidence0To1: Math.max(0, Math.min(1, confidence0To1)),
-    sampleSize: Math.round(effectiveWeight * 100) / 100,
+    // Round to 2 dp so callers get a stable number without floating-point noise
+    sampleSize: Math.round(nEff * 100) / 100,
   };
 }
 
