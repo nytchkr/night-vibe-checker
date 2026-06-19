@@ -34,11 +34,11 @@ const PostBodySchema = z.object({
 
 // --------------- Helpers ------------------------------------
 
-function buildAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceKey) return null;
-  return createClient(supabaseUrl, serviceKey, {
+function buildAnonClient() {
+  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnon) return null;
+  return createClient(supabaseUrl, supabaseAnon, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -135,15 +135,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // Optionally resolve user_id from auth token
   const userId = await maybeGetUserId(req.headers.get("Authorization"));
 
-  const adminClient = buildAdminClient();
-  if (!adminClient) {
+  const anonClient = buildAnonClient();
+  if (!anonClient) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "SERVER_MISCONFIGURED", message: "Service unavailable." }, meta },
       { status: 500 }
     );
   }
 
-  const { data, error } = await adminClient
+  const { data, error } = await anonClient
     .from("check_ins")
     .insert({
       venue_id:    venueId,
@@ -195,15 +195,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const adminClient = buildAdminClient();
-  if (!adminClient) {
+  const anonClient = buildAnonClient();
+  if (!anonClient) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "SERVER_MISCONFIGURED", message: "Service unavailable." }, meta },
       { status: 500 }
     );
   }
 
-  const { data, error } = await adminClient
+  const { data, error } = await anonClient
     .from("check_ins")
     .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, user_id, session_id, created_at")
     .eq("venue_id", venueId)
