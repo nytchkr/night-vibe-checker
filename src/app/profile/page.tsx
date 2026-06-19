@@ -61,6 +61,30 @@ interface CheckInItem {
   createdAt: string;
 }
 
+function readLocalTestSession(): Session | null {
+  if (typeof window === "undefined") return null;
+  if (process.env.NODE_ENV === "production") return null;
+  if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) return null;
+
+  const keys = [
+    "sb-gfsbqewkrcyclbktfyfk-auth-token",
+    "sb-onlpwglwnqoivuykywrk-auth-token",
+  ];
+
+  for (const key of keys) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as Partial<Session>;
+      if (parsed.access_token && parsed.user?.email) return parsed as Session;
+    } catch {
+      // Ignore malformed local test session data.
+    }
+  }
+
+  return null;
+}
+
 function CheckInRow({ item }: { item: CheckInItem }) {
   return (
     <div className="rounded-2xl border border-white/[0.09] overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
@@ -168,8 +192,9 @@ export default function ProfilePage() {
     const client = createBrowserClient();
 
     client.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session) fetchCheckIns(data.session.access_token);
+      const activeSession = data.session ?? readLocalTestSession();
+      setSession(activeSession);
+      if (activeSession) fetchCheckIns(activeSession.access_token);
     });
 
     const { data: { subscription } } = client.auth.onAuthStateChange((_event, sess) => {
