@@ -278,18 +278,43 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const limitParam = searchParams.get("limit");
   const limit = Math.min(Math.max(parseInt(limitParam ?? "20", 10) || 20, 1), 100);
 
-  if (!venueId || venueId.length > MAX_VENUE_ID_LENGTH || !SAFE_ID_PATTERN.test(venueId)) {
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "INVALID_PARAM", message: "A valid venueId query parameter is required." }, meta },
-      { status: 400 }
-    );
-  }
-
   const anonClient = buildAnonClient();
   if (!anonClient) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "SERVER_MISCONFIGURED", message: "Service unavailable." }, meta },
       { status: 500 }
+    );
+  }
+
+  // Feed mode: no venueId → return recent check-ins across all venues
+  if (!venueId) {
+    const safeLimit = Math.min(limit, 50);
+    const { data, error } = await anonClient
+      .from("check_ins")
+      .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, user_id, session_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(safeLimit);
+
+    if (error) {
+      console.error("[check-ins GET feed] DB error:", error);
+      return NextResponse.json<APIResponse<never>>(
+        { status: "error", error: { code: "DB_ERROR", message: "Could not fetch check-in feed." }, meta },
+        { status: 500 }
+      );
+    }
+
+    const checkIns: LiveCheckIn[] = ((data ?? []) as Record<string, unknown>[]).map(rowToCheckIn);
+    return NextResponse.json<APIResponse<{ checkIns: LiveCheckIn[] }>>(
+      { status: "success", data: { checkIns }, meta },
+      { status: 200 }
+    );
+  }
+
+  // Venue mode: venueId provided → validate then return venue-scoped results + summary
+  if (venueId.length > MAX_VENUE_ID_LENGTH || !SAFE_ID_PATTERN.test(venueId)) {
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "INVALID_PARAM", message: "venueId contains unsupported characters." }, meta },
+      { status: 400 }
     );
   }
 

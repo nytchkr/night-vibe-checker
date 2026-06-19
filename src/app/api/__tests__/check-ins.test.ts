@@ -263,13 +263,20 @@ describe("GET /api/check-ins", () => {
     expect(json.data.summary.venueId).toBe("place_abc123");
   });
 
-  it("returns 400 when venueId is missing", async () => {
+  it("returns 200 with feed array when venueId is omitted (NV-066 feed mode)", async () => {
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    });
     const { GET } = await import("../check-ins/route");
     const req = new NextRequest("http://localhost/api/check-ins");
     const res = await GET(req);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.error.code).toBe("INVALID_PARAM");
+    expect(json.status).toBe("success");
+    expect(Array.isArray(json.data.checkIns)).toBe(true);
+    expect(json.data.summary).toBeUndefined();
   });
 
   it("returns 200 with empty checkIns and zero summary for unknown venue", async () => {
@@ -318,6 +325,33 @@ describe("GET /api/check-ins", () => {
     expect(json.data.summary.isSummaryPartial).toBe(true);
     expect(json.data.summary.avgVibeScore).toBe(8.5);
     expect(json.data.summary.dominantCrowd).toBe("wild");
+  });
+
+  it("returns 200 with feed of all recent check-ins when no venueId provided (NV-066)", async () => {
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({
+        data: [
+          { id: "feed-1", venue_id: "venue-a", venue_name: "Club A", crowd_level: "packed", vibe_score: 8.5, music_type: "house", wait_minutes: 10, tags: ["loud"], note: null, user_id: null, session_id: "s1", created_at: "2026-06-19T03:00:00Z" },
+          { id: "feed-2", venue_id: "venue-b", venue_name: "Bar B", crowd_level: "quiet", vibe_score: 5.0, music_type: null, wait_minutes: null, tags: [], note: null, user_id: null, session_id: "s2", created_at: "2026-06-19T02:55:00Z" },
+        ],
+        error: null,
+      }),
+    });
+
+    const { GET } = await import("../check-ins/route");
+    const req = new NextRequest("http://localhost/api/check-ins?limit=20");
+    const res = await GET(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.status).toBe("success");
+    expect(Array.isArray(json.data.checkIns)).toBe(true);
+    expect(json.data.checkIns).toHaveLength(2);
+    expect(json.data.checkIns[0].venueId).toBe("venue-a");
+    expect(json.data.checkIns[1].venueId).toBe("venue-b");
+    expect(json.data.summary).toBeUndefined();
   });
 });
 
