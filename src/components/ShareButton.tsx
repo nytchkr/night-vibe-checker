@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 interface ShareButtonProps {
   venueName: string;
@@ -36,21 +37,22 @@ export function ShareButton({ venueName, vibeScore, summary, onCopied }: ShareBu
   }
 
   return (
-    <button
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
       onClick={handleShare}
       aria-label="Share vibe report"
       title={copied ? "Link copied!" : "Share"}
       className="
-        flex items-center gap-1.5
-        text-white/40 hover:text-white
-        text-xs font-medium
-        transition-colors duration-150
-        focus:outline-none focus-visible:text-white
+        h-8 px-2 text-xs
+        text-white/40 hover:bg-white/10 hover:text-white
+        focus-visible:text-white focus-visible:ring-white/30
       "
     >
       <ShareIcon />
       <span>{copied ? "Copied to clipboard!" : "Share"}</span>
-    </button>
+    </Button>
   );
 }
 

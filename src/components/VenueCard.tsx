@@ -4,6 +4,9 @@ import type { VenueBasic } from "@/types";
 import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
 import { SaveSpotButton } from "./SaveSpotButton";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface VenueCardProps {
   venue: VenueBasic;
@@ -37,19 +40,19 @@ function venueEmoji(type: string): string {
 function PriceLevel({ level }: { level?: number }) {
   if (!level) return null;
   return (
-    <span className="text-white/35 text-xs" aria-label={`Price level ${level} of 4`}>
+    <Badge variant="outline" className="border-white/10 bg-white/[0.03] px-1.5 py-0 text-white/35 text-[11px]" aria-label={`Price level ${level} of 4`}>
       {"$".repeat(level)}
       <span className="opacity-30">{"$".repeat(4 - level)}</span>
-    </span>
+    </Badge>
   );
 }
 
 function StarRating({ rating }: { rating?: number }) {
   if (rating == null) return null;
   return (
-    <span className="text-amber-400/80 text-xs font-semibold" aria-label={`${rating} star rating`}>
+    <Badge variant="outline" className="border-amber-400/15 bg-amber-400/[0.06] px-1.5 py-0 text-amber-400/80 text-[11px]" aria-label={`${rating} star rating`}>
       ★ {rating.toFixed(1)}
-    </span>
+    </Badge>
   );
 }
 
@@ -73,46 +76,51 @@ function NoScorePlaceholder({ size }: { size: number }) {
 
 function CompactCard({ venue, topTags, onVibeCheck, isChecking }: Omit<VenueCardProps, "variant" | "className">) {
   return (
-    <div className="w-56 rounded-xl bg-zinc-950/95 border border-white/10 p-3 shadow-2xl"
+    <Card className="w-56 rounded-xl border-white/10 bg-zinc-950/95 text-white shadow-2xl"
       style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
-      <div className="flex items-center gap-3">
-        {venue.cachedVibeScore != null ? (
-          <VibeScoreRing score={venue.cachedVibeScore} size={52} strokeWidth={6} />
-        ) : (
-          <NoScorePlaceholder size={52} />
-        )}
-        <div className="min-w-0">
-          <p className="text-white font-semibold text-sm leading-tight truncate">{venue.name}</p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <StarRating rating={venue.googleRating} />
-            <PriceLevel level={venue.priceLevel} />
+      <CardContent className="p-3">
+        <div className="flex items-center gap-3">
+          {venue.cachedVibeScore != null ? (
+            <VibeScoreRing score={venue.cachedVibeScore} size={52} strokeWidth={6} />
+          ) : (
+            <NoScorePlaceholder size={52} />
+          )}
+          <div className="min-w-0">
+            <p className="text-white font-semibold text-sm leading-tight truncate">{venue.name}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <StarRating rating={venue.googleRating} />
+              <PriceLevel level={venue.priceLevel} />
+            </div>
+            <Badge variant="outline" className="mt-1 border-white/10 bg-white/[0.03] px-1.5 py-0 text-white/30 text-[10px]">
+              {venueEmoji(venue.type)} {venue.type.replace("_", " ")}
+            </Badge>
           </div>
-          <span className="text-white/25 text-[10px]">{venueEmoji(venue.type)} {venue.type.replace("_", " ")}</span>
         </div>
-      </div>
 
-      {topTags && topTags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {topTags.slice(0, 3).map((t) => (
-            <VibeTagBadge key={t} tag={t} variant="secondary" />
-          ))}
-        </div>
-      )}
+        {topTags && topTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {topTags.slice(0, 3).map((t) => (
+              <VibeTagBadge key={t} tag={t} variant="secondary" />
+            ))}
+          </div>
+        )}
 
-      <button
-        onClick={() => onVibeCheck?.(venue)}
-        disabled={isChecking}
-        className="mt-3 w-full py-2 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
-      >
-        {isChecking ? "Checking…" : "Check Vibe"}
-      </button>
-    </div>
+        <Button
+          type="button"
+          onClick={() => onVibeCheck?.(venue)}
+          disabled={isChecking}
+          className="mt-3 h-9 w-full rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-xs font-semibold text-white hover:from-purple-500 hover:to-pink-500"
+        >
+          {isChecking ? "Checking..." : "Check Vibe"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
 function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className }: Omit<VenueCardProps, "variant">) {
   return (
-    <div
+    <Card
       className={`
         relative rounded-2xl border transition-all duration-200 p-4 group
         bg-white/[0.04] border-white/[0.09]
@@ -121,74 +129,79 @@ function FullCard({ venue, topTags, onVibeCheck, isChecking, isSaved, className 
       `}
       style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)" }}
     >
-      {/* Save button */}
-      <div className="absolute top-3 right-3 z-10">
-        <SaveSpotButton
-          venueId={venue.placeId}
-          venueName={venue.name}
-          address={venue.address}
-          vibeScoreSnapshot={venue.cachedVibeScore}
-          isSaved={isSaved}
-          className="w-8 h-8 opacity-60 group-hover:opacity-100 transition-opacity duration-150"
-        />
-      </div>
+      <CardContent className="p-0">
+        {/* Save button */}
+        <div className="absolute top-3 right-3 z-10">
+          <SaveSpotButton
+            venueId={venue.placeId}
+            venueName={venue.name}
+            address={venue.address}
+            vibeScoreSnapshot={venue.cachedVibeScore}
+            isSaved={isSaved}
+            className="w-8 h-8 opacity-60 group-hover:opacity-100 transition-opacity duration-150"
+          />
+        </div>
 
-      <div className="flex items-center gap-4">
-        {/* Score ring or placeholder */}
-        {venue.cachedVibeScore != null ? (
-          <VibeScoreRing score={venue.cachedVibeScore} size={68} strokeWidth={7} className="flex-shrink-0" />
-        ) : (
-          <NoScorePlaceholder size={68} />
-        )}
-
-        {/* Info */}
-        <div className="flex-1 min-w-0 pr-8">
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm" aria-hidden="true">{venueEmoji(venue.type)}</span>
-            <h3 className="text-white font-semibold text-[15px] leading-snug truncate">{venue.name}</h3>
-          </div>
-          <p className="text-white/35 text-xs truncate mt-0.5">{venue.address}</p>
-          <div className="flex items-center gap-2.5 mt-1.5">
-            <StarRating rating={venue.googleRating} />
-            <PriceLevel level={venue.priceLevel} />
-            <span className="text-white/25 text-xs capitalize">{venue.type.replace(/_/g, " ")}</span>
-          </div>
-          {topTags && topTags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {topTags.slice(0, 3).map((t) => (
-                <VibeTagBadge key={t} tag={t} variant="secondary" />
-              ))}
-            </div>
+        <div className="flex items-center gap-4">
+          {/* Score ring or placeholder */}
+          {venue.cachedVibeScore != null ? (
+            <VibeScoreRing score={venue.cachedVibeScore} size={68} strokeWidth={7} className="flex-shrink-0" />
+          ) : (
+            <NoScorePlaceholder size={68} />
           )}
-        </div>
-      </div>
 
-      {/* CTA row below content */}
-      <div className="mt-3 flex items-center justify-between gap-3">
-        {venue.cachedVibeScore != null && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: "0 0 6px #34d39999" }} />
-            <span className="text-emerald-400/70 text-xs">Vibe scored</span>
+          {/* Info */}
+          <div className="flex-1 min-w-0 pr-8">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm" aria-hidden="true">{venueEmoji(venue.type)}</span>
+              <h3 className="text-white font-semibold text-[15px] leading-snug truncate">{venue.name}</h3>
+            </div>
+            <p className="text-white/35 text-xs truncate mt-0.5">{venue.address}</p>
+            <div className="flex items-center gap-2 mt-1.5">
+              <StarRating rating={venue.googleRating} />
+              <PriceLevel level={venue.priceLevel} />
+              <Badge variant="outline" className="border-white/10 bg-white/[0.03] px-1.5 py-0 text-white/30 text-[11px] capitalize">
+                {venue.type.replace(/_/g, " ")}
+              </Badge>
+            </div>
+            {topTags && topTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {topTags.slice(0, 3).map((t) => (
+                  <VibeTagBadge key={t} tag={t} variant="secondary" />
+                ))}
+              </div>
+            )}
           </div>
-        )}
-        <div className="ml-auto">
-          <button
-            onClick={() => onVibeCheck?.(venue)}
-            disabled={isChecking}
-            aria-label={`Check vibe for ${venue.name}`}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
-            style={{ boxShadow: "0 0 16px rgba(168,85,247,0.2)" }}
-          >
-            {isChecking ? (
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                Checking…
-              </span>
-            ) : venue.cachedVibeScore != null ? "Re-check Vibe" : "Check Vibe"}
-          </button>
         </div>
-      </div>
-    </div>
+
+        {/* CTA row below content */}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          {venue.cachedVibeScore != null && (
+            <Badge variant="outline" className="gap-1.5 border-emerald-400/15 bg-emerald-400/[0.06] text-emerald-400/70">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" style={{ boxShadow: "0 0 6px #34d39999" }} />
+              Vibe scored
+            </Badge>
+          )}
+          <div className="ml-auto">
+            <Button
+              type="button"
+              onClick={() => onVibeCheck?.(venue)}
+              disabled={isChecking}
+              aria-label={`Check vibe for ${venue.name}`}
+              className="h-9 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 text-xs font-bold text-white hover:from-purple-500 hover:to-pink-500 focus-visible:ring-purple-400"
+              style={{ boxShadow: "0 0 16px rgba(168,85,247,0.2)" }}
+            >
+              {isChecking ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  Checking...
+                </span>
+              ) : venue.cachedVibeScore != null ? "Re-check Vibe" : "Check Vibe"}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

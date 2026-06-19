@@ -5,6 +5,8 @@ import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
 import { ShareButton } from "./ShareButton";
 import { SaveSpotButton } from "./SaveSpotButton";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface VibeReportProps {
   report?: VibeReportType;
@@ -47,49 +49,55 @@ function EnergyBar({ level }: { level: string }) {
 export function VibeReport({ report, isLoading, error, onShareCopied }: VibeReportProps) {
   if (error) {
     return (
-      <div role="alert" className="rounded-2xl bg-rose-950/60 border border-rose-500/40 p-6 text-center">
-        <p className="text-rose-300 font-medium">{error}</p>
-        <p className="text-rose-400/60 text-sm mt-1">Try searching for a different venue.</p>
-      </div>
+      <Card role="alert" className="rounded-2xl border-rose-500/40 bg-rose-950/60 text-center text-white shadow-none">
+        <CardContent className="p-6">
+          <p className="text-rose-300 font-medium">{error}</p>
+          <p className="text-rose-400/60 text-sm mt-1">Try searching for a different venue.</p>
+        </CardContent>
+      </Card>
     );
   }
 
   if (isLoading) {
     return (
-      <div role="status" aria-label="Loading vibe report" className="rounded-2xl bg-white/[0.04] border border-white/10 p-6 space-y-6">
-        <div className="flex items-center gap-5">
-          <div className="w-[100px] h-[100px] rounded-full bg-white/10 animate-pulse flex-shrink-0" />
-          <div className="flex-1 space-y-3">
-            <SkeletonPulse className="h-5 w-3/4" />
-            <SkeletonPulse className="h-3 w-1/2" />
-            <SkeletonPulse className="h-3 w-1/3" />
+      <Card role="status" aria-label="Loading vibe report" className="rounded-2xl border-white/10 bg-white/[0.04] text-white shadow-none">
+        <CardContent className="space-y-6 p-6">
+          <div className="flex items-center gap-5">
+            <div className="w-[100px] h-[100px] rounded-full bg-white/10 animate-pulse flex-shrink-0" />
+            <div className="flex-1 space-y-3">
+              <SkeletonPulse className="h-5 w-3/4" />
+              <SkeletonPulse className="h-3 w-1/2" />
+              <SkeletonPulse className="h-3 w-1/3" />
+            </div>
           </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <SkeletonPulse key={i} className="h-7 rounded-full" style={{ width: `${60 + i * 12}px` }} />
-          ))}
-        </div>
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <SkeletonPulse key={i} className="h-4 w-full" />
-          ))}
-        </div>
-        <div className="space-y-2">
-          <SkeletonPulse className="h-3 w-full" />
-          <SkeletonPulse className="h-3 w-5/6" />
-          <SkeletonPulse className="h-3 w-4/6" />
-        </div>
-        <span className="sr-only">Loading…</span>
-      </div>
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonPulse key={i} className="h-7 rounded-full" style={{ width: `${60 + i * 12}px` }} />
+            ))}
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonPulse key={i} className="h-4 w-full" />
+            ))}
+          </div>
+          <div className="space-y-2">
+            <SkeletonPulse className="h-3 w-full" />
+            <SkeletonPulse className="h-3 w-5/6" />
+            <SkeletonPulse className="h-3 w-4/6" />
+          </div>
+          <span className="sr-only">Loading...</span>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!report) {
     return (
-      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-8 text-center">
-        <p className="text-white/40 text-sm">Search for a venue to see its vibe report.</p>
-      </div>
+      <Card className="rounded-2xl border-white/10 bg-white/[0.04] text-center text-white shadow-none">
+        <CardContent className="p-8">
+          <p className="text-white/40 text-sm">Search for a venue to see its vibe report.</p>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -102,9 +110,12 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
       aria-label={`Vibe report for ${report.venueName}`}
     >
       {/* Score card */}
-      <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-5"
-        style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)" }}>
-        <div className="flex items-start gap-4">
+      <Card
+        className="rounded-2xl border-white/10 bg-white/[0.04] text-white shadow-none"
+        style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)" }}
+      >
+        <CardContent className="p-5">
+          <div className="flex items-start gap-4">
           <VibeScoreRing score={report.vibeScore} size={88} strokeWidth={8} className="flex-shrink-0" />
           <div className="flex-1 min-w-0 pt-1">
             <h2 className="text-white font-bold text-lg leading-tight">{report.venueName}</h2>
@@ -114,9 +125,9 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
             <div className="mt-2">
               <EnergyBar level={report.energyLevel} />
             </div>
-            <span className={`text-xs font-medium mt-1.5 block ${confidenceColor}`}>
+            <Badge variant="outline" className={`mt-2 border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] ${confidenceColor}`}>
               {confidencePct}% confidence
-            </span>
+            </Badge>
           </div>
           {/* Action buttons in top-right of card */}
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -133,8 +144,9 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
               onCopied={onShareCopied}
             />
           </div>
-        </div>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Vibe tags */}
       <div className="flex flex-wrap gap-2 px-1">
@@ -144,21 +156,25 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
       </div>
 
       {/* Detail rows */}
-      <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] px-4 py-1">
-        <InfoRow label="Music" value={report.musicVibe} />
-        <InfoRow label="Crowd" value={report.crowdType} />
-        <InfoRow label="Best for" value={report.bestFor.join(", ")} />
-      </div>
+      <Card className="rounded-2xl border-white/[0.07] bg-white/[0.04] text-white shadow-none">
+        <CardContent className="px-4 py-1">
+          <InfoRow label="Music" value={report.musicVibe} />
+          <InfoRow label="Crowd" value={report.crowdType} />
+          <InfoRow label="Best for" value={report.bestFor.join(", ")} />
+        </CardContent>
+      </Card>
 
       {/* AI summary */}
-      <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] p-4">
-        <p className="text-white/70 text-sm leading-relaxed">{report.summary}</p>
-        {report.fromPhoto && (
-          <p className="text-white/30 text-xs mt-2 flex items-center gap-1.5">
-            <span>📸</span> AI analysis via photo
-          </p>
-        )}
-      </div>
+      <Card className="rounded-2xl border-white/[0.07] bg-white/[0.04] text-white shadow-none">
+        <CardContent className="p-4">
+          <p className="text-white/70 text-sm leading-relaxed">{report.summary}</p>
+          {report.fromPhoto && (
+            <Badge variant="outline" className="mt-3 border-white/10 bg-white/[0.04] text-white/40">
+              Photo analysis
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Timestamp */}
       <p className="text-white/20 text-xs text-center pb-2">
