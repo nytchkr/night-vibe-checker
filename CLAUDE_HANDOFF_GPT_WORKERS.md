@@ -10,6 +10,7 @@ Repo: `/Users/admin/night-vibe-checker`
 Commits:
 - `76cbe8e` Remove legacy AI vibe analysis path
 - `9196271` Remove legacy AI test fixtures
+- `c0dd4b2` Remove OpenAI test setup stub
 
 Removed:
 - `src/app/api/vibe-check/route.ts`
@@ -21,6 +22,7 @@ Removed:
 - `src/components/VibeCheckInput.tsx`
 - `src/components/VibeCheckProcessing.tsx`
 - `src/components/VibeReport.tsx`
+- OpenAI-only env/comment stubs in `src/test/setup.ts`
 
 Notes:
 - No owner/payment files matching `Owner`, `PromoManager`, `SubscribeDialog`, `ThankYou`, `create-checkout`, `wix-payments-webhook`, `Subscription`, `Promo`, `VenueClaim`, or the listed owner chart components were present in this repo.
