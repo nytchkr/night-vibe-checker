@@ -1,31 +1,49 @@
 // ============================================================
 // GET /api/venues/[id]
-//
-// Returns full VenueDetail from Google Places plus the latest
-// cached VibeReport for the venue from Supabase.
-//
-// When Google Places is unavailable AND the id matches a demo
-// venue, returns the hardcoded demo VenueDetail so the flow
-// remains functional during demos.
-//
-// Returns: APIResponse<{ venue: VenueDetail; report: VibeReport | null }>
-//
-// Status codes:
-//   200  success (or partial if Places failed but we have DB data)
-//   400  missing / empty id param
-//   429  rate limited
-//   500  both Places and Supabase unavailable and not a demo venue
+// Cached venue detail. No external calls.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { getVenueDetails, PlacesApiError } from "@/lib/places";
-import { DEMO_VENUE_DETAILS, isDemoVenue } from "@/lib/demoVenues";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { v4 as uuidv4 } from "uuid";
-import type { APIResponse, VenueDetail, VibeReport } from "@/types";
+import type { APIResponse } from "@/types";
 
-// --------------- Route handler -----------------------------
+type CachedVenue = {
+  id: string;
+  placeId: string;
+  zoneId: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  category: string;
+  googleRating?: number;
+  totalRatings?: number;
+  priceLevel?: 1 | 2 | 3 | 4;
+  photoReference?: string;
+  photoUrl?: string;
+  hidden: boolean;
+};
+
+function mapVenue(row: Record<string, unknown>): CachedVenue {
+  return {
+    id: row.id as string,
+    placeId: row.place_id as string,
+    zoneId: row.zone_id as string,
+    name: row.name as string,
+    address: row.address as string,
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    category: (row.category ?? row.venue_type ?? "establishment") as string,
+    googleRating: row.google_rating == null ? undefined : Number(row.google_rating),
+    totalRatings: row.total_ratings == null ? undefined : Number(row.total_ratings),
+    priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as CachedVenue["priceLevel"]),
+    photoReference: (row.photo_reference ?? undefined) as string | undefined,
+    photoUrl: (row.photo_url ?? undefined) as string | undefined,
+    hidden: Boolean(row.hidden),
+  };
+}
 
 export async function GET(
   req: NextRequest,
@@ -33,27 +51,24 @@ export async function GET(
 ): Promise<NextResponse> {
   const requestId = uuidv4();
   const generatedAt = new Date().toISOString();
-
-  // Rate limiting — 30 req/min per IP
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
     "anonymous";
 
-  const rate = checkRateLimit(`venues-detail:${ip}`, 30, 60_000);
+  const rate = checkRateLimit(`venues-detail:${ip}`, 60, 60_000);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? 60_000) / 1000);
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
         error: { code: "RATE_LIMITED", message: "Too many requests." },
-        meta: { cached: false, generatedAt, requestId },
+        meta: { cached: true, generatedAt, requestId },
       },
       { status: 429, headers: { "Retry-After": String(retrySeconds) } }
     );
   }
 
-  // Validate id (Next.js 15+ params are a Promise)
   const { id: rawId } = await params;
   const id = rawId?.trim();
   if (!id) {
@@ -61,115 +76,37 @@ export async function GET(
       {
         status: "error",
         error: { code: "MISSING_ID", message: "Venue id is required." },
-        meta: { cached: false, generatedAt, requestId },
+        meta: { cached: true, generatedAt, requestId },
       },
       { status: 400 }
     );
   }
 
-  // ---- 1. Fetch VenueDetail from Google Places ----
-  let venue: VenueDetail | null = null;
-  let placesError: string | null = null;
-  let demoMode = false;
+  const { data, error } = await supabaseAdmin
+    .from("venues")
+    .select(`
+      id, place_id, zone_id, name, address, lat, lng, venue_type, category,
+      google_rating, total_ratings, price_level, photo_reference, photo_url, hidden
+    `)
+    .or(`id.eq.${id},place_id.eq.${id}`)
+    .eq("hidden", false)
+    .limit(1)
+    .single();
 
-  try {
-    venue = await getVenueDetails(id);
-  } catch (err) {
-    console.error(`[venues/${id}] Places API error:`, err);
-    placesError =
-      err instanceof PlacesApiError
-        ? err.message
-        : "Could not fetch venue details from Google Places.";
-
-    // Fall back to hardcoded demo venue if available
-    if (isDemoVenue(id)) {
-      venue = DEMO_VENUE_DETAILS[id];
-      demoMode = true;
-      placesError = null; // demo data is good — clear the error
-    }
-  }
-
-  // ---- 2. Query Supabase for the latest cached VibeReport ----
-  let report: VibeReport | null = null;
-
-  try {
-    const { data, error } = await supabaseAdmin
-      .from("vibe_reports")
-      .select("*")
-      .eq("place_id", id)
-      .order("generated_at", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (!error && data) {
-      // Map snake_case DB columns to camelCase VibeReport shape
-      report = {
-        id: data.id,
-        venueId: data.venue_id,
-        venueName: venue?.name ?? "Venue",
-        vibeScore: Number(data.vibe_score),
-        energyLevel: data.energy_level,
-        vibeTags: data.vibe_tags ?? [],
-        musicVibe: data.music_vibe,
-        crowdType: data.crowd_type,
-        bestFor: data.best_for ?? [],
-        summary: data.summary,
-        generatedAt: data.generated_at,
-        fromPhoto: data.from_photo ?? false,
-        confidence: Number(data.confidence ?? 1),
-      };
-
-      if (venue) {
-        venue.cachedVibeScore = report.vibeScore;
-      }
-    }
-  } catch (err) {
-    // Non-fatal — log and continue with report = null
-    console.error(`[venues/${id}] Supabase query error:`, err);
-  }
-
-  // ---- 3. Graceful degradation logic ----
-
-  // Both failed and no demo fallback — hard 500
-  if (!venue && placesError) {
+  if (error || !data) {
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
-        error: {
-          code: "PLACES_UNAVAILABLE",
-          message: placesError,
-        },
-        meta: { cached: false, generatedAt, requestId },
+        error: { code: "VENUE_NOT_FOUND", message: "Venue was not found in the cached launch-zone database." },
+        meta: { cached: true, generatedAt, requestId },
       },
-      { status: 500 }
+      { status: 404 }
     );
   }
 
-  // Places succeeded (or demo fallback) — return whatever we have
-  const status = placesError ? "partial" : "success";
-
-  return NextResponse.json<APIResponse<{ venue: VenueDetail; report: VibeReport | null }>>(
-    {
-      status,
-      data: {
-        // venue is guaranteed non-null here (we returned 500 above if both null)
-        venue: venue!,
-        report,
-      },
-      ...(placesError && {
-        error: {
-          code: "PLACES_PARTIAL",
-          message: placesError,
-        },
-      }),
-      meta: {
-        cached: false,
-        generatedAt,
-        requestId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ...(demoMode && ({ demo_mode: true } as any)),
-      },
-    },
-    { status: 200 }
-  );
+  return NextResponse.json<APIResponse<{ venue: CachedVenue }>>({
+    status: "success",
+    data: { venue: mapVenue(data as Record<string, unknown>) },
+    meta: { cached: true, generatedAt, requestId },
+  });
 }

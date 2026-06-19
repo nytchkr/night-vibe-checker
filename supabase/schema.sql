@@ -7,6 +7,27 @@
 create extension if not exists "uuid-ossp";
 
 -- ============================================================
+-- TABLE: zones
+-- Locked consumer-only launch zones
+-- ============================================================
+create table if not exists public.zones (
+  id          text primary key,
+  name        text not null,
+  center_lat  double precision not null,
+  center_lng  double precision not null,
+  radius_m    integer not null,
+  created_at  timestamptz not null default now()
+);
+
+insert into public.zones (id, name, center_lat, center_lng, radius_m)
+values ('south-end-charlotte', 'South End, Charlotte', 35.2123, -80.8590, 1500)
+on conflict (id) do update set
+  name = excluded.name,
+  center_lat = excluded.center_lat,
+  center_lng = excluded.center_lng,
+  radius_m = excluded.radius_m;
+
+-- ============================================================
 -- TABLE: venues
 -- Mirrors a subset of Google Places data + our metadata
 -- ============================================================
@@ -22,6 +43,10 @@ create table if not exists public.venues (
   total_ratings   integer,
   price_level     smallint check (price_level between 1 and 4),
   photo_reference text,                          -- Google photo ref (not URL)
+  photo_url       text,                          -- Google Place Photo URL only
+  category        text,
+  zone_id         text references public.zones(id),
+  hidden          boolean not null default false,
   website         text,
   phone_number    text,
   -- Cached aggregate of all vibe reports for this venue
@@ -32,8 +57,14 @@ create table if not exists public.venues (
 );
 
 create index if not exists venues_place_id_idx on public.venues(place_id);
+create index if not exists venues_zone_id_idx on public.venues(zone_id);
 -- PostGIS-free geo lookup using bounding box math
 create index if not exists venues_lat_lng_idx on public.venues(lat, lng);
+
+alter table public.venues add column if not exists photo_url text;
+alter table public.venues add column if not exists category text;
+alter table public.venues add column if not exists zone_id text references public.zones(id);
+alter table public.venues add column if not exists hidden boolean not null default false;
 
 -- ============================================================
 -- TABLE: vibe_reports
@@ -82,21 +113,28 @@ create table if not exists public.saved_spots (
 create index if not exists saved_spots_user_id_idx on public.saved_spots(user_id);
 
 -- ============================================================
--- TABLE: checkins
--- Users can log that they visited a venue
+-- TABLE: check_ins
+-- Existing consumer live reports. Agent C will replace this with the
+-- busyness/crowd_feel signal-engine contract.
 -- ============================================================
-create table if not exists public.checkins (
-  id              uuid primary key default uuid_generate_v4(),
-  user_id         uuid not null references auth.users(id) on delete cascade,
-  venue_id        uuid not null references public.venues(id) on delete cascade,
-  vibe_report_id  uuid references public.vibe_reports(id) on delete set null,
-  note            text,
-  checked_in_at   timestamptz not null default now()
+create table if not exists public.check_ins (
+  id            uuid primary key default uuid_generate_v4(),
+  venue_id      text not null,
+  venue_name    text not null,
+  crowd_level   text not null check (crowd_level in ('quiet','moderate','packed','wild')),
+  vibe_score    numeric(3,1) not null check (vibe_score >= 1.0 and vibe_score <= 10.0),
+  music_type    text check (music_type in ('house','hiphop','rnb','techno','live','mixed','none')),
+  wait_minutes  integer check (wait_minutes >= 0),
+  tags          text[] default '{}',
+  note          text check (char_length(note) <= 200),
+  user_id       uuid references auth.users(id) on delete set null,
+  session_id    text,
+  created_at    timestamptz not null default now()
 );
 
-create index if not exists checkins_user_id_idx on public.checkins(user_id);
-create index if not exists checkins_venue_id_idx on public.checkins(venue_id);
-create index if not exists checkins_checked_in_at_idx on public.checkins(checked_in_at desc);
+create index if not exists check_ins_user_id_idx on public.check_ins(user_id);
+create index if not exists check_ins_venue_id_idx on public.check_ins(venue_id);
+create index if not exists check_ins_created_at_idx on public.check_ins(created_at desc);
 
 -- ============================================================
 -- TRIGGER: keep venues.avg_vibe_score + report_count fresh
@@ -189,17 +227,24 @@ create policy "saved_spots_own_delete"
   on public.saved_spots for delete
   using (auth.uid() = user_id);
 
--- checkins: users only see/modify their own rows
-alter table public.checkins enable row level security;
+-- zones: anyone can read, only service_role can write
+alter table public.zones enable row level security;
 
-create policy "checkins_own_read"
-  on public.checkins for select
-  using (auth.uid() = user_id);
+create policy "zones_public_read"
+  on public.zones for select
+  using (true);
 
-create policy "checkins_own_insert"
-  on public.checkins for insert
-  with check (auth.uid() = user_id);
+-- check_ins: current app behavior; Agent C will tighten write auth
+alter table public.check_ins enable row level security;
 
-create policy "checkins_own_delete"
-  on public.checkins for delete
+create policy "check_ins_public_read"
+  on public.check_ins for select
+  using (true);
+
+create policy "check_ins_public_insert"
+  on public.check_ins for insert
+  with check (true);
+
+create policy "check_ins_own_delete"
+  on public.check_ins for delete
   using (auth.uid() = user_id);
