@@ -11,12 +11,10 @@
 // from GET /api/venues?q=nearby.
 // ============================================================
 
+// TODO(NV-076): pending rebuild — GoogleMapsView and VenueCard removed; new map-first flow to be implemented
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-import { VenueCard } from "@/components/VenueCard";
 import { Toast } from "@/components/Toast";
-import type { VenueBasic } from "@/types";
 
 // --------------- Map placeholder ----------------------------
 
@@ -73,42 +71,6 @@ function MapPreviewFallback() {
   );
 }
 
-// --------------- Google Maps wrapper (lazy-loaded) ----------
-// Only imported when the API key is present, so the bundle
-// never loads @vis.gl/react-google-maps unless needed.
-
-interface MapsViewProps {
-  apiKey: string;
-  venues: VenueBasic[];
-  onVenueSelect: (venue: VenueBasic) => void;
-}
-
-// Lazy component — Next.js dynamic import with ssr: false so
-// the Google Maps SDK is only loaded client-side.
-const GoogleMapsView = dynamic(
-  () => import("./GoogleMapsView").catch(() => {
-    // If the package isn't installed, return a no-op component
-    // so the page doesn't crash. The map-coming-soon placeholder
-    // will already be shown by the key-absent branch.
-    return { default: () => <MapPreviewFallback /> };
-  }),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        aria-label="Loading map"
-        className="
-          flex items-center justify-center
-          rounded-[1.75rem] bg-white/5 border border-white/10
-          h-72
-        "
-      >
-        <span className="text-white/40 text-sm animate-pulse">Loading map…</span>
-      </div>
-    ),
-  }
-) as React.ComponentType<MapsViewProps>;
-
 // --------------- Loading skeleton ---------------------------
 
 function VenueListSkeleton() {
@@ -152,21 +114,12 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
 
 export default function DiscoverPage() {
   const router = useRouter();
-  const hasMapsKey =
-    typeof process !== "undefined" &&
-    Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
-
-  const [venues, setVenues] = useState<VenueBasic[]>([]);
+  // TODO(NV-076): replace with ConsumerVenue type once new data model is in place
+  const [venues, setVenues] = useState<Array<{ placeId: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function showToast(message: string) {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast(message);
-    toastTimerRef.current = setTimeout(() => setToast(null), 2500);
-  }
 
   const fetchVenues = useCallback(async () => {
     setIsLoading(true);
@@ -176,7 +129,7 @@ export default function DiscoverPage() {
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const json = await res.json();
       // API may return { data: [...] } or a bare array
-      const list: VenueBasic[] = Array.isArray(json)
+      const list: Array<{ placeId: string; name: string }> = Array.isArray(json)
         ? json
         : Array.isArray(json?.data)
         ? json.data
@@ -194,7 +147,7 @@ export default function DiscoverPage() {
     fetchVenues();
   }, [fetchVenues]);
 
-  function handleVibeCheck(venue: VenueBasic) {
+  function handleVibeCheck(venue: { placeId: string; name: string }) {
     const params = new URLSearchParams({
       venueId: venue.placeId,
       venueName: venue.name,
@@ -231,17 +184,9 @@ export default function DiscoverPage() {
 
       {/* Body */}
       <div className="max-w-lg mx-auto px-4 py-5 space-y-5 pb-32">
-        {/* Map section */}
+        {/* Map section — TODO(NV-076): new map-first flow to replace this placeholder */}
         <section aria-label="Map view">
-          {hasMapsKey ? (
-            <GoogleMapsView
-              apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY as string}
-              venues={venues}
-              onVenueSelect={handleVibeCheck}
-            />
-          ) : (
-            <MapPreviewFallback />
-          )}
+          <MapPreviewFallback />
         </section>
 
         {/* Nearby venues list */}
@@ -313,15 +258,18 @@ export default function DiscoverPage() {
             <EmptyState onRefresh={fetchVenues} />
           )}
 
+          {/* TODO(NV-076): VenueCard removed — replace with new consumer venue card once data model ships */}
           {!isLoading && !fetchError && venues.length > 0 && (
             <div className="space-y-3">
               {venues.map((venue) => (
-                <VenueCard
+                <button
                   key={venue.placeId}
-                  venue={venue}
-                  variant="full"
-                  onVibeCheck={handleVibeCheck}
-                />
+                  type="button"
+                  onClick={() => handleVibeCheck(venue)}
+                  className="w-full rounded-2xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-left text-white text-sm font-semibold hover:bg-white/[0.07] transition-colors duration-150"
+                >
+                  {venue.name}
+                </button>
               ))}
             </div>
           )}

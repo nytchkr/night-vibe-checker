@@ -14,8 +14,7 @@
 // CompactCard: map popup variant — unchanged from prior version.
 // ============================================================
 
-import type { VenueBasic } from "@/types";
-import { VibeScoreRing } from "./VibeScoreRing";
+// TODO(NV-076): VenueBasic removed with vibe.ts — prop type will be replaced by ConsumerVenue
 import { VibeTagBadge } from "./VibeTagBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,11 +41,19 @@ function timeAgo(isoString: string): string {
 
 // --------------- Props --------------------------------------
 
+// Minimal venue shape — will be replaced by ConsumerVenue once NV-076 ships
+interface VenueShape {
+  placeId: string;
+  name: string;
+  googleRating?: number;
+  priceLevel?: number;
+}
+
 interface VenueCardProps {
-  venue: VenueBasic;
+  venue: VenueShape;
   topTags?: string[];
   variant?: "full" | "compact";
-  onVibeCheck?: (venue: VenueBasic) => void;
+  onVibeCheck?: (venue: VenueShape) => void;
   isChecking?: boolean;
   className?: string;
   isSaved?: boolean;
@@ -80,18 +87,6 @@ function PriceLevel({ level }: { level?: number }) {
   );
 }
 
-function NoScorePlaceholder({ size }: { size: number }) {
-  return (
-    <div
-      className="flex-shrink-0 rounded-full flex items-center justify-center"
-      style={{ width: size, height: size, background: "rgba(255,255,255,0.04)", border: "2px dashed rgba(255,255,255,0.12)" }}
-      aria-label="Vibe not checked yet"
-    >
-      <span className="text-white/20 text-sm font-bold">?</span>
-    </div>
-  );
-}
-
 function CompactCard({ venue, topTags, onVibeCheck, isChecking }: Omit<VenueCardProps, "variant" | "className">) {
   return (
     <Card
@@ -100,11 +95,6 @@ function CompactCard({ venue, topTags, onVibeCheck, isChecking }: Omit<VenueCard
     >
       <CardContent className="p-3">
         <div className="flex items-center gap-3">
-          {venue.cachedVibeScore != null ? (
-            <VibeScoreRing score={venue.cachedVibeScore} size={52} strokeWidth={6} />
-          ) : (
-            <NoScorePlaceholder size={52} />
-          )}
           <div className="min-w-0">
             <p className="text-white font-semibold text-sm leading-tight truncate">{venue.name}</p>
             <div className="flex items-center gap-2 mt-0.5">
@@ -177,11 +167,6 @@ function FullCard({
           <p className="text-white text-[16px] font-bold leading-snug truncate">{venue.name}</p>
           {/* Vibe score + meta */}
           <div className="flex items-baseline gap-1.5 mt-0.5">
-            {venue.cachedVibeScore != null && (
-              <span className="text-[#00F5D4] text-[18px] font-bold leading-none">
-                {venue.cachedVibeScore}
-              </span>
-            )}
             {meta.length > 0 && (
               <span className="text-white/40 text-[11px]">{meta.join(" · ")}</span>
             )}

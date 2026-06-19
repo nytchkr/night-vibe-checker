@@ -1,3 +1,65 @@
+// --------------- API envelope --------------------------------
+// Shared by all API routes and E2E test helpers.
+
+export type APIStatus = "success" | "error" | "partial";
+
+export interface APIResponse<T> {
+  status: APIStatus;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  meta?: {
+    cached: boolean;
+    generatedAt: string;
+    [key: string]: unknown;
+  };
+}
+
+// --------------- Legacy shims --------------------------------
+// VenueBasic and VibeReport were removed from vibe.ts.
+// Kept here as minimal shims so E2E specs continue to compile
+// until they are rewritten against the new ConsumerVenue type.
+
+export interface VenueBasic {
+  placeId: string;
+  name: string;
+  googleRating?: number;
+  totalRatings?: number;
+  priceLevel?: number;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  type?: string;
+  /** @deprecated use busyness signals from ConsumerVenue.signal */
+  cachedVibeScore?: number | null;
+}
+
+export interface VibeReport {
+  id?: string;
+  venueId?: string;
+  venueName?: string;
+  vibeScore: number;
+  vibeTags: string[];
+  energyLevel: string;
+  musicVibe: string;
+  bestFor: string[];
+  crowdType: string;
+  /** @deprecated use vibeSummary */
+  summary?: string;
+  vibeSummary?: string;
+  confidence: number | "low" | "medium" | "high";
+  fromPhoto?: boolean;
+  cached?: boolean;
+  cachedAt?: string;
+  generatedAt?: string;
+  [key: string]: unknown;
+}
+
+// --------------- Consumer domain types -----------------------
+
 export type ReportedBusyness = "dead" | "moderate" | "packed";
 export type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
 export type BusynessSource = "live" | "forecast" | "crowd";

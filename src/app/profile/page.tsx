@@ -345,15 +345,6 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {/* Agent board */}
-        <Link
-          href="/agent-board"
-          className="flex items-center justify-between rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.07] px-4 py-3 text-sm font-semibold text-cyan-100 transition-colors hover:bg-cyan-400/[0.12] min-h-[44px]"
-        >
-          <span>Open Agent Board</span>
-          <span className="text-xs text-cyan-200/70">Admin</span>
-        </Link>
-
         {/* Report CTA */}
         {session && (
           <Link
