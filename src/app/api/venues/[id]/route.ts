@@ -4,17 +4,22 @@
 // Returns full VenueDetail from Google Places plus the latest
 // cached VibeReport for the venue from Supabase.
 //
+// When Google Places is unavailable AND the id matches a demo
+// venue, returns the hardcoded demo VenueDetail so the flow
+// remains functional during demos.
+//
 // Returns: APIResponse<{ venue: VenueDetail; report: VibeReport | null }>
 //
 // Status codes:
 //   200  success (or partial if Places failed but we have DB data)
 //   400  missing / empty id param
 //   429  rate limited
-//   500  both Places and Supabase unavailable
+//   500  both Places and Supabase unavailable and not a demo venue
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { getVenueDetails, PlacesApiError } from "@/lib/places";
+import { DEMO_VENUE_DETAILS, isDemoVenue } from "@/lib/demoVenues";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { v4 as uuidv4 } from "uuid";
@@ -65,6 +70,7 @@ export async function GET(
   // ---- 1. Fetch VenueDetail from Google Places ----
   let venue: VenueDetail | null = null;
   let placesError: string | null = null;
+  let demoMode = false;
 
   try {
     venue = await getVenueDetails(id);
@@ -74,6 +80,13 @@ export async function GET(
       err instanceof PlacesApiError
         ? err.message
         : "Could not fetch venue details from Google Places.";
+
+    // Fall back to hardcoded demo venue if available
+    if (isDemoVenue(id)) {
+      venue = DEMO_VENUE_DETAILS[id];
+      demoMode = true;
+      placesError = null; // demo data is good — clear the error
+    }
   }
 
   // ---- 2. Query Supabase for the latest cached VibeReport ----
@@ -117,7 +130,7 @@ export async function GET(
 
   // ---- 3. Graceful degradation logic ----
 
-  // Both failed — hard 500
+  // Both failed and no demo fallback — hard 500
   if (!venue && placesError) {
     return NextResponse.json<APIResponse<never>>(
       {
@@ -132,7 +145,7 @@ export async function GET(
     );
   }
 
-  // Places succeeded — return whatever we have
+  // Places succeeded (or demo fallback) — return whatever we have
   const status = placesError ? "partial" : "success";
 
   return NextResponse.json<APIResponse<{ venue: VenueDetail; report: VibeReport | null }>>(
@@ -149,7 +162,13 @@ export async function GET(
           message: placesError,
         },
       }),
-      meta: { cached: false, generatedAt, requestId },
+      meta: {
+        cached: false,
+        generatedAt,
+        requestId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(demoMode && ({ demo_mode: true } as any)),
+      },
     },
     { status: 200 }
   );

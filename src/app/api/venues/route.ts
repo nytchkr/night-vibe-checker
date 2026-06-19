@@ -4,12 +4,18 @@
 // Searches Google Places for nightlife venues.
 // Attaches cached vibe scores from Supabase where available.
 //
+// When Google Places is unavailable (REQUEST_DENIED, quota, etc.)
+// returns a set of hardcoded demo venues so the home feed is
+// never empty during a demo. Response includes demo_mode: true
+// in the meta object when fallback is active.
+//
 // Returns: APIResponse<VenueBasic[]>
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { searchVenues } from "@/lib/places";
+import { DEMO_VENUES } from "@/lib/demoVenues";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { v4 as uuidv4 } from "uuid";
@@ -80,25 +86,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { q, lat, lng } = parsed.data;
 
-  // Fetch from Places
+  // Fetch from Places — fall back to demo venues if unavailable
   let venues: VenueBasic[];
+  let demoMode = false;
+
   try {
     venues = await searchVenues(q, lat, lng);
   } catch (err) {
     console.error("[venues] Places search error:", err);
-    // Return empty list rather than a 500 — clients can show "no results"
-    return NextResponse.json<APIResponse<VenueBasic[]>>(
-      {
-        status: "partial",
-        data: [],
-        error: {
-          code: "PLACES_UNAVAILABLE",
-          message: "Venue search is temporarily unavailable.",
-        },
-        meta: { cached: false, generatedAt: new Date().toISOString(), requestId },
-      },
-      { status: 200 }
-    );
+    // Return demo venues rather than an empty list so the feed is usable for demo
+    venues = DEMO_VENUES;
+    demoMode = true;
   }
 
   // Hydrate cached vibe scores in a single DB query
@@ -126,12 +124,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<APIResponse<VenueBasic[]>>(
     {
-      status: "success",
+      status: demoMode ? "partial" : "success",
       data: venues,
+      ...(demoMode && {
+        error: {
+          code: "PLACES_UNAVAILABLE",
+          message: "Live venue search unavailable — showing demo venues.",
+        },
+      }),
       meta: {
         cached: false,
         generatedAt: new Date().toISOString(),
         requestId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ...(demoMode && ({ demo_mode: true } as any)),
       },
     },
     { status: 200 }

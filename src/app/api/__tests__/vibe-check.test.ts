@@ -386,9 +386,9 @@ describe("GET /api/venues", () => {
     expect(res.status).toBe(422);
   });
 
-  // Places API failure → 200 with empty data array + error code (not a 500).
-  // Clients show "no results" rather than an error screen.
-  it("returns 200 with empty data and PLACES_UNAVAILABLE code when Places API fails", async () => {
+  // Places API failure → 200 with demo venues + PLACES_UNAVAILABLE code (not a 500 or empty).
+  // Clients see demo venues rather than an empty or error screen.
+  it("returns 200 with demo venues and PLACES_UNAVAILABLE code when Places API fails", async () => {
     (searchVenues as MockedFunction<typeof searchVenues>).mockRejectedValue(
       new Error("quota exceeded")
     );
@@ -399,8 +399,11 @@ describe("GET /api/venues", () => {
 
     expect(res.status).toBe(200);
     expect(json.status).toBe("partial");
-    expect(json.data).toEqual([]);
+    // Demo fallback: 6 hardcoded venues returned instead of empty array
+    expect(Array.isArray(json.data)).toBe(true);
+    expect(json.data.length).toBeGreaterThan(0);
     expect(json.error.code).toBe("PLACES_UNAVAILABLE");
+    expect(json.meta.demo_mode).toBe(true);
   });
 
   // No lat/lng is a valid request — Places uses text search only.
