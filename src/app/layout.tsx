@@ -10,8 +10,20 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "NightVibe — Find Your Scene Tonight",
-  description: "AI-powered nightlife vibe checker — find your scene tonight.",
+  title: "Night Vibe Checker — Live crowd reports",
+  description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
+  openGraph: {
+    title: "Night Vibe Checker — Live crowd reports",
+    description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
+    url: "https://night-vibe-checker.vercel.app",
+    siteName: "Night Vibe Checker",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Night Vibe Checker — Live crowd reports",
+    description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
+  },
 };
 
 export const viewport: Viewport = {
