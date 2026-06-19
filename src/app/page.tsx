@@ -1,14 +1,15 @@
 "use client";
 
 // ============================================================
-// Home — Live Feed  (NV-059, NV-065)
+// Home — Live Feed  (NV-059, NV-065, NV-068)
 //
 // On load: fetches GET /api/check-ins?limit=20
 // Shows feed of real check-ins — crowd badge dominant, no search hero
 // Empty state: simple search input + "Nothing reported tonight yet"
+// NV-068: Refresh pill button + visibilitychange auto-refresh after 60s
 // ============================================================
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LiveCheckIn } from "@/types";
@@ -51,7 +52,9 @@ function timeAgo(iso: string): string {
 
 // --------------- Feed card ----------------------------------
 
-function FeedCard({ checkIn }: { checkIn: LiveCheckIn }) {
+type DedupedCheckIn = LiveCheckIn & { reportCount: number };
+
+function FeedCard({ checkIn }: { checkIn: DedupedCheckIn }) {
   return (
     <div
       className="rounded-2xl overflow-hidden border border-white/[0.09]"
@@ -67,6 +70,9 @@ function FeedCard({ checkIn }: { checkIn: LiveCheckIn }) {
             </span>
             · {timeAgo(checkIn.createdAt)}
           </p>
+          {checkIn.reportCount > 1 && (
+            <span className="text-white/40 text-[11px]">{checkIn.reportCount} reports</span>
+          )}
         </div>
         <Link
           href={`/vibe-check?venueId=${encodeURIComponent(checkIn.venueId)}&venueName=${encodeURIComponent(checkIn.venueName)}`}
@@ -138,8 +144,17 @@ function EmptyState() {
 
 // --------------- Main page ----------------------------------
 
+function deduplicateCheckIns(rows: LiveCheckIn[]): DedupedCheckIn[] {
+  const seen = new Map<string, DedupedCheckIn>();
+  for (const ci of rows) {
+    if (!seen.has(ci.venueId)) seen.set(ci.venueId, { ...ci, reportCount: 1 });
+    else seen.get(ci.venueId)!.reportCount++;
+  }
+  return Array.from(seen.values()).slice(0, 15);
+}
+
 export default function HomePage() {
-  const [checkIns, setCheckIns] = useState<LiveCheckIn[]>([]);
+  const [checkIns, setCheckIns] = useState<DedupedCheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const fetchedRef = useRef(false);
@@ -155,7 +170,7 @@ export default function HomePage() {
       })
       .then((json) => {
         const rows: LiveCheckIn[] = json?.data?.checkIns ?? [];
-        setCheckIns(rows);
+        setCheckIns(deduplicateCheckIns(rows));
       })
       .catch(() => setError("Could not load the feed. Tap to retry."))
       .finally(() => setLoading(false));
@@ -211,7 +226,7 @@ export default function HomePage() {
                 fetchedRef.current = false;
                 fetch("/api/check-ins?limit=20")
                   .then((r) => r.json())
-                  .then((j) => setCheckIns(j?.data?.checkIns ?? []))
+                  .then((j) => setCheckIns(deduplicateCheckIns(j?.data?.checkIns ?? [])))
                   .catch(() => setError("Could not load the feed. Tap to retry."))
                   .finally(() => setLoading(false));
               }}

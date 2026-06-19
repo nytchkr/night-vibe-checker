@@ -71,13 +71,13 @@ function CheckInInner() {
   const [vibeScore, setVibeScore] = useState<number>(7);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-  const [submitError, setSubmitError] = useState(false);
+  const [submitError, setSubmitError] = useState<{ type: "duplicate" | "generic"; msg: string } | null>(null);
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSubmit = useCallback(async () => {
     if (!crowdLevel || !venueName.trim() || submitting) return;
     setSubmitting(true);
-    setSubmitError(false);
+    setSubmitError(null);
     try {
       const res = await fetch("/api/check-ins", {
         method: "POST",
@@ -90,11 +90,22 @@ function CheckInInner() {
           sessionId: getSessionId(),
         }),
       });
-      if (!res.ok) throw new Error("submission failed");
+      if (!res.ok) {
+        // Check for duplicate check-in rate limit before generic error
+        if (res.status === 429) {
+          const json = await res.json().catch(() => ({}));
+          if (json?.error?.code === "DUPLICATE_CHECK_IN") {
+            setSubmitError({ type: "duplicate", msg: "You already reported this spot recently. Try again in a few minutes." });
+            return;
+          }
+        }
+        setSubmitError({ type: "generic", msg: "Couldn't submit — tap to retry" });
+        return;
+      }
       setDone(true);
       navTimerRef.current = setTimeout(() => router.push("/"), 2000);
     } catch {
-      setSubmitError(true);
+      setSubmitError({ type: "generic", msg: "Couldn't submit — tap to retry" });
     } finally {
       setSubmitting(false);
     }
@@ -244,13 +255,6 @@ function CheckInInner() {
           </div>
         </section>
 
-        {/* Error */}
-        {submitError && (
-          <div role="alert" className="rounded-xl bg-rose-950/60 border border-rose-500/40 px-4 py-3 text-sm text-rose-300">
-            Something went wrong. Please try again.
-          </div>
-        )}
-
         {/* Submit */}
         <button
           type="button"
@@ -271,6 +275,16 @@ function CheckInInner() {
             "Submit"
           )}
         </button>
+
+        {/* Inline submit error — amber for duplicate cooldown, red for generic failures */}
+        {submitError && (
+          <p
+            role="alert"
+            className={`text-sm text-center mt-2 ${submitError.type === "duplicate" ? "text-amber-400" : "text-rose-400"}`}
+          >
+            {submitError.msg}
+          </p>
+        )}
 
         {!crowdLevel && (
           <p className="text-center text-white/30 text-xs" aria-live="polite">
