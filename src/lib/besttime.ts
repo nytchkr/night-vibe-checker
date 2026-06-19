@@ -8,14 +8,7 @@ type VenueRow = {
   besttime_venue_id: string | null;
 };
 
-type BestTimeLiveResponse = {
-  venue_info?: { venue_id?: string };
-  analysis?: {
-    venue_live_busyness?: number;
-    venue_forecasted_busyness?: number;
-  };
-  forecasted?: boolean;
-};
+export type RefreshResult = { venueId: string; ok: boolean; reason?: string };
 
 function apiKey(): string {
   const key = process.env.BESTTIME_API_KEY;
@@ -23,36 +16,56 @@ function apiKey(): string {
   return key;
 }
 
-function readBusyness(json: BestTimeLiveResponse) {
-  const live = json.analysis?.venue_live_busyness;
-  if (typeof live === "number") {
-    return { value: live, source: "live" as const };
-  }
-
-  const forecast = json.analysis?.venue_forecasted_busyness;
-  if (typeof forecast === "number") {
-    return { value: forecast, source: "forecast" as const };
-  }
-
-  return null;
+// Register venue with BestTime, returns venue_id
+async function registerVenue(venue: VenueRow, key: string): Promise<string> {
+  const res = await fetch("https://besttime.app/api/v1/forecasts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      api_key_private: key,
+      venue_name: venue.name,
+      venue_address: venue.address,
+    }),
+  });
+  if (!res.ok) throw new Error(`BestTime register HTTP ${res.status}`);
+  const data = await res.json();
+  const venueId: string | null = data.venue?.venue_id ?? null;
+  if (!venueId) throw new Error("BestTime register: no venue_id in response");
+  return venueId;
 }
 
-async function fetchBestTimeLive(venue: VenueRow) {
-  const params = new URLSearchParams({
-    api_key_private: apiKey(),
-    venue_name: venue.name,
-    venue_address: venue.address,
-  });
-  if (venue.besttime_venue_id) params.set("venue_id", venue.besttime_venue_id);
-
-  const res = await fetch(`https://besttime.app/api/v1/forecasts/live?${params}`, {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`BestTime HTTP ${res.status}`);
-  return (await res.json()) as BestTimeLiveResponse;
+// Fetch live busyness for current hour
+async function fetchLiveHour(venueId: string, key: string): Promise<number | null> {
+  const res = await fetch(
+    `https://besttime.app/api/v1/forecasts/live/hour/now?venue_id=${venueId}&api_key_private=${key}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error(`BestTime live HTTP ${res.status}`);
+  const data = await res.json();
+  const value: number | undefined = data.analysis?.venue_live_busyness;
+  return typeof value === "number" ? value : null;
 }
 
-export async function refreshBusyness(limit = 50) {
+// Fetch forecast busyness for current hour (fallback)
+async function fetchForecastHour(venueId: string, key: string): Promise<number | null> {
+  const res = await fetch(
+    `https://besttime.app/api/v1/forecasts/hour/now?venue_id=${venueId}&api_key_private=${key}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) throw new Error(`BestTime forecast HTTP ${res.status}`);
+  const data = await res.json();
+  const value: number | undefined = data.analysis?.hour_analysis?.busyness_score;
+  return typeof value === "number" ? value : null;
+}
+
+/** Maps a 0-100 busyness score to a discrete label. */
+export function busynessLabel(score: number): "dead" | "moderate" | "packed" {
+  if (score < 33) return "dead";
+  if (score < 67) return "moderate";
+  return "packed";
+}
+
+export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
   const { data: venues, error } = await supabaseAdmin
     .from("venues")
     .select("id, place_id, name, address, besttime_venue_id")
@@ -62,26 +75,42 @@ export async function refreshBusyness(limit = 50) {
 
   if (error) throw error;
 
-  const results: { venueId: string; ok: boolean; reason?: string }[] = [];
+  const key = apiKey();
+  const results: RefreshResult[] = [];
+
   for (const venue of (venues ?? []) as VenueRow[]) {
     try {
-      const json = await fetchBestTimeLive(venue);
-      const read = readBusyness(json);
-      if (!read) {
+      // Register if we don't have a besttime_venue_id yet
+      let bestTimeVenueId = venue.besttime_venue_id;
+      if (!bestTimeVenueId) {
+        bestTimeVenueId = await registerVenue(venue, key);
+      }
+
+      // Try live first, fall back to forecast
+      let busynessValue: number | null = await fetchLiveHour(bestTimeVenueId, key);
+      let source: "live" | "forecast";
+
+      if (busynessValue !== null) {
+        source = "live";
+      } else {
+        busynessValue = await fetchForecastHour(bestTimeVenueId, key);
+        source = "forecast";
+      }
+
+      if (busynessValue === null) {
         results.push({ venueId: venue.id, ok: false, reason: "No BestTime read" });
         continue;
       }
 
       const refreshedAt = new Date().toISOString();
-      const busyness = Math.max(0, Math.min(100, Math.round(read.value)));
-      const besttimeVenueId = json.venue_info?.venue_id ?? venue.besttime_venue_id;
+      const busyness = Math.max(0, Math.min(100, Math.round(busynessValue)));
 
       const { error: venueError } = await supabaseAdmin
         .from("venues")
         .update({
-          besttime_venue_id: besttimeVenueId,
+          besttime_venue_id: bestTimeVenueId,
           busyness_0_100: busyness,
-          busyness_source: read.source,
+          busyness_source: source,
           last_busyness_refresh: refreshedAt,
         })
         .eq("id", venue.id);
@@ -92,7 +121,7 @@ export async function refreshBusyness(limit = 50) {
           venue_id: venue.id,
           place_id: venue.place_id,
           busyness_0_100: busyness,
-          busyness_source: read.source,
+          busyness_source: source,
           last_busyness_refresh: refreshedAt,
           computed_at: refreshedAt,
         },
@@ -101,11 +130,11 @@ export async function refreshBusyness(limit = 50) {
       if (signalError) throw signalError;
 
       results.push({ venueId: venue.id, ok: true });
-    } catch (error) {
+    } catch (err) {
       results.push({
         venueId: venue.id,
         ok: false,
-        reason: error instanceof Error ? error.message : "Unknown error",
+        reason: err instanceof Error ? err.message : "Unknown error",
       });
     }
   }
