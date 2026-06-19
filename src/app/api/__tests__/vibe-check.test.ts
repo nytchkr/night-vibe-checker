@@ -194,14 +194,14 @@ describe("POST /api/vibe-check", () => {
   });
 
   // OpenAI failure must never bubble up as a 500 — analyzeVibe() returns a
-  // fallback internally, so the route always gets a valid VibeReport.
-  it("returns 200 with a fallback VibeReport when OpenAI throws", async () => {
+  // fallback internally — route now returns 503 ANALYSIS_FAILED instead of masking it as success.
+  it("returns 503 ANALYSIS_FAILED when analyzeVibe returns a fallback report", async () => {
     const fallback = makeVibeReport({ confidence: 0.05 });
     (getVenueDetails as MockedFunction<typeof getVenueDetails>).mockResolvedValue(
       makeVenueDetail()
     );
     (getVenueReviews as MockedFunction<typeof getVenueReviews>).mockResolvedValue([]);
-    // analyzeVibe itself returns the fallback (never throws)
+    // analyzeVibe returns the fallback (confidence <= 0.1 triggers 503)
     (analyzeVibe as MockedFunction<typeof analyzeVibe>).mockResolvedValue(fallback);
 
     const req = makeVibeCheckRequest({
@@ -212,9 +212,10 @@ describe("POST /api/vibe-check", () => {
     const res = await POST(req);
     const json = await res.json();
 
-    expect(res.status).toBe(200);
-    expect(json.status).toBe("success");
-    expect(json.data.confidence).toBe(0.05);
+    expect(res.status).toBe(503);
+    expect(json.status).toBe("error");
+    expect(json.error.code).toBe("ANALYSIS_FAILED");
+    expect(json.data).toBeUndefined();
   });
 
   // When a photo is provided, analyzeVibe must be called with photoBase64 set.

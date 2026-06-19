@@ -140,6 +140,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // analyzeVibe never throws — returns fallback on any internal error
   const report: VibeReport = await analyzeVibe(input);
 
+  // Surface silent AI failures: fallback reports have confidence <= 0.1
+  // Return 503 so the UI can show a real error instead of a broken result
+  if (report.confidence <= 0.1) {
+    return NextResponse.json<APIResponse<never>>(
+      {
+        status: "error",
+        error: {
+          code: "ANALYSIS_FAILED",
+          message: "Vibe analysis is temporarily unavailable. Please try again.",
+        },
+        meta: { cached: false, generatedAt: new Date().toISOString(), requestId },
+      },
+      { status: 503, headers: rateLimitHeaders }
+    );
+  }
+
   // 5. Determine if response came from cache
   //    We infer this by checking if generatedAt is older than ~5 seconds
   const isCached =
