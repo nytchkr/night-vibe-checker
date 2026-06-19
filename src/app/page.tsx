@@ -180,6 +180,13 @@ export default function HomePage() {
             How&apos;s it out there?
           </h1>
           <p className="text-white/40 text-sm mt-1">Live crowd reports from tonight</p>
+          <Link
+            href="/vibe-check"
+            className="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl text-base font-black text-[#0A0A0F] transition-all duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80"
+            style={{ background: "linear-gradient(135deg, #00F5D4 0%, #00dfc0 100%)", boxShadow: "0 0 28px rgba(0,245,212,0.38)" }}
+          >
+            Check In
+          </Link>
         </div>
       </header>
 
