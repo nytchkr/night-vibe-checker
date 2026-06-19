@@ -60,33 +60,54 @@ Changed:
   - Adds cached Places fields to `venues`: `photo_url`, `category`, `zone_id`, `hidden`.
   - Seeds `south-end-charlotte`.
 
-## Left For Next Agents
-
 ### Agent B: BestTime
-- Add `BESTTIME_API_KEY` server-only adapter.
-- Add scheduled/protected refresh job.
-- Add `besttime_venue_id`, `busyness_0_100`, `busyness_source`, `last_busyness_refresh`.
-- Write busyness into the future `VenueSignal` read model.
-- Do not call BestTime during normal page render.
+
+Commit:
+- `feec2d4` Add BestTime and signal-backed check-ins
+
+Changed:
+- `src/lib/besttime.ts`
+  - Adds server-only BestTime live/forecast adapter using `BESTTIME_API_KEY`.
+  - Writes `besttime_venue_id`, `busyness_0_100`, `busyness_source`, and `last_busyness_refresh`.
+- `src/app/api/jobs/refresh-busyness/route.ts`
+  - Protected refresh job using `CRON_SECRET`.
+  - No BestTime calls happen during normal page render.
+- `supabase/schema.sql`
+  - Adds BestTime cache fields to `venues`.
+  - Adds `venue_signals` read model.
 
 ### Agent C: Check-In + M/F Signal Engine
-- Replace current check-in contract with:
-  - `busyness: dead | moderate | packed`
-  - `crowd_feel: mostly_male | mostly_female | balanced | mixed`
-  - optional `note`
-- Require logged-in users to report.
-- Add `VenueSignal` with recency-weighted M/F logic:
-  - `w = 0.5^(age_minutes / 45)`
-  - hide M/F ratio when `N_eff < 2`
-  - confidence `N_eff / (N_eff + 3) * agreement`
-- Only the signal engine writes `VenueSignal`.
+
+Commit:
+- `feec2d4` Add BestTime and signal-backed check-ins
+
+Changed:
+- `src/app/api/check-ins/route.ts`
+  - Replaces old `crowdLevel/vibeScore/sessionId` payload with `busyness`, `crowdFeel`, and optional `note`.
+  - Requires a logged-in Supabase user for POST.
+  - Recomputes `VenueSignal` after insert.
+- `src/lib/signals.ts`
+  - Adds recency weighting with `w = 0.5^(age_minutes / 45)`.
+  - Hides M/F ratio when effective sample size is below `2`.
+  - Computes confidence with `N_eff / (N_eff + 3) * agreement`.
+- `src/app/page.tsx`, `src/app/venues/[id]/page.tsx`, `src/app/vibe-check/page.tsx`, `src/app/profile/page.tsx`
+  - Reads cached venues/signals and submits the new report shape.
+- `src/app/api/__tests__/check-ins.test.ts`
+  - Updates API tests for auth-required check-ins, signal recompute, and new summary shape.
+
+## Left For Next Agents
 
 ### Agent D: Auth + Admin Cleanup
 - Keep email auth only.
 - Guests can browse cached venues/signals.
-- Reporting requires login.
 - Add thin protected `/admin` for hiding/removing bad venues/check-ins.
 - Remove any remaining owner-role assumptions if found.
+
+## Verification
+
+- `npm run type-check` passed.
+- `npm test -- --run` passed.
+- `npm run build` passed.
 
 ## Worker Instructions
 
