@@ -11,18 +11,13 @@
 import { vi, beforeAll, afterAll, afterEach } from "vitest";
 
 // ── Environment variable stubs ────────────────────────────────────────────────
-// The Supabase client, ai.ts, and OpenAI client throw at import/module-eval
-// time if their env vars are missing. Stub them here so test files can import
-// these modules without providing real credentials.
-//
-// NOTE: ai.ts also has a `typeof window !== "undefined"` guard that throws in
-// browser environments. The vitest config uses `environment: "node"` to avoid
-// this — jsdom would cause the entire AI module to fail to import.
+// Server modules throw at import/module-eval time if required env vars are
+// missing. Stub them here so tests can import those modules without real
+// credentials.
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.OPENAI_API_KEY = "sk-test-key-000000000000";
 process.env.GOOGLE_PLACES_API_KEY = "places-test-key";
 // NODE_ENV is read-only in TypeScript strict mode — already "test" when vitest runs
 
