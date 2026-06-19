@@ -10,6 +10,7 @@ import {
   Clock3,
   Filter,
   MessageSquarePlus,
+  PanelRightOpen,
   RefreshCw,
   Search,
   Shield,
@@ -370,7 +371,7 @@ export default function AgentBoard() {
           </div>
         </section>
 
-        <section className="mt-5 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
           <div className="min-w-0 space-y-4">
             <AgentStrip agents={agents} tickets={tickets} />
 
@@ -430,7 +431,7 @@ export default function AgentBoard() {
             </div>
           </div>
 
-          <aside className="2xl:sticky 2xl:top-24 2xl:self-start">
+          <aside className="lg:sticky lg:top-24 lg:self-start" aria-label="Ticket details">
             <TicketDrawer
               ticket={selectedTicket}
               comments={selectedTicket ? commentsByTicket[selectedTicket.id] ?? [] : []}
@@ -576,14 +577,21 @@ function TicketCard({
   onDragEnd: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <article
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect();
+        }
+      }}
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        "w-full cursor-grab rounded-lg border bg-white p-3 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:cursor-grabbing",
+        "group w-full cursor-pointer rounded-lg border bg-white p-3 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-200 active:cursor-grabbing",
         active ? "border-blue-400 shadow-[0_0_0_2px_rgba(37,99,235,0.12)]" : "border-slate-200",
       )}
     >
@@ -619,11 +627,14 @@ function TicketCard({
           <Clock3 className="h-3 w-3" />
           {shortDate(ticket.due_date)}
         </span>
-        <span className={cn("rounded-full px-2 py-0.5 font-bold", commentCount ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700")}>
-          {commentCount}
+        <span className="inline-flex items-center gap-1">
+          <span className={cn("rounded-full px-2 py-0.5 font-bold", commentCount ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700")}>
+            {commentCount}
+          </span>
+          <PanelRightOpen className="h-3.5 w-3.5 text-slate-300 transition-colors group-hover:text-blue-500" aria-hidden="true" />
         </span>
       </div>
-    </button>
+    </article>
   );
 }
 
