@@ -45,13 +45,13 @@ export function ShareButton({ venueName, vibeScore, summary, onCopied }: ShareBu
       aria-label="Share vibe report"
       title={copied ? "Link copied!" : "Share"}
       className="
-        h-8 px-2 text-xs
-        text-white/40 hover:bg-white/10 hover:text-white
+        h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
+        text-white/45 hover:border-cyan-300/35 hover:bg-cyan-300/10 hover:text-cyan-100
         focus-visible:text-white focus-visible:ring-white/30
       "
     >
       <ShareIcon />
-      <span>{copied ? "Copied to clipboard!" : "Share"}</span>
+      <span className="sr-only">{copied ? "Copied to clipboard!" : "Share"}</span>
     </Button>
   );
 }

@@ -5,7 +5,6 @@ import { VibeScoreRing } from "./VibeScoreRing";
 import { VibeTagBadge } from "./VibeTagBadge";
 import { ShareButton } from "./ShareButton";
 import { SaveSpotButton } from "./SaveSpotButton";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface VibeReportProps {
@@ -111,39 +110,42 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
     >
       {/* Score card */}
       <Card
-        className="rounded-2xl border-white/10 bg-white/[0.04] text-white shadow-none"
-        style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06)" }}
+        className="overflow-hidden rounded-[24px] border-white/10 text-white shadow-none"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(34,211,238,0.11), rgba(168,85,247,0.08) 44%, rgba(255,45,120,0.10))",
+          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 60px rgba(0,0,0,0.22)",
+        }}
       >
         <CardContent className="p-5">
           <div className="flex items-start gap-4">
-          <VibeScoreRing score={report.vibeScore} size={88} strokeWidth={8} className="flex-shrink-0" />
-          <div className="flex-1 min-w-0 pt-1">
-            <h2 className="text-white font-bold text-lg leading-tight">{report.venueName}</h2>
-            <p className="text-white/40 text-xs mt-1 capitalize">
-              {report.crowdType} · {report.energyLevel} energy
-            </p>
-            <div className="mt-2">
-              <EnergyBar level={report.energyLevel} />
+            <VibeScoreRing score={report.vibeScore} size={88} strokeWidth={8} className="flex-shrink-0" />
+            <div className="min-w-0 flex-1 pt-1">
+              <h2 className="text-lg font-bold leading-tight text-white">{report.venueName}</h2>
+              <p className="mt-1 text-xs capitalize text-white/45">
+                {report.crowdType} · {report.energyLevel} energy
+              </p>
+              <div className="mt-3">
+                <EnergyBar level={report.energyLevel} />
+              </div>
+              <span className={`mt-3 inline-flex items-center text-xs font-semibold ${confidenceColor}`}>
+                {confidencePct}% confidence
+              </span>
             </div>
-            <Badge variant="outline" className={`mt-2 border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] ${confidenceColor}`}>
-              {confidencePct}% confidence
-            </Badge>
-          </div>
-          {/* Action buttons in top-right of card */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <SaveSpotButton
-              venueId={report.venueId}
-              venueName={report.venueName}
-              vibeScoreSnapshot={report.vibeScore}
-              className="w-8 h-8 text-white/50 hover:text-white"
-            />
-            <ShareButton
-              venueName={report.venueName}
-              vibeScore={report.vibeScore}
-              summary={report.summary}
-              onCopied={onShareCopied}
-            />
-          </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <SaveSpotButton
+                venueId={report.venueId}
+                venueName={report.venueName}
+                vibeScoreSnapshot={report.vibeScore}
+                className="h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] text-white/50 hover:border-pink-300/30 hover:bg-pink-300/10 hover:text-white"
+              />
+              <ShareButton
+                venueName={report.venueName}
+                vibeScore={report.vibeScore}
+                summary={report.summary}
+                onCopied={onShareCopied}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -169,9 +171,7 @@ export function VibeReport({ report, isLoading, error, onShareCopied }: VibeRepo
         <CardContent className="p-4">
           <p className="text-white/70 text-sm leading-relaxed">{report.summary}</p>
           {report.fromPhoto && (
-            <Badge variant="outline" className="mt-3 border-white/10 bg-white/[0.04] text-white/40">
-              Photo analysis
-            </Badge>
+            <p className="mt-3 text-xs text-cyan-200/45">Photo analysis</p>
           )}
         </CardContent>
       </Card>
