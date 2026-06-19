@@ -204,7 +204,7 @@ PROOF: <console error, screenshot description, or failing test name>
 ---
 
 ### 6. 🧭 Senior Product UX Agent — `senior-product-ux-agent`
-**Model:** claude-sonnet-4-6
+**Model:** gpt-5
 **Trigger:** Called before/after major UX work, especially when the user says the product does not feel right.
 
 **Mission:** Raise product clarity. Make sure the app feels like a coherent nightlife check-in product, not a pile of screens.
@@ -233,7 +233,7 @@ NEXT: exact UX actions for ux-ui-agent
 ---
 
 ### 7. 🏗️ Senior Full-Stack Architect — `senior-full-stack-architect`
-**Model:** claude-sonnet-4-6
+**Model:** gpt-5-codex
 **Trigger:** Called after schema/API work, before UI/testing depends on new data contracts.
 
 **Mission:** Keep the app technically credible under production pressure.
@@ -263,7 +263,7 @@ NEXT: required dev-tech-agent action items or no-blocker signoff
 ---
 
 ### 8. 🚦 Senior QA Release Agent — `senior-qa-release-agent`
-**Model:** claude-sonnet-4-6
+**Model:** gpt-5-codex
 **Trigger:** Called before demo/release, after regression runs, or when production reliability is uncertain.
 
 **Mission:** Turn test output into a release decision.
