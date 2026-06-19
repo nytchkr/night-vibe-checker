@@ -98,6 +98,7 @@ export interface ConsumerCheckIn {
   id: string;
   venueId: string;
   placeId: string;
+  venueName?: string;
   busyness: ReportedBusyness;
   crowdFeel: CrowdFeel;
   note?: string;

@@ -10,7 +10,7 @@ if (typeof window !== "undefined") {
 }
 
 const PLACES_BASE = "https://maps.googleapis.com/maps/api/place";
-const DISCOVERY_TYPES = ["bar", "night_club", "restaurant"] as const;
+const DISCOVERY_TYPES = ["bar", "night_club"] as const;
 
 export class PlacesApiError extends Error {
   constructor(
@@ -30,11 +30,30 @@ function apiKey(): string {
 
 export function buildPhotoUrl(photoReference: string): string {
   const params = new URLSearchParams({
-    maxwidth: "900",
+    maxwidth: "800",
     photo_reference: photoReference,
     key: apiKey(),
   });
   return `${PLACES_BASE}/photo?${params}`;
+}
+
+/**
+ * Follows the Google Place Photo redirect and returns the final CDN URL.
+ * The Places Photo endpoint returns a 302 redirect to the actual image URL.
+ * We capture that redirect URL so we can store a key-free CDN link in the DB.
+ */
+export async function resolvePhotoUrl(photoReference: string): Promise<string> {
+  const redirectUrl = buildPhotoUrl(photoReference);
+  try {
+    const res = await fetch(redirectUrl, { redirect: "manual", cache: "no-store" });
+    // 302 redirect: Location header is the actual CDN URL
+    const location = res.headers.get("location");
+    if (location) return location;
+  } catch {
+    // Network error or non-redirect — fall back to the signed URL
+  }
+  // Fallback: return the signed URL (still works, just embeds the key)
+  return redirectUrl;
 }
 
 type PlacesNearbyResult = {
@@ -84,7 +103,8 @@ function toDiscoveredVenue(
     totalRatings: result.user_ratings_total,
     priceLevel: result.price_level,
     photoReference,
-    photoUrl: photoReference ? buildPhotoUrl(photoReference) : undefined,
+    // photoUrl resolved asynchronously in discoverZone after dedup
+    photoUrl: undefined,
   };
 }
 
@@ -122,5 +142,17 @@ export async function discoverZone(zone: LaunchZone): Promise<DiscoveredVenue[]>
     }
   }
 
-  return Array.from(byPlaceId.values());
+  const venues = Array.from(byPlaceId.values());
+
+  // Resolve one real CDN photo URL per venue by following the Places redirect.
+  // We do this after dedup so we only make one photo request per unique venue.
+  await Promise.all(
+    venues.map(async (venue) => {
+      if (venue.photoReference) {
+        venue.photoUrl = await resolvePhotoUrl(venue.photoReference);
+      }
+    })
+  );
+
+  return venues;
 }
