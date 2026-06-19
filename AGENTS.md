@@ -153,6 +153,16 @@ When testing-agent files a bug ticket tagged `type: Bug` and `scope: ui` or `sco
 - Re-run tests after every bug fix to confirm resolution
 - Maintain the skipped test list — 4 tests are intentionally skipped; document why in the spec file
 
+**Local Journey Verification protocol:**
+- Use this only for explicit journey-verifier work such as `NV-053`.
+- Verify locally, not production: run the app on `http://localhost:<port>` and do not claim a pass from code-reading or production behavior.
+- Cold state is required before each journey: clear localhost cookies/localStorage/sessionStorage or use a fresh browser context.
+- Use a brand-new test account from the real sign-up flow when the journey includes auth.
+- Walk every step in order as a real user. A dead end, loop, "coming soon", confusing step, or nonsensical flow is a failure even if the UI technically responds.
+- Capture screenshots or Playwright traces for each major step.
+- If the local dev server, build, or install fails, file a build-blocker ticket and stop that platform.
+- For this project, relevant platform is web localhost unless a real iOS/macOS/Android repo is added.
+
 **Bug Ticket Template (mandatory format):**
 ```
 Title: [BUG] <short description of what's broken>
