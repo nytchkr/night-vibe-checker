@@ -94,10 +94,14 @@ test.describe("Agent Board admin route", () => {
     await expect(page.getByText("NV-031").first()).toBeVisible();
     await expect(page.getByText("Agent presence")).toBeVisible();
     await expect(page.getByLabel("Home")).toHaveCount(0);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
 
     await page.getByRole("button", { name: /NV-023/ }).click();
-    const inspector = page.getByRole("complementary");
-    await expect(inspector.getByRole("heading", { name: "Discover map page E2E smoke test" })).toBeVisible();
-    await expect(inspector.getByText("Verify map page.")).toBeVisible();
+    const details = page.getByRole("dialog");
+    await expect(details.getByRole("heading", { name: "Discover map page E2E smoke test" })).toBeVisible();
+    await expect(details.getByText("Verify map page.")).toBeVisible();
+
+    await details.getByLabel("Close ticket details").click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 });

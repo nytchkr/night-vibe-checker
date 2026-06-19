@@ -10,11 +10,11 @@ import {
   Clock3,
   Filter,
   MessageSquarePlus,
-  PanelRightOpen,
   RefreshCw,
   Search,
   Shield,
   Signal,
+  X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -154,7 +154,7 @@ export default function AgentBoard() {
   const [agentFilter, setAgentFilter] = useState("all");
 
   const selectedTicket = useMemo(
-    () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0] ?? null,
+    () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? null,
     [selectedTicketId, tickets],
   );
 
@@ -215,7 +215,7 @@ export default function AgentBoard() {
       setTickets(nextTickets);
       setComments((commentResult.data ?? []) as AgentBoardComment[]);
       setAgents((agentResult.data ?? []) as AgentBoardAgent[]);
-      setSelectedTicketId((current) => current ?? nextTickets.find((ticket) => ticket.status !== "Done")?.id ?? nextTickets[0]?.id ?? null);
+      setSelectedTicketId((current) => current && nextTickets.some((ticket) => ticket.id === current) ? current : null);
       setLoadState("ready");
     } catch (err) {
       setError(formatError(err, "Unable to load Agent Board."));
@@ -302,6 +302,20 @@ export default function AgentBoard() {
     loadBoard();
   }, []);
 
+  useEffect(() => {
+    if (!selectedTicketId) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setDraftComment("");
+        setSelectedTicketId(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedTicketId]);
+
   return (
     <div className="min-h-screen bg-slate-100 pb-10 text-slate-900">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur-xl">
@@ -373,7 +387,7 @@ export default function AgentBoard() {
           </div>
         </section>
 
-        <section className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <section className="mt-5 space-y-4">
           <div className="min-w-0 space-y-4">
             <AgentStrip agents={agents} tickets={tickets} />
 
@@ -415,7 +429,10 @@ export default function AgentBoard() {
                             active={ticket.id === selectedTicket?.id}
                             commentCount={commentsByTicket[ticket.id]?.length ?? 0}
                             latestComment={commentsByTicket[ticket.id]?.[0]}
-                            onSelect={() => setSelectedTicketId(ticket.id)}
+                            onSelect={() => {
+                              setDraftComment("");
+                              setSelectedTicketId(ticket.id);
+                            }}
                             onDragStart={() => setDraggingTicketId(ticket.id)}
                             onDragEnd={() => setDraggingTicketId(null)}
                           />
@@ -432,20 +449,24 @@ export default function AgentBoard() {
               </div>
             </div>
           </div>
-
-          <aside className="lg:sticky lg:top-24 lg:self-start" aria-label="Ticket details">
-            <TicketDrawer
-              ticket={selectedTicket}
-              comments={selectedTicket ? commentsByTicket[selectedTicket.id] ?? [] : []}
-              draftComment={draftComment}
-              setDraftComment={setDraftComment}
-              addComment={addComment}
-              posting={posting}
-              statusUpdating={statusUpdating}
-              updateTicketStatus={updateTicketStatus}
-            />
-          </aside>
         </section>
+
+        {selectedTicket && (
+          <TicketDialog
+            ticket={selectedTicket}
+            comments={commentsByTicket[selectedTicket.id] ?? []}
+            draftComment={draftComment}
+            setDraftComment={setDraftComment}
+            addComment={addComment}
+            posting={posting}
+            statusUpdating={statusUpdating}
+            updateTicketStatus={updateTicketStatus}
+            onClose={() => {
+              setDraftComment("");
+              setSelectedTicketId(null);
+            }}
+          />
+        )}
       </main>
     </div>
   );
@@ -613,12 +634,6 @@ function TicketCard({
         <Badge className={cn("border text-[10px]", statusTone(ticket.status))}>{ticket.status}</Badge>
       </div>
 
-      {latestComment && (
-        <p className="mt-2 line-clamp-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs leading-relaxed text-slate-500">
-          {latestComment.body}
-        </p>
-      )}
-
       <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-500">
         <span className="truncate">{ticket.agent_id ?? ticket.assignee ?? "unassigned"}</span>
         <span className="shrink-0">{ticket.points ?? 0} pts</span>
@@ -629,18 +644,23 @@ function TicketCard({
           <Clock3 className="h-3 w-3" />
           {shortDate(ticket.due_date)}
         </span>
-        <span className="inline-flex items-center gap-1">
-          <span className={cn("rounded-full px-2 py-0.5 font-bold", commentCount ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700")}>
-            {commentCount}
-          </span>
-          <PanelRightOpen className="h-3.5 w-3.5 text-slate-300 transition-colors group-hover:text-blue-500" aria-hidden="true" />
+        <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-bold", commentCount ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500")}>
+          {commentCount}
+          <MessageSquarePlus className="h-3 w-3" aria-hidden="true" />
         </span>
       </div>
+
+      {latestComment && (
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100 pt-2 text-[11px] text-slate-400">
+          <span className="truncate">Last: {latestComment.agent_id}</span>
+          <span className="shrink-0">{shortTime(latestComment.created_at)}</span>
+        </div>
+      )}
     </article>
   );
 }
 
-function TicketDrawer({
+function TicketDialog({
   ticket,
   comments,
   draftComment,
@@ -649,8 +669,9 @@ function TicketDrawer({
   posting,
   statusUpdating,
   updateTicketStatus,
+  onClose,
 }: {
-  ticket: AgentBoardTicket | null;
+  ticket: AgentBoardTicket;
   comments: AgentBoardComment[];
   draftComment: string;
   setDraftComment: (value: string) => void;
@@ -658,24 +679,38 @@ function TicketDrawer({
   posting: boolean;
   statusUpdating: boolean;
   updateTicketStatus: (ticket: AgentBoardTicket, nextStatus: TicketStatus) => Promise<void>;
+  onClose: () => void;
 }) {
-  if (!ticket) {
-    return (
-      <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
-        <CardContent className="p-5 text-sm text-slate-500">Select a ticket to inspect agent updates.</CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
-      <CardContent className="space-y-4 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/45 px-3 py-3 backdrop-blur-sm sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="agent-board-ticket-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <Card className="max-h-[92vh] w-full max-w-3xl overflow-hidden rounded-lg border-slate-200 bg-white shadow-2xl">
+        <CardContent className="max-h-[92vh] space-y-4 overflow-auto p-4 sm:p-5">
         <div>
           <div className="flex items-center justify-between gap-2">
-            <Badge className={cn("border text-xs", statusTone(ticket.status))}>{ticket.status}</Badge>
-            <span className="text-xs font-bold text-slate-500">{ticket.id}</span>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <Badge className={cn("border text-xs", statusTone(ticket.status))}>{ticket.status}</Badge>
+              <span className="text-xs font-bold text-slate-500">{ticket.id}</span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Close ticket details"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <h2 className="mt-3 text-xl font-extrabold leading-tight text-slate-950">{ticket.title}</h2>
+          <h2 id="agent-board-ticket-title" className="mt-3 text-xl font-extrabold leading-tight text-slate-950">{ticket.title}</h2>
           <p className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{ticket.description ?? "No description."}</p>
         </div>
 
@@ -742,8 +777,9 @@ function TicketDrawer({
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
