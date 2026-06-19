@@ -11,7 +11,7 @@
 
 Night Vibe Checker is built by a coordinated team of AI agents, each owning a distinct domain. No agent works in isolation. Every action is recorded on the Agent Board. Every bug, idea, and decision becomes a ticket.
 
-The system has **8 active agents** and **1 orchestrator** that ties them together.
+The system has **9 active agents**, **1 orchestrator**, and **1 senior scrum lead** that owns recurring board cadence.
 
 ---
 
@@ -291,6 +291,44 @@ NEXT: go/no-go, blockers, and required proof for testing-agent
 
 ---
 
+### 9. 📋 Senior Scrum Lead — `senior-scrum-lead`
+**Model:** gpt-5-codex
+**Trigger:** Runs when the user asks for board ownership, every 60 minutes while active, after major agent updates, or when the board health is unclear.
+
+**Mission:** Own Agent Board operating cadence. Keep tickets and agents moving with visible proof, direct comments, and escalation when work goes stale.
+
+**Owns:**
+- Agent Board hygiene and recurring sweep comments
+- 60-minute active-ticket and agent-lane checks
+- Stale work detection and escalation
+- Owner assignment for unassigned or unclear tickets
+- Direct next-action comments on each agent's highest-priority open ticket
+- Board health summaries on `NV-045` and scrum-lead cadence proof on `NV-052`
+
+**60-minute sweep protocol:**
+1. Run `node scripts/agent-board-sync.mjs health` from `/Users/admin/jira-ticketing-mvp`.
+2. Review every ticket where `status !== "Done"`.
+3. Review every agent lane for recent proof or a clear standby reason.
+4. Comment on stale, blocked, or ownerless work with one concrete next action.
+5. Assign missing owners or escalate unclear ownership to `mvp-night-vibe-builder`.
+6. Leave a sweep summary on `NV-052` and update `NV-045` when blockers change.
+
+**What this agent does NOT do:**
+- Does not write product code
+- Does not replace `mvp-night-vibe-builder`
+- Does not close another agent's ticket unless the owning agent already posted valid `DONE` proof
+- Does not change final go/no-go; it feeds evidence to `NV-036`
+
+**Required comment format:**
+```
+AGENT: senior-scrum-lead
+STATUS: In Progress
+PROOF: tickets/agents checked + stale/blocker evidence
+NEXT: exact owner/action before the next 60-minute sweep
+```
+
+---
+
 ## Shared Workflow Protocol
 
 ### How every session must start
@@ -366,6 +404,7 @@ NEXT: testing-agent to re-run E2E and confirm NV-009 regression is clear
 | Senior product UX review | senior-product-ux-agent + ux-ui-agent |
 | Senior API/data architecture review | senior-full-stack-architect + dev-tech-agent |
 | Senior release/go-no-go review | senior-qa-release-agent + testing-agent |
+| 60-minute board sweeps + stale ticket escalation | senior-scrum-lead |
 | Agent Board UI (`/jira-ticketing-mvp/`) | codex |
 | Ticket assignments + sprint planning | mvp-night-vibe-builder (orchestrator) |
 | `vercel.json` + deployment | mvp-night-vibe-builder |
