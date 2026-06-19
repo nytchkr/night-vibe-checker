@@ -25,5 +25,7 @@ export interface CheckInSummary {
   avgVibeScore: number;
   dominantCrowd: CrowdLevel;
   reportCount: number;
+  summaryReportCount: number;
+  isSummaryPartial: boolean;
   lastReportAt: string;
 }

@@ -41,51 +41,64 @@ function mockAuth(userId: string | null) {
   );
 }
 
+function resetMocks() {
+  vi.clearAllMocks();
+  mockGetUser.mockReset();
+  mockFrom.mockReset();
+  vi.resetModules();
+}
+
 type ChainMock = {
   select:  ReturnType<typeof vi.fn>;
   eq:      ReturnType<typeof vi.fn>;
+  gte:     ReturnType<typeof vi.fn>;
   order:   ReturnType<typeof vi.fn>;
   limit:   ReturnType<typeof vi.fn>;
   insert:  ReturnType<typeof vi.fn>;
   single:  ReturnType<typeof vi.fn>;
 };
 
-function mockDbInsert(returnData: unknown, returnError: unknown = null): ChainMock {
-  const chain: ChainMock = {
-    select:  vi.fn().mockReturnThis(),
-    eq:      vi.fn().mockReturnThis(),
-    order:   vi.fn().mockReturnThis(),
-    limit:   vi.fn().mockReturnThis(),
-    insert:  vi.fn().mockReturnThis(),
-    single:  vi.fn().mockResolvedValue({ data: returnData, error: returnError }),
-  };
-  (chain.insert as ReturnType<typeof vi.fn>).mockReturnValue(chain);
-  mockFrom.mockReturnValue(chain);
-  return chain;
-}
-
-function mockDbSelect(returnData: unknown, returnError: unknown = null): ChainMock {
-  const resolved = { data: returnData, error: returnError };
-  // order() must be both awaitable (for /me which has no .limit()) and
-  // return a chain with .limit() (for routes that do call .limit())
+function createResolvedChain(returnData: unknown, returnError: unknown = null, count?: number): ChainMock {
+  const resolved = { data: returnData, error: returnError, count };
   const orderResult = {
-    // thenable — makes `await chain.order(...)` work
     then(resolve: (v: typeof resolved) => unknown, reject?: (e: unknown) => unknown) {
       return Promise.resolve(resolved).then(resolve, reject);
     },
     catch(reject: (e: unknown) => unknown) { return Promise.resolve(resolved).catch(reject); },
-    // chainable — makes `.order(...).limit(n)` work
     limit: vi.fn().mockResolvedValue(resolved),
   };
-  const chain: ChainMock = {
-    select: vi.fn().mockReturnThis(),
-    eq:     vi.fn().mockReturnThis(),
-    order:  vi.fn().mockReturnValue(orderResult),
-    limit:  vi.fn().mockResolvedValue(resolved),
-    insert: vi.fn().mockReturnThis(),
-    single: vi.fn().mockResolvedValue(resolved),
+
+  return {
+    select:  vi.fn().mockReturnThis(),
+    eq:      vi.fn().mockReturnThis(),
+    gte:     vi.fn().mockReturnThis(),
+    order:   vi.fn().mockReturnValue(orderResult),
+    limit:   vi.fn().mockResolvedValue(resolved),
+    insert:  vi.fn().mockReturnThis(),
+    single:  vi.fn().mockResolvedValue(resolved),
   };
-  mockFrom.mockReturnValue(chain);
+}
+
+function mockDbInsert(
+  returnData: unknown,
+  returnError: unknown = null,
+  recentRows: unknown[] = []
+): { rateGuard: ChainMock; insert: ChainMock } {
+  const rateGuard = createResolvedChain(recentRows);
+  const insert = createResolvedChain(returnData, returnError);
+  mockFrom.mockReturnValueOnce(rateGuard).mockReturnValueOnce(insert);
+  return { rateGuard, insert };
+}
+
+function mockDbSelect(
+  returnData: unknown,
+  returnError: unknown = null,
+  summaryData: unknown = returnData,
+  summaryCount?: number
+): ChainMock {
+  const chain = createResolvedChain(returnData, returnError);
+  const summaryChain = createResolvedChain(summaryData, returnError, summaryCount);
+  mockFrom.mockReturnValueOnce(chain).mockReturnValueOnce(summaryChain);
   return chain;
 }
 
@@ -119,7 +132,7 @@ const SAMPLE_ROW = {
 // ===================== POST /api/check-ins =====================
 
 describe("POST /api/check-ins", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
+  beforeEach(resetMocks);
 
   it("returns 201 with checkIn on valid body", async () => {
     mockAuth(null); // anonymous
@@ -133,6 +146,7 @@ describe("POST /api/check-ins", () => {
     expect(json.status).toBe("success");
     expect(json.data.checkIn.venueId).toBe("place_abc123");
     expect(json.data.checkIn.crowdLevel).toBe("packed");
+    expect(json.data.checkIn.tags).toEqual(["dark", "loud"]);
   });
 
   it("returns 400 on invalid JSON body", async () => {
@@ -185,6 +199,35 @@ describe("POST /api/check-ins", () => {
     expect(res.status).toBe(422);
   });
 
+  it("returns 422 on unsafe tags, excessive wait, and unbounded sessionId", async () => {
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      makeRequest("POST", "http://localhost/api/check-ins", {
+        ...VALID_POST_BODY,
+        waitMinutes: 241,
+        tags: ["valid", "<script>"],
+        sessionId: "x".repeat(121),
+      })
+    );
+    expect(res.status).toBe(422);
+    const json = await res.json();
+    expect(json.error.message).toContain("waitMinutes");
+    expect(json.error.message).toContain("tags");
+    expect(json.error.message).toContain("sessionId");
+  });
+
+  it("returns 429 when the same session recently checked into the same venue", async () => {
+    mockAuth(null);
+    mockDbInsert(SAMPLE_ROW, null, [{ id: "recent-row" }]);
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      makeRequest("POST", "http://localhost/api/check-ins", VALID_POST_BODY)
+    );
+    expect(res.status).toBe(429);
+    const json = await res.json();
+    expect(json.error.code).toBe("DUPLICATE_CHECK_IN");
+  });
+
   it("accepts anonymous POST (no auth header)", async () => {
     mockAuth(null);
     mockDbInsert(SAMPLE_ROW);
@@ -200,7 +243,7 @@ describe("POST /api/check-ins", () => {
 // ===================== GET /api/check-ins =====================
 
 describe("GET /api/check-ins", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
+  beforeEach(resetMocks);
 
   it("returns 200 with checkIns and summary for a venue", async () => {
     mockDbSelect([SAMPLE_ROW, { ...SAMPLE_ROW, id: "row-uuid-2", vibe_score: 7.0, crowd_level: "moderate" }]);
@@ -215,6 +258,8 @@ describe("GET /api/check-ins", () => {
     expect(json.data.summary).toBeDefined();
     expect(typeof json.data.summary.avgVibeScore).toBe("number");
     expect(json.data.summary.reportCount).toBe(2);
+    expect(json.data.summary.summaryReportCount).toBe(2);
+    expect(json.data.summary.isSummaryPartial).toBe(false);
     expect(json.data.summary.venueId).toBe("place_abc123");
   });
 
@@ -224,7 +269,7 @@ describe("GET /api/check-ins", () => {
     const res = await GET(req);
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error.code).toBe("MISSING_PARAM");
+    expect(json.error.code).toBe("INVALID_PARAM");
   });
 
   it("returns 200 with empty checkIns and zero summary for unknown venue", async () => {
@@ -251,12 +296,35 @@ describe("GET /api/check-ins", () => {
     const json = await res.json();
     expect(json.data.summary.dominantCrowd).toBe("packed");
   });
+
+  it("computes summary from a separate aggregate scan instead of the requested page limit", async () => {
+    mockDbSelect(
+      [SAMPLE_ROW],
+      null,
+      [
+        SAMPLE_ROW,
+        { ...SAMPLE_ROW, id: "row-uuid-2", vibe_score: 10.0, crowd_level: "wild" },
+        { ...SAMPLE_ROW, id: "row-uuid-3", vibe_score: 7.0, crowd_level: "wild" },
+      ],
+      10
+    );
+    const { GET } = await import("../check-ins/route");
+    const req = new NextRequest("http://localhost/api/check-ins?venueId=place_abc123&limit=1");
+    const res = await GET(req);
+    const json = await res.json();
+    expect(json.data.checkIns).toHaveLength(1);
+    expect(json.data.summary.reportCount).toBe(10);
+    expect(json.data.summary.summaryReportCount).toBe(3);
+    expect(json.data.summary.isSummaryPartial).toBe(true);
+    expect(json.data.summary.avgVibeScore).toBe(8.5);
+    expect(json.data.summary.dominantCrowd).toBe("wild");
+  });
 });
 
 // ===================== GET /api/check-ins/me =====================
 
 describe("GET /api/check-ins/me", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); });
+  beforeEach(resetMocks);
 
   it("returns 401 when no Authorization header", async () => {
     mockAuth(null);
