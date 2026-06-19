@@ -47,7 +47,7 @@ on conflict (id) do update set
 -- TABLE: venues
 -- ============================================================
 create table if not exists public.venues (
-  id              uuid primary key default uuid_generate_v4(),
+  id              uuid primary key default gen_random_uuid(),
   place_id        text not null unique,
   name            text not null,
   address         text not null default '',

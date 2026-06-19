@@ -476,6 +476,7 @@ NEXT: testing-agent to re-run E2E and confirm NV-009 regression is clear
 | `GOOGLE_PLACES_API_KEY` | dev-tech-agent (server routes only) | ❌ Never |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | ux-ui-agent (map component) | ✅ Yes |
 | `NEXT_PUBLIC_ENV` | All agents | ✅ Yes (`development` shows amber banner) |
+| `ADMIN_EMAILS` | dev-tech-agent (server routes only) | ❌ Never — comma-separated email allowlist for `/admin` |
 
 **Dev Supabase:** `https://onlpwglwnqoivuykywrk.supabase.co` (account: dev@dashurl.site)
 **Prod Supabase:** `https://gfsbqewkrcyclbktfyfk.supabase.co`
