@@ -8,8 +8,10 @@ import {
   CheckCircle2,
   CircleDot,
   Clock3,
+  Filter,
   MessageSquarePlus,
   RefreshCw,
+  Search,
   Shield,
   Signal,
 } from "lucide-react";
@@ -20,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { createClient } from "@supabase/supabase-js";
 
-type TicketStatus = "Backlog" | "Selected" | "In Progress" | "Done" | string;
+type TicketStatus = "Backlog" | "Selected" | "In Progress" | "Review" | "Done" | string;
 
 type AgentBoardTicket = {
   id: string;
@@ -55,7 +57,7 @@ type AgentBoardAgent = {
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-const BOARD_COLUMNS = ["Backlog", "Selected", "In Progress", "Done"] as const;
+const BOARD_COLUMNS = ["Backlog", "Selected", "In Progress", "Review", "Done"] as const;
 const ADMIN_AGENT_ID = "codex";
 
 const agentBoardUrl =
@@ -96,18 +98,36 @@ function shortTime(value: string | null) {
 
 function statusTone(status: string | null) {
   const lower = status?.toLowerCase() ?? "";
-  if (lower.includes("done") || lower.includes("active")) return "text-emerald-300 bg-emerald-400/10 border-emerald-400/20";
-  if (lower.includes("progress") || lower.includes("selected")) return "text-cyan-300 bg-cyan-400/10 border-cyan-400/20";
-  if (lower.includes("blocked")) return "text-rose-300 bg-rose-400/10 border-rose-400/20";
-  return "text-white/55 bg-white/[0.05] border-white/10";
+  if (lower.includes("done") || lower.includes("active")) return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (lower.includes("review")) return "border-violet-200 bg-violet-50 text-violet-700";
+  if (lower.includes("progress")) return "border-amber-200 bg-amber-50 text-amber-700";
+  if (lower.includes("selected")) return "border-blue-200 bg-blue-50 text-blue-700";
+  if (lower.includes("blocked")) return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 function priorityTone(priority: string | null) {
   const lower = priority?.toLowerCase() ?? "";
-  if (lower === "critical") return "border-rose-400/30 bg-rose-400/10 text-rose-200";
-  if (lower === "high") return "border-pink-400/30 bg-pink-400/10 text-pink-200";
-  if (lower === "medium") return "border-cyan-400/25 bg-cyan-400/10 text-cyan-200";
-  return "border-white/10 bg-white/[0.05] text-white/55";
+  if (lower === "critical") return "border-rose-200 bg-rose-50 text-rose-700";
+  if (lower === "high") return "border-orange-200 bg-orange-50 text-orange-700";
+  if (lower === "medium") return "border-blue-200 bg-blue-50 text-blue-700";
+  return "border-slate-200 bg-slate-50 text-slate-600";
+}
+
+function typeTone(type: string | null) {
+  const lower = type?.toLowerCase() ?? "";
+  if (lower === "bug") return "border-red-200 bg-red-50 text-red-700";
+  if (lower === "epic") return "border-purple-200 bg-purple-50 text-purple-700";
+  if (lower === "story") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function columnAccent(status: string) {
+  if (status === "Backlog") return "border-t-slate-400";
+  if (status === "Selected") return "border-t-blue-500";
+  if (status === "In Progress") return "border-t-amber-500";
+  if (status === "Review") return "border-t-violet-500";
+  return "border-t-emerald-500";
 }
 
 function makeCommentId(ticketId: string) {
@@ -123,6 +143,12 @@ export default function AgentBoard() {
   const [loadState, setLoadState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [agentFilter, setAgentFilter] = useState("all");
 
   const selectedTicket = useMemo(
     () => tickets.find((ticket) => ticket.id === selectedTicketId) ?? tickets[0] ?? null,
@@ -137,12 +163,34 @@ export default function AgentBoard() {
     }, {});
   }, [comments]);
 
+  const filteredTickets = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return tickets.filter((ticket) => {
+      const matchesQuery = !query ||
+        ticket.id.toLowerCase().includes(query) ||
+        ticket.title.toLowerCase().includes(query) ||
+        (ticket.description ?? "").toLowerCase().includes(query);
+      const matchesType = typeFilter === "all" || ticket.type === typeFilter;
+      const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
+      const matchesAgent = agentFilter === "all" || ticket.agent_id === agentFilter;
+      return matchesQuery && matchesType && matchesPriority && matchesAgent;
+    });
+  }, [agentFilter, priorityFilter, search, tickets, typeFilter]);
+
   const totals = useMemo(() => {
-    const open = tickets.filter((ticket) => ticket.status !== "Done").length;
-    const done = tickets.filter((ticket) => ticket.status === "Done").length;
-    const high = tickets.filter((ticket) => ["Critical", "High"].includes(ticket.priority ?? "") && ticket.status !== "Done").length;
+    const open = filteredTickets.filter((ticket) => ticket.status !== "Done").length;
+    const done = filteredTickets.filter((ticket) => ticket.status === "Done").length;
+    const high = filteredTickets.filter((ticket) => ["Critical", "High"].includes(ticket.priority ?? "") && ticket.status !== "Done").length;
     return { open, done, high };
-  }, [tickets]);
+  }, [filteredTickets]);
+
+  const filterOptions = useMemo(() => {
+    return {
+      types: Array.from(new Set(tickets.map((ticket) => ticket.type).filter(Boolean))) as string[],
+      priorities: Array.from(new Set(tickets.map((ticket) => ticket.priority).filter(Boolean))) as string[],
+      agents: agents.filter((agent) => agent.id !== "unassigned"),
+    };
+  }, [agents, tickets]);
 
   async function loadBoard() {
     setLoadState("loading");
@@ -203,30 +251,74 @@ export default function AgentBoard() {
     }
   }
 
+  async function updateTicketStatus(ticket: AgentBoardTicket, nextStatus: TicketStatus) {
+    if (!ticket || ticket.status === nextStatus) return;
+    const previousStatus = ticket.status;
+    setStatusUpdating(true);
+    setError(null);
+    setTickets((current) =>
+      current.map((item) =>
+        item.id === ticket.id ? { ...item, status: nextStatus, updated_at: new Date().toISOString() } : item,
+      ),
+    );
+
+    const nextComment: AgentBoardComment = {
+      id: makeCommentId(ticket.id),
+      ticket_id: ticket.id,
+      agent_id: ticket.agent_id ?? ADMIN_AGENT_ID,
+      body: `Status moved from ${previousStatus} to ${nextStatus}.`,
+      created_at: new Date().toISOString(),
+    };
+
+    try {
+      const supabase = createAgentBoardClient();
+      const [{ error: updateError }, { error: commentError }] = await Promise.all([
+        supabase
+          .from("agent_board_tickets")
+          .update({ status: nextStatus, updated_at: new Date().toISOString() })
+          .eq("id", ticket.id),
+        supabase.from("agent_board_comments").insert(nextComment),
+      ]);
+
+      if (updateError) throw updateError;
+      if (commentError) throw commentError;
+      setComments((current) => [nextComment, ...current]);
+    } catch (err) {
+      setTickets((current) =>
+        current.map((item) =>
+          item.id === ticket.id ? { ...item, status: previousStatus } : item,
+        ),
+      );
+      setError(formatError(err, "Unable to update ticket status."));
+    } finally {
+      setStatusUpdating(false);
+    }
+  }
+
   useEffect(() => {
     loadBoard();
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#08080D] pb-10">
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#08080D]/94 px-4 backdrop-blur-xl">
+    <div className="min-h-screen bg-slate-100 pb-10 text-slate-900">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 px-4 shadow-sm backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <Button asChild variant="ghost" size="icon" className="rounded-full border border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white">
+            <Button asChild variant="ghost" size="icon" className="rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900">
               <Link href="/profile" aria-label="Back to profile">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/40">
-                  Admin
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Night Vibe Ops
                 </p>
-                <Badge className="border-cyan-400/25 bg-cyan-400/10 text-cyan-200">
-                  Live
+                <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                  Supabase live
                 </Badge>
               </div>
-              <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-white">
+              <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight text-slate-950">
                 Agent Board
               </h1>
             </div>
@@ -235,7 +327,7 @@ export default function AgentBoard() {
           <Button
             onClick={loadBoard}
             disabled={loadState === "loading"}
-            className="rounded-full border border-white/10 bg-white/[0.06] px-3 text-white hover:bg-white/[0.1]"
+            className="rounded-lg border border-slate-200 bg-white px-3 text-slate-700 shadow-sm hover:bg-slate-50"
           >
             <RefreshCw className={cn("h-4 w-4", loadState === "loading" && "animate-spin")} />
             <span className="hidden sm:inline">Refresh</span>
@@ -243,9 +335,9 @@ export default function AgentBoard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-5">
+      <main className="mx-auto max-w-[1800px] px-4 py-5">
         {error && (
-          <div className="mb-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+          <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {error}
           </div>
         )}
@@ -256,19 +348,55 @@ export default function AgentBoard() {
           <MetricCard label="Done" value={totals.done} icon={CheckCircle2} tone="emerald" />
         </section>
 
-        <section className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-4">
-            <AgentStrip agents={agents} />
+        <section className="mt-4 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_160px_160px_220px]">
+            <label className="relative block">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search tickets, descriptions, IDs"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <FilterSelect label="Type" value={typeFilter} onChange={setTypeFilter} options={filterOptions.types} />
+            <FilterSelect label="Priority" value={priorityFilter} onChange={setPriorityFilter} options={filterOptions.priorities} />
+            <FilterSelect
+              label="Agent"
+              value={agentFilter}
+              onChange={setAgentFilter}
+              options={filterOptions.agents.map((agent) => agent.id)}
+            />
+          </div>
+        </section>
 
-            <div className="grid gap-3 xl:grid-cols-4">
+        <section className="mt-5 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0 space-y-4">
+            <AgentStrip agents={agents} tickets={tickets} />
+
+            <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-2 shadow-sm">
+              <div className="flex flex-col gap-3 pb-1 md:min-w-max md:flex-row">
               {BOARD_COLUMNS.map((column) => {
-                const columnTickets = tickets.filter((ticket) => ticket.status === column);
+                const columnTickets = filteredTickets.filter((ticket) => ticket.status === column);
 
                 return (
-                  <section key={column} className="min-w-0 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3">
+                  <section
+                    key={column}
+                    onDragOver={(event) => {
+                      if (!draggingTicketId) return;
+                      event.preventDefault();
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const ticket = tickets.find((item) => item.id === draggingTicketId);
+                      if (ticket) void updateTicketStatus(ticket, column);
+                      setDraggingTicketId(null);
+                    }}
+                    className={cn("w-full shrink-0 rounded-lg border border-t-4 border-slate-200 bg-slate-50 p-2 md:w-[280px]", columnAccent(column))}
+                  >
                     <div className="mb-3 flex items-center justify-between">
-                      <h2 className="text-sm font-bold text-white">{column}</h2>
-                      <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs font-semibold text-white/45">
+                      <h2 className="text-sm font-bold text-slate-800">{column}</h2>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
                         {columnTickets.length}
                       </span>
                     </div>
@@ -285,10 +413,12 @@ export default function AgentBoard() {
                             commentCount={commentsByTicket[ticket.id]?.length ?? 0}
                             latestComment={commentsByTicket[ticket.id]?.[0]}
                             onSelect={() => setSelectedTicketId(ticket.id)}
+                            onDragStart={() => setDraggingTicketId(ticket.id)}
+                            onDragEnd={() => setDraggingTicketId(null)}
                           />
                         ))
                       ) : (
-                        <div className="rounded-xl border border-dashed border-white/10 px-3 py-6 text-center text-xs text-white/35">
+                        <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 px-3 py-6 text-center text-xs text-slate-400">
                           No tickets
                         </div>
                       )}
@@ -296,10 +426,11 @@ export default function AgentBoard() {
                   </section>
                 );
               })}
+              </div>
             </div>
           </div>
 
-          <aside className="lg:sticky lg:top-24 lg:self-start">
+          <aside className="2xl:sticky 2xl:top-24 2xl:self-start">
             <TicketDrawer
               ticket={selectedTicket}
               comments={selectedTicket ? commentsByTicket[selectedTicket.id] ?? [] : []}
@@ -307,6 +438,8 @@ export default function AgentBoard() {
               setDraftComment={setDraftComment}
               addComment={addComment}
               posting={posting}
+              statusUpdating={statusUpdating}
+              updateTicketStatus={updateTicketStatus}
             />
           </aside>
         </section>
@@ -327,23 +460,54 @@ function MetricCard({
   tone: "cyan" | "pink" | "emerald";
 }) {
   const tones = {
-    cyan: "text-cyan-200 bg-cyan-400/10 border-cyan-400/20",
-    pink: "text-pink-200 bg-pink-400/10 border-pink-400/20",
-    emerald: "text-emerald-200 bg-emerald-400/10 border-emerald-400/20",
+    cyan: "text-blue-700 bg-blue-50 border-blue-200",
+    pink: "text-orange-700 bg-orange-50 border-orange-200",
+    emerald: "text-emerald-700 bg-emerald-50 border-emerald-200",
   };
 
   return (
-    <Card className="border-white/[0.08] bg-white/[0.04]">
+    <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
       <CardContent className="flex items-center justify-between p-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/35">{label}</p>
-          <p className="mt-1 text-3xl font-extrabold text-white">{value}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+          <p className="mt-1 text-3xl font-extrabold text-slate-950">{value}</p>
         </div>
-        <div className={cn("rounded-2xl border p-3", tones[tone])}>
+        <div className={cn("rounded-lg border p-3", tones[tone])}>
           <Icon className="h-5 w-5" />
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3">
+      <Filter className="h-4 w-4 text-slate-400" />
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-700 outline-none"
+      >
+        <option value="all">All {label}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -356,32 +520,39 @@ function formatError(err: unknown, fallback: string) {
   return fallback;
 }
 
-function AgentStrip({ agents }: { agents: AgentBoardAgent[] }) {
+function AgentStrip({ agents, tickets }: { agents: AgentBoardAgent[]; tickets: AgentBoardTicket[] }) {
   return (
-    <section className="rounded-2xl border border-white/[0.08] bg-white/[0.035] p-3">
+    <section className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Signal className="h-4 w-4 text-cyan-300" />
-          <h2 className="text-sm font-bold text-white">Agent presence</h2>
+          <Signal className="h-4 w-4 text-blue-600" />
+          <h2 className="text-sm font-bold text-slate-900">Agent presence</h2>
         </div>
-        <span className="text-xs text-white/35">{agents.length} linked</span>
+        <span className="text-xs font-medium text-slate-500">{agents.length} linked</span>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {agents.map((agent) => (
-          <div key={agent.id} className="rounded-xl border border-white/[0.08] bg-black/20 p-3">
+        {agents.map((agent) => {
+          const openCount = tickets.filter((ticket) => ticket.agent_id === agent.id && ticket.status !== "Done").length;
+          return (
+          <div key={agent.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{agent.name}</p>
-                <p className="mt-0.5 truncate text-xs text-white/35">{agent.model ?? "No model"}</p>
+                <p className="truncate text-sm font-semibold text-slate-900">{agent.name}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">{agent.model ?? "No model"}</p>
               </div>
-              <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", agent.status?.toLowerCase().includes("active") ? "bg-emerald-300" : "bg-cyan-300")} />
+              <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_rgba(16,185,129,0.14)]", agent.status?.toLowerCase().includes("active") ? "bg-emerald-500" : "bg-slate-400")} />
             </div>
-            <div className={cn("mt-3 rounded-full border px-2 py-1 text-[11px] font-semibold", statusTone(agent.status))}>
-              {agent.status ?? "Unknown"}
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className={cn("rounded-full border px-2 py-1 text-[11px] font-semibold", statusTone(agent.status))}>
+                {agent.status ?? "Unknown"}
+              </div>
+              <span className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-slate-500 ring-1 ring-slate-200">
+                {openCount} open
+              </span>
             </div>
           </div>
-        ))}
+        )})}
       </div>
     </section>
   );
@@ -393,50 +564,64 @@ function TicketCard({
   commentCount,
   latestComment,
   onSelect,
+  onDragStart,
+  onDragEnd,
 }: {
   ticket: AgentBoardTicket;
   active: boolean;
   commentCount: number;
   latestComment?: AgentBoardComment;
   onSelect: () => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onSelect}
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       className={cn(
-        "w-full rounded-xl border bg-[#101018] p-3 text-left transition-all hover:border-cyan-400/30 hover:bg-white/[0.06]",
-        active ? "border-cyan-400/40 shadow-[0_0_0_1px_rgba(0,245,212,0.18)]" : "border-white/[0.08]",
+        "w-full cursor-grab rounded-lg border bg-white p-3 text-left shadow-sm transition-all hover:border-blue-300 hover:shadow-md active:cursor-grabbing",
+        active ? "border-blue-400 shadow-[0_0_0_2px_rgba(37,99,235,0.12)]" : "border-slate-200",
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[11px] font-bold text-white/45">{ticket.id}</span>
+        <span className="text-[11px] font-bold text-slate-500">{ticket.id}</span>
         <Badge className={cn("border text-[10px]", priorityTone(ticket.priority))}>
           {ticket.priority ?? "Normal"}
         </Badge>
       </div>
 
-      <h3 className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-white">
+      <h3 className="mt-2 line-clamp-2 text-sm font-bold leading-snug text-slate-950">
         {ticket.title}
       </h3>
 
-      <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-white/40">
-        <span className="truncate">{ticket.agent_id ?? ticket.assignee ?? "unassigned"}</span>
-        <span className="shrink-0">{ticket.points ?? 0} pts</span>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <Badge className={cn("border text-[10px]", typeTone(ticket.type))}>{ticket.type ?? "Task"}</Badge>
+        <Badge className={cn("border text-[10px]", statusTone(ticket.status))}>{ticket.status}</Badge>
       </div>
 
       {latestComment && (
-        <p className="mt-2 line-clamp-2 rounded-lg bg-white/[0.04] px-2 py-1.5 text-xs leading-relaxed text-white/45">
+        <p className="mt-2 line-clamp-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs leading-relaxed text-slate-500">
           {latestComment.body}
         </p>
       )}
 
-      <div className="mt-3 flex items-center justify-between text-[11px] text-white/35">
-        <span className="inline-flex items-center gap-1">
+      <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+        <span className="truncate">{ticket.agent_id ?? ticket.assignee ?? "unassigned"}</span>
+        <span className="shrink-0">{ticket.points ?? 0} pts</span>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+        <span className="inline-flex min-w-0 items-center gap-1">
           <Clock3 className="h-3 w-3" />
           {shortDate(ticket.due_date)}
         </span>
-        <span>{commentCount} comments</span>
+        <span className={cn("rounded-full px-2 py-0.5 font-bold", commentCount ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-700")}>
+          {commentCount}
+        </span>
       </div>
     </button>
   );
@@ -449,6 +634,8 @@ function TicketDrawer({
   setDraftComment,
   addComment,
   posting,
+  statusUpdating,
+  updateTicketStatus,
 }: {
   ticket: AgentBoardTicket | null;
   comments: AgentBoardComment[];
@@ -456,25 +643,27 @@ function TicketDrawer({
   setDraftComment: (value: string) => void;
   addComment: () => void;
   posting: boolean;
+  statusUpdating: boolean;
+  updateTicketStatus: (ticket: AgentBoardTicket, nextStatus: TicketStatus) => Promise<void>;
 }) {
   if (!ticket) {
     return (
-      <Card className="border-white/[0.08] bg-white/[0.04]">
-        <CardContent className="p-5 text-sm text-white/45">Select a ticket to inspect agent updates.</CardContent>
+      <Card className="rounded-lg border-slate-200 bg-white shadow-sm">
+        <CardContent className="p-5 text-sm text-slate-500">Select a ticket to inspect agent updates.</CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="overflow-hidden border-white/[0.08] bg-[#101018]">
+    <Card className="overflow-hidden rounded-lg border-slate-200 bg-white shadow-sm">
       <CardContent className="space-y-4 p-4">
         <div>
           <div className="flex items-center justify-between gap-2">
             <Badge className={cn("border text-xs", statusTone(ticket.status))}>{ticket.status}</Badge>
-            <span className="text-xs text-white/35">{ticket.id}</span>
+            <span className="text-xs font-bold text-slate-500">{ticket.id}</span>
           </div>
-          <h2 className="mt-3 text-xl font-extrabold leading-tight text-white">{ticket.title}</h2>
-          <p className="mt-2 text-sm leading-relaxed text-white/45">{ticket.description ?? "No description."}</p>
+          <h2 className="mt-3 text-xl font-extrabold leading-tight text-slate-950">{ticket.title}</h2>
+          <p className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{ticket.description ?? "No description."}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -484,21 +673,35 @@ function TicketDrawer({
           <InfoPill label="Due" value={shortDate(ticket.due_date)} />
         </div>
 
-        <div className="rounded-2xl border border-white/[0.08] bg-black/20 p-3">
+        <label className="grid gap-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+          Status
+          <select
+            value={ticket.status}
+            disabled={statusUpdating}
+            onChange={(event) => void updateTicketStatus(ticket, event.target.value)}
+            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm normal-case tracking-normal text-slate-800 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+          >
+            {BOARD_COLUMNS.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+        </label>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="mb-2 flex items-center gap-2">
-            <MessageSquarePlus className="h-4 w-4 text-cyan-300" />
-            <h3 className="text-sm font-bold text-white">Leave update</h3>
+            <MessageSquarePlus className="h-4 w-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-slate-900">Leave update</h3>
           </div>
           <Textarea
             value={draftComment}
             onChange={(event) => setDraftComment(event.target.value)}
             placeholder="Post an agent update for this ticket..."
-            className="min-h-[92px] resize-none border-white/10 bg-white/[0.05] text-sm text-white placeholder:text-white/25"
+            className="min-h-[92px] resize-none border-slate-200 bg-white text-sm text-slate-900 placeholder:text-slate-400"
           />
           <Button
             onClick={addComment}
             disabled={posting || !draftComment.trim()}
-            className="mt-3 w-full rounded-xl bg-cyan-400 text-black hover:bg-cyan-300"
+            className="mt-3 w-full rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           >
             <Shield className="h-4 w-4" />
             {posting ? "Posting" : "Post as Codex"}
@@ -507,20 +710,20 @@ function TicketDrawer({
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Latest comments</h3>
-            <span className="text-xs text-white/35">{comments.length}</span>
+            <h3 className="text-sm font-bold text-slate-900">Latest comments</h3>
+            <span className="text-xs text-slate-500">{comments.length}</span>
           </div>
           <div className="max-h-[440px] space-y-2 overflow-auto pr-1">
             {comments.length ? comments.map((comment) => (
-              <article key={comment.id} className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3">
+              <article key={comment.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="truncate text-xs font-bold text-cyan-200">{comment.agent_id}</span>
-                  <span className="shrink-0 text-[11px] text-white/30">{shortTime(comment.created_at)}</span>
+                  <span className="truncate text-xs font-bold text-blue-700">{comment.agent_id}</span>
+                  <span className="shrink-0 text-[11px] text-slate-400">{shortTime(comment.created_at)}</span>
                 </div>
-                <p className="text-xs leading-relaxed text-white/55">{comment.body}</p>
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-slate-600">{comment.body}</p>
               </article>
             )) : (
-              <div className="rounded-xl border border-dashed border-white/10 px-3 py-8 text-center text-xs text-white/35">
+              <div className="rounded-lg border border-dashed border-slate-300 px-3 py-8 text-center text-xs text-slate-400">
                 No comments yet
               </div>
             )}
@@ -533,9 +736,9 @@ function TicketDrawer({
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.035] p-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">{label}</p>
-      <p className="mt-1 truncate font-semibold text-white/70">{value}</p>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</p>
+      <p className="mt-1 truncate font-semibold text-slate-800">{value}</p>
     </div>
   );
 }
@@ -544,7 +747,7 @@ function BoardSkeleton() {
   return (
     <>
       {Array.from({ length: 3 }).map((_, index) => (
-        <div key={index} className="h-36 animate-pulse rounded-xl border border-white/[0.08] bg-white/[0.04]" />
+        <div key={index} className="h-36 animate-pulse rounded-lg border border-slate-200 bg-white" />
       ))}
     </>
   );

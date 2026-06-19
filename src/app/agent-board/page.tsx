@@ -46,38 +46,38 @@ export default async function AgentBoardPage({
   const hasError = params.error === "1";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#08080D] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4 text-slate-900">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/40">
-            Admin
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Night Vibe Ops
           </p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-white">
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">
             Agent Board
           </h1>
-          <p className="mt-1 text-sm text-white/40">
+          <p className="mt-1 text-sm text-slate-500">
             Enter the admin password to continue.
           </p>
         </div>
 
         {hasError && (
-          <div className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             Incorrect password. Please try again.
           </div>
         )}
 
-        <form action={authenticate} className="space-y-4">
+        <form action={authenticate} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <input
             name="password"
             type="password"
             placeholder="Admin password"
             autoComplete="current-password"
             required
-            className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-white placeholder:text-white/25 focus:border-cyan-400/40 focus:outline-none focus:ring-1 focus:ring-cyan-400/20"
+            className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
           <button
             type="submit"
-            className="w-full rounded-xl bg-cyan-400 py-3 text-sm font-bold text-black transition-colors hover:bg-cyan-300"
+            className="w-full rounded-lg bg-blue-600 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-700"
           >
             Access Board
           </button>
