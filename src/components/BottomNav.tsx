@@ -5,7 +5,7 @@
 //
 // Tabs: Feed (/) | Report (/vibe-check) | Me (/profile)
 // Report tab is visually dominant — neon-cyan pill elevated above bar
-// /agent-board suppresses nav
+// Internal/admin routes suppress consumer nav
 // ============================================================
 
 import Link from "next/link";
@@ -49,7 +49,7 @@ function MeIcon({ filled }: { filled?: boolean }) {
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/agent-board") || pathname.startsWith("/admin")) {
+  if (pathname.startsWith("/internal") || pathname.startsWith("/agent-board") || pathname.startsWith("/admin")) {
     return null;
   }
 

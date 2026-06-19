@@ -4,6 +4,8 @@
 > Every agent must read this before starting any work.
 > Every agent must write to the Agent Board before stopping any work.
 > The Agent Board lives at: `/Users/admin/jira-ticketing-mvp/app.js`
+> Production read-only ticketing path: `/internal/tickets` (Internal Tickets).
+> This route is for Claude/Codex work coordination only; it is not a consumer VibeCheck feature.
 
 ---
 

@@ -3,6 +3,8 @@
 Date: 2026-06-19
 Repo: `/Users/admin/night-vibe-checker`
 
+Canonical internal ticketing path: `/internal/tickets` (**Internal Tickets**). This is for Claude/Codex work coordination only and is not part of the consumer VibeCheck experience.
+
 ## Scope Completed
 
 ### Teardown
