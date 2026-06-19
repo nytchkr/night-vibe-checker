@@ -242,7 +242,7 @@ function AuthBanner({ session, email, setEmail, otpSent, onSignIn, onSignOut, si
 export default function ProfilePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [savedSpots, setSavedSpots] = useState<SavedSpot[]>([]);
-  const [pastCheckIns] = useState<CheckIn[]>([]);
+  const [pastCheckIns, setPastCheckIns] = useState<CheckIn[]>([]);
   const [loadingSpots, setLoadingSpots] = useState(false);
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -253,20 +253,52 @@ export default function ProfilePage() {
 
     client.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session) fetchSavedSpots(data.session.access_token);
+      if (data.session) {
+        fetchSavedSpots(data.session.access_token);
+        fetchCheckIns(data.session.access_token);
+      }
     });
 
     const { data: { subscription } } = client.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
       if (sess) {
         fetchSavedSpots(sess.access_token);
+        fetchCheckIns(sess.access_token);
       } else {
         setSavedSpots([]);
+        setPastCheckIns([]);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  async function fetchCheckIns(token: string) {
+    try {
+      const res = await fetch("/api/check-ins/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      const rows = (json.data?.checkIns ?? []) as Array<{
+        id: string; venue_id?: string; venueId?: string;
+        venue_name?: string; venueName?: string;
+        crowd_level?: string; vibe_score?: number; vibeScore?: number;
+        created_at?: string; createdAt?: string;
+      }>;
+      setPastCheckIns(rows.map((r) => ({
+        id: r.id,
+        userId: "",
+        venueId: r.venue_id ?? r.venueId ?? "",
+        venueName: r.venue_name ?? r.venueName ?? "",
+        vibeReportId: "",
+        note: r.crowd_level ?? "",
+        checkedInAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
+      })));
+    } catch {
+      // non-fatal — profile still usable without history
+    }
+  }
 
   async function fetchSavedSpots(token: string) {
     setLoadingSpots(true);

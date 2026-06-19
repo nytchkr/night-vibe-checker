@@ -22,7 +22,7 @@
 // ============================================================
 
 import { useState, useCallback, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Toast } from "@/components/Toast";
 export const dynamic = "force-dynamic";
@@ -74,6 +74,13 @@ const WAIT_OPTIONS: { value: WaitTime; label: string }[] = [
   { value: "5to15",   label: "5–15 min" },
   { value: "15plus",  label: "15+ min"  },
 ];
+
+function waitTimeToMinutes(waitTime: WaitTime | null): number | undefined {
+  if (!waitTime || waitTime === "none") return 0;
+  if (waitTime === "lt5") return 5;
+  if (waitTime === "5to15") return 15;
+  return 30;
+}
 
 // --------------- Back icon ----------------------------------
 
@@ -457,6 +464,7 @@ function ErrorScreen({ onRetry }: { onRetry: () => void }) {
 
 function CheckInInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const prefillVenueId = searchParams.get("venueId") ?? undefined;
   const prefillVenueName = searchParams.get("venueName") ?? "";
 
@@ -499,7 +507,7 @@ function CheckInInner() {
 
       // Optimistic submit to check-ins route (NV-042 may not exist yet)
       try {
-        await fetch("/api/check-ins", {
+        const checkInResponse = await fetch("/api/check-ins", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -508,11 +516,12 @@ function CheckInInner() {
             crowdLevel: form.crowdLevel,
             vibeScore: form.vibeScore,
             musicType: form.musicType,
-            waitTime: form.waitTime,
+            waitMinutes: waitTimeToMinutes(form.waitTime),
           }),
         });
+        if (!checkInResponse.ok) throw new Error("Check-in submission failed");
       } catch {
-        // NV-042 not live yet — proceed anyway
+        throw new Error("Check-in submission failed");
       }
 
       setStep("done");
@@ -530,7 +539,7 @@ function CheckInInner() {
   };
 
   const handleViewVenue = () => {
-    showToast("Venue page coming soon!");
+    router.push("/");
   };
 
   const headerTitle =
