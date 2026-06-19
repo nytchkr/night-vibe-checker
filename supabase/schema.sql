@@ -47,6 +47,10 @@ create table if not exists public.venues (
   category        text,
   zone_id         text references public.zones(id),
   hidden          boolean not null default false,
+  besttime_venue_id text,
+  busyness_0_100  integer check (busyness_0_100 between 0 and 100),
+  busyness_source text check (busyness_source in ('live','forecast','crowd')),
+  last_busyness_refresh timestamptz,
   website         text,
   phone_number    text,
   -- Cached aggregate of all vibe reports for this venue
@@ -65,6 +69,10 @@ alter table public.venues add column if not exists photo_url text;
 alter table public.venues add column if not exists category text;
 alter table public.venues add column if not exists zone_id text references public.zones(id);
 alter table public.venues add column if not exists hidden boolean not null default false;
+alter table public.venues add column if not exists besttime_venue_id text;
+alter table public.venues add column if not exists busyness_0_100 integer check (busyness_0_100 between 0 and 100);
+alter table public.venues add column if not exists busyness_source text check (busyness_source in ('live','forecast','crowd'));
+alter table public.venues add column if not exists last_busyness_refresh timestamptz;
 
 -- ============================================================
 -- TABLE: vibe_reports
@@ -114,27 +122,56 @@ create index if not exists saved_spots_user_id_idx on public.saved_spots(user_id
 
 -- ============================================================
 -- TABLE: check_ins
--- Existing consumer live reports. Agent C will replace this with the
--- busyness/crowd_feel signal-engine contract.
+-- Consumer live reports. Authenticated users only write.
 -- ============================================================
 create table if not exists public.check_ins (
   id            uuid primary key default uuid_generate_v4(),
-  venue_id      text not null,
-  venue_name    text not null,
-  crowd_level   text not null check (crowd_level in ('quiet','moderate','packed','wild')),
-  vibe_score    numeric(3,1) not null check (vibe_score >= 1.0 and vibe_score <= 10.0),
-  music_type    text check (music_type in ('house','hiphop','rnb','techno','live','mixed','none')),
-  wait_minutes  integer check (wait_minutes >= 0),
-  tags          text[] default '{}',
+  venue_id      uuid not null references public.venues(id) on delete cascade,
+  place_id      text not null,
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  busyness      text not null check (busyness in ('dead','moderate','packed')),
+  crowd_feel    text not null check (crowd_feel in ('mostly_male','mostly_female','balanced','mixed')),
   note          text check (char_length(note) <= 200),
-  user_id       uuid references auth.users(id) on delete set null,
-  session_id    text,
+  hidden        boolean not null default false,
   created_at    timestamptz not null default now()
 );
 
 create index if not exists check_ins_user_id_idx on public.check_ins(user_id);
 create index if not exists check_ins_venue_id_idx on public.check_ins(venue_id);
+create index if not exists check_ins_place_id_idx on public.check_ins(place_id);
 create index if not exists check_ins_created_at_idx on public.check_ins(created_at desc);
+
+-- Existing installs may have the old anonymous/vibe-score columns. The
+-- guarded ALTER statements let Supabase migrate the shape in-place.
+alter table public.check_ins add column if not exists place_id text;
+alter table public.check_ins add column if not exists busyness text check (busyness in ('dead','moderate','packed'));
+alter table public.check_ins add column if not exists crowd_feel text check (crowd_feel in ('mostly_male','mostly_female','balanced','mixed'));
+alter table public.check_ins add column if not exists hidden boolean not null default false;
+alter table public.check_ins drop column if exists venue_name;
+alter table public.check_ins drop column if exists crowd_level;
+alter table public.check_ins drop column if exists vibe_score;
+alter table public.check_ins drop column if exists music_type;
+alter table public.check_ins drop column if exists wait_minutes;
+alter table public.check_ins drop column if exists tags;
+alter table public.check_ins drop column if exists session_id;
+
+-- ============================================================
+-- TABLE: venue_signals
+-- Cached consumer read model. Only jobs/signal engine write.
+-- ============================================================
+create table if not exists public.venue_signals (
+  venue_id              uuid primary key references public.venues(id) on delete cascade,
+  place_id              text not null unique,
+  busyness_0_100        integer check (busyness_0_100 between 0 and 100),
+  busyness_source       text check (busyness_source in ('live','forecast','crowd')),
+  mf_ratio              integer check (mf_ratio between 0 and 100),
+  confidence_0_1        numeric(5,4) not null default 0 check (confidence_0_1 between 0 and 1),
+  sample_size           numeric(8,2) not null default 0,
+  computed_at           timestamptz not null default now(),
+  last_busyness_refresh timestamptz
+);
+
+create index if not exists venue_signals_place_id_idx on public.venue_signals(place_id);
 
 -- ============================================================
 -- TRIGGER: keep venues.avg_vibe_score + report_count fresh
@@ -234,17 +271,37 @@ create policy "zones_public_read"
   on public.zones for select
   using (true);
 
--- check_ins: current app behavior; Agent C will tighten write auth
+-- check_ins: public read, authenticated users write their own rows
 alter table public.check_ins enable row level security;
+
+drop policy if exists "check_ins_public_read" on public.check_ins;
+drop policy if exists "check_ins_public_insert" on public.check_ins;
+drop policy if exists "check_ins_own_insert" on public.check_ins;
+drop policy if exists "check_ins_own_delete" on public.check_ins;
 
 create policy "check_ins_public_read"
   on public.check_ins for select
-  using (true);
+  using (hidden = false);
 
-create policy "check_ins_public_insert"
+create policy "check_ins_own_insert"
   on public.check_ins for insert
-  with check (true);
+  with check (auth.uid() = user_id);
 
 create policy "check_ins_own_delete"
   on public.check_ins for delete
   using (auth.uid() = user_id);
+
+-- venue_signals: anyone can read, only service_role can write
+alter table public.venue_signals enable row level security;
+
+drop policy if exists "venue_signals_public_read" on public.venue_signals;
+drop policy if exists "venue_signals_service_write" on public.venue_signals;
+
+create policy "venue_signals_public_read"
+  on public.venue_signals for select
+  using (true);
+
+create policy "venue_signals_service_write"
+  on public.venue_signals for all
+  using (auth.role() = 'service_role')
+  with check (auth.role() = 'service_role');

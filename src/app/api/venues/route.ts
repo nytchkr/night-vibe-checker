@@ -9,26 +9,25 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
 import { v4 as uuidv4 } from "uuid";
-import type { APIResponse } from "@/types";
+import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
-type CachedVenue = {
-  id: string;
-  placeId: string;
-  zoneId: string;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  category: string;
-  googleRating?: number;
-  totalRatings?: number;
-  priceLevel?: 1 | 2 | 3 | 4;
-  photoReference?: string;
-  photoUrl?: string;
-  hidden: boolean;
-};
+function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | undefined {
+  if (!row) return undefined;
+  return {
+    venueId: row.venue_id as string,
+    placeId: row.place_id as string,
+    busyness0To100: (row.busyness_0_100 ?? null) as number | null,
+    busynessSource: (row.busyness_source ?? null) as VenueSignal["busynessSource"],
+    mfRatio: (row.mf_ratio ?? null) as number | null,
+    confidence0To1: Number(row.confidence_0_1 ?? 0),
+    sampleSize: Number(row.sample_size ?? 0),
+    computedAt: row.computed_at as string,
+    lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
+  };
+}
 
-function mapVenue(row: Record<string, unknown>): CachedVenue {
+function mapVenue(row: Record<string, unknown>): ConsumerVenue {
+  const signalRows = (row.venue_signals ?? []) as Record<string, unknown>[];
   return {
     id: row.id as string,
     placeId: row.place_id as string,
@@ -40,10 +39,11 @@ function mapVenue(row: Record<string, unknown>): CachedVenue {
     category: (row.category ?? row.venue_type ?? "establishment") as string,
     googleRating: row.google_rating == null ? undefined : Number(row.google_rating),
     totalRatings: row.total_ratings == null ? undefined : Number(row.total_ratings),
-    priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as CachedVenue["priceLevel"]),
+    priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
+    signal: mapSignal(signalRows[0]),
   };
 }
 
@@ -72,7 +72,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .from("venues")
     .select(`
       id, place_id, zone_id, name, address, lat, lng, venue_type, category,
-      google_rating, total_ratings, price_level, photo_reference, photo_url, hidden
+      google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
+      venue_signals (
+        venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
+        confidence_0_1, sample_size, computed_at, last_busyness_refresh
+      )
     `)
     .eq("zone_id", LAUNCH_ZONE.id)
     .eq("hidden", false)
@@ -91,7 +95,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const venues = ((data ?? []) as Record<string, unknown>[]).map(mapVenue);
-  return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: CachedVenue[] }>>({
+  return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
     status: "success",
     data: { zone: LAUNCH_ZONE, venues },
     meta: { cached: true, generatedAt, requestId },

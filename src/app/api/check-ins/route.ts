@@ -1,101 +1,35 @@
 // ============================================================
-// POST /api/check-ins  — submit a live crowd/vibe check-in
-// GET  /api/check-ins  — fetch latest check-ins + summary for a venue
+// POST /api/check-ins — submit a consumer crowd report
+// GET  /api/check-ins — fetch recent public reports or one venue summary
 //
-// POST body: { venueId, venueName, crowdLevel, vibeScore, musicType?,
-//              waitMinutes?, tags?, note?, sessionId? }
-// GET query: ?venueId=<id>&limit=<n>   (limit defaults to 20)
-//
-// Auth: optional for both methods (anonymous check-ins supported via sessionId)
+// POST body: { venueId, busyness, crowdFeel, note? }
+// Auth: required for POST via Supabase Bearer token
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
-import type { APIResponse } from "@/types";
-import type { LiveCheckIn, PublicCheckIn, CheckInSummary, CrowdLevel } from "@/types/checkIn";
-
-// --------------- Zod schemas --------------------------------
+import { supabaseAdmin } from "@/lib/supabase";
+import { recomputeVenueSignal } from "@/lib/signals";
+import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const MAX_VENUE_ID_LENGTH = 160;
-const MAX_VENUE_NAME_LENGTH = 120;
-const MAX_SESSION_ID_LENGTH = 120;
-const MAX_TAGS = 8;
-const MAX_TAG_LENGTH = 24;
-const MAX_WAIT_MINUTES = 240;
-const SUMMARY_SCAN_LIMIT = 500;
 const DUPLICATE_WINDOW_MINUTES = 10;
-const SAFE_ID_PATTERN = /^[A-Za-z0-9:_-]+$/;
-const TAG_PATTERN = /^[A-Za-z0-9][A-Za-z0-9 &'+#/-]*$/;
 
 const PostBodySchema = z.object({
-  venueId: z
-    .string()
-    .trim()
-    .min(1, "venueId is required")
-    .max(MAX_VENUE_ID_LENGTH, `venueId must be ${MAX_VENUE_ID_LENGTH} characters or fewer`)
-    .regex(SAFE_ID_PATTERN, "venueId contains unsupported characters"),
-  venueName: z
-    .string()
-    .trim()
-    .min(1, "venueName is required")
-    .max(MAX_VENUE_NAME_LENGTH, `venueName must be ${MAX_VENUE_NAME_LENGTH} characters or fewer`),
-  crowdLevel:  z.enum(["quiet", "moderate", "packed", "wild"], {
-    errorMap: () => ({ message: "crowdLevel must be quiet | moderate | packed | wild" }),
-  }),
-  vibeScore: z
-    .number()
-    .finite()
-    .min(1.0, "vibeScore must be between 1 and 10")
-    .max(10.0, "vibeScore must be between 1 and 10")
-    .refine((value) => Number.isInteger(value * 10), "vibeScore can have at most one decimal place"),
-  musicType:   z.enum(["house", "hiphop", "rnb", "techno", "live", "mixed", "none"]).optional(),
-  waitMinutes: z
-    .number()
-    .int("waitMinutes must be a whole number")
-    .min(0, "waitMinutes cannot be negative")
-    .max(MAX_WAIT_MINUTES, `waitMinutes must be ${MAX_WAIT_MINUTES} or fewer`)
-    .optional(),
-  tags: z
-    .array(
-      z
-        .string()
-        .trim()
-        .min(1, "tags cannot be blank")
-        .max(MAX_TAG_LENGTH, `tags must be ${MAX_TAG_LENGTH} characters or fewer`)
-        .regex(TAG_PATTERN, "tags contain unsupported characters")
-    )
-    .max(MAX_TAGS, `tags cannot include more than ${MAX_TAGS} items`)
-    .transform((tags) => [...new Set(tags.map((tag) => tag.toLowerCase()))])
-    .optional(),
+  venueId: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH),
+  busyness: z.enum(["dead", "moderate", "packed"]),
+  crowdFeel: z.enum(["mostly_male", "mostly_female", "balanced", "mixed"]),
   note: z.string().trim().max(200).optional(),
-  sessionId: z
-    .string()
-    .trim()
-    .max(MAX_SESSION_ID_LENGTH, `sessionId must be ${MAX_SESSION_ID_LENGTH} characters or fewer`)
-    .regex(SAFE_ID_PATTERN, "sessionId contains unsupported characters")
-    .optional(),
 });
 
-// --------------- Helpers ------------------------------------
-
-function buildAnonClient() {
-  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnon) return null;
-  return createClient(supabaseUrl, supabaseAnon, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-/** Extract user_id from Bearer token if present; null for anonymous */
-async function maybeGetUserId(authHeader: string | null): Promise<string | null> {
+async function getUserId(authHeader: string | null): Promise<string | null> {
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7).trim();
   if (!token) return null;
 
-  const supabaseUrl    = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) return null;
 
@@ -109,76 +43,71 @@ async function maybeGetUserId(authHeader: string | null): Promise<string | null>
   return data.user.id;
 }
 
-/** Compute the mode (most frequent) crowd_level from an array of rows */
-function dominantCrowd(rows: { crowd_level: string }[]): CrowdLevel {
-  const counts: Record<string, number> = {};
-  for (const r of rows) {
-    counts[r.crowd_level] = (counts[r.crowd_level] ?? 0) + 1;
-  }
-  let best: CrowdLevel = "moderate";
-  let bestN = 0;
-  for (const [level, n] of Object.entries(counts)) {
-    if (n > bestN) {
-      bestN = n;
-      best = level as CrowdLevel;
-    }
-  }
-  return best;
-}
-
-function rowToCheckIn(row: Record<string, unknown>): LiveCheckIn {
+function mapCheckIn(row: Record<string, unknown>): ConsumerCheckIn {
   return {
-    id:          row.id as string,
-    venueId:     row.venue_id as string,
-    venueName:   row.venue_name as string,
-    crowdLevel:  row.crowd_level as CrowdLevel,
-    vibeScore:   row.vibe_score as number,
-    musicType:   (row.music_type ?? undefined) as LiveCheckIn["musicType"],
-    waitMinutes: (row.wait_minutes ?? undefined) as number | undefined,
-    tags:        (row.tags as string[]) ?? [],
-    note:        (row.note ?? undefined) as string | undefined,
-    userId:      (row.user_id ?? undefined) as string | undefined,
-    sessionId:   (row.session_id ?? undefined) as string | undefined,
-    createdAt:   row.created_at as string,
+    id: row.id as string,
+    venueId: row.venue_id as string,
+    placeId: row.place_id as string,
+    busyness: row.busyness as ConsumerCheckIn["busyness"],
+    crowdFeel: row.crowd_feel as ConsumerCheckIn["crowdFeel"],
+    note: (row.note ?? undefined) as string | undefined,
+    createdAt: row.created_at as string,
   };
 }
 
-/** Strip userId/sessionId before sending to unauthenticated callers. */
-function toPublicCheckIn(ci: LiveCheckIn): PublicCheckIn {
-  const { userId: _u, sessionId: _s, ...pub } = ci;
-  return pub;
+function mapSignal(row: Record<string, unknown> | null | undefined): VenueSignal | undefined {
+  if (!row) return undefined;
+  return {
+    venueId: row.venue_id as string,
+    placeId: row.place_id as string,
+    busyness0To100: (row.busyness_0_100 ?? null) as number | null,
+    busynessSource: (row.busyness_source ?? null) as VenueSignal["busynessSource"],
+    mfRatio: (row.mf_ratio ?? null) as number | null,
+    confidence0To1: Number(row.confidence_0_1 ?? 0),
+    sampleSize: Number(row.sample_size ?? 0),
+    computedAt: row.computed_at as string,
+    lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
+  };
 }
 
-async function hasRecentDuplicateCheckIn(args: {
-  client: SupabaseClient;
-  venueId: string;
-  userId: string | null;
-  sessionId?: string;
-}) {
-  const actorColumn = args.userId ? "user_id" : args.sessionId ? "session_id" : null;
-  const actorValue = args.userId ?? args.sessionId;
-  if (!actorColumn || !actorValue) return { duplicate: false, error: null };
+async function resolveVenue(venueIdOrPlaceId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("venues")
+    .select("id, place_id, hidden")
+    .or(`id.eq.${venueIdOrPlaceId},place_id.eq.${venueIdOrPlaceId}`)
+    .limit(1)
+    .single();
 
-  const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_MINUTES * 60 * 1000).toISOString();
-  const { data, error } = await args.client
+  if (error || !data || data.hidden) return null;
+  return data as { id: string; place_id: string; hidden: boolean };
+}
+
+async function hasRecentDuplicate(venueId: string, userId: string) {
+  const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_MINUTES * 60_000).toISOString();
+  const { data, error } = await supabaseAdmin
     .from("check_ins")
     .select("id")
-    .eq("venue_id", args.venueId)
-    .eq(actorColumn, actorValue)
+    .eq("venue_id", venueId)
+    .eq("user_id", userId)
     .gte("created_at", cutoff)
     .limit(1);
 
-  return { duplicate: Boolean(data?.length), error };
+  if (error) throw error;
+  return Boolean(data?.length);
 }
 
-// --------------- POST handler --------------------------------
-
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const requestId  = uuidv4();
-  const generatedAt = new Date().toISOString();
-  const meta = { cached: false, generatedAt, requestId };
+  const requestId = uuidv4();
+  const meta = { cached: false, generatedAt: new Date().toISOString(), requestId };
 
-  // Parse body
+  const userId = await getUserId(req.headers.get("Authorization"));
+  if (!userId) {
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to report." }, meta },
+      { status: 401 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -194,197 +123,155 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
-        error: {
-          code: "VALIDATION_ERROR",
-          message: parsed.error.errors.map((e) => e.message).join("; "),
-        },
+        error: { code: "VALIDATION_ERROR", message: parsed.error.errors.map((e) => e.message).join("; ") },
         meta,
       },
       { status: 422 }
     );
   }
 
-  const { venueId, venueName, crowdLevel, vibeScore, musicType, waitMinutes, tags, note, sessionId } = parsed.data;
-
-  // Optionally resolve user_id from auth token
-  const userId = await maybeGetUserId(req.headers.get("Authorization"));
-
-  const anonClient = buildAnonClient();
-  if (!anonClient) {
+  const venue = await resolveVenue(parsed.data.venueId);
+  if (!venue) {
     return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "SERVER_MISCONFIGURED", message: "Service unavailable." }, meta },
-      { status: 500 }
+      { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },
+      { status: 404 }
     );
   }
 
-  const recentCheck = await hasRecentDuplicateCheckIn({ client: anonClient, venueId, userId, sessionId });
-  if (recentCheck.error) {
-    console.error("[check-ins POST] rate guard DB error:", recentCheck.error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not validate check-in freshness." }, meta },
-      { status: 500 }
-    );
-  }
-  if (recentCheck.duplicate) {
-    return NextResponse.json<APIResponse<never>>(
-      {
-        status: "error",
-        error: {
-          code: "DUPLICATE_CHECK_IN",
-          message: `Only one check-in per venue is allowed every ${DUPLICATE_WINDOW_MINUTES} minutes.`,
+  try {
+    if (await hasRecentDuplicate(venue.id, userId)) {
+      return NextResponse.json<APIResponse<never>>(
+        {
+          status: "error",
+          error: {
+            code: "DUPLICATE_CHECK_IN",
+            message: `Only one report per venue is allowed every ${DUPLICATE_WINDOW_MINUTES} minutes.`,
+          },
+          meta,
         },
-        meta,
-      },
-      { status: 429 }
+        { status: 429 }
+      );
+    }
+  } catch (error) {
+    console.error("[check-ins POST] duplicate guard failed:", error);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "DB_ERROR", message: "Could not validate report freshness." }, meta },
+      { status: 500 }
     );
   }
 
-  const { data, error } = await anonClient
+  const { data, error } = await supabaseAdmin
     .from("check_ins")
     .insert({
-      venue_id:    venueId,
-      venue_name:  venueName,
-      crowd_level: crowdLevel,
-      vibe_score:  vibeScore,
-      music_type:  musicType ?? null,
-      wait_minutes: waitMinutes ?? null,
-      tags:        tags ?? [],
-      note:        note ?? null,
-      user_id:     userId ?? null,
-      session_id:  sessionId ?? null,
+      venue_id: venue.id,
+      place_id: venue.place_id,
+      user_id: userId,
+      busyness: parsed.data.busyness,
+      crowd_feel: parsed.data.crowdFeel,
+      note: parsed.data.note ?? null,
     })
     .select()
     .single();
 
   if (error || !data) {
-    console.error("[check-ins POST] DB error:", error);
+    console.error("[check-ins POST] insert failed:", error);
     return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save check-in." }, meta },
+      { status: "error", error: { code: "DB_ERROR", message: "Could not save report." }, meta },
       { status: 500 }
     );
   }
 
-  const checkIn = toPublicCheckIn(rowToCheckIn(data as Record<string, unknown>));
+  let signal: VenueSignal | undefined;
+  try {
+    signal = mapSignal((await recomputeVenueSignal(venue.id)) as Record<string, unknown>);
+  } catch (error) {
+    console.error("[check-ins POST] signal recompute failed:", error);
+  }
 
-  return NextResponse.json<APIResponse<{ checkIn: PublicCheckIn }>>(
-    { status: "success", data: { checkIn }, meta },
+  return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
+    { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta },
     { status: 201 }
   );
 }
 
-// --------------- GET handler --------------------------------
-
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const requestId   = uuidv4();
-  const generatedAt = new Date().toISOString();
-  const meta = { cached: false, generatedAt, requestId };
-
+  const requestId = uuidv4();
+  const meta = { cached: true, generatedAt: new Date().toISOString(), requestId };
   const { searchParams } = new URL(req.url);
-  const venueId = searchParams.get("venueId")?.trim();
-  const limitParam = searchParams.get("limit");
-  const limit = Math.min(Math.max(parseInt(limitParam ?? "20", 10) || 20, 1), 100);
+  const venueIdParam = searchParams.get("venueId")?.trim();
+  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "20", 10) || 20, 1), 50);
 
-  const anonClient = buildAnonClient();
-  if (!anonClient) {
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "SERVER_MISCONFIGURED", message: "Service unavailable." }, meta },
-      { status: 500 }
-    );
-  }
-
-  // Feed mode: no venueId → return recent check-ins across all venues
-  if (!venueId) {
-    const safeLimit = Math.min(limit, 50);
-    const { data, error } = await anonClient
+  if (!venueIdParam) {
+    const { data, error } = await supabaseAdmin
       .from("check_ins")
-      .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, created_at")
+      .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
+      .eq("hidden", false)
       .order("created_at", { ascending: false })
-      .limit(safeLimit);
+      .limit(limit);
 
     if (error) {
       console.error("[check-ins GET feed] DB error:", error);
       return NextResponse.json<APIResponse<never>>(
-        { status: "error", error: { code: "DB_ERROR", message: "Could not fetch check-in feed." }, meta },
+        { status: "error", error: { code: "DB_ERROR", message: "Could not fetch reports." }, meta },
         { status: 500 }
       );
     }
 
-    const checkIns: PublicCheckIn[] = ((data ?? []) as Record<string, unknown>[]).map((row) =>
-      toPublicCheckIn(rowToCheckIn(row))
-    );
-    return NextResponse.json<APIResponse<{ checkIns: PublicCheckIn[] }>>(
-      { status: "success", data: { checkIns }, meta },
-      { status: 200 }
+    return NextResponse.json<APIResponse<{ checkIns: ConsumerCheckIn[] }>>({
+      status: "success",
+      data: { checkIns: ((data ?? []) as Record<string, unknown>[]).map(mapCheckIn) },
+      meta,
+    });
+  }
+
+  const venue = await resolveVenue(venueIdParam);
+  if (!venue) {
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },
+      { status: 404 }
     );
   }
 
-  // Venue mode: venueId provided → validate then return venue-scoped results + summary
-  if (venueId.length > MAX_VENUE_ID_LENGTH || !SAFE_ID_PATTERN.test(venueId)) {
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "INVALID_PARAM", message: "venueId contains unsupported characters." }, meta },
-      { status: 400 }
-    );
-  }
+  const [{ data: checkIns, error }, { data: signalRow, error: signalError }] = await Promise.all([
+    supabaseAdmin
+      .from("check_ins")
+      .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
+      .eq("venue_id", venue.id)
+      .eq("hidden", false)
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    supabaseAdmin
+      .from("venue_signals")
+      .select("*")
+      .eq("venue_id", venue.id)
+      .maybeSingle(),
+  ]);
 
-  const { data, error } = await anonClient
-    .from("check_ins")
-    .select("id, venue_id, venue_name, crowd_level, vibe_score, music_type, wait_minutes, tags, note, created_at")
-    .eq("venue_id", venueId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (error) {
-    console.error("[check-ins GET] DB error:", error);
+  if (error || signalError) {
+    console.error("[check-ins GET venue] DB error:", error ?? signalError);
     return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch check-ins." }, meta },
+      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch venue reports." }, meta },
       { status: 500 }
     );
   }
 
-  const rows = (data ?? []) as Record<string, unknown>[];
-  const checkIns: PublicCheckIn[] = rows.map((row) => toPublicCheckIn(rowToCheckIn(row)));
-
-  const {
-    data: summaryData,
-    error: summaryError,
-    count: summaryCount,
-  } = await anonClient
-    .from("check_ins")
-    .select("crowd_level, vibe_score, created_at", { count: "exact" })
-    .eq("venue_id", venueId)
-    .order("created_at", { ascending: false })
-    .limit(SUMMARY_SCAN_LIMIT);
-
-  if (summaryError) {
-    console.error("[check-ins GET] summary DB error:", summaryError);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch check-in summary." }, meta },
-      { status: 500 }
-    );
-  }
-
-  const summaryRows = (summaryData ?? []) as { crowd_level: string; vibe_score: number; created_at: string }[];
-  const reportCount = summaryCount ?? summaryRows.length;
-  const summaryReportCount = summaryRows.length;
-  const avgVibeScore =
-    summaryReportCount > 0
-      ? Math.round((summaryRows.reduce((sum, c) => sum + c.vibe_score, 0) / summaryReportCount) * 10) / 10
-      : 0;
-  const dominant = summaryReportCount > 0 ? dominantCrowd(summaryRows) : "moderate";
-  const lastReportAt = summaryReportCount > 0 ? summaryRows[0].created_at : new Date().toISOString();
-
+  const signal = mapSignal(signalRow as Record<string, unknown> | null);
   const summary: CheckInSummary = {
-    venueId,
-    avgVibeScore,
-    dominantCrowd: dominant,
-    reportCount,
-    summaryReportCount,
-    isSummaryPartial: reportCount > summaryReportCount,
-    lastReportAt,
+    venueId: venue.id,
+    busyness0To100: signal?.busyness0To100 ?? null,
+    busynessSource: signal?.busynessSource ?? null,
+    mfRatio: signal?.mfRatio ?? null,
+    confidence0To1: signal?.confidence0To1 ?? 0,
+    sampleSize: signal?.sampleSize ?? 0,
+    computedAt: signal?.computedAt ?? null,
   };
 
-  return NextResponse.json<APIResponse<{ checkIns: PublicCheckIn[]; summary: CheckInSummary }>>(
-    { status: "success", data: { checkIns, summary }, meta },
-    { status: 200 }
-  );
+  return NextResponse.json<APIResponse<{ checkIns: ConsumerCheckIn[]; summary: CheckInSummary }>>({
+    status: "success",
+    data: {
+      checkIns: ((checkIns ?? []) as Record<string, unknown>[]).map(mapCheckIn),
+      summary,
+    },
+    meta,
+  });
 }

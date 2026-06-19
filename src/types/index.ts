@@ -2,3 +2,4 @@
 // Import from "@/types" rather than "@/types/vibe" for convenience.
 export * from "./vibe";
 export * from "./checkIn";
+export * from "./consumer";

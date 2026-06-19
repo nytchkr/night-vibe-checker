@@ -1,34 +1,17 @@
 // ============================================================
-// Night Vibe Checker — Check-In Types (NV-042)
+// VibeCheck — Consumer Check-In Types
 // ============================================================
 
-export type CrowdLevel = "quiet" | "moderate" | "packed" | "wild";
-export type MusicType = "house" | "hiphop" | "rnb" | "techno" | "live" | "mixed" | "none";
+import type { ConsumerCheckIn, CrowdFeel, ReportedBusyness } from "./consumer";
 
-export interface LiveCheckIn {
-  id: string;
-  venueId: string;
-  venueName: string;
-  crowdLevel: CrowdLevel;
-  vibeScore: number;
-  musicType?: MusicType;
-  waitMinutes?: number;
-  tags: string[];
-  note?: string;
-  userId?: string;
-  sessionId?: string;
-  createdAt: string;
-}
-
-/** Shape returned to unauthenticated callers — never includes userId or sessionId. */
-export type PublicCheckIn = Omit<LiveCheckIn, "userId" | "sessionId">;
+export type { ConsumerCheckIn, CrowdFeel, ReportedBusyness };
 
 export interface CheckInSummary {
   venueId: string;
-  avgVibeScore: number;
-  dominantCrowd: CrowdLevel;
-  reportCount: number;
-  summaryReportCount: number;
-  isSummaryPartial: boolean;
-  lastReportAt: string;
+  busyness0To100: number | null;
+  busynessSource: "live" | "forecast" | "crowd" | null;
+  mfRatio: number | null;
+  confidence0To1: number;
+  sampleSize: number;
+  computedAt: string | null;
 }

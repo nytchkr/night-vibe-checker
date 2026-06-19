@@ -17,17 +17,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // --------------- Crowd badge --------------------------------
 
-type CrowdLevel = "quiet" | "moderate" | "packed" | "wild";
+type Busyness = "dead" | "moderate" | "packed";
+type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
 
-const CROWD_CFG: Record<CrowdLevel, { label: string; bg: string; text: string }> = {
-  quiet:    { label: "Quiet",    bg: "rgba(34,197,94,0.40)",  text: "#fff" },
+const BUSYNESS_CFG: Record<Busyness, { label: string; bg: string; text: string }> = {
+  dead:     { label: "Dead",     bg: "rgba(34,197,94,0.40)",  text: "#fff" },
   moderate: { label: "Moderate", bg: "rgba(251,191,36,0.40)", text: "#fff" },
   packed:   { label: "Packed",   bg: "rgba(249,115,22,0.40)", text: "#fff" },
-  wild:     { label: "Wild",     bg: "rgba(255,45,120,0.40)", text: "#fff" },
 };
 
-function CrowdBadge({ level }: { level: string }) {
-  const cfg = CROWD_CFG[level as CrowdLevel];
+const CROWD_FEEL_LABEL: Record<CrowdFeel, string> = {
+  mostly_male: "Mostly male",
+  mostly_female: "Mostly female",
+  balanced: "Balanced",
+  mixed: "Mixed / unsure",
+};
+
+function BusynessBadge({ level }: { level: string }) {
+  const cfg = BUSYNESS_CFG[level as Busyness];
   if (!cfg) return null;
   return (
     <span
@@ -55,9 +62,10 @@ function timeAgo(iso: string): string {
 interface CheckInItem {
   id: string;
   venueId: string;
-  venueName: string;
-  crowdLevel: string;
-  vibeScore?: number;
+  placeId: string;
+  busyness: string;
+  crowdFeel: string;
+  note?: string;
   createdAt: string;
 }
 
@@ -88,27 +96,27 @@ function readLocalTestSession(): Session | null {
 function CheckInRow({ item }: { item: CheckInItem }) {
   return (
     <div className="rounded-2xl border border-white/[0.09] overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
-      {/* Crowd bar */}
-      {item.crowdLevel && (
+      {item.busyness && (
         <div
           className="w-full flex items-center px-3 min-h-[28px]"
           style={{
-            background: CROWD_CFG[item.crowdLevel as CrowdLevel]?.bg ?? "rgba(255,255,255,0.1)",
+            background: BUSYNESS_CFG[item.busyness as Busyness]?.bg ?? "rgba(255,255,255,0.1)",
             borderBottom: "1px solid rgba(255,255,255,0.1)",
           }}
         >
-          <CrowdBadge level={item.crowdLevel} />
+          <BusynessBadge level={item.busyness} />
         </div>
       )}
       <div className="flex items-center px-3 py-3 gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-white text-[15px] font-bold leading-snug truncate">{item.venueName}</p>
-          <div className="flex items-baseline gap-1.5 mt-0.5">
-            {item.vibeScore != null && (
-              <span className="text-[#00F5D4] text-base font-bold leading-none">{item.vibeScore}</span>
-            )}
+          <p className="text-white text-[15px] font-bold leading-snug truncate">{item.placeId}</p>
+          <div className="flex items-baseline gap-1.5 mt-0.5 flex-wrap">
+            <span className="text-[#00F5D4] text-xs font-bold">
+              {CROWD_FEEL_LABEL[item.crowdFeel as CrowdFeel] ?? item.crowdFeel}
+            </span>
             <span className="text-white/40 text-[11px]">{timeAgo(item.createdAt)}</span>
           </div>
+          {item.note && <p className="mt-1 text-xs text-white/40 line-clamp-2">{item.note}</p>}
         </div>
       </div>
     </div>
@@ -220,17 +228,19 @@ export default function ProfilePage() {
       const rows = (json.data?.checkIns ?? []) as Array<{
         id: string;
         venue_id?: string; venueId?: string;
-        venue_name?: string; venueName?: string;
-        crowd_level?: string; crowdLevel?: string;
-        vibe_score?: number; vibeScore?: number;
+        place_id?: string; placeId?: string;
+        busyness?: string;
+        crowd_feel?: string; crowdFeel?: string;
+        note?: string;
         created_at?: string; createdAt?: string;
       }>;
       setCheckIns(rows.map((r) => ({
         id: r.id,
         venueId: r.venue_id ?? r.venueId ?? "",
-        venueName: r.venue_name ?? r.venueName ?? "",
-        crowdLevel: r.crowd_level ?? r.crowdLevel ?? "",
-        vibeScore: r.vibe_score ?? r.vibeScore,
+        placeId: r.place_id ?? r.placeId ?? "",
+        busyness: r.busyness ?? "",
+        crowdFeel: r.crowd_feel ?? r.crowdFeel ?? "",
+        note: r.note,
         createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
       })));
     } catch {

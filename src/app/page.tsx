@@ -1,315 +1,142 @@
 "use client";
 
-// ============================================================
-// Home — Live Feed  (NV-059, NV-065, NV-068)
-//
-// On load: fetches GET /api/check-ins?limit=20
-// Shows feed of real check-ins — crowd badge dominant, no search hero
-// Empty state: simple search input + "Nothing reported tonight yet"
-// NV-068: Refresh pill button + visibilitychange auto-refresh after 60s
-// ============================================================
-
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { LiveCheckIn } from "@/types";
+import type { ConsumerVenue } from "@/types";
 
-// --------------- Crowd badge config -------------------------
-
-type CrowdLevel = "quiet" | "moderate" | "packed" | "wild";
-
-const CROWD_CFG: Record<CrowdLevel, { label: string; bg: string; text: string; borderColor: string }> = {
-  quiet:    { label: "QUIET",    bg: "rgba(34,197,94,0.40)",   text: "#fff",    borderColor: "rgba(34,197,94,0.6)"   },
-  moderate: { label: "MODERATE", bg: "rgba(251,191,36,0.40)",  text: "#fff",    borderColor: "rgba(251,191,36,0.6)"  },
-  packed:   { label: "PACKED",   bg: "rgba(249,115,22,0.40)",  text: "#fff",    borderColor: "rgba(249,115,22,0.6)"  },
-  wild:     { label: "WILD",     bg: "rgba(255,45,120,0.40)",  text: "#fff",    borderColor: "rgba(255,45,120,0.6)"  },
-};
-
-function CrowdBar({ level }: { level: string }) {
-  const cfg = CROWD_CFG[(level as CrowdLevel)] ?? CROWD_CFG.moderate;
-  return (
-    <div
-      className="w-full flex items-center px-3 min-h-[32px]"
-      style={{ background: cfg.bg, borderBottom: `1px solid ${cfg.borderColor}` }}
-    >
-      <span className="text-[14px] font-bold tracking-wide" style={{ color: cfg.text }}>
-        {cfg.label}
-      </span>
-    </div>
-  );
+function busynessLabel(value: number | null | undefined) {
+  if (value == null) return "No read yet";
+  if (value >= 75) return "Packed";
+  if (value >= 40) return "Moderate";
+  return "Dead";
 }
 
-// --------------- Time ago -----------------------------------
-
-function timeAgo(iso: string): string {
-  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 1000 / 60);
-  if (mins < 1) return "Just now";
-  if (mins === 1) return "1 min ago";
-  if (mins < 60) return `${mins} min ago`;
-  const h = Math.floor(mins / 60);
-  return h === 1 ? "1 hr ago" : `${h} hr ago`;
+function signalSubtext(venue: ConsumerVenue) {
+  const signal = venue.signal;
+  if (!signal?.busynessSource) return "No live reads yet";
+  const source = signal.busynessSource === "crowd" ? "Crowd read" : signal.busynessSource;
+  if (signal.mfRatio == null) return `${source} · M/F hidden`;
+  return `${source} · ${signal.mfRatio}% male`;
 }
 
-// --------------- Feed card ----------------------------------
-
-type DedupedCheckIn = LiveCheckIn & { reportCount: number };
-
-function FeedCard({ checkIn }: { checkIn: DedupedCheckIn }) {
+function VenueRow({ venue }: { venue: ConsumerVenue }) {
+  const busyness = venue.signal?.busyness0To100 ?? null;
   return (
-    <div
-      className="rounded-2xl overflow-hidden border border-white/[0.09]"
-      style={{ background: "rgba(255,255,255,0.04)" }}
-    >
-      <CrowdBar level={checkIn.crowdLevel} />
-      <div className="flex items-center px-3 py-3 gap-3">
+    <li className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.04]">
+      {venue.photoUrl ? (
+        <img src={venue.photoUrl} alt="" className="h-36 w-full object-cover" />
+      ) : (
+        <div className="h-24 w-full bg-white/[0.06]" />
+      )}
+      <div className="flex items-center gap-3 p-4">
         <div className="flex-1 min-w-0">
-          <p className="text-white text-[16px] font-bold leading-snug truncate">{checkIn.venueName}</p>
-          <p className="text-white/40 text-[11px] mt-0.5">
-            <span className="text-[#00F5D4] text-[18px] font-bold leading-none align-middle mr-1">
-              {typeof checkIn.vibeScore === "number" ? checkIn.vibeScore : "—"}
-            </span>
-            · {timeAgo(checkIn.createdAt)}
+          <p className="truncate text-base font-bold text-white">{venue.name}</p>
+          <p className="mt-1 truncate text-xs text-white/42">{venue.address}</p>
+          <p className="mt-2 text-xs font-semibold text-[#00F5D4]">
+            {busynessLabel(busyness)}{busyness == null ? "" : ` · ${busyness}%`}
           </p>
-          {checkIn.reportCount > 1 && (
-            <span className="text-white/40 text-[11px]">{checkIn.reportCount} reports</span>
-          )}
+          <p className="mt-1 text-[11px] text-white/35">{signalSubtext(venue)}</p>
         </div>
         <Link
-          href={`/vibe-check?venueId=${encodeURIComponent(checkIn.venueId)}&venueName=${encodeURIComponent(checkIn.venueName)}`}
-          className="flex-shrink-0 px-3 py-2 rounded-full text-[#00F5D4] border border-[#00F5D4]/50 text-xs font-bold min-h-[44px] flex items-center hover:bg-[#00F5D4]/10 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
-          aria-label={`Report vibe for ${checkIn.venueName}`}
+          href={`/vibe-check?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`}
+          className="flex min-h-[44px] shrink-0 items-center rounded-full border border-[#00F5D4]/50 px-3 text-xs font-bold text-[#00F5D4] transition-colors hover:bg-[#00F5D4]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
         >
-          Report →
+          Report
         </Link>
       </div>
-    </div>
+    </li>
   );
 }
 
-// --------------- Skeleton -----------------------------------
-
-function FeedCardSkeleton() {
+function VenueSkeleton() {
   return (
-    <div className="rounded-2xl overflow-hidden border border-white/[0.09]" style={{ background: "rgba(255,255,255,0.04)" }}>
-      <Skeleton className="h-8 w-full rounded-none bg-white/10" />
-      <div className="flex items-center px-3 py-3 gap-3">
+    <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.04]">
+      <Skeleton className="h-24 w-full rounded-none bg-white/10" />
+      <div className="flex items-center gap-3 p-4">
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-2/3 bg-white/10" />
+          <Skeleton className="h-3 w-1/2 bg-white/10" />
           <Skeleton className="h-3 w-1/3 bg-white/10" />
         </div>
-        <Skeleton className="h-9 w-20 rounded-full bg-white/10 flex-shrink-0" />
+        <Skeleton className="h-10 w-20 rounded-full bg-white/10" />
       </div>
     </div>
   );
-}
-
-// --------------- Empty state with venue search --------------
-
-function EmptyState() {
-  const [query, setQuery] = useState("");
-
-  return (
-    <div className="space-y-5 pt-4">
-      <div className="text-center space-y-2 py-6">
-        <p className="text-white/60 text-sm font-medium">Nothing reported tonight yet — be the first</p>
-      </div>
-      <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
-          <svg xmlns="http://www.w3.org/2000/svg" width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx={11} cy={11} r={8} />
-            <line x1={21} y1={21} x2={16.65} y2={16.65} />
-          </svg>
-        </span>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search for a venue to report…"
-          aria-label="Search venues"
-          className="w-full rounded-2xl bg-white/[0.07] border border-white/10 text-white placeholder:text-white/30 text-sm pl-11 pr-4 py-3.5 focus:outline-none focus:border-[#00F5D4]/60 focus:ring-1 focus:ring-[#00F5D4]/30 transition-colors duration-150 min-h-[44px]"
-        />
-      </div>
-      {query.trim() && (
-        <Link
-          href={`/vibe-check?venueName=${encodeURIComponent(query.trim())}`}
-          className="flex items-center justify-center w-full min-h-[52px] rounded-2xl text-[#0A0A0F] font-black text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80 transition-all duration-150 active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg, #00F5D4 0%, #00dfc0 100%)", boxShadow: "0 0 28px rgba(0,245,212,0.45)" }}
-        >
-          Report a spot at &ldquo;{query.trim()}&rdquo;
-        </Link>
-      )}
-    </div>
-  );
-}
-
-// --------------- Main page ----------------------------------
-
-const VISIBILITY_REFRESH_MS = 60_000; // 60 seconds
-
-function deduplicateCheckIns(rows: LiveCheckIn[]): DedupedCheckIn[] {
-  const seen = new Map<string, DedupedCheckIn>();
-  for (const ci of rows) {
-    if (!seen.has(ci.venueId)) seen.set(ci.venueId, { ...ci, reportCount: 1 });
-    else seen.get(ci.venueId)!.reportCount++;
-  }
-  return Array.from(seen.values()).slice(0, 15);
 }
 
 export default function HomePage() {
-  const [checkIns, setCheckIns] = useState<DedupedCheckIn[]>([]);
+  const [venues, setVenues] = useState<ConsumerVenue[]>([]);
+  const [zoneName, setZoneName] = useState("South End, Charlotte");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fetchedRef = useRef(false);
-  // Epoch-ms of last successful fetch — used by visibilitychange guard
-  const lastFetchedAtRef = useRef<number>(0);
 
-  const fetchFeed = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+  const fetchVenues = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/check-ins?limit=20");
+      const res = await fetch("/api/venues");
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
-      const rows: LiveCheckIn[] = json?.data?.checkIns ?? [];
-      setCheckIns(deduplicateCheckIns(rows));
-      lastFetchedAtRef.current = Date.now();
+      setVenues(json?.data?.venues ?? []);
+      setZoneName(json?.data?.zone?.name ?? "South End, Charlotte");
     } catch {
-      setError("Could not load the feed. Tap to retry.");
+      setError("Could not load South End venues.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  // Initial load — fetchedRef guard prevents double-fetch in StrictMode
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-    fetchFeed(false);
-  }, [fetchFeed]);
-
-  // Auto-refresh when tab regains focus after >60s since last fetch (NV-068)
-  useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.visibilityState !== "visible") return;
-      if (Date.now() - lastFetchedAtRef.current >= VISIBILITY_REFRESH_MS) {
-        fetchFeed(true);
-      }
-    }
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [fetchFeed]);
-
-  const isEmpty = !loading && !error && checkIns.length === 0;
+    fetchVenues(false);
+  }, [fetchVenues]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
-
-      {/* Header */}
       <header className="px-4 pt-10 pb-5">
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10"
-          style={{ height: "180px", background: "radial-gradient(ellipse 80% 120% at 30% -30%, rgba(0,245,212,0.14) 0%, transparent 65%)" }}
-        />
-        <div className="max-w-lg mx-auto">
-          <h1
-            className="text-white font-black text-[1.6rem] tracking-[-0.02em] leading-tight"
-            style={{ textShadow: "0 0 40px rgba(0,245,212,0.12)" }}
+        <div className="mx-auto max-w-lg">
+          <h1 className="text-[1.65rem] font-black leading-tight text-white">VibeCheck</h1>
+          <p className="mt-1 text-sm text-white/42">{zoneName}</p>
+          <button
+            type="button"
+            onClick={() => fetchVenues(true)}
+            disabled={refreshing}
+            className="mt-5 flex min-h-[48px] w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.05] text-sm font-bold text-white/70 transition-colors hover:bg-white/[0.08] disabled:opacity-50"
           >
-            How&apos;s it out there?
-          </h1>
-          <p className="text-white/40 text-sm mt-1">Live crowd reports from tonight</p>
-          <Link
-            href="/vibe-check"
-            className="mt-5 flex min-h-[52px] w-full items-center justify-center rounded-2xl text-base font-black text-[#0A0A0F] transition-all duration-150 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80"
-            style={{ background: "linear-gradient(135deg, #00F5D4 0%, #00dfc0 100%)", boxShadow: "0 0 28px rgba(0,245,212,0.38)" }}
-          >
-            Check In
-          </Link>
+            {refreshing ? "Refreshing..." : "Refresh cached reads"}
+          </button>
         </div>
       </header>
 
-      {/* Feed */}
-      <section className="max-w-lg mx-auto px-4 pb-32 space-y-3" aria-label="Live vibe feed">
-
-        {/* Section label + Refresh pill (NV-068) */}
-        {!loading && !error && checkIns.length > 0 && (
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-white/35 text-[11px] font-semibold uppercase tracking-[0.2em]">
-              Right now
-            </p>
-            <button
-              onClick={() => fetchFeed(true)}
-              disabled={refreshing}
-              aria-label="Refresh feed"
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold text-white/50 border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:text-white/70 transition-colors duration-150 disabled:opacity-40 disabled:pointer-events-none focus:outline-none focus-visible:ring-1 focus-visible:ring-white/30"
-            >
-              {refreshing ? (
-                <span className="inline-block w-3 h-3 border border-white/30 border-t-white/70 rounded-full animate-spin" aria-hidden="true" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M23 4v6h-6" /><path d="M1 20v-6h6" />
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                </svg>
-              )}
-              Refresh
-            </button>
-          </div>
-        )}
-
-        {/* Error */}
+      <main className="mx-auto max-w-lg space-y-3 px-4 pb-32">
         {error && (
-          <div role="alert" className="rounded-2xl bg-rose-950/60 border border-rose-500/40 px-4 py-3 text-sm text-rose-300 flex items-center justify-between">
-            <span>{error}</span>
-            <button
-              onClick={() => fetchFeed(false)}
-              className="underline text-rose-200 hover:text-white ml-2 focus:outline-none"
-            >
-              Retry
-            </button>
+          <div role="alert" className="rounded-2xl border border-rose-500/40 bg-rose-950/60 px-4 py-3 text-sm text-rose-300">
+            {error}
           </div>
         )}
 
-        {/* Skeletons */}
         {loading && (
-          <div className="space-y-3" role="status" aria-label="Loading feed">
-            {Array.from({ length: 3 }).map((_, i) => <FeedCardSkeleton key={i} />)}
-            <span className="sr-only">Loading…</span>
+          <div className="space-y-3" role="status" aria-label="Loading venues">
+            {Array.from({ length: 4 }).map((_, index) => <VenueSkeleton key={index} />)}
           </div>
         )}
 
-        {/* Feed cards */}
-        {!loading && !error && checkIns.length > 0 && (
-          <ul className="space-y-3 list-none">
-            {checkIns.map((ci) => (
-              <li key={ci.id}>
-                <FeedCard checkIn={ci} />
-              </li>
-            ))}
+        {!loading && !error && venues.length === 0 && (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center">
+            <p className="text-sm font-semibold text-white">No venues cached yet.</p>
+            <p className="mt-2 text-xs text-white/40">Run the protected Places discovery job first.</p>
+          </div>
+        )}
+
+        {!loading && !error && venues.length > 0 && (
+          <ul className="space-y-3">
+            {venues.map((venue) => <VenueRow key={venue.id} venue={venue} />)}
           </ul>
         )}
-
-        {/* Empty state */}
-        {isEmpty && <EmptyState />}
-
-        {/* Secondary CTA — always visible below feed */}
-        {!loading && !error && checkIns.length > 0 && (
-          <div className="pt-4">
-            <Link
-              href="/vibe-check"
-              className="flex items-center justify-center gap-2 w-full min-h-[48px] rounded-2xl text-[#0A0A0F] font-bold text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80 transition-all duration-150 active:scale-[0.98]"
-              style={{ background: "linear-gradient(135deg, #00F5D4 0%, #00dfc0 100%)", boxShadow: "0 0 24px rgba(0,245,212,0.35)" }}
-            >
-              Report a spot
-            </Link>
-          </div>
-        )}
-      </section>
+      </main>
     </div>
   );
 }
