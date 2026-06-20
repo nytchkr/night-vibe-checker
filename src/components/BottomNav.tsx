@@ -87,7 +87,7 @@ function NavItem({
     >
       {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#00F5D4]" />}
       {children}
-      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
+      <span className="text-[11px] font-normal leading-[1.5]">{label}</span>
     </Link>
   );
 }

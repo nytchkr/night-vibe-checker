@@ -39,7 +39,6 @@
     --bg-deep: #0A0A0F;
     --bg-card: #141420;
     --bg-elevated: #1E1E2E;
-    --font-inter: "Inter", system-ui, sans-serif;
   }
 }
 
@@ -64,10 +63,23 @@
   body {
     @apply bg-background text-foreground;
     background-color: var(--bg-deep);
-    font-family: var(--font-inter);
+    font-family: -apple-system, "SF Pro Text", system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 500;
+    line-height: 1.5;
   }
 
   button {
@@ -137,6 +149,16 @@
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  .font-black,
+  .font-bold,
+  .font-semibold {
+    font-weight: 500;
+  }
+
+  .font-light {
+    font-weight: 400;
+  }
 }
 
 /* --------------- Keyframe animations ------------------------ */
@@ -202,7 +224,7 @@
 
   /* Primary gradient button */
   .btn-primary {
-    @apply px-5 py-2.5 rounded-xl text-sm font-semibold text-white
+    @apply px-5 py-2.5 rounded-xl text-[15px] font-medium text-white
            bg-gradient-to-r from-purple-600 to-pink-600
            hover:from-purple-500 hover:to-pink-500
            disabled:opacity-50 disabled:cursor-not-allowed
