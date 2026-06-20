@@ -9,8 +9,8 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
-function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | undefined {
-  if (!row) return undefined;
+function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
+  if (!row) return null;
   return {
     venueId: row.venue_id as string,
     placeId: row.place_id as string,

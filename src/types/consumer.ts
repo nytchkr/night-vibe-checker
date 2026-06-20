@@ -91,7 +91,7 @@ export interface ConsumerVenue {
   photoReference?: string;
   photoUrl?: string;
   hidden: boolean;
-  signal?: VenueSignal;
+  signal: VenueSignal | null;
 }
 
 export interface ConsumerCheckIn {

@@ -121,6 +121,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
+    signal: null,
   }));
 
   return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[]; discovered: number }>>({
