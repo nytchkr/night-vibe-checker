@@ -7,6 +7,47 @@ Canonical internal ticketing path: `/internal/tickets` (**Internal Tickets**). T
 
 ## Scope Completed
 
+### Codex Dispatch: NV-BUG-009, NV-BUG-008, NV-067
+
+Commits:
+- `4c271ab` `fix(rls): allow service_role inserts on check_ins`
+- `9c6b624` `fix(e2e): update Playwright specs for VibeCheck consumer redesign`
+- `6f9a48e` `test(e2e): NV-067 redesign journey spec`
+
+Changed:
+- `supabase/migrations/004_venues_and_signals.sql`
+  - Added explicit `service_role can insert check_ins` policy.
+- `supabase/schema.sql`
+  - Added matching `check_ins_service_insert` policy in the schema snapshot.
+- `e2e/check-in.spec.ts`
+  - Replaced stale vibe-score/sessionId tests with the current busyness + crowd-feel report flow.
+  - Covers guest redirect to `/login?return=...`, logged-in mocked submit, error state, profile history, and `/api/check-ins/me` auth guard.
+- `e2e/vibe-check.spec.ts`
+  - Replaced old `/api/vibe-check`, photo analysis, save, and share coverage with current report-form assertions.
+  - Left explicit skip documenting removed legacy AI scope.
+- `e2e/discover.spec.ts`
+  - Left explicit skip documenting removed/rebuild-pending discover map scope.
+- `e2e/share-save-profile.spec.ts`
+  - Left explicit skip documenting removed save/share scope.
+  - Keeps a profile logged-out auth surface smoke test.
+- `e2e/agent-board.spec.ts`
+  - Updated `/agent-board` coverage to `/internal/tickets`.
+  - Verifies this is internal-only and the consumer bottom nav is absent.
+- `e2e/redesign-journey.spec.ts`
+  - Rebuilt NV-067 around the current journey: home feed -> Report -> busyness/crowd-feel submit -> home feed.
+  - Also covers unauthenticated redirect and bottom nav tabs.
+
+Verification:
+- `npm run type-check` passed.
+- `npm test -- --run` passed.
+- Local dev server started at `http://127.0.0.1:3100`.
+- `CI=1 BASE_URL=http://127.0.0.1:3100 npx playwright test e2e/check-in.spec.ts e2e/redesign-journey.spec.ts e2e/vibe-check.spec.ts e2e/agent-board.spec.ts e2e/share-save-profile.spec.ts e2e/discover.spec.ts --project=chromium --reporter=list --retries=0` passed: 14 passed, 3 skipped.
+
+Notes:
+- First Playwright attempt failed only because Chromium launch was blocked by the local macOS sandbox (`bootstrap_check_in ... Permission denied`). Rerun outside the sandbox passed.
+- `supabase db push` was attempted for the RLS migration, but the CLI reported no `SUPABASE_ACCESS_TOKEN`. The SQL is committed; applying it to the linked project still needs a Supabase CLI login/access token.
+- Current uncommitted files not owned by this dispatch: `next-env.d.ts`, `src/app/venues/[id]/page.tsx`, and `tsconfig.tsbuildinfo`.
+
 ### Teardown
 
 Commits:
