@@ -9,6 +9,10 @@
     {
       "path": "/api/jobs/discover-zone",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-open-now",
+      "schedule": "0 * * * *"
     }
   ],
   "buildCommand": "npm run build",
