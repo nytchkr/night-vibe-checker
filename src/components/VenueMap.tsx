@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import L from "leaflet";
-import { CircleMarker, MapContainer, TileLayer, Tooltip } from "react-leaflet";
+import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { VenueBottomSheet } from "@/components/VenueBottomSheet";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
@@ -28,6 +28,38 @@ function getVenuePinStyle(venue: ConsumerVenue): VenuePinStyle {
     return { fillColor: "#eab308", radius: 8, opacity: 1 };
   }
   return { fillColor: "#71717a", radius: 7, opacity: 1 };
+}
+
+function FitBounds({ venues }: { venues: ConsumerVenue[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (venues.length === 0) return;
+    const bounds = venues.map((venue) => [venue.lat, venue.lng] as [number, number]);
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+  }, [map, venues.length]);
+
+  return null;
+}
+
+function RecenterButton() {
+  const map = useMap();
+
+  return (
+    <button
+      type="button"
+      aria-label="Recenter map"
+      onClick={() => map.flyTo(SOUTH_END_CENTER, 15)}
+      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-full bg-black/75 px-4 text-xs font-black uppercase tracking-[0.14em] text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="7" />
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
+        <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+      </svg>
+      Recenter
+    </button>
+  );
 }
 
 export function VenueMap() {
@@ -90,6 +122,8 @@ export function VenueMap() {
           attribution="© OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        <FitBounds venues={visibleVenues} />
+        <RecenterButton />
 
         {visibleVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
