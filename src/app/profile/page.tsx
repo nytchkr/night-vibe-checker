@@ -91,10 +91,12 @@ function sourceLabel(source: VenueSignal["busynessSource"] | null | undefined): 
 function timeAgo(iso: string): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 1000 / 60);
   if (mins < 1) return "Just now";
-  if (mins === 1) return "1 min ago";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins === 1) return "1m ago";
+  if (mins < 60) return `${mins}m ago`;
   const h = Math.floor(mins / 60);
-  return h === 1 ? "1 hr ago" : `${h} hr ago`;
+  if (h < 24) return h === 1 ? "1h ago" : `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "1d ago" : `${d}d ago`;
 }
 
 // --------------- Check-in row -------------------------------
@@ -102,13 +104,20 @@ function timeAgo(iso: string): string {
 interface CheckInItem {
   id: string;
   venueId: string;
-  placeId: string;
   venueName?: string;
   busyness: string;
   crowdFeel: string;
-  note?: string;
   createdAt: string;
 }
+
+type ProfileCheckInResponse = {
+  id: string;
+  venue_id?: string | null;
+  venue_name?: string | null;
+  busyness?: string | null;
+  crowd_feel?: string | null;
+  created_at?: string | null;
+};
 
 function readLocalTestSession(): Session | null {
   if (typeof window === "undefined") return null;
@@ -135,7 +144,7 @@ function readLocalTestSession(): Session | null {
 }
 
 function CheckInRow({ item }: { item: CheckInItem }) {
-  const venueLabel = item.venueName || item.placeId || item.venueId || "Venue";
+  const venueLabel = item.venueName || item.venueId || "Venue";
 
   return (
     <div className="rounded-2xl border border-white/[0.09] overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
@@ -147,11 +156,12 @@ function CheckInRow({ item }: { item: CheckInItem }) {
           </div>
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <BusynessBadge level={item.busyness} />
-            <Badge className="border border-[#00F5D4]/25 bg-[#00F5D4]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#00F5D4] hover:bg-[#00F5D4]/10">
-              {CROWD_FEEL_LABEL[item.crowdFeel as CrowdFeel] ?? item.crowdFeel}
-            </Badge>
+            {item.crowdFeel && (
+              <Badge className="border border-[#00F5D4]/25 bg-[#00F5D4]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#00F5D4] hover:bg-[#00F5D4]/10">
+                {CROWD_FEEL_LABEL[item.crowdFeel as CrowdFeel] ?? item.crowdFeel}
+              </Badge>
+            )}
           </div>
-          {item.note && <p className="mt-1 text-xs text-white/40 line-clamp-2">{item.note}</p>}
         </div>
       </div>
     </div>
@@ -280,11 +290,32 @@ export default function ProfilePage() {
   async function fetchCheckIns(token: string) {
     setCheckInsLoading(true);
     try {
-      const res = await fetch("/api/check-ins/me", {
+      const profileRes = await fetch("/api/profile/check-ins", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) return;
-      const json = await res.json();
+      if (profileRes.ok) {
+        const rows = (await profileRes.json()) as ProfileCheckInResponse[];
+        if (rows.length > 0) {
+          setCheckIns(rows.map((r) => ({
+            id: r.id,
+            venueId: r.venue_id ?? "",
+            venueName: r.venue_name ?? undefined,
+            busyness: r.busyness ?? "",
+            crowdFeel: r.crowd_feel ?? "",
+            createdAt: r.created_at ?? new Date().toISOString(),
+          })));
+          return;
+        }
+      }
+
+      const legacyRes = await fetch("/api/check-ins/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!legacyRes.ok) {
+        setCheckIns([]);
+        return;
+      }
+      const json = await legacyRes.json();
       const rows = (json.data?.checkIns ?? []) as Array<{
         id: string;
         venue_id?: string; venueId?: string;
@@ -292,17 +323,14 @@ export default function ProfilePage() {
         venue_name?: string; venueName?: string;
         busyness?: string;
         crowd_feel?: string; crowdFeel?: string;
-        note?: string;
         created_at?: string; createdAt?: string;
       }>;
       setCheckIns(rows.map((r) => ({
         id: r.id,
-        venueId: r.venue_id ?? r.venueId ?? "",
-        placeId: r.place_id ?? r.placeId ?? "",
-        venueName: r.venue_name ?? r.venueName,
+        venueId: r.venue_id ?? r.venueId ?? r.place_id ?? r.placeId ?? "",
+        venueName: r.venue_name ?? r.venueName ?? r.place_id ?? r.placeId,
         busyness: r.busyness ?? "",
         crowdFeel: r.crowd_feel ?? r.crowdFeel ?? "",
-        note: r.note,
         createdAt: r.created_at ?? r.createdAt ?? new Date().toISOString(),
       })));
     } catch {
@@ -379,31 +407,6 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Check-in history */}
-        {session && (
-          <section aria-label="Your reports">
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <h2 className="text-lg font-black text-white">Check-in History</h2>
-              <span className="text-xs font-semibold text-white/35">{checkIns.length} total</span>
-            </div>
-            {checkInsLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
-              </div>
-            ) : checkIns.length === 0 ? (
-              <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
-                <p className="text-white/40 text-sm">No reports yet. Be the first to vibe-check a venue!</p>
-              </div>
-            ) : (
-              <ul className="space-y-3 list-none">
-                {checkIns.map((ci) => (
-                  <li key={ci.id}><CheckInRow item={ci} /></li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
-
         {session && (
           <section aria-label="Saved spots">
             <div className="mb-3 flex items-end justify-between gap-3">
@@ -421,6 +424,31 @@ export default function ProfilePage() {
             ) : (
               <ul className="space-y-3 list-none">
                 {savedVenues.map((venue) => <SavedVenueRow key={venue.id} venue={venue} />)}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {/* Check-in history */}
+        {session && (
+          <section aria-label="Your vibes">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <h2 className="text-lg font-black text-white">Your Vibes</h2>
+              <span className="text-xs font-semibold text-white/35">{checkIns.length} total</span>
+            </div>
+            {checkInsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
+              </div>
+            ) : checkIns.length === 0 ? (
+              <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
+                <p className="text-white/40 text-sm">No vibes reported yet — go check in!</p>
+              </div>
+            ) : (
+              <ul className="space-y-3 list-none">
+                {checkIns.map((ci) => (
+                  <li key={ci.id}><CheckInRow item={ci} /></li>
+                ))}
               </ul>
             )}
           </section>
