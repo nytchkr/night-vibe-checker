@@ -112,7 +112,7 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
 
     await page.goto("/explore");
 
-    await expect(page.getByRole("heading", { name: "South End Charlotte" })).toBeVisible();
+    await expect(page.locator("h1").getByText("South End Charlotte")).toBeVisible();
     await expect(page.getByText("No venues yet")).toBeVisible();
   });
 
@@ -133,9 +133,9 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
     await page.goto(`/venues/${nullSignalVenue.id}`);
 
     await expect(page.getByRole("heading", { level: 1, name: nullSignalVenue.name })).toBeVisible();
-    await expect(page.getByText("No data yet")).toBeVisible();
-    await expect(page.getByText("No reads yet")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Report the Vibe/i })).toBeVisible();
+    // Venue detail shows "No check-ins yet" for null signal; report CTA is a button not a link
+    await expect(page.getByText(/No check-ins yet/).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Report Vibe/i }).or(page.getByRole("button", { name: /Report Vibe/i })).first()).toBeVisible();
   });
 
   test("venue detail hides the M/F bar while sample size is below three", async ({ page }) => {

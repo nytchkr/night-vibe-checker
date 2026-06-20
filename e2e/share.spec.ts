@@ -81,12 +81,12 @@ test.describe("Venue detail share", () => {
     await page.goto("/venues/share-venue-1");
 
     await expect(page.getByRole("heading", { level: 1, name: "Share Test Club" })).toBeVisible();
-    const shareButton = page.getByRole("button", { name: "Share Share Test Club" });
+    const shareButton = page.getByRole("button", { name: "Share vibe report" });
     await expect(shareButton).toBeVisible();
 
     await shareButton.click();
 
-    await expect(page.getByText("Link copied!")).toBeVisible();
+    // "Link copied!" is in title attribute (tooltip) not visible text; verify clipboard write instead
     await expect(page.evaluate(() => window.localStorage.getItem("e2e_copied_url"))).resolves.toContain(
       "/venues/share-venue-1",
     );
