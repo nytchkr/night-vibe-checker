@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { timeAgo } from "@/lib/timeAgo";
+import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
@@ -45,6 +46,7 @@ function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
 export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
   const touchStartYRef = useRef<number | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     touchStartYRef.current = event.touches[0]?.clientY ?? null;
@@ -76,6 +78,30 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
   function handleTouchCancel() {
     touchStartYRef.current = null;
     setDragDelta(0);
+  }
+
+  async function handleShare() {
+    if (!venue || typeof navigator === "undefined") return;
+
+    const shareData = buildVenueShareData(venue);
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    try {
+      if (!navigator.clipboard) return;
+      await navigator.clipboard.writeText(shareData.url ?? "");
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   }
 
   if (!venue) return null;
@@ -131,9 +157,26 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                   {venue.address ? ` · ${venue.address}` : ""}
                 </p>
               </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black ${busynessClass(signal?.busyness0To100)}`}>
-                {busynessLabel(signal?.busyness0To100)}
-              </span>
+              <div className="relative flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-[#00F5D4]/50 hover:bg-[#00F5D4]/10 hover:text-[#00F5D4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
+                  aria-label={`Share ${venue.name}`}
+                  title={copied ? "Link copied!" : "Share"}
+                >
+                  <ShareIcon />
+                  <span className="sr-only">Share</span>
+                </button>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-black ${busynessClass(signal?.busyness0To100)}`}>
+                  {busynessLabel(signal?.busyness0To100)}
+                </span>
+                {copied ? (
+                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-[#00F5D4]/40 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-[#00F5D4] shadow-lg">
+                    Link copied!
+                  </span>
+                ) : null}
+              </div>
             </div>
 
             <MFRatioBar venue={venue} />
@@ -160,6 +203,29 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
         </div>
       </aside>
     </>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx={18} cy={5} r={3} />
+      <circle cx={6} cy={12} r={3} />
+      <circle cx={18} cy={19} r={3} />
+      <line x1={8.59} y1={13.51} x2={15.42} y2={17.49} />
+      <line x1={15.41} y1={6.51} x2={8.59} y2={10.49} />
+    </svg>
   );
 }
 

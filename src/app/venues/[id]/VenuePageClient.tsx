@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
+import { buildVenueShareData } from "@/lib/venueShare";
 import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
 
 const blurDataUrl =
@@ -25,13 +26,6 @@ function busynessLabel(value: number | null | undefined): string {
   if (value <= 33) return "Quiet";
   if (value <= 66) return "Moderate";
   return "Packed";
-}
-
-function shareBusynessLabel(value: number | null | undefined): "quiet" | "moderate" | "packed" | null {
-  if (value == null) return null;
-  if (value <= 33) return "quiet";
-  if (value <= 66) return "moderate";
-  return "packed";
 }
 
 function crowdFeelLabel(feel: ConsumerCheckIn["crowdFeel"]): string {
@@ -256,19 +250,11 @@ export function VenuePageClient({
   async function handleShare() {
     if (!venue || typeof window === "undefined") return;
 
-    const url = window.location.href;
-    const shareLabel = shareBusynessLabel(venue.signal?.busyness0To100);
-    const shareText = shareLabel
-      ? `${venue.name} is ${shareLabel} right now 🔥 — NightVibe South End`
-      : `${venue.name} — NightVibe South End`;
+    const shareData = buildVenueShareData(venue);
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: venue.name,
-          text: shareText,
-          url,
-        });
+        await navigator.share(shareData);
         return;
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
@@ -276,7 +262,7 @@ export function VenuePageClient({
     }
 
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(shareData.url ?? window.location.href);
       setCopied(true);
       if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
       copiedTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
