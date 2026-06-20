@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // react-leaflet is incompatible with React 18 StrictMode's double-invoke in dev
+  reactStrictMode: false,
   images: {
     remotePatterns: [
       {
