@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import Link from "next/link";
 import { getBusynessState } from "@/lib/busyness";
 import type { ConsumerVenue } from "@/types";
 
@@ -49,16 +48,22 @@ function BusynessBadge({ value }: { value: number | null | undefined }) {
 
 function VenueRow({
   isSelected,
+  onSelect,
   venue,
 }: {
   isSelected: boolean;
+  onSelect: () => void;
   venue: ConsumerVenue;
 }) {
   return (
-    <Link
-      href={`/venues/${encodeURIComponent(venue.id)}`}
-      className={`block rounded-2xl border px-4 py-3 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
-        isSelected ? "border-white/35 bg-white/[0.1]" : "border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07]"
+    <button
+      type="button"
+      aria-pressed={isSelected}
+      onClick={onSelect}
+      className={`block w-full rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+        isSelected
+          ? "border-white/35 bg-white/[0.1] ring-1 ring-[#00F5D4]/60"
+          : "border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07]"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -72,16 +77,18 @@ function VenueRow({
         <OpenNowDot openNow={venue.openNow} />
         <span className="truncate text-xs font-semibold text-white/35">{venue.address}</span>
       </div>
-    </Link>
+    </button>
   );
 }
 
 export default function MapBottomSheet({
+  onVenueSelect,
   selectedVenueId,
   setSnap,
   snap,
   venues,
 }: {
+  onVenueSelect: (venue: ConsumerVenue) => void;
   selectedVenueId: string | null;
   setSnap: (snap: MapSheetSnap) => void;
   snap: MapSheetSnap;
@@ -155,7 +162,7 @@ export default function MapBottomSheet({
 
   const transform =
     dragTranslate == null ? `translateY(calc(100% - ${snap === "collapsed" ? "72px" : snap === "mid" ? "40dvh" : "85dvh"}))` : `translateY(${dragTranslate}px)`;
-  const visibleVenues = snap === "expanded" ? sortedVenues : topVenues;
+  const visibleVenues = snap === "collapsed" ? topVenues : sortedVenues;
 
   return (
     <section
@@ -201,7 +208,7 @@ export default function MapBottomSheet({
                   else itemRefs.current.delete(venue.id);
                 }}
               >
-                <VenueRow isSelected={selectedVenueId === venue.id} venue={venue} />
+                <VenueRow isSelected={selectedVenueId === venue.id} onSelect={() => onVenueSelect(venue)} venue={venue} />
               </div>
             ))
           )}

@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import Link from "next/link";
+import type { Map as LeafletMap } from "leaflet";
 import { Loader2, RefreshCw } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
@@ -146,6 +147,7 @@ export function VenueMap() {
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
   const mapHeightClass =
     process.env.NEXT_PUBLIC_ENV === "development" ? "h-[calc(100dvh-100px)]" : "h-[calc(100dvh-80px)]";
 
@@ -184,9 +186,19 @@ export function VenueMap() {
   );
   const showEmptyState = !loading && !error && visibleVenues.length === 0;
 
+  const selectVenueFromList = useCallback((venue: ConsumerVenue) => {
+    setSelectedVenueId(venue.id);
+    setSheetSnap("mid");
+    mapRef.current?.flyTo([venue.lat, venue.lng], Math.max(mapRef.current.getZoom(), 16), {
+      animate: true,
+      duration: 0.5,
+    });
+  }, []);
+
   return (
     <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
       <MapContainer
+        ref={mapRef}
         center={SOUTH_END_CENTER}
         zoom={15}
         scrollWheelZoom={false}
@@ -204,9 +216,24 @@ export function VenueMap() {
         {visibleVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
           const isLive = venue.signal?.busynessSource === "live";
+          const isSelected = selectedVenueId === venue.id;
 
           return (
             <Fragment key={venue.id}>
+              {isSelected && (
+                <CircleMarker
+                  center={[venue.lat, venue.lng]}
+                  radius={pin.radius + 7}
+                  pathOptions={{
+                    color: "#00F5D4",
+                    fillColor: "#00F5D4",
+                    fillOpacity: 0.08,
+                    opacity: 0.72,
+                    weight: 2,
+                  }}
+                  interactive={false}
+                />
+              )}
               {isLive && (
                 <CircleMarker
                   center={[venue.lat, venue.lng]}
@@ -224,13 +251,13 @@ export function VenueMap() {
               )}
               <CircleMarker
                 center={[venue.lat, venue.lng]}
-                radius={pin.radius}
+                radius={isSelected ? pin.radius + 2 : pin.radius}
                 pathOptions={{
                   className: pin.className,
-                  color: "rgba(255,255,255,0.15)",
+                  color: isSelected ? "#00F5D4" : "rgba(255,255,255,0.15)",
                   fillColor: pin.fillColor,
                   fillOpacity: pin.fillOpacity,
-                  weight: 1.5,
+                  weight: isSelected ? 3 : 1.5,
                 }}
                 eventHandlers={{
                   click: () => {
@@ -311,7 +338,13 @@ export function VenueMap() {
         ＋ Report Vibe
       </Link>
 
-      <MapBottomSheet selectedVenueId={selectedVenueId} setSnap={setSheetSnap} snap={sheetSnap} venues={visibleVenues} />
+      <MapBottomSheet
+        onVenueSelect={selectVenueFromList}
+        selectedVenueId={selectedVenueId}
+        setSnap={setSheetSnap}
+        snap={sheetSnap}
+        venues={visibleVenues}
+      />
 
       <style jsx global>{`
         .venue-pin-packed {
