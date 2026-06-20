@@ -5,7 +5,10 @@ import type { ChangeEvent, KeyboardEvent } from "react";
 import Link from "next/link";
 import { Loader2, RefreshCw } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { getBusynessState } from "@/lib/busyness";
 import type { APIResponse, ConsumerVenue } from "@/types";
+import MapBottomSheet from "@/components/MapBottomSheet";
+import type { MapSheetSnap } from "@/components/MapBottomSheet";
 
 const SOUTH_END_CENTER: [number, number] = [35.2178, -80.8597];
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
@@ -35,60 +38,10 @@ function getVenuePinStyle(venue: ConsumerVenue): VenuePinStyle {
   if (busyness == null) {
     return { className: "venue-pin-null", fillColor: "#3f3f46", fillOpacity: 0.5, radius: 5 };
   }
-  if (busyness >= 67) {
-    return { className: "venue-pin-packed", fillColor: "#ef4444", fillOpacity: 0.95, radius: 13 };
-  }
-  if (busyness >= 34) {
-    return { className: "venue-pin-moderate", fillColor: "#eab308", fillOpacity: 0.95, radius: 10 };
-  }
-  return { className: "venue-pin-quiet", fillColor: "#52525b", fillOpacity: 0.95, radius: 7 };
-}
-
-function getBusynessLabel(value: number | null | undefined) {
-  if (value == null) return "No signal";
-  if (value >= 67) return "Packed";
-  if (value >= 34) return "Moderate";
-  return "Quiet";
-}
-
-function getBusynessClass(value: number | null | undefined) {
-  if (value == null) return "bg-white/10 text-white/55";
-  if (value >= 67) return "bg-red-500/20 text-red-300";
-  if (value >= 34) return "bg-yellow-500/20 text-yellow-200";
-  return "bg-zinc-700/70 text-zinc-200";
-}
-
-function BusynessPill({ value }: { value: number | null | undefined }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black ${getBusynessClass(value)}`}>
-      {getBusynessLabel(value)}
-    </span>
-  );
-}
-
-function MFRatioMiniBar({
-  mfRatio,
-  sampleSize,
-}: {
-  mfRatio: number | null | undefined;
-  sampleSize: number | null | undefined;
-}) {
-  if (mfRatio == null || sampleSize == null || sampleSize < 3) {
-    return <p className="text-xs font-semibold text-white/40">Crowd mix pending</p>;
-  }
-
-  const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));
-  const femalePercent = 100 - malePercent;
-
-  return (
-    <div className="min-w-[112px]" aria-label={`${malePercent}% male, ${femalePercent}% female from ${sampleSize} reports`}>
-      <div className="flex h-1.5 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-        <div className="h-full bg-[#3B82F6]" style={{ width: `${malePercent}%` }} />
-        <div className="h-full flex-1 bg-[#EC4899]" />
-      </div>
-      <p className="mt-1 text-xs font-semibold text-white/45">{sampleSize} reports</p>
-    </div>
-  );
+  const state = getBusynessState(busyness);
+  if (state.level === "packed") return { className: "venue-pin-packed", fillColor: state.color, fillOpacity: 0.95, radius: 13 };
+  if (state.level === "moderate") return { className: "venue-pin-moderate", fillColor: state.color, fillOpacity: 0.95, radius: 10 };
+  return { className: "venue-pin-quiet", fillColor: state.color, fillOpacity: 0.95, radius: 7 };
 }
 
 function FitBounds() {
@@ -189,7 +142,8 @@ function ZipRecenterControl() {
 
 export function VenueMap() {
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
-  const [selectedVenue, setSelectedVenue] = useState<ConsumerVenue | null>(null);
+  const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mapHeightClass =
@@ -223,19 +177,6 @@ export function VenueMap() {
       controller.abort();
     };
   }, [fetchVenues]);
-
-  useEffect(() => {
-    if (!selectedVenue) return;
-
-    function handleKeyDown(event: globalThis.KeyboardEvent) {
-      if (event.key === "Escape") {
-        setSelectedVenue(null);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedVenue]);
 
   const visibleVenues = useMemo(
     () => venues.filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
@@ -291,7 +232,12 @@ export function VenueMap() {
                   fillOpacity: pin.fillOpacity,
                   weight: 1.5,
                 }}
-                eventHandlers={{ click: () => setSelectedVenue(venue) }}
+                eventHandlers={{
+                  click: () => {
+                    setSelectedVenueId(venue.id);
+                    setSheetSnap("mid");
+                  },
+                }}
               >
                 <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
                   <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
@@ -304,13 +250,13 @@ export function VenueMap() {
 
       <div className="pointer-events-none absolute bottom-20 left-1/2 z-[1000] flex -translate-x-1/2 gap-3 whitespace-nowrap rounded-full border border-white/10 bg-black/70 px-4 py-2 text-xs font-bold text-white/70 shadow-2xl backdrop-blur-sm">
         <span>
-          <span className="text-red-400">●</span> Packed
+          <span style={{ color: getBusynessState(100).color }}>●</span> Packed
         </span>
         <span>
-          <span className="text-yellow-400">●</span> Moderate
+          <span style={{ color: getBusynessState(50).color }}>●</span> Moderate
         </span>
         <span>
-          <span className="text-zinc-500">●</span> Quiet
+          <span style={{ color: getBusynessState(0).color }}>●</span> Quiet
         </span>
       </div>
 
@@ -360,59 +306,24 @@ export function VenueMap() {
 
       <Link
         href="/vibe-check"
-        className="fixed bottom-20 right-4 z-50 rounded-full bg-[#00F5D4] px-5 py-3 font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+        className="fixed bottom-28 right-4 z-[1000] rounded-full bg-[#00F5D4] px-5 py-3 font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
       >
         ＋ Report Vibe
       </Link>
 
-      {selectedVenue ? (
-        <div className="absolute inset-0 z-[1200]" role="presentation">
-          <button
-            type="button"
-            aria-label="Close venue details"
-            className="absolute inset-0 cursor-default bg-black/30"
-            onClick={() => setSelectedVenue(null)}
-          />
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${selectedVenue.name} vibe preview`}
-            className="absolute inset-x-0 bottom-0 rounded-t-2xl border-t border-white/10 bg-[#0F0F14] px-4 pb-5 pt-3 shadow-[0_-20px_60px_rgba(0,0,0,0.58)] animate-in slide-in-from-bottom-8 duration-200"
-            style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
-          >
-            <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
-            <div className="mx-auto mt-4 w-full max-w-lg">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="truncate text-lg font-black leading-tight text-white">{selectedVenue.name}</h2>
-                  <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-[#00F5D4]/20 bg-[#00F5D4]/10 px-3 py-1 text-xs font-black uppercase tracking-[0.08em] text-[#00F5D4]">
-                    <span className="truncate">{selectedVenue.category}</span>
-                  </span>
-                </div>
-                <BusynessPill value={selectedVenue.signal?.busyness0To100} />
-              </div>
-
-              <div className="mt-4 flex items-end justify-between gap-4">
-                <MFRatioMiniBar mfRatio={selectedVenue.signal?.mfRatio} sampleSize={selectedVenue.signal?.sampleSize} />
-                <Link
-                  href={`/venues/${encodeURIComponent(selectedVenue.id)}`}
-                  className="inline-flex min-h-[44px] shrink-0 items-center justify-center rounded-full bg-[#00F5D4] px-5 text-sm font-black text-[#0A0A0F] shadow-[0_0_18px_rgba(0,245,212,0.32)] transition-colors hover:bg-[#2fffe2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
-                >
-                  View Vibe →
-                </Link>
-              </div>
-            </div>
-          </aside>
-        </div>
-      ) : null}
+      <MapBottomSheet selectedVenueId={selectedVenueId} setSnap={setSheetSnap} snap={sheetSnap} venues={visibleVenues} />
 
       <style jsx global>{`
         .venue-pin-packed {
-          filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0.35)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
+          filter: drop-shadow(0 0 0 rgba(248, 113, 113, 0.35)) drop-shadow(0 0 12px rgba(248, 113, 113, 0.5));
         }
 
         .venue-pin-moderate {
-          filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.4));
+          filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.4));
+        }
+
+        .venue-pin-quiet {
+          filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.34));
         }
       `}</style>
     </main>
