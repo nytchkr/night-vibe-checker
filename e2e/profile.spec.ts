@@ -27,12 +27,7 @@ test.describe("Profile page", () => {
     await expect(page.getByRole("link", { name: /Sign up free/i })).toBeVisible();
   });
 
-  test.skip("profile shows Your Vibes section empty state for new user", async ({ page }) => {
-    test.info().annotations.push({
-      type: "blocked",
-      description: "NV-UX-017 profile copy/section is not merged on main yet.",
-    });
-
+  test("profile shows Your Vibes section empty state for new user", async ({ page }) => {
     await page.context().addCookies([{
       name: "sb-onlpwglwnqoivuykywrk-auth-token",
       value: JSON.stringify(localSession),
@@ -49,6 +44,15 @@ test.describe("Profile page", () => {
       }
     }, localSession);
 
+    await page.route("**/api/profile/check-ins", (route) => {
+      expect(route.request().headers().authorization).toBe("Bearer valid-e2e-token");
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      });
+    });
+
     await page.route("**/api/check-ins/me", (route) => {
       expect(route.request().headers().authorization).toBe("Bearer valid-e2e-token");
       return route.fulfill({
@@ -60,7 +64,7 @@ test.describe("Profile page", () => {
           meta: {
             cached: false,
             generatedAt: new Date().toISOString(),
-            requestId: "nv-test-015-profile-empty",
+            requestId: "nv-test-016-profile-empty",
           },
         }),
       });

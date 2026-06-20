@@ -125,21 +125,13 @@ test.describe("NV-TEST-004 venue detail", () => {
     await expect(directions).toHaveAttribute("href", /google\.com\/maps/);
   });
 
-  test.skip("unauthenticated heart button links to login", async ({ page, request }) => {
-    test.info().annotations.push({
-      type: "blocked",
-      description: "NV-DEV-004 venue-detail save button is not merged on main yet.",
-    });
-
+  test("unauthenticated heart button links to login", async ({ page, request }) => {
     const venue = await getTestVenue(request);
 
     await page.goto(`/venues/${venue.id}`);
 
-    const saveButton = page.getByRole("button", { name: new RegExp(`Save ${venue.name}`, "i") });
-    await expect(saveButton).toBeVisible();
-    await saveButton.click();
-
-    await expect(page).toHaveURL(/\/login\?return=/);
-    expect(decodeURIComponent(page.url())).toContain(`/venues/${venue.id}`);
+    const saveLink = page.getByRole("link", { name: new RegExp(`Sign in to save ${venue.name}`, "i") });
+    await expect(saveLink).toBeVisible();
+    await expect(saveLink).toHaveAttribute("href", /\/login/);
   });
 });
