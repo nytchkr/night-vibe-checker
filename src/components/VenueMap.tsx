@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import L from "leaflet";
-import { CircleMarker, MapContainer, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, TileLayer, Tooltip } from "react-leaflet";
 import { VenueBottomSheet } from "@/components/VenueBottomSheet";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
@@ -106,7 +106,11 @@ export function VenueMap() {
                 fillOpacity: 0.9,
               }}
               eventHandlers={{ click: () => setSelectedVenue(venue) }}
-            />
+            >
+              <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+                <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
+              </Tooltip>
+            </CircleMarker>
           );
         })}
       </MapContainer>
