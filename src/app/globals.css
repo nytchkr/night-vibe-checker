@@ -143,6 +143,21 @@
 
 /* vibeCTAPulse removed — NV-064 (no longer used in feed/list context) */
 
+.live-pin {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes ping {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.4); opacity: 0.3; }
+}
+
 /* vibeScoreReveal kept for VibeReport component use */
 @keyframes vibeScoreReveal {
   0%   { opacity: 0; transform: scale(0.85); }

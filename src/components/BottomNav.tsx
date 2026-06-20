@@ -106,7 +106,7 @@ export function BottomNav() {
 
   const mapActive = pathname.startsWith("/map") || pathname === "/";
   const exploreActive = pathname.startsWith("/explore");
-  const meActive = pathname.startsWith("/profile");
+  const youActive = pathname.startsWith("/profile");
 
   return (
     <nav
@@ -122,8 +122,8 @@ export function BottomNav() {
           <ExploreIcon filled={exploreActive} />
         </NavItem>
 
-        <NavItem href="/profile" label="Me" active={meActive}>
-          <MeIcon filled={meActive} />
+        <NavItem href="/profile" label="You" active={youActive}>
+          <MeIcon filled={youActive} />
         </NavItem>
       </div>
     </nav>
