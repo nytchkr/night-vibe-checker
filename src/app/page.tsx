@@ -19,11 +19,49 @@ type BusynessState = {
   rank: number;
 };
 
+type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
+type CategoryFilter = "All" | "Bar" | "Brewery" | "Club" | "Restaurant";
+
+const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
+const CATEGORY_FILTERS: CategoryFilter[] = ["All", "Bar", "Brewery", "Club", "Restaurant"];
+
 function getBusynessState(value: number | null | undefined): BusynessState {
   if (value == null) return { label: "No data yet", color: "#6B7280", rank: 0 };
   if (value <= 33) return { label: "Quiet", color: "#22C55E", rank: 1 };
   if (value <= 66) return { label: "Moderate", color: "#F59E0B", rank: 2 };
   return { label: "Packed", color: "#EF4444", rank: 3 };
+}
+
+function normalizeCategory(category: string | null | undefined): CategoryFilter | null {
+  const value = (category ?? "").toLowerCase();
+  if (value.includes("brewery")) return "Brewery";
+  if (value.includes("club") || value.includes("night_club") || value.includes("nightclub")) return "Club";
+  if (value.includes("restaurant") || value.includes("food")) return "Restaurant";
+  if (value.includes("bar")) return "Bar";
+  return null;
+}
+
+function FilterChip<T extends string>({
+  label,
+  active,
+  onSelect,
+}: {
+  label: T;
+  active: boolean;
+  onSelect: (label: T) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(label)}
+      className={`min-h-[38px] shrink-0 rounded-full px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444]/70 ${
+        active ? "bg-[#EF4444] text-white" : "bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
 }
 
 function SourceBadge({ source }: { source: VenueSignal["busynessSource"] | undefined }) {
@@ -170,6 +208,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
@@ -210,12 +251,24 @@ export default function HomePage() {
   }, []);
 
   const sortedVenues = useMemo(() => {
-    return [...venues].sort((a, b) => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    return venues.filter((venue) => {
+      if (venue.hidden) return false;
+
+      const busyness = getBusynessState(venue.signal?.busyness0To100).label;
+      const category = normalizeCategory(venue.category);
+      const matchesSearch = normalizedSearch.length === 0 || venue.name.toLowerCase().includes(normalizedSearch);
+      const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
+      const matchesCategory = categoryFilter === "All" || category === categoryFilter;
+
+      return matchesSearch && matchesBusyness && matchesCategory;
+    }).sort((a, b) => {
       const aState = getBusynessState(a.signal?.busyness0To100);
       const bState = getBusynessState(b.signal?.busyness0To100);
       return bState.rank - aState.rank || a.name.localeCompare(b.name);
     });
-  }, [venues]);
+  }, [busynessFilter, categoryFilter, searchQuery, venues]);
 
   const timeLabel = useMemo(() => (
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
@@ -263,6 +316,53 @@ export default function HomePage() {
             How&apos;s South End tonight?
           </h1>
           <p className="mt-1 text-sm text-white/42">Live and forecast crowd reads from local venues</p>
+
+          <div className="mt-5 space-y-3">
+            <div className="relative">
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search South End..."
+                className="h-12 w-full rounded-full border border-white/10 bg-white/[0.07] py-0 pl-4 pr-12 text-base font-semibold text-white placeholder:text-white/35 focus:border-[#EF4444]/70 focus:outline-none focus:ring-2 focus:ring-[#EF4444]/25"
+                aria-label="Search South End venues"
+              />
+              {searchQuery.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {BUSYNESS_FILTERS.map((filter) => (
+                <FilterChip
+                  key={filter}
+                  label={filter}
+                  active={busynessFilter === filter}
+                  onSelect={setBusynessFilter}
+                />
+              ))}
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {CATEGORY_FILTERS.map((filter) => (
+                <FilterChip
+                  key={filter}
+                  label={filter}
+                  active={categoryFilter === filter}
+                  onSelect={setCategoryFilter}
+                />
+              ))}
+            </div>
+
+            <p className="text-sm font-bold text-white/55">{sortedVenues.length} spots open now</p>
+          </div>
         </div>
       </header>
 
@@ -292,10 +392,18 @@ export default function HomePage() {
           </div>
         )}
 
-        {!loading && !error && sortedVenues.length === 0 && (
+        {!loading && !error && venues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
             <p className="text-sm font-semibold text-white">
               No venues yet. Discovery job seeds South End venues.
+            </p>
+          </div>
+        )}
+
+        {!loading && !error && venues.length > 0 && sortedVenues.length === 0 && (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
+            <p className="text-sm font-semibold text-white">
+              No packed spots right now — check back later 🎉
             </p>
           </div>
         )}
