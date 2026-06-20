@@ -9,7 +9,7 @@ import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-le
 import { getBusynessState } from "@/lib/busyness";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import MapBottomSheet from "@/components/MapBottomSheet";
-import type { MapSheetSnap } from "@/components/MapBottomSheet";
+import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
 
 const SOUTH_END_CENTER: [number, number] = [35.2178, -80.8597];
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
@@ -183,6 +183,7 @@ export function VenueMap() {
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<VenueCategoryFilter>("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -396,8 +397,10 @@ export function VenueMap() {
       </Link>
 
       <MapBottomSheet
+        activeCategoryFilter={activeCategoryFilter}
         onVenueSelect={selectVenueFromList}
         selectedVenueId={selectedVenueId}
+        setActiveCategoryFilter={setActiveCategoryFilter}
         setSnap={setSheetSnap}
         snap={sheetSnap}
         venues={filteredVenues}
