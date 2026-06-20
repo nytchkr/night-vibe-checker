@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 const blurDataUrl =
@@ -251,6 +252,7 @@ function buildMapEmbedUrl(venues: ConsumerVenue[]): string | null {
 }
 
 export default function HomePage() {
+  const track = useTrack();
   const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,6 +281,10 @@ export default function HomePage() {
   useEffect(() => {
     fetchVenues();
   }, [fetchVenues]);
+
+  useEffect(() => {
+    void track("page_view", { meta: { page: "home" } });
+  }, [track]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
