@@ -2,10 +2,8 @@
 -- Migration 008 — lightweight analytics events
 -- ============================================================
 
-create extension if not exists "uuid-ossp";
-
 create table if not exists public.analytics_events (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   event text not null,
   venue_id uuid references public.venues(id) on delete set null,
   user_id uuid,
