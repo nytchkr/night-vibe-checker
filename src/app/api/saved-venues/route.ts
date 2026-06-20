@@ -4,6 +4,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
@@ -13,7 +15,17 @@ const BodySchema = z.object({
   venueId: z.string().uuid(),
 });
 
-async function getUserId(authHeader: string | null): Promise<string | null> {
+type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
+  venueIds: string[];
+  savedVenueIds: string[];
+};
+
+type SavedVenueMutationResponse = APIResponse<{ venueId: string; saved: boolean }> & {
+  venueId: string;
+  saved: boolean;
+};
+
+async function getBearerUserId(authHeader: string | null): Promise<string | null> {
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7).trim();
   if (!token) return null;
@@ -21,6 +33,30 @@ async function getUserId(authHeader: string | null): Promise<string | null> {
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) return null;
   return data.user.id;
+}
+
+async function getCookieUserId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll().map(({ name, value }) => ({ name, value })),
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    },
+  );
+
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
+async function getUserId(req: NextRequest): Promise<string | null> {
+  return (await getCookieUserId()) ?? (await getBearerUserId(req.headers.get("Authorization")));
 }
 
 function missingSupabaseConfigResponse(
@@ -79,7 +115,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const userId = await getUserId(req.headers.get("Authorization"));
+  const userId = await getUserId(req);
   if (!userId) return unauthorized(meta);
 
   const { data, error } = await supabaseAdmin
@@ -96,9 +132,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  return NextResponse.json<APIResponse<{ savedVenueIds: string[] }>>({
+  const savedVenueIds = (data ?? []).map((row) => row.venue_id as string);
+
+  return NextResponse.json<SavedVenueIdsResponse>({
     status: "success",
-    data: { savedVenueIds: (data ?? []).map((row) => row.venue_id as string) },
+    venueIds: savedVenueIds,
+    savedVenueIds,
+    data: { savedVenueIds },
     meta,
   });
 }
@@ -114,7 +154,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const userId = await getUserId(req.headers.get("Authorization"));
+  const userId = await getUserId(req);
   if (!userId) return unauthorized(meta);
 
   const parsed = await readVenueId(req, meta);
@@ -133,8 +173,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  return NextResponse.json<APIResponse<{ venueId: string; saved: boolean }>>({
+  return NextResponse.json<SavedVenueMutationResponse>({
     status: "success",
+    venueId: parsed.venueId,
+    saved: true,
     data: { venueId: parsed.venueId, saved: true },
     meta,
   });
@@ -151,7 +193,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const userId = await getUserId(req.headers.get("Authorization"));
+  const userId = await getUserId(req);
   if (!userId) return unauthorized(meta);
 
   const parsed = await readVenueId(req, meta);
@@ -171,8 +213,10 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  return NextResponse.json<APIResponse<{ venueId: string; saved: boolean }>>({
+  return NextResponse.json<SavedVenueMutationResponse>({
     status: "success",
+    venueId: parsed.venueId,
+    saved: false,
     data: { venueId: parsed.venueId, saved: false },
     meta,
   });

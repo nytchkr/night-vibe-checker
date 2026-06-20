@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
 import { ShareButton } from "@/components/ShareButton";
+import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
 
@@ -202,6 +203,10 @@ export function VenuePageClient({
   const [checkIns, setCheckIns] = useState<ConsumerCheckIn[]>([]);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [savePending, setSavePending] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
     void track("venue_view", { venueId });
@@ -236,6 +241,78 @@ export function VenuePageClient({
     fetchData();
     return () => { cancelled = true; };
   }, [initialVenue, venueId]);
+
+  useEffect(() => {
+    if (!venueId) return;
+    let cancelled = false;
+    const client = createBrowserClient();
+
+    async function fetchSavedState() {
+      const { data } = await client.auth.getSession();
+      const token = data.session?.access_token ?? null;
+      if (cancelled) return;
+
+      setAccessToken(token);
+      setAuthChecked(true);
+
+      if (!token) {
+        setSaved(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/saved-venues", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const ids = json?.venueIds ?? json?.savedVenueIds ?? json?.data?.savedVenueIds ?? [];
+        if (!cancelled) setSaved(Array.isArray(ids) && ids.includes(venueId));
+      } catch {
+        // Saving is non-critical; leave the default unsaved state if lookup fails.
+      }
+    }
+
+    void fetchSavedState();
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, session) => {
+      const token = session?.access_token ?? null;
+      setAccessToken(token);
+      setAuthChecked(true);
+      if (!token) setSaved(false);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [venueId]);
+
+  async function toggleSaved() {
+    if (!accessToken || savePending) return;
+
+    const nextSaved = !saved;
+    setSaved(nextSaved);
+    setSavePending(true);
+
+    try {
+      const res = await fetch("/api/saved-venues", {
+        method: nextSaved ? "POST" : "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ venueId }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+    } catch {
+      setSaved(!nextSaved);
+    } finally {
+      setSavePending(false);
+    }
+  }
 
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
@@ -324,7 +401,29 @@ export function VenuePageClient({
           )}
 
           <div className="mx-auto max-w-lg space-y-4 px-4 py-5 pb-36">
-            <section>
+            <section className="relative pr-14">
+              {authChecked && !accessToken ? (
+                <Link
+                  href="/login"
+                  aria-label={`Sign in to save ${venue.name}`}
+                  className="absolute right-4 top-4 rounded-full border border-white/15 bg-[#0A0A0F]/80 p-2 text-2xl text-white/75 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+                >
+                  🤍
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={toggleSaved}
+                  disabled={!authChecked || savePending}
+                  aria-label={`${saved ? "Unsave" : "Save"} ${venue.name}`}
+                  aria-pressed={saved}
+                  className={`absolute right-4 top-4 rounded-full border border-white/15 bg-[#0A0A0F]/80 p-2 text-2xl shadow-lg backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 disabled:opacity-60 ${
+                    saved ? "text-red-400" : "text-white/75 hover:text-white"
+                  }`}
+                >
+                  {saved ? "❤️" : "🤍"}
+                </button>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <CategoryChip category={venue.category} />
               </div>
