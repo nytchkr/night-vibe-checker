@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from("check_ins")
-    .select("id, venue_id, busyness, crowd_feel, note, hidden, created_at, user_id")
+    .select("id, venue_id, place_id, venue_name, busyness, crowd_feel, note, hidden, created_at, user_id")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -57,14 +57,14 @@ export async function GET(req: NextRequest) {
   const checkIns: AdminCheckIn[] = (data ?? []).map((row) => ({
     id: row.id as string,
     venueId: row.venue_id as string,
+    placeId: (row.place_id ?? "") as string,
+    venueName: (row.venue_name ?? undefined) as string | undefined,
     busyness: row.busyness as AdminCheckIn["busyness"],
     crowdFeel: row.crowd_feel as AdminCheckIn["crowdFeel"],
     note: (row.note ?? undefined) as string | undefined,
     hidden: row.hidden as boolean,
     createdAt: row.created_at as string,
     userId: (row.user_id ?? null) as string | null,
-    // placeId not returned by admin list — not needed for moderation UI
-    placeId: "",
   }));
 
   return NextResponse.json({ checkIns });

@@ -12,7 +12,6 @@ import type { AdminCheckIn } from "@/types/admin";
 interface Props {
   checkIn: AdminCheckIn;
   token: string;
-  onDeleted: (id: string) => void;
   onUpdated: (checkIn: AdminCheckIn) => void;
 }
 
@@ -26,7 +25,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(diffH / 24)}d ago`;
 }
 
-export function AdminCheckInRow({ checkIn, token, onDeleted, onUpdated }: Props) {
+export function AdminCheckInRow({ checkIn, token, onUpdated }: Props) {
   const [busy, setBusy] = useState(false);
 
   async function toggleHidden() {
@@ -55,23 +54,6 @@ export function AdminCheckInRow({ checkIn, token, onDeleted, onUpdated }: Props)
     }
   }
 
-  async function handleDelete() {
-    if (!confirm("Permanently delete this check-in?")) return;
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/admin/check-ins/${checkIn.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("DELETE failed");
-      onDeleted(checkIn.id);
-    } catch {
-      alert("Delete failed. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const truncatedNote = checkIn.note
     ? checkIn.note.length > 60
       ? checkIn.note.slice(0, 60) + "…"
@@ -79,13 +61,19 @@ export function AdminCheckInRow({ checkIn, token, onDeleted, onUpdated }: Props)
     : null;
 
   return (
-    <tr className="border-b border-white/[0.06] hover:bg-white/[0.02] transition-colors">
-      {/* Venue */}
-      <td className="px-3 py-2.5 text-sm text-white/70 font-mono max-w-[120px] truncate">
+    <tr
+      className={`border-b border-white/[0.06] transition-colors hover:bg-white/[0.02] ${
+        checkIn.hidden ? "bg-white/[0.015] text-white/35 line-through decoration-white/35" : ""
+      }`}
+    >
+      <td className="px-3 py-2.5 text-sm text-white/40 whitespace-nowrap">
+        {timeAgo(checkIn.createdAt)}
+      </td>
+
+      <td className="px-3 py-2.5 text-sm text-white/70 font-mono max-w-[150px] truncate">
         {checkIn.venueName ?? checkIn.venueId.slice(0, 16) + "…"}
       </td>
 
-      {/* Busyness */}
       <td className="px-3 py-2.5">
         <span className={`
           inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide
@@ -97,35 +85,14 @@ export function AdminCheckInRow({ checkIn, token, onDeleted, onUpdated }: Props)
         </span>
       </td>
 
-      {/* Crowd feel */}
       <td className="px-3 py-2.5 text-sm text-white/60">
         {checkIn.crowdFeel.replace("_", " ")}
       </td>
 
-      {/* Note */}
       <td className="px-3 py-2.5 text-sm text-white/50 max-w-[200px]">
         {truncatedNote ?? <span className="text-white/25 italic">—</span>}
       </td>
 
-      {/* Time ago */}
-      <td className="px-3 py-2.5 text-sm text-white/40 whitespace-nowrap">
-        {timeAgo(checkIn.createdAt)}
-      </td>
-
-      {/* Hidden badge */}
-      <td className="px-3 py-2.5">
-        {checkIn.hidden ? (
-          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-red-500/20 text-red-400">
-            Hidden
-          </span>
-        ) : (
-          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[#00F5D4]/10 text-[#00F5D4]">
-            Visible
-          </span>
-        )}
-      </td>
-
-      {/* Actions */}
       <td className="px-3 py-2.5">
         <div className="flex items-center gap-2">
           <button
@@ -134,13 +101,6 @@ export function AdminCheckInRow({ checkIn, token, onDeleted, onUpdated }: Props)
             className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/25 transition-all disabled:opacity-40"
           >
             {checkIn.hidden ? "Unhide" : "Hide"}
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={busy}
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/40 transition-all disabled:opacity-40"
-          >
-            Delete
           </button>
         </div>
       </td>

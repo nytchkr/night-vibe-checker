@@ -255,6 +255,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const { data, error } = await supabaseAdmin
       .from("check_ins")
       .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
+      .eq("hidden", false)
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -286,6 +287,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .from("check_ins")
       .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
       .eq("venue_id", venue.id)
+      .eq("hidden", false)
       .order("created_at", { ascending: false })
       .limit(limit),
     supabaseAdmin
