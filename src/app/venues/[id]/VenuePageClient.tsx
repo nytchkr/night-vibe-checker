@@ -2,16 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MFRatioBar } from "@/components/MFRatioBar";
 import { ShareButton } from "@/components/ShareButton";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
-import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
-
-const blurDataUrl =
-  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAzMiAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBzdG9wLWNvbG9yPSIjMEEwQTBGIi8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iIzJEMTk1RiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwRjVENCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIzMiIgaGVpZ2h0PSIyNCIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg==";
+import type { ConsumerCheckIn, ConsumerVenue } from "@/types";
 
 type BusynessState = {
   label: "No data yet" | "Dead" | "Moderate" | "Packed";
@@ -65,22 +60,6 @@ function freshnessLabel(signal: ConsumerVenue["signal"]): string {
   return relative === "Not updated yet" ? relative : `Updated ${relative}`;
 }
 
-function SourceBadge({ source }: { source: BusynessSource | null | undefined }) {
-  if (!source) return null;
-  const isLive = source === "live";
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/60">
-      {isLive && (
-        <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-70" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-        </span>
-      )}
-      {source}
-    </span>
-  );
-}
-
 function RatingLabel({ rating }: { rating: number | undefined }) {
   if (rating == null || !Number.isFinite(rating)) return null;
 
@@ -105,43 +84,6 @@ function OpenNowBadge({ openNow }: { openNow: boolean | undefined }) {
         aria-hidden="true"
       />
       {isOpen ? "Open Now" : "Closed"}
-    </span>
-  );
-}
-
-function ConfidenceChip({
-  value,
-  sampleSize,
-}: {
-  value: number | null | undefined;
-  sampleSize: number | null | undefined;
-}) {
-  if ((sampleSize ?? 0) < 3) {
-    return (
-      <span className="inline-flex rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs font-bold text-white/55">
-        Early data
-      </span>
-    );
-  }
-
-  const confidence = value ?? 0;
-  const config =
-    confidence < 0.3
-      ? { label: "Low confidence", color: "#9CA3AF" }
-      : confidence <= 0.7
-        ? { label: "Medium confidence", color: "#F59E0B" }
-        : { label: "High confidence", color: "#22C55E" };
-
-  return (
-    <span
-      className="inline-flex rounded-full border px-2.5 py-1 text-xs font-bold"
-      style={{
-        borderColor: `${config.color}55`,
-        backgroundColor: `${config.color}18`,
-        color: config.color,
-      }}
-    >
-      {config.label}
     </span>
   );
 }
@@ -189,6 +131,11 @@ function LoadingSkeleton() {
       </div>
     </div>
   );
+}
+
+function clampPercent(value: number | null | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, Math.round(value)));
 }
 
 export function VenuePageClient({
@@ -316,10 +263,13 @@ export function VenuePageClient({
 
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
+  const busynessPercent = clampPercent(busyness);
   const busynessState = getBusynessState(busyness);
-  const color = busynessState.color;
   const label = busynessState.label;
   const hasSignal = signal != null;
+  const updatedAt = signal?.lastBusynessRefresh ?? signal?.computedAt ?? null;
+  const malePercent = signal?.mfRatio != null && signal.sampleSize >= 3 ? clampPercent(signal.mfRatio) : null;
+  const femalePercent = malePercent == null ? null : 100 - malePercent;
   const shareCaption = freshnessLabel(signal ?? null);
   const reportParams = useMemo(() => new URLSearchParams({
     venueId,
@@ -377,36 +327,34 @@ export function VenuePageClient({
 
       {!loading && !error && venue && (
         <>
-          {venue.photoUrl ? (
-            <div className="mx-auto mt-4 w-full max-w-lg px-4">
-              <div className="relative h-56 w-full overflow-hidden rounded-xl sm:h-[260px]">
-                <Image
+          <section className="relative h-52 w-full overflow-hidden">
+            {venue.photoUrl ? (
+              <>
+                <img
                   src={venue.photoUrl}
-                  alt={`${venue.name} venue photo`}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 100vw, 512px"
-                  priority
-                  placeholder="blur"
-                  blurDataURL={blurDataUrl}
+                  alt={venue.name}
+                  className="h-full w-full object-cover"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/40 to-transparent" />
+              </>
+            ) : (
+              <div className="flex h-52 w-full items-center justify-center bg-gradient-to-br from-[#1a1a2e] to-[#0A0A0F]">
+                <span className="text-7xl font-black uppercase text-white/10">{venue.name.charAt(0)}</span>
               </div>
-            </div>
-          ) : (
-            <div className="mx-auto mt-4 w-full max-w-lg px-4">
-              <div className="flex h-56 w-full items-center justify-center rounded-xl bg-white/[0.05] text-sm font-semibold text-white/28 sm:h-[260px]">
-                No Google photo
-              </div>
-            </div>
-          )}
+            )}
 
-          <div className="mx-auto max-w-lg space-y-4 px-4 py-5 pb-36">
-            <section className="relative pr-14">
+            <div className="absolute bottom-0 left-0 px-4 pb-4">
+              <CategoryChip category={venue.category} />
+              <h1 className="mt-2 max-w-[19rem] text-2xl font-black leading-tight text-white">{venue.name}</h1>
+            </div>
+
+            <div className="absolute right-4 top-4 flex items-center gap-2">
+              <ShareButton venue={venue} caption={shareCaption} className="shrink-0" />
               {authChecked && !accessToken ? (
                 <Link
                   href="/login"
                   aria-label={`Sign in to save ${venue.name}`}
-                  className="absolute right-4 top-4 rounded-full border border-white/15 bg-[#0A0A0F]/80 p-2 text-2xl text-white/75 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+                  className="rounded-full border border-white/15 bg-[#0A0A0F]/80 p-2 text-2xl text-white/75 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
                 >
                   🤍
                 </Link>
@@ -417,54 +365,22 @@ export function VenuePageClient({
                   disabled={!authChecked || savePending}
                   aria-label={`${saved ? "Unsave" : "Save"} ${venue.name}`}
                   aria-pressed={saved}
-                  className={`absolute right-4 top-4 rounded-full border border-white/15 bg-[#0A0A0F]/80 p-2 text-2xl shadow-lg backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 disabled:opacity-60 ${
+                  className={`rounded-full border border-white/15 bg-[#0A0A0F]/80 p-2 text-2xl shadow-lg backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 disabled:opacity-60 ${
                     saved ? "text-red-400" : "text-white/75 hover:text-white"
                   }`}
                 >
                   {saved ? "❤️" : "🤍"}
                 </button>
               )}
+            </div>
+          </section>
+
+          <div className="mx-auto max-w-lg space-y-4 px-4 py-5 pb-32">
+            <section className="space-y-3">
+              <p className="text-sm leading-relaxed text-white/50">{venue.address}</p>
               <div className="flex flex-wrap items-center gap-2">
-                <CategoryChip category={venue.category} />
-              </div>
-              <div className="mt-3 flex items-start justify-between gap-3">
-                <h1 className="min-w-0 flex-1 text-[1.85rem] font-black leading-tight text-white">{venue.name}</h1>
-                <ShareButton venue={venue} caption={shareCaption} className="shrink-0" />
-              </div>
-              <div className="mt-2 space-y-1.5">
-                <p className="text-sm leading-relaxed text-white/50">{venue.address}</p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <RatingLabel rating={venue.rating} />
-                  <OpenNowBadge openNow={venue.openNow} />
-                </div>
-                {venue.phone && (
-                  <a
-                    href={`tel:${venue.phone}`}
-                    className="flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
-                  >
-                    <span aria-hidden>📞</span> {venue.phone}
-                  </a>
-                )}
-                {venue.website && (
-                  <a
-                    href={venue.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-[#00F5D4] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
-                  >
-                    <span aria-hidden>🌐</span> Website
-                  </a>
-                )}
-                {venue.openingHours && venue.openingHours.length > 0 && (
-                  <details className="mt-3">
-                    <summary className="cursor-pointer text-xs text-white/40">Hours</summary>
-                    <ul className="mt-1 space-y-0.5">
-                      {venue.openingHours.map((hour, index) => (
-                        <li key={index} className="text-xs text-white/50">{hour}</li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
+                <RatingLabel rating={venue.rating} />
+                <OpenNowBadge openNow={venue.openNow} />
                 <a
                   href={mapsHref}
                   target="_blank"
@@ -491,77 +407,97 @@ export function VenuePageClient({
               </div>
             </section>
 
-            <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
-                    Right now
-                  </p>
-                  <div className="mt-3 flex items-end gap-2">
-                    <span className="text-5xl font-black leading-none" style={{ color }}>
-                      {busyness ?? "--"}
-                    </span>
-                    {busyness != null && <span className="pb-1 text-sm font-bold text-white/35">/100</span>}
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-2 pt-1">
-                  {hasSignal ? <SourceBadge source={signal?.busynessSource} /> : null}
-                  {hasSignal ? <ConfidenceChip value={signal?.confidence0To1} sampleSize={signal?.sampleSize} /> : null}
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-2">
-                <span
-                  className="h-3 w-3 rounded-full"
-                  style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}80` }}
-                  aria-hidden="true"
-                />
-                <span className="text-lg font-black" style={{ color }}>{label}</span>
-              </div>
+            <section className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
               {hasSignal ? (
-                <>
-                  <div
-                    className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10"
-                    role="meter"
-                    aria-label={`${label} busyness`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={busyness ?? undefined}
-                    aria-valuetext={busyness == null ? "No busyness data yet" : `${label}, ${busyness} out of 100`}
-                  >
+                <div className="space-y-4">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-white/35">Capacity</span>
+                      <span className="text-sm font-black text-white">{busynessPercent}% capacity</span>
+                    </div>
                     <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${busyness ?? 0}%`, backgroundColor: color }}
-                    />
+                      className="h-2 w-full overflow-hidden rounded-full bg-zinc-800"
+                      role="meter"
+                      aria-label={`${label} busyness`}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={busynessPercent}
+                      aria-valuetext={`${busynessPercent}% capacity`}
+                    >
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-zinc-500 via-orange-400 to-red-500 transition-all duration-500"
+                        style={{ width: `${busynessPercent}%` }}
+                      />
+                    </div>
                   </div>
-                  <p className="mt-3 text-xs text-white/32">{freshnessLabel(signal)}</p>
-                </>
-              ) : (
-                <p className="mt-3 text-sm font-semibold text-white/45">No check-ins yet — be the first!</p>
-              )}
-            </section>
 
-            <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
-                M/F crowd
-              </p>
-              {signal?.mfRatio != null && signal.sampleSize >= 3 ? (
-                <>
-                  <MFRatioBar
-                    malePercent={signal.mfRatio}
-                    confidence={signal.confidence0To1}
-                    sampleSize={signal.sampleSize}
-                  />
-                  <p className="mt-2 text-[11px] text-white/28">
-                    {signal.sampleSize} report{signal.sampleSize !== 1 ? "s" : ""}
+                  <div>
+                    <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                      {malePercent == null || femalePercent == null ? (
+                        <div className="h-full w-full bg-white/15" />
+                      ) : (
+                        <div className="flex h-full w-full">
+                          <div className="h-full bg-blue-400" style={{ width: `${malePercent}%` }} />
+                          <div className="h-full bg-pink-400" style={{ width: `${femalePercent}%` }} />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs font-semibold text-white/55">
+                      {malePercent == null || femalePercent == null
+                        ? "M/F split needs 3+ check-ins"
+                        : `👨 ${malePercent}% · 👩 ${femalePercent}%`}
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-white/40">
+                    {signal?.sampleSize ?? 0} check-ins · updated {timeAgo(updatedAt)}
                   </p>
-                </>
+                </div>
               ) : (
-                <p className="text-sm font-semibold text-white/38">
-                  No reads yet — be the first to report
+                <p className="py-6 text-center text-sm font-semibold text-white/40">
+                  No check-ins yet — be the first!
                 </p>
               )}
             </section>
+
+            {(venue.phone || venue.website || (venue.openingHours && venue.openingHours.length > 0)) && (
+              <section className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] divide-y divide-white/[0.06]">
+                {venue.phone && (
+                  <a
+                    href={`tel:${venue.phone}`}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                  >
+                    <span className="text-white/30" aria-hidden>📞</span>
+                    <span>{venue.phone}</span>
+                  </a>
+                )}
+                {venue.website && (
+                  <a
+                    href={venue.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+                  >
+                    <span className="text-white/30" aria-hidden>🌐</span>
+                    <span>Website</span>
+                  </a>
+                )}
+                {venue.openingHours && venue.openingHours.length > 0 && (
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35">
+                      <span className="text-white/30" aria-hidden>🕐</span>
+                      <span>Hours</span>
+                      <span className="ml-auto text-xs text-white/30 group-open:rotate-180">⌄</span>
+                    </summary>
+                    <ul className="space-y-1 px-4 pb-3 pl-11">
+                      {venue.openingHours.map((hour, index) => (
+                        <li key={index} className="text-xs text-white/50">{hour}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </section>
+            )}
 
             <section>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
@@ -583,11 +519,11 @@ export function VenuePageClient({
         </>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl safe-area-inset-bottom">
+      <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-2">
         <div className="mx-auto max-w-lg">
           <Link
             href={reportUrl}
-            className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.26)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+            className="flex min-h-[54px] w-full items-center justify-center rounded-full bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_30px_rgba(0,245,212,0.4)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
           >
             ＋ Report Vibe
           </Link>
