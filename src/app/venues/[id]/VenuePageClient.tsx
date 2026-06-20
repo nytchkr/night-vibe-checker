@@ -52,6 +52,16 @@ function timeAgo(iso: string | null | undefined): string {
   return days === 1 ? "1d ago" : `${days}d ago`;
 }
 
+function formatHoursText(hours: string): string {
+  const separatorIndex = hours.indexOf(":");
+  const value = separatorIndex >= 0 ? hours.slice(separatorIndex + 1) : hours;
+  return value.trim().replace(/\s+-\s+/, " – ");
+}
+
+function getHoursDay(hours: string): string | null {
+  return hours.match(/^([^:]+):/)?.[1]?.trim() ?? null;
+}
+
 function freshnessLabel(signal: ConsumerVenue["signal"]): string {
   if (!signal) return "No check-ins yet";
   if (signal.busynessSource === "live") return "● Live";
@@ -154,6 +164,7 @@ export function VenuePageClient({
   const [savePending, setSavePending] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [hoursExpanded, setHoursExpanded] = useState(false);
 
   useEffect(() => {
     void track("venue_view", { venueId });
@@ -276,6 +287,18 @@ export function VenuePageClient({
     venueName: venue?.name ?? "Venue",
   }), [venueId, venue?.name]);
   const reportUrl = `/vibe-check?${reportParams.toString()}`;
+  const hoursSummary = useMemo(() => {
+    const openingHours = venue?.openingHours ?? [];
+    const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+    const todayHours = openingHours.find((hours) => getHoursDay(hours) === today);
+    const restOfWeek = openingHours.filter((hours) => getHoursDay(hours) !== today);
+
+    return {
+      hasHours: openingHours.length > 0,
+      restOfWeek,
+      todayHours: todayHours ? formatHoursText(todayHours) : "Hours not available",
+    };
+  }, [venue?.openingHours]);
   const mapsHref = useMemo(() => {
     if (!venue) return "#";
     const query = venue.address || `${venue.lat},${venue.lng}`;
@@ -460,44 +483,65 @@ export function VenuePageClient({
               )}
             </section>
 
-            {(venue.phone || venue.website || (venue.openingHours && venue.openingHours.length > 0)) && (
-              <section className="overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] divide-y divide-white/[0.06]">
-                {venue.phone && (
-                  <a
-                    href={`tel:${venue.phone}`}
-                    className="flex items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
-                  >
-                    <span className="text-white/30" aria-hidden>📞</span>
-                    <span>{venue.phone}</span>
-                  </a>
-                )}
-                {venue.website && (
-                  <a
-                    href={venue.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
-                  >
-                    <span className="text-white/30" aria-hidden>🌐</span>
-                    <span>Website</span>
-                  </a>
-                )}
-                {venue.openingHours && venue.openingHours.length > 0 && (
-                  <details className="group">
-                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35">
-                      <span className="text-white/30" aria-hidden>🕐</span>
-                      <span>Hours</span>
-                      <span className="ml-auto text-xs text-white/30 group-open:rotate-180">⌄</span>
-                    </summary>
-                    <ul className="space-y-1 px-4 pb-3 pl-11">
-                      {venue.openingHours.map((hour, index) => (
-                        <li key={index} className="text-xs text-white/50">{hour}</li>
-                      ))}
-                    </ul>
-                  </details>
-                )}
-              </section>
-            )}
+            <section className="overflow-hidden divide-y divide-white/[0.06] rounded-2xl border border-white/[0.06] bg-white/[0.04]">
+              {venue.phone && (
+                <a
+                  href={`tel:${venue.phone}`}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                >
+                  <span className="text-white/30" aria-hidden>📞</span>
+                  <span>{venue.phone}</span>
+                </a>
+              )}
+              {venue.website && (
+                <a
+                  href={venue.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+                >
+                  <span className="text-white/30" aria-hidden>🌐</span>
+                  <span>Website</span>
+                </a>
+              )}
+              <div className="px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <span className="pt-0.5 text-white/30" aria-hidden>🕐</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-[#00F5D4]">
+                      Today · {hoursSummary.todayHours}
+                    </p>
+                    {hoursSummary.hasHours && hoursSummary.restOfWeek.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setHoursExpanded((expanded) => !expanded)}
+                          className="mt-2 flex w-full items-center justify-between text-left text-xs font-semibold text-white/45 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+                          aria-expanded={hoursExpanded}
+                        >
+                          <span>{hoursExpanded ? "Hide hours" : "See all hours"}</span>
+                          <span
+                            className={`text-white/30 transition-transform ${hoursExpanded ? "rotate-180" : ""}`}
+                            aria-hidden
+                          >
+                            ⌄
+                          </span>
+                        </button>
+                        {hoursExpanded && (
+                          <ul className="mt-2 space-y-1">
+                            {hoursSummary.restOfWeek.map((hour, index) => (
+                              <li key={`${hour}-${index}`} className="text-xs text-white/50">
+                                {hour.replace(/\s+-\s+/, " – ")}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
 
             <section>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
