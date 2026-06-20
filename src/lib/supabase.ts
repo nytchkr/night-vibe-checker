@@ -10,16 +10,37 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// --------------- Anon client (used in most API routes) ------
+// --------------- Env validation -----------------------------
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export class MissingSupabaseEnvError extends Error {
+  constructor(public readonly variableName: string) {
+    super(`Missing ${variableName} — add to .env.local`);
+    this.name = "MissingSupabaseEnvError";
+  }
+}
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  // Fail loudly at startup rather than silently at runtime
-  throw new Error(
-    "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY env vars."
-  );
+function getSupabaseUrl(): string {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new MissingSupabaseEnvError("NEXT_PUBLIC_SUPABASE_URL");
+  return supabaseUrl;
+}
+
+function getSupabaseAnonKey(): string {
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseAnonKey) throw new MissingSupabaseEnvError("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  return supabaseAnonKey;
+}
+
+function getSupabaseServiceRoleKey(): string {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) throw new MissingSupabaseEnvError("SUPABASE_SERVICE_ROLE_KEY");
+  return serviceKey;
+}
+
+export function assertSupabaseServerEnv(): void {
+  getSupabaseUrl();
+  getSupabaseAnonKey();
+  getSupabaseServiceRoleKey();
 }
 
 // Singleton pattern — Next.js hot-reload can re-run module scope; reuse the
@@ -27,51 +48,71 @@ if (!supabaseUrl || !supabaseAnonKey) {
 declare global {
   // eslint-disable-next-line no-var
   var __supabaseClient: SupabaseClient | undefined;
-}
-
-export const supabase: SupabaseClient =
-  globalThis.__supabaseClient ??
-  createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: false, // server-side: don't persist auth state to cookies
-    },
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.__supabaseClient = supabase;
-}
-
-// --------------- Service-role admin client ------------------
-// Only instantiated on the server; throws if the env var is missing.
-
-declare global {
   // eslint-disable-next-line no-var
   var __supabaseAdmin: SupabaseClient | undefined;
 }
 
+// --------------- Anon client (used in most API routes) ------
+
+function createAnonClient(): SupabaseClient {
+  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+    auth: {
+      persistSession: false, // server-side: don't persist auth state to cookies
+    },
+  });
+}
+
+function getAnonClient(): SupabaseClient {
+  globalThis.__supabaseClient ??= createAnonClient();
+  return globalThis.__supabaseClient;
+}
+
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    if (prop === "then") return undefined;
+    const client = getAnonClient();
+    const value = Reflect.get(client, prop, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+  set(_target, prop, value) {
+    const client = getAnonClient();
+    return Reflect.set(client, prop, value, client);
+  },
+});
+
+// --------------- Service-role admin client ------------------
+// Only instantiated on the server; throws if the env var is missing.
+
 function createAdminClient(): SupabaseClient {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) {
-    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set. This client is server-side only.");
-  }
-  return createClient(supabaseUrl!, serviceKey, {
+  return createClient(getSupabaseUrl(), getSupabaseServiceRoleKey(), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
-export const supabaseAdmin: SupabaseClient =
-  globalThis.__supabaseAdmin ?? createAdminClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.__supabaseAdmin = supabaseAdmin;
+function getAdminClient(): SupabaseClient {
+  globalThis.__supabaseAdmin ??= createAdminClient();
+  return globalThis.__supabaseAdmin;
 }
+
+export const supabaseAdmin: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    if (prop === "then") return undefined;
+    const client = getAdminClient();
+    const value = Reflect.get(client, prop, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+  set(_target, prop, value) {
+    const client = getAdminClient();
+    return Reflect.set(client, prop, value, client);
+  },
+});
 
 // --------------- Browser client (client components only) ----
 // Creates a new client per call with session persistence via localStorage.
 // Safe to call from "use client" components — never call server-side.
 
 export function createBrowserClient(): SupabaseClient {
-  return createClient(supabaseUrl!, supabaseAnonKey!, {
+  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
