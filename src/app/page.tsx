@@ -11,13 +11,14 @@ import type { ConsumerVenue, VenueSignal } from "@/types";
 type BusynessState = {
   label: "No data yet" | "Quiet" | "Moderate" | "Packed";
   color: string;
+  rank: number;
 };
 
 function getBusynessState(value: number | null | undefined): BusynessState {
-  if (value == null) return { label: "No data yet", color: "#6B7280" };
-  if (value <= 33) return { label: "Quiet", color: "#22C55E" };
-  if (value <= 66) return { label: "Moderate", color: "#F59E0B" };
-  return { label: "Packed", color: "#EF4444" };
+  if (value == null) return { label: "No data yet", color: "#6B7280", rank: 0 };
+  if (value <= 33) return { label: "Quiet", color: "#22C55E", rank: 1 };
+  if (value <= 66) return { label: "Moderate", color: "#F59E0B", rank: 2 };
+  return { label: "Packed", color: "#EF4444", rank: 3 };
 }
 
 function SourceBadge({ source }: { source: VenueSignal["busynessSource"] | undefined }) {
@@ -39,7 +40,7 @@ function SourceBadge({ source }: { source: VenueSignal["busynessSource"] | undef
 function BusynessPill({ value }: { value: number | null | undefined }) {
   const state = getBusynessState(value);
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs font-bold text-white/75">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#0A0A0F]/80 px-2.5 py-1 text-xs font-bold text-white/85 shadow-lg backdrop-blur-md">
       <span
         className="h-2.5 w-2.5 rounded-full"
         style={{ backgroundColor: state.color, boxShadow: `0 0 10px ${state.color}80` }}
@@ -56,14 +57,14 @@ function VenuePhoto({ venue }: { venue: ConsumerVenue }) {
       <img
         src={venue.photoUrl}
         alt=""
-        className="h-20 w-full rounded-lg object-cover"
+        className="h-32 w-full rounded-xl object-cover"
         loading="lazy"
       />
     );
   }
 
   return (
-    <div className="flex h-20 w-full items-center justify-center rounded-lg bg-white/[0.06] text-xs font-semibold text-white/25">
+    <div className="flex h-32 w-full items-center justify-center rounded-xl bg-white/[0.06] text-xs font-semibold text-white/25">
       No photo
     </div>
   );
@@ -75,6 +76,7 @@ function reportHref(path: string, session: Session | null): string {
 
 function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Session | null }) {
   const signal = venue.signal;
+  const busyness = getBusynessState(signal?.busyness0To100);
   const reportParams = new URLSearchParams({
     venueId: venue.id,
     venueName: venue.name,
@@ -82,13 +84,22 @@ function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Sess
   const vibeCheckHref = `/vibe-check?${reportParams.toString()}`;
 
   return (
-    <li className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.04] p-3">
+    <li
+      className={`overflow-hidden rounded-2xl border bg-white/[0.04] p-3 transition-shadow ${
+        busyness.label === "Packed"
+          ? "border-[#EF4444]/45 shadow-[0_0_24px_rgba(239,68,68,0.16)]"
+          : "border-white/[0.09]"
+      }`}
+    >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="block rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+        className="relative block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
         aria-label={`Open ${venue.name}`}
       >
         <VenuePhoto venue={venue} />
+        <span className="absolute right-2 top-2">
+          <BusynessPill value={signal?.busyness0To100} />
+        </span>
       </Link>
 
       <div className="mt-3 space-y-3">
@@ -96,21 +107,20 @@ function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Sess
           <div className="min-w-0 flex-1">
             <Link
               href={`/venues/${encodeURIComponent(venue.id)}`}
-              className="block truncate text-base font-bold text-white transition-colors hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+              className="block truncate text-lg font-black leading-tight text-white transition-colors hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
             >
               {venue.name}
             </Link>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <BusynessPill value={signal?.busyness0To100} />
               <SourceBadge source={signal?.busynessSource} />
             </div>
           </div>
 
           <Link
             href={reportHref(vibeCheckHref, session)}
-            className="flex min-h-[44px] shrink-0 items-center rounded-full border border-[#7C3AED]/60 px-3 text-xs font-bold text-[#C4B5FD] transition-colors hover:bg-[#7C3AED]/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60"
+            className="flex min-h-[44px] shrink-0 items-center rounded-full bg-[#7C3AED] px-4 text-xs font-black text-white shadow-[0_0_18px_rgba(124,58,237,0.24)] transition-colors hover:bg-[#6D28D9] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60"
           >
-            {session ? "Report →" : "Sign in to report"}
+            {session ? "Report" : "Sign in"}
           </Link>
         </div>
 
@@ -131,7 +141,7 @@ function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Sess
 function CardSkeleton() {
   return (
     <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-3">
-      <Skeleton className="h-20 rounded-lg bg-white/10" />
+      <Skeleton className="h-32 rounded-xl bg-white/10" />
       <div className="mt-3 space-y-3">
         <Skeleton className="h-4 w-2/3 bg-white/10" />
         <div className="flex items-center gap-2">
@@ -149,6 +159,7 @@ export default function HomePage() {
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
@@ -170,6 +181,11 @@ export default function HomePage() {
   }, [fetchVenues]);
 
   useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     const client = createBrowserClient();
 
     client.auth.getSession().then(({ data }) => setSession(data.session));
@@ -185,19 +201,42 @@ export default function HomePage() {
 
   const sortedVenues = useMemo(() => {
     return [...venues].sort((a, b) => {
-      const aBusy = a.signal?.busyness0To100;
-      const bBusy = b.signal?.busyness0To100;
-      if (aBusy == null && bBusy == null) return a.name.localeCompare(b.name);
-      if (aBusy == null) return 1;
-      if (bBusy == null) return -1;
-      return bBusy - aBusy || a.name.localeCompare(b.name);
+      const aState = getBusynessState(a.signal?.busyness0To100);
+      const bState = getBusynessState(b.signal?.busyness0To100);
+      return bState.rank - aState.rank || a.name.localeCompare(b.name);
     });
   }, [venues]);
+
+  const timeLabel = useMemo(() => (
+    now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  ), [now]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
       <header className="px-4 pb-5 pt-10">
         <div className="mx-auto max-w-lg">
+          <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/45">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={14}
+                height={14}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className="shrink-0 text-[#00F5D4]/70"
+              >
+                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <span className="truncate">South End Charlotte</span>
+            </div>
+            <time className="shrink-0 text-white/35">{timeLabel}</time>
+          </div>
           <h1 className="text-[1.65rem] font-black leading-tight text-white">
             How&apos;s South End tonight?
           </h1>
