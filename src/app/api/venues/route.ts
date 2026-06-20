@@ -94,7 +94,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const venues = ((data ?? []) as Record<string, unknown>[]).map(mapVenue);
+  const venues = ((data ?? []) as Record<string, unknown>[]).map(mapVenue).sort((a, b) => {
+    const aBusyness = a.signal?.busyness0To100;
+    const bBusyness = b.signal?.busyness0To100;
+
+    if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
+    if (aBusyness == null) return 1;
+    if (bBusyness == null) return -1;
+    if (bBusyness !== aBusyness) return bBusyness - aBusyness;
+    return a.name.localeCompare(b.name);
+  });
+
   return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
     status: "success",
     data: { zone: LAUNCH_ZONE, venues },
