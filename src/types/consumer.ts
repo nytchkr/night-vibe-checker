@@ -86,6 +86,7 @@ export interface ConsumerVenue {
   lat: number;
   lng: number;
   category: string;
+  rating?: number;
   googleRating?: number;
   totalRatings?: number;
   priceLevel?: 1 | 2 | 3 | 4;

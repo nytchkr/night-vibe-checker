@@ -80,13 +80,30 @@ function SourceBadge({ source }: { source: BusynessSource | null | undefined }) 
   );
 }
 
-function OpenNowBadge({ openNow }: { openNow: boolean | undefined }) {
-  if (openNow !== true) return null;
+function RatingLabel({ rating }: { rating: number | undefined }) {
+  if (rating == null || !Number.isFinite(rating)) return null;
 
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.08em] text-emerald-200">
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.75)]" aria-hidden="true" />
-      Open
+    <span className="text-sm text-white/60">⭐ {rating.toFixed(1)}</span>
+  );
+}
+
+function OpenNowBadge({ openNow }: { openNow: boolean | undefined }) {
+  if (openNow === undefined) return null;
+
+  const isOpen = openNow === true;
+
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
+        isOpen ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+      }`}
+    >
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${isOpen ? "bg-green-400" : "bg-red-400"}`}
+        aria-hidden="true"
+      />
+      {isOpen ? "Open Now" : "Closed"}
     </span>
   );
 }
@@ -310,7 +327,6 @@ export function VenuePageClient({
             <section>
               <div className="flex flex-wrap items-center gap-2">
                 <CategoryChip category={venue.category} />
-                <OpenNowBadge openNow={venue.openNow} />
               </div>
               <div className="mt-3 flex items-start justify-between gap-3">
                 <h1 className="min-w-0 flex-1 text-[1.85rem] font-black leading-tight text-white">{venue.name}</h1>
@@ -318,6 +334,10 @@ export function VenuePageClient({
               </div>
               <div className="mt-2 space-y-1.5">
                 <p className="text-sm leading-relaxed text-white/50">{venue.address}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <RatingLabel rating={venue.rating} />
+                  <OpenNowBadge openNow={venue.openNow} />
+                </div>
                 <a
                   href={mapsHref}
                   target="_blank"
