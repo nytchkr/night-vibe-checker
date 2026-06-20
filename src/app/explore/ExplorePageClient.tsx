@@ -114,23 +114,23 @@ function CategoryFilterPill({
   );
 }
 
-function busynessPillClass(label: BusynessState["label"]): string {
-  if (label === "Packed") return "bg-red-500/15 text-red-400";
-  if (label === "Moderate") return "bg-yellow-500/15 text-yellow-300";
-  return "bg-zinc-500/15 text-zinc-300";
+function busynessBadgeClass(label: BusynessState["label"]): string {
+  if (label === "Packed") return "border-red-400/[0.35] bg-red-500/20 text-red-100 shadow-[0_0_18px_rgba(239,68,68,0.2)]";
+  if (label === "Moderate") return "border-amber-300/[0.35] bg-amber-400/20 text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.18)]";
+  return "border-zinc-300/20 bg-zinc-300/10 text-zinc-200";
 }
 
-function BusynessPill({ value }: { value: number | null | undefined }) {
+function BusynessBadge({ value }: { value: number | null | undefined }) {
   const state = getBusynessState(value);
-  const displayLabel = state.label === "Packed" ? "🔥 Packed" : state.label;
+  const displayLabel = state.label === "Packed" ? "Packed 🔥" : state.label;
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-black ${busynessPillClass(state.label)}`}>
+    <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-black ${busynessBadgeClass(state.label)}`}>
       {displayLabel}
     </span>
   );
 }
 
-function MFRatioMiniBar({
+function MFRatioInline({
   mfRatio,
   sampleSize,
 }: {
@@ -139,19 +139,16 @@ function MFRatioMiniBar({
 }) {
   if (mfRatio == null || sampleSize == null || sampleSize < 3) return null;
 
-  const reportCount = sampleSize ?? 0;
-  const malePercent = mfRatio == null ? 0 : Math.min(100, Math.max(0, Math.round(mfRatio)));
+  const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));
   const femalePercent = 100 - malePercent;
-  const hasRatio = mfRatio != null && reportCount >= 3;
 
   return (
-    <span className="block w-[92px]" aria-label={hasRatio ? `${malePercent}% male, ${femalePercent}% female from ${sampleSize} reports` : undefined}>
-      {hasRatio && (
-        <span className="flex h-[2px] w-full overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-          <span className="h-full bg-[#3B82F6]" style={{ width: `${malePercent}%` }} />
-          <span className="h-full flex-1 bg-[#EC4899]" />
-        </span>
-      )}
+    <span
+      className="mt-2 inline-flex items-center gap-2 text-xs font-black text-white/[0.62]"
+      aria-label={`${malePercent}% male, ${femalePercent}% female from ${sampleSize} reports`}
+    >
+      <span>👨 {malePercent}%</span>
+      <span>👩 {femalePercent}%</span>
     </span>
   );
 }
@@ -168,14 +165,15 @@ function VenueFeedCard({
   const venueMeta = [venue.category, venue.address].filter(Boolean).join(" · ");
 
   return (
-    <li>
+    <li className="border-b border-white/[0.05] last:border-b-0">
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="flex min-h-[72px] w-full items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 transition-colors hover:border-white/[0.12] hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
+        className="flex min-h-[92px] w-full items-center gap-3 border-l-2 bg-white/[0.07] px-4 py-4 transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
+        style={{ borderLeftColor: busyness.color }}
         aria-label={`Open ${venue.name}`}
       >
         <span
-          className="h-4 w-4 shrink-0 rounded-full"
+          className="h-3.5 w-3.5 shrink-0 rounded-full ring-4 ring-white/[0.03]"
           style={{ backgroundColor: busyness.color, boxShadow: `0 0 16px ${busyness.color}55` }}
           aria-hidden="true"
         />
@@ -185,17 +183,20 @@ function VenueFeedCard({
               <HighlightText text={venue.name} query={searchQuery} />
             </span>
             {venue.openNow === true ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] text-emerald-200">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-400/[0.12] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] text-emerald-200">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.75)]" />
                 Open
               </span>
             ) : null}
           </span>
-          <span className="mt-1 block truncate text-xs font-semibold text-white/45">{venueMeta}</span>
+          <span className="mt-1 block truncate text-xs font-semibold text-white/48">{venueMeta}</span>
+          <MFRatioInline mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} />
         </span>
-        <span className="flex shrink-0 flex-col items-end gap-2">
-          <BusynessPill value={signal?.busyness0To100} />
-          <MFRatioMiniBar mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} />
+        <span className="flex shrink-0 items-center gap-2">
+          <BusynessBadge value={signal?.busyness0To100} />
+          <span className="text-2xl font-light leading-none text-white/[0.28]" aria-hidden="true">
+            ›
+          </span>
         </span>
       </Link>
     </li>
@@ -204,13 +205,13 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="flex min-h-[72px] w-full animate-pulse items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3">
-      <div className="h-4 w-4 shrink-0 rounded-full bg-white/10" />
+    <div className="flex min-h-[92px] w-full animate-pulse items-center gap-3 border-b border-l-2 border-b-white/[0.05] border-l-white/10 bg-white/[0.07] px-4 py-4 last:border-b-0">
+      <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-white/10 ring-4 ring-white/[0.03]" />
       <div className="min-w-0 flex-1">
         <div className="mb-1 h-4 w-36 rounded bg-white/10" />
         <div className="h-3 w-24 rounded bg-white/[0.06]" />
       </div>
-      <div className="h-6 w-16 shrink-0 rounded-full bg-white/10" />
+      <div className="h-7 w-20 shrink-0 rounded-md bg-white/10" />
     </div>
   );
 }
@@ -439,7 +440,7 @@ export function ExplorePageClient() {
         )}
 
         {venues === null && !error && (
-          <div className="space-y-3" role="status" aria-label="Loading venues">
+          <div className="overflow-hidden rounded-2xl border border-white/[0.06]" role="status" aria-label="Loading venues">
             <p className="sr-only">Loading venues...</p>
             {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
           </div>
@@ -464,7 +465,7 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && sortedVenues.length > 0 && (
-          <ul className="space-y-3">
+          <ul className="overflow-hidden rounded-2xl border border-white/[0.06]">
             {sortedVenues.map((venue) => (
               <VenueFeedCard
                 key={venue.id}
