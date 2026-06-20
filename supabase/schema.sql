@@ -277,6 +277,7 @@ alter table public.check_ins enable row level security;
 drop policy if exists "check_ins_public_read" on public.check_ins;
 drop policy if exists "check_ins_public_insert" on public.check_ins;
 drop policy if exists "check_ins_own_insert" on public.check_ins;
+drop policy if exists "check_ins_service_insert" on public.check_ins;
 drop policy if exists "check_ins_own_delete" on public.check_ins;
 
 create policy "check_ins_public_read"
@@ -286,6 +287,10 @@ create policy "check_ins_public_read"
 create policy "check_ins_own_insert"
   on public.check_ins for insert
   with check (auth.uid() = user_id);
+
+create policy "check_ins_service_insert"
+  on public.check_ins for insert
+  with check (auth.role() = 'service_role');
 
 create policy "check_ins_own_delete"
   on public.check_ins for delete

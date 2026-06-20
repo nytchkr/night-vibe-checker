@@ -188,9 +188,14 @@ create policy "anyone can read check_ins"
 -- Replace open insert with authenticated-only insert
 drop policy if exists "anyone can insert check_ins"          on public.check_ins;
 drop policy if exists "authenticated users can insert check_ins" on public.check_ins;
+drop policy if exists "service_role can insert check_ins" on public.check_ins;
 create policy "authenticated users can insert check_ins"
   on public.check_ins for insert
   with check (auth.role() = 'authenticated');
+
+create policy "service_role can insert check_ins"
+  on public.check_ins for insert
+  with check (auth.role() = 'service_role');
 
 -- Users may delete their own rows
 drop policy if exists "users can delete own check_ins" on public.check_ins;
