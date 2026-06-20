@@ -6,21 +6,29 @@ const meta = {
   requestId: "e2e-check-ins",
 };
 
-const feedReport = {
-  id: "feed-checkin-1",
-  venueId: "venue-feed-1",
-  placeId: "place-feed-1",
-  venueName: "Feed Test Club",
-  busyness: "packed",
-  crowdFeel: "balanced",
-  createdAt: new Date().toISOString(),
+const feedVenue = {
+  id: "venue-feed-1",
+  name: "Feed Test Club",
+  address: "123 Test Ave",
+  category: "night_club",
+  photoUrl: null,
+  signal: {
+    venueId: "venue-feed-1",
+    busyness0To100: 84,
+    busynessSource: "live",
+    mfRatio: 50,
+    confidence0To1: 0.8,
+    sampleSize: 5,
+    computedAt: new Date().toISOString(),
+    lastBusynessRefresh: new Date().toISOString(),
+  },
 };
 
-async function mockFeed(page: Page, checkIns = [feedReport]) {
-  await page.route("**/api/check-ins**", (route) => {
+async function mockFeed(page: Page, venues = [feedVenue]) {
+  await page.route("**/api/venues**", (route) => {
     const request = route.request();
     const url = new URL(request.url());
-    if (request.method() !== "GET" || url.pathname !== "/api/check-ins" || url.searchParams.get("limit") !== "20") {
+    if (request.method() !== "GET" || url.pathname !== "/api/venues") {
       return route.continue();
     }
 
@@ -29,7 +37,7 @@ async function mockFeed(page: Page, checkIns = [feedReport]) {
       contentType: "application/json",
       body: JSON.stringify({
         status: "success",
-        data: { checkIns },
+        data: { venues },
         meta,
       }),
     });
@@ -62,7 +70,7 @@ async function addLocalSession(page: Page) {
 }
 
 test.describe("VibeCheck consumer check-in flow", () => {
-  test("navigates from the feed to a venue report form on mobile", async ({ page }) => {
+  test("routes mobile guest report CTA from the feed to login", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await mockFeed(page);
 
@@ -71,33 +79,26 @@ test.describe("VibeCheck consumer check-in flow", () => {
     await expect(page.getByText("Feed Test Club")).toBeVisible();
     await expect(page.getByText("Packed")).toBeVisible();
 
-    const reportLink = page.getByRole("link", { name: "Report →" }).first();
+    const reportLink = page.getByRole("link", { name: "Sign in to report" }).first();
     await expect(reportLink).toBeVisible();
 
     const box = await reportLink.boundingBox();
     expect(box?.y ?? 9999).toBeLessThan(420);
 
     await reportLink.click();
-    await expect(page).toHaveURL(/\/vibe-check\?venueId=venue-feed-1/);
-    await expect(page.getByRole("heading", { name: "Feed Test Club" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "PACKED" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "MOSTLY GUYS" })).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?return=/);
+    expect(decodeURIComponent(page.url())).toContain(
+      "/vibe-check?venueId=venue-feed-1&venueName=Feed+Test+Club",
+    );
+    await expect(page.getByRole("heading", { name: "Sign in to report" })).toBeVisible();
   });
 
-  test("guests can fill the report but are redirected to login on submit", async ({ page }) => {
+  test("guests hitting /vibe-check are redirected to login before the form renders", async ({ page }) => {
     await page.goto("/vibe-check?venueId=venue-123&venueName=The%20Midnight%20Lounge");
-
-    await page.getByRole("button", { name: "PACKED" }).click();
-    await page.getByRole("button", { name: "MOSTLY GUYS" }).click();
-    await expect(page.getByRole("button", { name: "PACKED" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: "MOSTLY GUYS" })).toHaveAttribute("aria-pressed", "true");
-
-    const submit = page.getByRole("button", { name: "Report Vibe" });
-    await expect(submit).toBeEnabled();
-    await submit.click();
 
     await expect(page).toHaveURL(/\/login\?return=/);
     expect(decodeURIComponent(page.url())).toContain("/vibe-check?venueId=venue-123");
+    await expect(page.getByRole("button", { name: "Report Vibe" })).toHaveCount(0);
   });
 
   test("submits a logged-in report to /api/check-ins with busyness and crowd feel", async ({ page }) => {
