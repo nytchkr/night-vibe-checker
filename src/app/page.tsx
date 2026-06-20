@@ -247,7 +247,17 @@ export default function HomePage() {
               </svg>
               <span className="truncate">South End Charlotte</span>
             </div>
-            <time className="shrink-0 text-white/35">{timeLabel}</time>
+            <div className="flex shrink-0 items-center gap-2">
+              <time className="text-white/35">{timeLabel}</time>
+              {session && (
+                <Link
+                  href="/profile"
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+                >
+                  Profile
+                </Link>
+              )}
+            </div>
           </div>
           <h1 className="text-[1.65rem] font-black leading-tight text-white">
             How&apos;s South End tonight?

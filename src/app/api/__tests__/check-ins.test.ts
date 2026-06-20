@@ -80,6 +80,7 @@ const CHECK_IN = {
   id: "check-1",
   venue_id: VENUE.id,
   place_id: "place-123",
+  venues: { name: "Trio" },
   busyness: "packed",
   crowd_feel: "mostly_male",
   note: "Line is moving",
@@ -229,5 +230,6 @@ describe("GET /api/check-ins/me", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data.checkIns[0].busyness).toBe("packed");
+    expect(json.data.checkIns[0].venueName).toBe("Trio");
   });
 });
