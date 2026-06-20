@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshBusyness, refreshBusynessForVenue } from "@/lib/besttime";
+import { refreshOpenNow } from "@/lib/openNow";
 import { supabaseAdmin } from "@/lib/supabase";
 
 function isCronAuthorized(req: NextRequest) {
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const results = venueId ? [await refreshBusynessForVenue(venueId)] : await refreshBusyness(limit);
-    return NextResponse.json({ status: "success", data: { results } });
+    const openNow = venueId ? undefined : await refreshOpenNow();
+    return NextResponse.json({ status: "success", data: { results, openNow } });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown refresh error";
     return NextResponse.json(
