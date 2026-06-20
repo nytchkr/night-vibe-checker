@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MFRatioBar } from "@/components/MFRatioBar";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
@@ -145,6 +144,23 @@ function BusynessPill({ value }: { value: number | null | undefined }) {
   );
 }
 
+function MFRatioMiniBar({ mfRatio, sampleSize }: { mfRatio: number | null | undefined; sampleSize: number | null | undefined }) {
+  if (mfRatio == null || (sampleSize ?? 0) < 3) return null;
+
+  const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));
+  const femalePercent = 100 - malePercent;
+
+  return (
+    <span className="mt-1 block w-[92px]" aria-label={`${malePercent}% male, ${femalePercent}% female from ${sampleSize} reports`}>
+      <span className="flex h-0.5 w-full overflow-hidden rounded-full bg-white/15" aria-hidden="true">
+        <span className="h-full bg-[#3B82F6]" style={{ width: `${malePercent}%` }} />
+        <span className="h-full flex-1 bg-[#EC4899]" />
+      </span>
+      <span className="mt-1 block text-right text-[10px] font-semibold leading-3 text-white/55">👥 {sampleSize} reports</span>
+    </span>
+  );
+}
+
 function VenuePhoto({ venue }: { venue: ConsumerVenue }) {
   if (venue.photoUrl) {
     return (
@@ -204,8 +220,9 @@ function VenueFeedCard({
         aria-label={`Open ${venue.name}`}
       >
         <VenuePhoto venue={venue} />
-        <span className="absolute right-2 top-2">
+        <span className="absolute right-2 top-2 flex flex-col items-end">
           <BusynessPill value={signal?.busyness0To100} />
+          <MFRatioMiniBar mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} />
         </span>
       </Link>
 
@@ -239,15 +256,6 @@ function VenueFeedCard({
           </Link>
         </div>
 
-        {signal?.mfRatio != null ? (
-          <MFRatioBar
-            malePercent={signal.mfRatio}
-            confidence={signal.confidence0To1}
-            sampleSize={Math.max(signal.sampleSize, 3)}
-          />
-        ) : (
-          <p className="text-xs font-medium text-white/32">No reads yet</p>
-        )}
       </div>
     </li>
   );
