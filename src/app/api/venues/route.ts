@@ -47,6 +47,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
+    openNow: row.open_now == null ? undefined : Boolean(row.open_now),
     hidden: Boolean(row.hidden),
     signal: mapSignal(signalRow),
   };
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .select(`
       id, place_id, zone_id, name, address, lat, lng, venue_type, category,
       google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
+      open_now,
       venue_signals (
         venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
         confidence_0_1, sample_size, computed_at, last_busyness_refresh
