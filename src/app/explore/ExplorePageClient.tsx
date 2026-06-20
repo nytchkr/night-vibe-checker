@@ -40,6 +40,11 @@ function getBusynessState(value: number | null | undefined): BusynessState {
   return { label: "Packed", color: "#EF4444", rank: 3 };
 }
 
+function isStale(computedAt: string | null): boolean {
+  if (!computedAt) return true;
+  return Date.now() - new Date(computedAt).getTime() > 4 * 60 * 60 * 1000;
+}
+
 function normalizeCategory(category: string | null | undefined): CategoryFilter | null {
   const value = (category ?? "").toLowerCase();
   if (value.includes("club") || value.includes("night_club") || value.includes("nightclub")) return "Club";
@@ -261,6 +266,9 @@ function VenueFeedCard({
         <span className="absolute left-2 top-2 flex flex-col items-start">
           <BusynessPill value={signal?.busyness0To100} />
           <MFRatioMiniBar mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} computedAt={signal?.computedAt} />
+          {isStale(venue.signal?.computedAt ?? null) && venue.signal && (
+            <span className="ml-1 text-[10px] text-white/30">· stale</span>
+          )}
         </span>
       </Link>
 
