@@ -69,7 +69,7 @@ function LoginContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0A0A0F] px-4 py-10 text-white">
+    <div className="min-h-screen bg-[#0A0A0F] px-4 py-10 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center">
         <section className="w-full space-y-6">
           <div className="space-y-2 text-center">
@@ -100,13 +100,20 @@ function LoginContent() {
                 onKeyDown={(event) => event.key === "Enter" && handleSignIn()}
                 placeholder="your@email.com"
                 autoComplete="email"
-                className="w-full px-3.5 py-3 rounded-xl text-sm text-white bg-white/[0.06] border border-white/[0.09] placeholder:text-white/25 focus:outline-none focus:border-[#00F5D4]/50 transition-colors duration-150 min-h-[48px]"
+                aria-invalid={error ? "true" : "false"}
+                aria-describedby={error ? "login-email-error" : undefined}
+                className="w-full px-3.5 py-3 rounded-xl text-sm text-white bg-white/[0.06] border border-white/[0.09] placeholder:text-white/25 focus:outline-none focus:border-[#00F5D4]/50 focus:ring-2 focus:ring-[#00F5D4]/30 transition-colors duration-150 min-h-[48px]"
               />
-              {error && <p className="text-xs text-[#FF2D78]">{error}</p>}
+              {error && (
+                <p id="login-email-error" role="alert" className="text-xs text-[#FF2D78]">
+                  {error}
+                </p>
+              )}
               <button
+                type="button"
                 onClick={handleSignIn}
                 disabled={!email.trim() || signingIn}
-                className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-[#0A0A0F] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 min-h-[48px]"
+                className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-[#0A0A0F] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 min-h-[48px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 style={{ background: "linear-gradient(135deg, #00F5D4 0%, #00c9b0 100%)" }}
               >
                 {signingIn ? "Sending..." : "Send magic link"}
@@ -115,13 +122,13 @@ function LoginContent() {
           )}
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<main className="min-h-screen bg-[#0A0A0F]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#0A0A0F]" />}>
       <LoginContent />
     </Suspense>
   );

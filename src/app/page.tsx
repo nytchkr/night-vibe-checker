@@ -57,8 +57,8 @@ function FilterChip<T extends string>({
     <button
       type="button"
       onClick={() => onSelect(label)}
-      className={`min-h-[38px] shrink-0 rounded-full px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444]/70 ${
-        active ? "bg-[#EF4444] text-white" : "bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
+      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444]/70 ${
+        active ? "border-white/70 bg-[#EF4444] text-white" : "border-transparent bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
       }`}
       aria-pressed={active}
     >
@@ -80,8 +80,8 @@ function ViewTab({
     <button
       type="button"
       onClick={() => onSelect(label)}
-      className={`h-9 flex-1 rounded-full px-4 text-sm font-black capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
-        active ? "bg-white/15 text-white" : "text-white/40 hover:bg-white/[0.07] hover:text-white/60"
+      className={`h-9 flex-1 rounded-full border px-4 text-sm font-black capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
+        active ? "border-white/50 bg-white/15 text-white" : "border-transparent text-white/40 hover:bg-white/[0.07] hover:text-white/60"
       }`}
       aria-pressed={active}
     >
@@ -127,7 +127,7 @@ function VenuePhoto({ venue }: { venue: ConsumerVenue }) {
       <span className="relative block h-32 w-full overflow-hidden rounded-xl">
         <Image
           src={venue.photoUrl}
-          alt=""
+          alt={`${venue.name} venue photo`}
           fill
           className="object-cover"
           sizes="(max-width: 640px) 100vw, 512px"
@@ -384,7 +384,11 @@ export default function HomePage() {
 
           <div className="mt-5 space-y-3">
             <div className="relative">
+              <label htmlFor="venue-search" className="sr-only">
+                Search South End venues
+              </label>
               <input
+                id="venue-search"
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -442,7 +446,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-lg space-y-3 px-4 pb-32">
+      <section className="mx-auto max-w-lg space-y-3 px-4 pb-32" aria-label="Venue results">
         {error && (
           <div
             role="alert"
@@ -503,7 +507,7 @@ export default function HomePage() {
             )}
           </div>
         )}
-      </main>
+      </section>
     </div>
   );
 }
