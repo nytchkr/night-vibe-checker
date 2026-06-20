@@ -27,7 +27,12 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
 }
 
 function mapVenue(row: Record<string, unknown>): ConsumerVenue {
-  const signalRows = (row.venue_signals ?? []) as Record<string, unknown>[];
+  const sig = row.venue_signals;
+  const signalRow: Record<string, unknown> | undefined = Array.isArray(sig)
+    ? (sig[0] as Record<string, unknown> | undefined)
+    : sig != null
+    ? (sig as Record<string, unknown>)
+    : undefined;
   return {
     id: row.id as string,
     placeId: row.place_id as string,
@@ -43,7 +48,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
-    signal: mapSignal(signalRows[0]),
+    signal: mapSignal(signalRow),
   };
 }
 
