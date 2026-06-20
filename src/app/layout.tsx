@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
@@ -70,6 +71,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         )}
         <main className={isDev ? "pb-20 pt-5" : "pb-20"}>{children}</main>
         <BottomNav />
+        <Script id="service-worker-registration" strategy="afterInteractive">
+          {`if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') navigator.serviceWorker.register('/sw.js');`}
+        </Script>
       </body>
     </html>
   );
