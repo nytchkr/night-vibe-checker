@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ function CheckInInner() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
+  const track = useTrack();
 
   const venueId = searchParams.get("venueId") ?? "";
   const venueName = decodeURIComponent(searchParams.get("venueName") ?? "");
@@ -185,6 +187,7 @@ function CheckInInner() {
       }
 
       setDone(true);
+      void track("checkin_submit", { venueId: effectiveVenueId });
       const dest = `/venues/${encodeURIComponent(effectiveVenueId)}`;
       setTimeout(() => router.push(dest), 2000);
     } catch {
@@ -201,6 +204,7 @@ function CheckInInner() {
     note,
     returnPath,
     router,
+    track,
   ]);
 
   if (done) {

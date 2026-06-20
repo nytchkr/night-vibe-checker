@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
 
 const blurDataUrl =
@@ -167,6 +168,7 @@ export function VenuePageClient({
   venueId: string;
   initialVenue: ConsumerVenue | null;
 }) {
+  const track = useTrack();
   const [session, setSession] = useState<Session | null>(null);
   const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
   const [checkIns, setCheckIns] = useState<ConsumerCheckIn[]>([]);
@@ -174,6 +176,10 @@ export function VenuePageClient({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    void track("venue_view", { venueId });
+  }, [track, venueId]);
 
   useEffect(() => {
     if (!venueId) return;
