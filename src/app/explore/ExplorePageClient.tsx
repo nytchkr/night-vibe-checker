@@ -560,7 +560,7 @@ export function ExplorePageClient() {
         {loading && (
           <div className="space-y-3" role="status" aria-label="Loading venues">
             <p className="sr-only">Loading venues...</p>
-            {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+            {Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}
           </div>
         )}
 
