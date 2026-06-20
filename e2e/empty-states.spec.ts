@@ -127,26 +127,22 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
     await expect(page.getByRole("img", { name: /male/i })).toHaveCount(0);
   });
 
-  test("venue detail renders without crashing when signal is null", async ({ page }) => {
-    await mockVenues(page);
+  test("venue detail returns the custom 404 page when a venue is not cached", async ({ page }) => {
+    const response = await page.goto(`/venues/${nullSignalVenue.id}`);
 
-    await page.goto(`/venues/${nullSignalVenue.id}`);
-
-    await expect(page.getByRole("heading", { level: 1, name: nullSignalVenue.name })).toBeVisible();
-    // Venue detail shows "No check-ins yet" for null signal; report CTA is a button not a link
-    await expect(page.getByText(/No check-ins yet/).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: /Report Vibe/i }).or(page.getByRole("button", { name: /Report Vibe/i })).first()).toBeVisible();
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole("heading", { level: 1, name: "This spot doesn't exist" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Back to Map/i })).toBeVisible();
   });
 
-  test("venue detail hides the M/F bar while sample size is below three", async ({ page }) => {
+  test("venue detail ignores client-only mocks for uncached venue ids", async ({ page }) => {
     await mockVenues(page);
 
-    await page.goto(`/venues/${earlySignalVenue.id}`);
+    const response = await page.goto(`/venues/${earlySignalVenue.id}`);
 
-    await expect(page.getByRole("heading", { level: 1, name: earlySignalVenue.name })).toBeVisible();
-    await expect(page.getByText("No reads yet")).toBeVisible();
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole("heading", { level: 1, name: "This spot doesn't exist" })).toBeVisible();
     await expect(page.getByRole("img", { name: /male/i })).toHaveCount(0);
-    await expect(page.getByText(/62% M/i)).toHaveCount(0);
   });
 
   test("/api/venues returns a success envelope with a venues array", async ({ request }) => {

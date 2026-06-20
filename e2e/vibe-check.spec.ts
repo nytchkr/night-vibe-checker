@@ -65,6 +65,14 @@ test.describe("Consumer report form", () => {
     await expect(page.getByRole("button", { name: "Report Vibe" })).toHaveCount(0);
   });
 
+  test("authenticated /vibe-check without venueId shows venue selector", async ({ page }) => {
+    await addLocalSession(page);
+    await page.goto("/vibe-check");
+
+    await expect(page).toHaveURL(/\/vibe-check$/);
+    await expect(page.getByPlaceholder("Search South End venues")).toBeVisible();
+  });
+
   test("does not render removed AI/report-result UI", async ({ page }) => {
     await page.goto("/vibe-check");
 

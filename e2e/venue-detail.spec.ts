@@ -1,33 +1,16 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 const generatedAt = new Date().toISOString();
 
-const venue = {
-  id: "nv-test-004-packed-venue",
-  placeId: "place-nv-test-004-packed-venue",
-  zoneId: "south-end-charlotte",
-  name: "Signal Room",
-  address: "https://maps.google.com/?q=Signal+Room+Charlotte",
-  lat: 35.216,
-  lng: -80.858,
-  category: "night_club",
-  googleRating: 4.6,
-  totalRatings: 214,
-  priceLevel: 2,
-  photoUrl: null,
-  hidden: false,
-  openNow: true,
+type TestVenue = {
+  id: string;
+  placeId: string;
+  name: string;
+  address: string;
   signal: {
-    venueId: "nv-test-004-packed-venue",
-    placeId: "place-nv-test-004-packed-venue",
-    busyness0To100: 84,
-    busynessSource: "crowd",
-    mfRatio: 65,
-    confidence0To1: 0.82,
-    sampleSize: 7,
-    computedAt: generatedAt,
-    lastBusynessRefresh: generatedAt,
-  },
+    busyness0To100: number | null;
+    mfRatio: number | null;
+  } | null;
 };
 
 const meta = {
@@ -36,7 +19,18 @@ const meta = {
   requestId: "nv-test-004-venue-detail",
 };
 
-async function mockVenueApis(page: Page) {
+async function getTestVenue(request: APIRequestContext): Promise<TestVenue> {
+  const response = await request.get("/api/venues");
+  expect(response.ok()).toBeTruthy();
+
+  const body = await response.json();
+  const venues = (body?.data?.venues ?? []) as TestVenue[];
+  const venue = venues.find((candidate) => candidate.signal?.mfRatio != null) ?? venues[0];
+  expect(venue, "expected at least one cached launch-zone venue").toBeTruthy();
+  return venue;
+}
+
+async function mockVenueListApis(page: Page, venue: TestVenue) {
   await page.addInitScript(() => {
     window.localStorage.setItem("nv_onboarded", "1");
   });
@@ -54,18 +48,6 @@ async function mockVenueApis(page: Page) {
         body: JSON.stringify({
           status: "success",
           data: { venues: [venue] },
-          meta,
-        }),
-      });
-    }
-
-    if (url.pathname === `/api/venues/${venue.id}`) {
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "success",
-          data: { venue },
           meta,
         }),
       });
@@ -95,8 +77,14 @@ async function mockVenueApis(page: Page) {
 }
 
 test.describe("NV-TEST-004 venue detail", () => {
-  test("clicking a venue card navigates to the venue detail page", async ({ page }) => {
-    await mockVenueApis(page);
+  test("nonexistent venue id returns 404", async ({ request }) => {
+    const r = await request.get("/venues/does-not-exist-xyz-123");
+    expect(r.status()).toBe(404);
+  });
+
+  test("clicking a venue card navigates to the venue detail page", async ({ page, request }) => {
+    const venue = await getTestVenue(request);
+    await mockVenueListApis(page, venue);
 
     await page.goto("/explore");
     await page.waitForLoadState("domcontentloaded");
@@ -106,18 +94,20 @@ test.describe("NV-TEST-004 venue detail", () => {
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
   });
 
-  test("venue detail page shows packed busyness and the M/F ratio bar", async ({ page }) => {
-    await mockVenueApis(page);
+  test("venue detail page shows current vibe and M/F crowd sections", async ({ page, request }) => {
+    const venue = await getTestVenue(request);
 
     await page.goto(`/venues/${venue.id}`);
 
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
-    await expect(page.getByText("Packed").first()).toBeVisible();
-    await expect(page.getByRole("img", { name: "65% male, 35% female" })).toBeVisible();
+    await expect(page.getByText("Right now")).toBeVisible();
+    await expect(page.getByText(/No data yet|Dead|Moderate|Packed/).first()).toBeVisible();
+    await expect(page.getByText("M/F crowd")).toBeVisible();
+    await expect(page.getByText(/No reads yet|% M/).first()).toBeVisible();
   });
 
-  test("venue detail page exposes the share button without invoking share", async ({ page }) => {
-    await mockVenueApis(page);
+  test("venue detail page exposes the share button without invoking share", async ({ page, request }) => {
+    const venue = await getTestVenue(request);
 
     await page.goto(`/venues/${venue.id}`);
 
@@ -125,13 +115,13 @@ test.describe("NV-TEST-004 venue detail", () => {
     await expect(page.getByRole("button", { name: /Share/i })).toBeVisible();
   });
 
-  test("venue detail page has a Google Maps directions link", async ({ page }) => {
-    await mockVenueApis(page);
+  test("venue detail page has a Google Maps directions link", async ({ page, request }) => {
+    const venue = await getTestVenue(request);
 
     await page.goto(`/venues/${venue.id}`);
 
-    const directions = page.getByRole("link", { name: /Get Directions|Google Maps/i });
+    const directions = page.getByRole("link", { name: /Open in Google Maps|Get Directions|Google Maps/i });
     await expect(directions).toBeVisible();
-    await expect(directions).toHaveAttribute("href", /maps\.google\.com/);
+    await expect(directions).toHaveAttribute("href", /google\.com\/maps/);
   });
 });
