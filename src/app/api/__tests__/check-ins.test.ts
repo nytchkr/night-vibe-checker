@@ -29,8 +29,8 @@ vi.mock("@/lib/signals", () => ({
   recomputeVenueSignal: mockRecomputeVenueSignal,
 }));
 
-function request(method: string, url: string, body?: unknown, token = "token") {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+function request(method: string, url: string, body?: unknown, token = "token", extraHeaders?: Record<string, string>) {
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...extraHeaders };
   if (token) headers.Authorization = `Bearer ${token}`;
   return new NextRequest(url, {
     method,
@@ -157,6 +157,29 @@ describe("POST /api/check-ins", () => {
       })
     );
     expect(res.status).toBe(429);
+    const json = await res.json();
+    expect(json.error.code).toBe("RATE_LIMITED");
+    expect(json.error.message).toBe("You already reported this venue recently. Try again in a few minutes.");
+  });
+
+  it("rate limits authenticated check-in attempts by IP", async () => {
+    const { POST } = await import("../check-ins/route");
+    const body = { venueId: "v", busyness: "wild" };
+
+    for (let i = 0; i < 5; i += 1) {
+      const res = await POST(
+        request("POST", "http://localhost/api/check-ins", body, "token", { "x-forwarded-for": "203.0.113.10" })
+      );
+      expect(res.status).toBe(422);
+    }
+
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", body, "token", { "x-forwarded-for": "203.0.113.10" })
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBeTruthy();
+    const json = await res.json();
+    expect(json.error.code).toBe("RATE_LIMITED");
   });
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
@@ -172,6 +172,8 @@ export function VenuePageClient({
   const [checkIns, setCheckIns] = useState<ConsumerCheckIn[]>([]);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!venueId) return;
@@ -217,6 +219,12 @@ export function VenuePageClient({
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+    };
+  }, []);
+
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const color = busynessColor(busyness);
@@ -231,6 +239,33 @@ export function VenuePageClient({
     const query = venue.address || `${venue.lat},${venue.lng}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
+
+  async function handleShare() {
+    if (!venue || typeof window === "undefined") return;
+
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: venue.name,
+          text: `Check the vibe at ${venue.name}`,
+          url,
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
+      copiedTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
@@ -301,7 +336,25 @@ export function VenuePageClient({
               <div className="flex flex-wrap items-center gap-2">
                 <CategoryChip category={venue.category} />
               </div>
-              <h1 className="mt-3 text-[1.85rem] font-black leading-tight text-white">{venue.name}</h1>
+              <div className="mt-3 flex items-start justify-between gap-3">
+                <h1 className="min-w-0 flex-1 text-[1.85rem] font-black leading-tight text-white">{venue.name}</h1>
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/40 bg-transparent px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                    aria-label={`Share ${venue.name}`}
+                  >
+                    <span aria-hidden="true">📤</span>
+                    Share
+                  </button>
+                  {copied && (
+                    <span className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-[#00F5D4]/40 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-[#00F5D4] shadow-lg">
+                      Link copied!
+                    </span>
+                  )}
+                </div>
+              </div>
               <div className="mt-2 space-y-1.5">
                 <p className="text-sm leading-relaxed text-white/50">{venue.address}</p>
                 <a
