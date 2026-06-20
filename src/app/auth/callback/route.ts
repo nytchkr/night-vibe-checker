@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 
+function safeReturnUrl(value: string | null): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/profile";
+  return value;
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
+  const returnUrl = safeReturnUrl(searchParams.get("return"));
 
   if (code) {
-    const response = NextResponse.redirect(`${origin}/profile`);
+    const response = NextResponse.redirect(`${origin}${returnUrl}`);
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,5 +33,5 @@ export async function GET(req: NextRequest) {
     return response;
   }
 
-  return NextResponse.redirect(`${origin}/profile`);
+  return NextResponse.redirect(`${origin}${returnUrl}`);
 }
