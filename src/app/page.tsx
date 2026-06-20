@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { ConsumerVenue, VenueSignal } from "@/types";
+
+const blurDataUrl =
+  "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAzMiAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBzdG9wLWNvbG9yPSIjMEEwQTBGIi8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iIzJEMTk1RiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwRjVENCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIzMiIgaGVpZ2h0PSIyNCIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg==";
 
 type BusynessState = {
   label: "No data yet" | "Quiet" | "Moderate" | "Packed";
@@ -54,12 +58,17 @@ function BusynessPill({ value }: { value: number | null | undefined }) {
 function VenuePhoto({ venue }: { venue: ConsumerVenue }) {
   if (venue.photoUrl) {
     return (
-      <img
-        src={venue.photoUrl}
-        alt=""
-        className="h-32 w-full rounded-xl object-cover"
-        loading="lazy"
-      />
+      <span className="relative block h-32 w-full overflow-hidden rounded-xl">
+        <Image
+          src={venue.photoUrl}
+          alt=""
+          fill
+          className="object-cover"
+          sizes="(max-width: 640px) 100vw, 512px"
+          placeholder="blur"
+          blurDataURL={blurDataUrl}
+        />
+      </span>
     );
   }
 

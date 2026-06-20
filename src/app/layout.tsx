@@ -3,6 +3,11 @@ import { Inter } from "next/font/google";
 import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
+const siteUrl = "https://night-vibe-checker.vercel.app";
+const title = "NightVibe — South End Charlotte";
+const description = "See how busy South End bars and clubs are right now. Real-time crowd vibes.";
+const ogImage = `${siteUrl}/icon-512.png`;
+
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -10,8 +15,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Night Vibe Checker — Live crowd reports",
-  description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -19,16 +25,25 @@ export const metadata: Metadata = {
     title: "NightVibe",
   },
   openGraph: {
-    title: "Night Vibe Checker — Live crowd reports",
-    description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
-    url: "https://night-vibe-checker.vercel.app",
-    siteName: "Night Vibe Checker",
+    title,
+    description,
+    url: siteUrl,
+    siteName: "NightVibe",
+    images: [
+      {
+        url: ogImage,
+        width: 512,
+        height: 512,
+        alt: title,
+      },
+    ],
     type: "website",
   },
   twitter: {
-    card: "summary",
-    title: "Night Vibe Checker — Live crowd reports",
-    description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
+    card: "summary_large_image",
+    title,
+    description,
+    images: [ogImage],
   },
 };
 
