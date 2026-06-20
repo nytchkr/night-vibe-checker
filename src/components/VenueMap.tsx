@@ -3,11 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import L from "leaflet";
-import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { VenueBottomSheet } from "@/components/VenueBottomSheet";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 const SOUTH_END_CENTER: [number, number] = [35.2178, -80.8597];
+const CHARLOTTE_ZIPS: Record<string, [number, number]> = {
+  "28202": [35.2271, -80.8431],
+  "28203": [35.2074, -80.8641],
+  "28204": [35.2088, -80.8396],
+  "28205": [35.2237, -80.8051],
+  "28206": [35.2526, -80.831],
+  "28207": [35.2046, -80.8242],
+  "28208": [35.2157, -80.9016],
+  "28209": [35.1771, -80.8632],
+  "28210": [35.1484, -80.8751],
+  "28211": [35.1793, -80.8089],
+  "28212": [35.2008, -80.7728],
+  "28213": [35.2739, -80.784],
+};
 
 type VenuePinStyle = {
   fillColor: string;
@@ -62,11 +76,78 @@ function RecenterButton() {
   );
 }
 
+function ZipRecenterControl() {
+  const map = useMap();
+  const [zip, setZip] = useState("");
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  function submitZip() {
+    if (!/^\d{5}$/.test(zip)) {
+      setShowTooltip(true);
+      window.setTimeout(() => setShowTooltip(false), 1800);
+      return;
+    }
+
+    const coords = CHARLOTTE_ZIPS[zip];
+    if (!coords) {
+      setShowTooltip(true);
+      window.setTimeout(() => setShowTooltip(false), 1800);
+      return;
+    }
+
+    setShowTooltip(false);
+    map.flyTo(coords, 15);
+  }
+
+  return (
+    <div className="absolute left-4 top-4 z-[1000]">
+      <div className="relative flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1 shadow-2xl backdrop-blur">
+        <input
+          aria-label="Charlotte zip"
+          className="w-36 rounded-lg bg-white/10 px-2.5 py-2 text-sm font-bold text-white placeholder:text-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+          inputMode="numeric"
+          maxLength={5}
+          pattern="[0-9]{5}"
+          placeholder="Charlotte zip..."
+          value={zip}
+          onChange={(event) => setZip(event.target.value.replace(/\D/g, "").slice(0, 5))}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") submitZip();
+          }}
+        />
+        <button
+          aria-label="Search Charlotte zip"
+          className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-sm text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+          type="button"
+          onClick={submitZip}
+        >
+          🔍
+        </button>
+        {showTooltip && (
+          <span className="absolute left-0 top-full mt-2 rounded-lg bg-[#ef4444] px-2 py-1 text-xs font-black text-white shadow-xl">
+            Charlotte zip only
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function VenueMap() {
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<ConsumerVenue | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const liveIcon = useMemo(
+    () =>
+      L.divIcon({
+        className: "",
+        html: '<span class="live-pin"></span>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      }),
+    [],
+  );
 
   useEffect(() => {
     delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -124,9 +205,27 @@ export function VenueMap() {
         />
         <FitBounds venues={visibleVenues} />
         <RecenterButton />
+        <ZipRecenterControl />
 
         {visibleVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
+          const isLive = venue.signal?.busynessSource === "live";
+
+          if (isLive) {
+            return (
+              <Marker
+                key={venue.id}
+                position={[venue.lat, venue.lng]}
+                icon={liveIcon}
+                eventHandlers={{ click: () => setSelectedVenue(venue) }}
+              >
+                <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
+                </Tooltip>
+              </Marker>
+            );
+          }
+
           return (
             <CircleMarker
               key={venue.id}
@@ -149,7 +248,7 @@ export function VenueMap() {
         })}
       </MapContainer>
 
-      <div className="pointer-events-none absolute left-4 top-4 z-[1000] rounded-xl bg-black/70 px-3 py-2 text-xs font-black text-white/80 shadow-2xl backdrop-blur">
+      <div className="pointer-events-none absolute left-4 top-[76px] z-[1000] rounded-xl bg-black/70 px-3 py-2 text-xs font-black text-white/80 shadow-2xl backdrop-blur">
         <span>🔴 Packed</span> <span>🟡 Moderate</span> <span>⚫ Quiet</span>
       </div>
 
