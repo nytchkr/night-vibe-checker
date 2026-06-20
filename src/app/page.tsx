@@ -21,9 +21,11 @@ type BusynessState = {
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Brewery" | "Club" | "Restaurant";
+type FeedView = "list" | "map";
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
 const CATEGORY_FILTERS: CategoryFilter[] = ["All", "Bar", "Brewery", "Club", "Restaurant"];
+const SOUTH_END_CENTER = { lat: 35.2178, lng: -80.8597 };
 
 function getBusynessState(value: number | null | undefined): BusynessState {
   if (value == null) return { label: "No data yet", color: "#6B7280", rank: 0 };
@@ -56,6 +58,29 @@ function FilterChip<T extends string>({
       onClick={() => onSelect(label)}
       className={`min-h-[38px] shrink-0 rounded-full px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444]/70 ${
         active ? "bg-[#EF4444] text-white" : "bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ViewTab({
+  label,
+  active,
+  onSelect,
+}: {
+  label: FeedView;
+  active: boolean;
+  onSelect: (view: FeedView) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(label)}
+      className={`h-9 flex-1 rounded-full px-4 text-sm font-black capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
+        active ? "bg-white/15 text-white" : "text-white/40 hover:bg-white/[0.07] hover:text-white/60"
       }`}
       aria-pressed={active}
     >
@@ -202,6 +227,29 @@ function CardSkeleton() {
   );
 }
 
+function buildMapEmbedUrl(venues: ConsumerVenue[]): string | null {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!key) return null;
+
+  const venueCoords = venues
+    .filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng))
+    .slice(0, 10)
+    .map((venue) => `${venue.name} ${venue.lat},${venue.lng}`);
+  const query = venueCoords.length > 0
+    ? `South End Charlotte nightlife ${venueCoords.join(" ")}`
+    : `${SOUTH_END_CENTER.lat},${SOUTH_END_CENTER.lng}`;
+
+  const params = new URLSearchParams({
+    key,
+    q: query,
+    center: `${SOUTH_END_CENTER.lat},${SOUTH_END_CENTER.lng}`,
+    zoom: "15",
+    maptype: "roadmap",
+  });
+
+  return `https://www.google.com/maps/embed/v1/search?${params.toString()}`;
+}
+
 export default function HomePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
@@ -211,6 +259,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [feedView, setFeedView] = useState<FeedView>("list");
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
@@ -273,6 +322,7 @@ export default function HomePage() {
   const timeLabel = useMemo(() => (
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
   ), [now]);
+  const mapEmbedUrl = useMemo(() => buildMapEmbedUrl(sortedVenues), [sortedVenues]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
@@ -366,12 +416,14 @@ export default function HomePage() {
         </div>
       </header>
 
-      <div className="mx-auto max-w-lg px-4">
+      <div className="mx-auto max-w-lg px-4 pb-5">
         <div
-          className="mb-5 flex h-28 items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.03]"
-          aria-label="Map coming soon"
+          className="flex rounded-full border border-white/10 bg-[#050507] p-1"
+          role="tablist"
+          aria-label="Venue feed view"
         >
-          <p className="text-sm text-white/25">Map view — coming soon</p>
+          <ViewTab label="list" active={feedView === "list"} onSelect={setFeedView} />
+          <ViewTab label="map" active={feedView === "map"} onSelect={setFeedView} />
         </div>
       </div>
 
@@ -385,7 +437,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {loading && (
+        {loading && feedView === "list" && (
           <div className="space-y-3" role="status" aria-label="Loading venues">
             <p className="sr-only">Loading venues...</p>
             {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
@@ -408,12 +460,33 @@ export default function HomePage() {
           </div>
         )}
 
-        {!loading && !error && sortedVenues.length > 0 && (
+        {!loading && !error && sortedVenues.length > 0 && feedView === "list" && (
           <ul className="space-y-3">
             {sortedVenues.map((venue) => (
               <VenueFeedCard key={venue.id} venue={venue} session={session} />
             ))}
           </ul>
+        )}
+
+        {!loading && !error && feedView === "map" && (
+          <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.04]">
+            {mapEmbedUrl ? (
+              <iframe
+                title="South End Charlotte venue map"
+                src={mapEmbedUrl}
+                className="h-[520px] w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
+            ) : (
+              <div className="flex h-[360px] items-center justify-center px-6 text-center">
+                <p className="text-sm font-semibold text-white/45">
+                  Map unavailable until the public Google Maps key is configured.
+                </p>
+              </div>
+            )}
+          </div>
         )}
       </main>
     </div>
