@@ -9,6 +9,7 @@ type VenueRow = {
 };
 
 export type RefreshResult = { venueId: string; ok: boolean; reason?: string };
+type BusynessSource = "live" | "forecast";
 
 function apiKey(): string {
   const key = process.env.BESTTIME_API_KEY;
@@ -29,40 +30,44 @@ async function registerVenue(venue: VenueRow, key: string): Promise<string> {
   });
   if (!res.ok) throw new Error(`BestTime register HTTP ${res.status}`);
   const data = await res.json();
-  const venueId: string | null = data.venue?.venue_id ?? null;
+  const venueId: string | null = data.venue_info?.venue_id ?? data.venue?.venue_id ?? null;
   if (!venueId) throw new Error("BestTime register: no venue_id in response");
   return venueId;
 }
 
 // Fetch live busyness for current hour
 async function fetchLiveHour(venueId: string, key: string): Promise<number | null> {
-  const res = await fetch(
-    `https://besttime.app/api/v1/forecasts/live/hour/now?venue_id=${venueId}&api_key_private=${key}`,
-    { cache: "no-store" }
-  );
+  const params = new URLSearchParams({ venue_id: venueId, api_key_private: key });
+  const res = await fetch(`https://besttime.app/api/v1/forecasts/live/hour/now?${params}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`BestTime live HTTP ${res.status}`);
   const data = await res.json();
-  const value: number | undefined = data.analysis?.venue_live_busyness;
+  const value: unknown = data.analysis?.venue_live_busyness;
   return typeof value === "number" ? value : null;
 }
 
 // Fetch forecast busyness for current hour (fallback)
 async function fetchForecastHour(venueId: string, key: string): Promise<number | null> {
-  const res = await fetch(
-    `https://besttime.app/api/v1/forecasts/hour/now?venue_id=${venueId}&api_key_private=${key}`,
-    { cache: "no-store" }
-  );
+  const params = new URLSearchParams({ venue_id: venueId, api_key_private: key });
+  const res = await fetch(`https://besttime.app/api/v1/forecasts/hour/now?${params}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`BestTime forecast HTTP ${res.status}`);
   const data = await res.json();
-  const value: number | undefined = data.analysis?.hour_analysis?.busyness_score;
+  const value: unknown = data.analysis?.hour_analysis?.busyness_score;
   return typeof value === "number" ? value : null;
 }
 
 /** Maps a 0-100 busyness score to a discrete label. */
 export function busynessLabel(score: number): "dead" | "moderate" | "packed" {
-  if (score < 33) return "dead";
-  if (score < 67) return "moderate";
+  if (score <= 33) return "dead";
+  if (score <= 66) return "moderate";
   return "packed";
+}
+
+export function busynessScoreForStorage(score: number): 16 | 50 | 84 {
+  const clamped = Math.max(0, Math.min(100, Math.round(score)));
+  const label = busynessLabel(clamped);
+  if (label === "dead") return 16;
+  if (label === "moderate") return 50;
+  return 84;
 }
 
 export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
@@ -88,7 +93,7 @@ export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
 
       // Try live first, fall back to forecast
       let busynessValue: number | null = await fetchLiveHour(bestTimeVenueId, key);
-      let source: "live" | "forecast";
+      let source: BusynessSource;
 
       if (busynessValue !== null) {
         source = "live";
@@ -103,7 +108,7 @@ export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
       }
 
       const refreshedAt = new Date().toISOString();
-      const busyness = Math.max(0, Math.min(100, Math.round(busynessValue)));
+      const busyness = busynessScoreForStorage(busynessValue);
 
       const { error: venueError } = await supabaseAdmin
         .from("venues")
