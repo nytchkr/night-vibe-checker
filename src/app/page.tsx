@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { timeAgo } from "@/lib/timeAgo";
 import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
@@ -144,19 +145,36 @@ function BusynessPill({ value }: { value: number | null | undefined }) {
   );
 }
 
-function MFRatioMiniBar({ mfRatio, sampleSize }: { mfRatio: number | null | undefined; sampleSize: number | null | undefined }) {
-  if (mfRatio == null || (sampleSize ?? 0) < 3) return null;
+function MFRatioMiniBar({
+  mfRatio,
+  sampleSize,
+  computedAt,
+}: {
+  mfRatio: number | null | undefined;
+  sampleSize: number | null | undefined;
+  computedAt: string | null | undefined;
+}) {
+  if (sampleSize == null && !computedAt) return null;
 
-  const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));
+  const reportCount = sampleSize ?? 0;
+  const malePercent = mfRatio == null ? 0 : Math.min(100, Math.max(0, Math.round(mfRatio)));
   const femalePercent = 100 - malePercent;
+  const hasRatio = mfRatio != null && reportCount >= 3;
 
   return (
-    <span className="mt-1 block w-[92px]" aria-label={`${malePercent}% male, ${femalePercent}% female from ${sampleSize} reports`}>
-      <span className="flex h-0.5 w-full overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-        <span className="h-full bg-[#3B82F6]" style={{ width: `${malePercent}%` }} />
-        <span className="h-full flex-1 bg-[#EC4899]" />
-      </span>
-      <span className="mt-1 block text-right text-[10px] font-semibold leading-3 text-white/55">👥 {sampleSize} reports</span>
+    <span className="mt-1 block w-[92px]" aria-label={hasRatio ? `${malePercent}% male, ${femalePercent}% female from ${sampleSize} reports` : undefined}>
+      {hasRatio && (
+        <span className="flex h-0.5 w-full overflow-hidden rounded-full bg-white/15" aria-hidden="true">
+          <span className="h-full bg-[#3B82F6]" style={{ width: `${malePercent}%` }} />
+          <span className="h-full flex-1 bg-[#EC4899]" />
+        </span>
+      )}
+      {sampleSize != null && (
+        <span className="mt-1 block text-right text-[10px] font-semibold leading-3 text-white/55">👥 {sampleSize} reports</span>
+      )}
+      {computedAt && (
+        <span className="mt-0.5 block text-right text-[10px] font-semibold leading-3 text-zinc-500">{timeAgo(computedAt)}</span>
+      )}
     </span>
   );
 }
@@ -222,7 +240,7 @@ function VenueFeedCard({
         <VenuePhoto venue={venue} />
         <span className="absolute right-2 top-2 flex flex-col items-end">
           <BusynessPill value={signal?.busyness0To100} />
-          <MFRatioMiniBar mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} />
+          <MFRatioMiniBar mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} computedAt={signal?.computedAt} />
         </span>
       </Link>
 
