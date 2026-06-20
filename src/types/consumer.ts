@@ -78,6 +78,7 @@ export interface VenueSignal {
 
 export interface ConsumerVenue {
   id: string;
+  slug?: string;
   placeId: string;
   zoneId: string;
   name: string;
