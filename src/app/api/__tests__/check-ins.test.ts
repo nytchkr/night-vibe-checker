@@ -4,6 +4,14 @@ import { NextRequest } from "next/server";
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
 const mockRecomputeVenueSignal = vi.fn();
+const mockAssertSupabaseServerEnv = vi.fn();
+
+class MockMissingSupabaseEnvError extends Error {
+  constructor(public readonly variableName: string) {
+    super(`Missing ${variableName} — add to .env.local`);
+    this.name = "MissingSupabaseEnvError";
+  }
+}
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: vi.fn(() => ({
@@ -12,6 +20,8 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 vi.mock("@/lib/supabase", () => ({
+  assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
+  MissingSupabaseEnvError: MockMissingSupabaseEnvError,
   supabaseAdmin: { from: mockFrom },
 }));
 
@@ -91,6 +101,7 @@ const SIGNAL = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockAssertSupabaseServerEnv.mockReturnValue(undefined);
   mockAuth("user-123");
   mockRecomputeVenueSignal.mockResolvedValue(SIGNAL);
 });
@@ -150,6 +161,20 @@ describe("POST /api/check-ins", () => {
 });
 
 describe("GET /api/check-ins", () => {
+  it("returns a clear 503 when Supabase env is missing", async () => {
+    mockAssertSupabaseServerEnv.mockImplementationOnce(() => {
+      throw new MockMissingSupabaseEnvError("NEXT_PUBLIC_SUPABASE_URL");
+    });
+
+    const { GET } = await import("../check-ins/route");
+    const res = await GET(new NextRequest("http://localhost/api/check-ins"));
+
+    expect(res.status).toBe(503);
+    const json = await res.json();
+    expect(json.error.code).toBe("MISSING_ENV");
+    expect(json.error.message).toBe("Missing NEXT_PUBLIC_SUPABASE_URL — add to .env.local");
+  });
+
   it("returns recent public feed reports", async () => {
     mockFrom.mockReturnValueOnce(chain({ data: [CHECK_IN] }));
     const { GET } = await import("../check-ins/route");

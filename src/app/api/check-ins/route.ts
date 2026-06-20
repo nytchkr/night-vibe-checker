@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { supabaseAdmin } from "@/lib/supabase";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { recomputeVenueSignal } from "@/lib/signals";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
@@ -23,6 +23,18 @@ const PostBodySchema = z.object({
   crowdFeel: z.enum(["mostly_male", "mostly_female", "balanced", "mixed"]),
   note: z.string().trim().max(200).optional(),
 });
+
+function missingSupabaseConfigResponse(
+  error: unknown,
+  meta: { cached: boolean; generatedAt: string; requestId: string }
+): NextResponse<APIResponse<never>> | null {
+  if (!(error instanceof MissingSupabaseEnvError)) return null;
+  console.error("[check-ins] Supabase configuration error:", error.message);
+  return NextResponse.json<APIResponse<never>>(
+    { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
+    { status: 503 }
+  );
+}
 
 async function getUserId(authHeader: string | null): Promise<string | null> {
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -99,6 +111,14 @@ async function hasRecentDuplicate(venueId: string, userId: string) {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const meta = { cached: false, generatedAt: new Date().toISOString(), requestId };
+
+  try {
+    assertSupabaseServerEnv();
+  } catch (error) {
+    const response = missingSupabaseConfigResponse(error, meta);
+    if (response) return response;
+    throw error;
+  }
 
   const userId = await getUserId(req.headers.get("Authorization"));
   if (!userId) {
@@ -197,6 +217,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const meta = { cached: true, generatedAt: new Date().toISOString(), requestId };
+
+  try {
+    assertSupabaseServerEnv();
+  } catch (error) {
+    const response = missingSupabaseConfigResponse(error, meta);
+    if (response) return response;
+    throw error;
+  }
+
   const { searchParams } = new URL(req.url);
   const venueIdParam = searchParams.get("venueId")?.trim();
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") ?? "20", 10) || 20, 1), 50);
