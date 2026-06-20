@@ -111,9 +111,19 @@ export function VenueMap() {
         })}
       </MapContainer>
 
-      <div className="pointer-events-none fixed left-4 top-4 z-40 rounded-full border border-white/10 bg-[#0A0A0F]/78 px-3 py-2 text-xs font-black text-white/75 shadow-2xl backdrop-blur-xl">
-        {loading ? "Loading venues..." : error ?? `${visibleVenues.length} South End spots`}
+      <div className="pointer-events-none absolute left-4 top-4 z-[1000] rounded-xl bg-black/70 px-3 py-2 text-xs font-black text-white/80 shadow-2xl backdrop-blur">
+        <span>🔴 Packed</span> <span>🟡 Moderate</span> <span>⚫ Quiet</span>
       </div>
+
+      {loading ? (
+        <div className="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-[#0a0a0f]/80">
+          <p className="animate-pulse text-sm font-black text-white/80">Loading venues...</p>
+        </div>
+      ) : (
+        <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-xl bg-black/70 px-3 py-2 text-xs font-black text-white/80 shadow-2xl backdrop-blur">
+          {error ?? `${visibleVenues.length} spots`}
+        </div>
+      )}
 
       <Link
         href="/vibe-check"
