@@ -44,6 +44,12 @@ async function mockVenues(page: Page) {
   });
 }
 
+async function markOnboarded(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("nv_onboarded", "1");
+  });
+}
+
 test.describe("NV-067 full VibeCheck consumer journey", () => {
   test("opens feed and routes cold guest report intent through the auth gate", async ({
     context,
@@ -54,6 +60,7 @@ test.describe("NV-067 full VibeCheck consumer journey", () => {
       window.localStorage.clear();
       window.sessionStorage.clear();
     });
+    await markOnboarded(page);
     await mockVenues(page);
 
     await test.step("1. Open the local feed and see at least one venue card", async () => {
@@ -65,13 +72,13 @@ test.describe("NV-067 full VibeCheck consumer journey", () => {
       const firstCard = page.locator("main li").first();
       await expect(firstCard).toBeVisible();
       await expect(firstCard.getByText("Journey Test Club")).toBeVisible();
-      await expect(firstCard.getByRole("link", { name: "Sign in to report" })).toBeVisible();
+      await expect(firstCard.getByRole("link", { name: "Sign in" })).toBeVisible();
     });
 
     const firstCard = page.locator("main li").first();
 
     await test.step("2. Click report from a feed card and land on login with return path", async () => {
-      await firstCard.getByRole("link", { name: "Sign in to report" }).click();
+      await firstCard.getByRole("link", { name: "Sign in" }).click();
       await expect(page).toHaveURL(/\/login\?return=/);
       const decoded = decodeURIComponent(page.url());
       expect(decoded).toContain("/vibe-check?venueId=venue-journey-1");
