@@ -65,6 +65,7 @@ type PlacesNearbyResult = {
 type PlacesNewNearbyResult = {
   id?: string;
   displayName?: { text?: string };
+  types?: string[];
   formattedAddress?: string;
   location?: { latitude?: number; longitude?: number };
   rating?: number;
@@ -128,11 +129,13 @@ function mapPriceLevel(priceLevel?: string): DiscoveredVenue["priceLevel"] {
   }
 }
 
-function toDiscoveredVenueFromNew(
-  result: PlacesNewNearbyResult,
-  zone: LaunchZone,
-  category: string
-): DiscoveredVenue | null {
+function categoryFromNewTypes(types?: string[]): string {
+  if (types?.includes("night_club")) return "night_club";
+  if (types?.includes("bar")) return "bar";
+  return "bar";
+}
+
+function toDiscoveredVenueFromNew(result: PlacesNewNearbyResult, zone: LaunchZone): DiscoveredVenue | null {
   if (!result.id || !result.displayName?.text || !result.location) return null;
 
   const photoReference = result.photos?.find((photo) => photo.name)?.name;
@@ -143,7 +146,7 @@ function toDiscoveredVenueFromNew(
     address: result.formattedAddress ?? "",
     lat: result.location.latitude ?? 0,
     lng: result.location.longitude ?? 0,
-    category,
+    category: categoryFromNewTypes(result.types),
     googleRating: result.rating,
     totalRatings: result.userRatingCount,
     priceLevel: mapPriceLevel(result.priceLevel),
@@ -152,17 +155,10 @@ function toDiscoveredVenueFromNew(
   };
 }
 
-function shouldFallbackToPlacesNew(json: { status?: string; error_message?: string }): boolean {
-  return (
-    json.status === "REQUEST_DENIED" &&
-    /legacy api|LegacyApiNotActivatedMapError/i.test(json.error_message ?? "")
-  );
-}
-
 async function discoverLegacyType(
   zone: LaunchZone,
   type: (typeof DISCOVERY_TYPES)[number]
-): Promise<{ venues: DiscoveredVenue[]; fallbackToPlacesNew: boolean }> {
+): Promise<DiscoveredVenue[]> {
   const params = new URLSearchParams({
     location: `${zone.center_lat},${zone.center_lng}`,
     radius: String(zone.radius_m),
@@ -176,7 +172,6 @@ async function discoverLegacyType(
   if (!res.ok) throw new PlacesApiError(`Places discovery HTTP ${res.status}`, res.status);
 
   const json = await res.json();
-  if (shouldFallbackToPlacesNew(json)) return { venues: [], fallbackToPlacesNew: true };
   if (json.status === "REQUEST_DENIED") {
     throw new PlacesApiError(`Places API denied: ${json.error_message}`, 403);
   }
@@ -187,28 +182,34 @@ async function discoverLegacyType(
     throw new PlacesApiError(`Places API status: ${json.status}`, 502);
   }
 
-  return {
-    venues: ((json.results ?? []) as PlacesNearbyResult[])
-      .map((result) => toDiscoveredVenue(result, zone, type))
-      .filter((venue): venue is DiscoveredVenue => Boolean(venue)),
-    fallbackToPlacesNew: false,
-  };
+  return ((json.results ?? []) as PlacesNearbyResult[])
+    .map((result) => toDiscoveredVenue(result, zone, type))
+    .filter((venue): venue is DiscoveredVenue => Boolean(venue));
 }
 
-async function discoverNewType(
-  zone: LaunchZone,
-  type: (typeof DISCOVERY_TYPES)[number]
-): Promise<DiscoveredVenue[]> {
+async function discoverLegacy(zone: LaunchZone): Promise<DiscoveredVenue[]> {
+  const venues: DiscoveredVenue[] = [];
+  for (const type of DISCOVERY_TYPES) {
+    venues.push(...(await discoverLegacyType(zone, type)));
+  }
+  return venues;
+}
+
+function shouldFallbackToLegacy(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
+async function discoverNew(zone: LaunchZone): Promise<DiscoveredVenue[]> {
   const res = await fetch(`${PLACES_NEW_BASE}/places:searchNearby`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": apiKey(),
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.photos",
+        "places.id,places.displayName,places.types,places.formattedAddress,places.location,places.rating,places.priceLevel,places.photos",
     },
     body: JSON.stringify({
-      includedTypes: [type],
+      includedTypes: [...DISCOVERY_TYPES],
       maxResultCount: 20,
       locationRestriction: {
         circle: {
@@ -225,26 +226,23 @@ async function discoverNewType(
 
   const json = await res.json();
   if (!res.ok) {
+    if (shouldFallbackToLegacy(res.status)) return discoverLegacy(zone);
+
     const message = json?.error?.message ?? `Places API (New) HTTP ${res.status}`;
-    throw new PlacesApiError(`Places API (New) denied: ${message}`, res.status);
+    throw new PlacesApiError(`Places API (New) failed: ${message}`, res.status);
   }
 
   return ((json.places ?? []) as PlacesNewNearbyResult[])
-    .map((result) => toDiscoveredVenueFromNew(result, zone, type))
+    .map((result) => toDiscoveredVenueFromNew(result, zone))
     .filter((venue): venue is DiscoveredVenue => Boolean(venue));
 }
 
 export async function discoverZone(zone: LaunchZone): Promise<DiscoveredVenue[]> {
   const byPlaceId = new Map<string, DiscoveredVenue>();
 
-  for (const type of DISCOVERY_TYPES) {
-    const legacy = await discoverLegacyType(zone, type);
-    const discovered = legacy.fallbackToPlacesNew ? await discoverNewType(zone, type) : legacy.venues;
-
-    for (const venue of discovered) {
-      if (byPlaceId.has(venue.placeId)) continue;
-      byPlaceId.set(venue.placeId, venue);
-    }
+  for (const venue of await discoverNew(zone)) {
+    if (byPlaceId.has(venue.placeId)) continue;
+    byPlaceId.set(venue.placeId, venue);
   }
 
   const venues = Array.from(byPlaceId.values());
