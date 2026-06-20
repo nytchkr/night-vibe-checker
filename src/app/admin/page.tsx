@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { AdminPageClient } from "@/components/admin/AdminPageClient";
 import { supabaseAdmin } from "@/lib/supabase";
-import type { AdminCheckIn } from "@/types/admin";
+import type { AdminCheckIn, AdminVenue } from "@/types/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +26,27 @@ function mapAdminCheckIn(row: Record<string, unknown>): AdminCheckIn {
     userId: (row.user_id ?? null) as string | null,
     placeId: (row.place_id ?? "") as string,
     venueName: (row.venue_name ?? undefined) as string | undefined,
+  };
+}
+
+function mapAdminVenue(row: Record<string, unknown>): AdminVenue {
+  const sig = row.venue_signals;
+  const signalRow: Record<string, unknown> | undefined = Array.isArray(sig)
+    ? (sig[0] as Record<string, unknown> | undefined)
+    : sig != null
+    ? (sig as Record<string, unknown>)
+    : undefined;
+
+  return {
+    id: row.id as string,
+    placeId: row.place_id as string,
+    name: row.name as string,
+    address: row.address as string,
+    category: (row.category ?? row.venue_type ?? "establishment") as string,
+    hidden: Boolean(row.hidden),
+    lastBusynessRefresh: (row.last_busyness_refresh ?? signalRow?.last_busyness_refresh ?? null) as string | null,
+    busyness0To100: (signalRow?.busyness_0_100 ?? null) as number | null,
+    sampleSize: Number(signalRow?.sample_size ?? 0),
   };
 }
 
@@ -58,19 +79,31 @@ export default async function AdminPage() {
     redirect(`/login?return=${encodeURIComponent("/admin")}`);
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, venue_id, place_id, venue_name, busyness, crowd_feel, note, hidden, created_at, user_id")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const [{ data: checkInsData, error: checkInsError }, { data: venuesData, error: venuesError }] = await Promise.all([
+    supabaseAdmin
+      .from("check_ins")
+      .select("id, venue_id, place_id, venue_name, busyness, crowd_feel, note, hidden, created_at, user_id")
+      .order("created_at", { ascending: false })
+      .limit(200),
+    supabaseAdmin
+      .from("venues")
+      .select(`
+        id, place_id, name, address, venue_type, category, hidden, last_busyness_refresh,
+        venue_signals (
+          busyness_0_100, sample_size, last_busyness_refresh
+        )
+      `)
+      .order("name", { ascending: true }),
+  ]);
 
-  if (error) {
-    throw new Error(`Failed to fetch admin check-ins: ${error.message}`);
+  if (checkInsError || venuesError) {
+    throw new Error(`Failed to fetch admin data: ${(checkInsError ?? venuesError)?.message}`);
   }
 
   return (
     <AdminPageClient
-      checkIns={((data ?? []) as Record<string, unknown>[]).map(mapAdminCheckIn)}
+      checkIns={((checkInsData ?? []) as Record<string, unknown>[]).map(mapAdminCheckIn)}
+      venues={((venuesData ?? []) as Record<string, unknown>[]).map(mapAdminVenue)}
       token={session.access_token}
     />
   );

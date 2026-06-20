@@ -137,12 +137,28 @@ export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
 
   if (error) throw error;
 
+  return refreshVenueRows((venues ?? []) as VenueRow[]);
+}
+
+export async function refreshBusynessForVenue(venueId: string): Promise<RefreshResult> {
+  const { data: venue, error } = await supabaseAdmin
+    .from("venues")
+    .select("id, place_id, name, address, besttime_venue_id")
+    .eq("id", venueId)
+    .single();
+
+  if (error) throw error;
+
+  const [result] = await refreshVenueRows([venue as VenueRow]);
+  return result ?? { venueId, ok: false, reason: "Venue refresh did not return a result." };
+}
+
+async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {
   const key = apiKey();
   const results: RefreshResult[] = [];
 
-  for (const venue of (venues ?? []) as VenueRow[]) {
+  for (const venue of venues) {
     try {
-      // Register if we don't have a besttime_venue_id yet
       let bestTimeVenueId = venue.besttime_venue_id;
       let busynessValue: number | null = null;
       let source: BusynessSource = "forecast";
@@ -153,8 +169,6 @@ export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
           bestTimeVenueId = await registerVenue(venue, key);
         }
 
-        // Try live first, fall back to BestTime's forecast endpoint, then to
-        // the local heuristic if BestTime cannot return usable data.
         try {
           busynessValue = await fetchLiveHour(bestTimeVenueId, key);
         } catch {

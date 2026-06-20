@@ -64,7 +64,7 @@ export async function PATCH(
     .from("check_ins")
     .update({ hidden: body.hidden })
     .eq("id", id)
-    .select("id, venue_id, busyness, crowd_feel, note, hidden, created_at, user_id")
+    .select("id, venue_id, place_id, venue_name, busyness, crowd_feel, note, hidden, created_at, user_id")
     .single();
 
   if (error || !data) {
@@ -86,7 +86,8 @@ export async function PATCH(
   const checkIn: AdminCheckIn = {
     id: data.id as string,
     venueId: data.venue_id as string,
-    placeId: "",
+    placeId: (data.place_id ?? "") as string,
+    venueName: (data.venue_name ?? undefined) as string | undefined,
     busyness: data.busyness as AdminCheckIn["busyness"],
     crowdFeel: data.crowd_feel as AdminCheckIn["crowdFeel"],
     note: (data.note ?? undefined) as string | undefined,

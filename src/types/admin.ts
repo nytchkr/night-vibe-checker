@@ -12,3 +12,15 @@ export interface AdminCheckIn extends ConsumerCheckIn {
   userId: string | null;
   venueName?: string;
 }
+
+export interface AdminVenue {
+  id: string;
+  placeId: string;
+  name: string;
+  address: string;
+  category: string;
+  hidden: boolean;
+  lastBusynessRefresh: string | null;
+  busyness0To100: number | null;
+  sampleSize: number;
+}

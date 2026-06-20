@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { refreshBusyness } from "@/lib/besttime";
+import { refreshBusyness, refreshBusynessForVenue } from "@/lib/besttime";
+import { supabaseAdmin } from "@/lib/supabase";
 
-function isAuthorized(req: NextRequest) {
+function isCronAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = req.headers.get("authorization");
@@ -13,14 +14,34 @@ function isAuthorized(req: NextRequest) {
   );
 }
 
+async function isAdminAuthorized(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+  if (!auth?.startsWith("Bearer ")) return false;
+
+  const token = auth.slice(7).trim();
+  if (!token) return false;
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data.user?.email) return false;
+
+  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  return adminEmails.includes(data.user.email.toLowerCase());
+}
+
 export async function POST(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req) && !(await isAdminAuthorized(req))) {
     return NextResponse.json({ status: "error", error: { code: "UNAUTHORIZED" } }, { status: 401 });
   }
 
   const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit") ?? 50), 1), 100);
+  const venueId = req.nextUrl.searchParams.get("venueId")?.trim();
+
   try {
-    const results = await refreshBusyness(limit);
+    const results = venueId ? [await refreshBusynessForVenue(venueId)] : await refreshBusyness(limit);
     return NextResponse.json({ status: "success", data: { results } });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown refresh error";

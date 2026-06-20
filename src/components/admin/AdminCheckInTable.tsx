@@ -22,10 +22,6 @@ export function AdminCheckInTable({ initialCheckIns, token }: Props) {
     );
   }
 
-  function handleDeleted(id: string) {
-    setCheckIns((prev) => prev.filter((ci) => ci.id !== id));
-  }
-
   if (checkIns.length === 0) {
     return (
       <p className="text-white/40 text-center py-12">No check-ins found.</p>
@@ -34,10 +30,10 @@ export function AdminCheckInTable({ initialCheckIns, token }: Props) {
 
   return (
     <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-white/[0.02]">
-      <table className="w-full min-w-[700px] text-left">
+      <table className="w-full min-w-[760px] text-left">
         <thead>
           <tr className="border-b border-white/[0.08]">
-            {["Venue", "Busyness", "Crowd", "Note", "Time", "Status", "Actions"].map((h) => (
+            {["Time", "Venue", "Busyness", "Crowd Feel", "Note", "Actions"].map((h) => (
               <th
                 key={h}
                 className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-white/35"
@@ -54,7 +50,6 @@ export function AdminCheckInTable({ initialCheckIns, token }: Props) {
               checkIn={ci}
               token={token}
               onUpdated={handleUpdated}
-              onDeleted={handleDeleted}
             />
           ))}
         </tbody>
