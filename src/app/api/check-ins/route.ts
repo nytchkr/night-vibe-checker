@@ -11,11 +11,14 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { recomputeVenueSignal } from "@/lib/signals";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const MAX_VENUE_ID_LENGTH = 160;
 const DUPLICATE_WINDOW_MINUTES = 10;
+const POST_RATE_LIMIT_MAX = 5;
+const POST_RATE_LIMIT_WINDOW_MS = 60_000;
 
 const PostBodySchema = z.object({
   venueId: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH),
@@ -53,6 +56,14 @@ async function getUserId(authHeader: string | null): Promise<string | null> {
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) return null;
   return data.user.id;
+}
+
+function getClientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "anonymous"
+  );
 }
 
 function mapCheckIn(row: Record<string, unknown>): ConsumerCheckIn {
@@ -128,6 +139,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const ip = getClientIp(req);
+  const rate = checkRateLimit(`check-ins:POST:${ip}`, POST_RATE_LIMIT_MAX, POST_RATE_LIMIT_WINDOW_MS);
+  if (!rate.allowed) {
+    const retrySeconds = Math.ceil((rate.retryAfterMs ?? POST_RATE_LIMIT_WINDOW_MS) / 1000);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "RATE_LIMITED", message: "Too many check-in attempts. Try again in a minute." }, meta },
+      { status: 429, headers: { "Retry-After": String(retrySeconds) } }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -164,8 +185,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         {
           status: "error",
           error: {
-            code: "DUPLICATE_CHECK_IN",
-            message: `Only one report per venue is allowed every ${DUPLICATE_WINDOW_MINUTES} minutes.`,
+            code: "RATE_LIMITED",
+            message: "You already reported this venue recently. Try again in a few minutes.",
           },
           meta,
         },
