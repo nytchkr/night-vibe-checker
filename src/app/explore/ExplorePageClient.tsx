@@ -332,6 +332,7 @@ export function ExplorePageClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [openNowOnly, setOpenNowOnly] = useState(false);
 
   const fetchVenues = useCallback(async () => {
     setLoading(true);
@@ -421,14 +422,15 @@ export function ExplorePageClient() {
       const matchesSearch = normalizedSearch.length === 0 || searchableText.includes(normalizedSearch);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
+      const matchesOpenNow = !openNowOnly || venue.openNow === true;
 
-      return matchesSearch && matchesBusyness && matchesCategory;
+      return matchesSearch && matchesBusyness && matchesCategory && matchesOpenNow;
     }).sort((a, b) => {
       const aState = getBusynessState(a.signal?.busyness0To100);
       const bState = getBusynessState(b.signal?.busyness0To100);
       return bState.rank - aState.rank || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, searchQuery, venues]);
+  }, [busynessFilter, categoryFilter, openNowOnly, searchQuery, venues]);
 
   const timeLabel = useMemo(() => (
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
@@ -501,6 +503,21 @@ export function ExplorePageClient() {
                   ×
                 </button>
               )}
+            </div>
+
+            <div className="flex">
+              <button
+                type="button"
+                onClick={() => setOpenNowOnly((p) => !p)}
+                className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+                  openNowOnly
+                    ? "bg-[#00F5D4] text-[#0A0A0F] border-[#00F5D4]"
+                    : "border-white/20 text-white/60 bg-transparent"
+                }`}
+                aria-pressed={openNowOnly}
+              >
+                🟢 Open Now
+              </button>
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
