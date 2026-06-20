@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import Link from "next/link";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
@@ -262,25 +262,42 @@ export function VenueMap() {
 
         {visibleVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
+          const isLive = venue.signal?.busynessSource === "live";
 
           return (
-            <CircleMarker
-              key={venue.id}
-              center={[venue.lat, venue.lng]}
-              radius={pin.radius}
-              pathOptions={{
-                className: pin.className,
-                color: "rgba(255,255,255,0.15)",
-                fillColor: pin.fillColor,
-                fillOpacity: pin.fillOpacity,
-                weight: 1.5,
-              }}
-              eventHandlers={{ click: () => setSelectedVenue(venue) }}
-            >
-              <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
-              </Tooltip>
-            </CircleMarker>
+            <Fragment key={venue.id}>
+              {isLive && (
+                <CircleMarker
+                  center={[venue.lat, venue.lng]}
+                  radius={pin.radius * 1.65}
+                  pathOptions={{
+                    className: "venue-pin-live-pulse",
+                    color: pin.fillColor,
+                    fillColor: pin.fillColor,
+                    fillOpacity: 0.18,
+                    opacity: 0.32,
+                    weight: 1,
+                  }}
+                  interactive={false}
+                />
+              )}
+              <CircleMarker
+                center={[venue.lat, venue.lng]}
+                radius={pin.radius}
+                pathOptions={{
+                  className: pin.className,
+                  color: "rgba(255,255,255,0.15)",
+                  fillColor: pin.fillColor,
+                  fillOpacity: pin.fillOpacity,
+                  weight: 1.5,
+                }}
+                eventHandlers={{ click: () => setSelectedVenue(venue) }}
+              >
+                <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+                  <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
+                </Tooltip>
+              </CircleMarker>
+            </Fragment>
           );
         })}
       </MapContainer>
@@ -356,28 +373,10 @@ export function VenueMap() {
       <style jsx global>{`
         .venue-pin-packed {
           filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0.35)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
-          transform-box: fill-box;
-          transform-origin: center;
-          animation: venue-pin-pulse 1.8s ease-out infinite;
         }
 
         .venue-pin-moderate {
           filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.4));
-        }
-
-        @keyframes venue-pin-pulse {
-          0% {
-            filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0.35)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
-            transform: scale(1);
-          }
-          60% {
-            filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.18)) drop-shadow(0 0 18px rgba(239, 68, 68, 0.35));
-            transform: scale(1.14);
-          }
-          100% {
-            filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
-            transform: scale(1);
-          }
         }
       `}</style>
     </main>

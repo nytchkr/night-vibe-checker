@@ -158,6 +158,18 @@
   50% { transform: scale(1.4); opacity: 0.3; }
 }
 
+@keyframes pin-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+}
+
+.venue-pin-live-pulse {
+  animation: pin-pulse 1.5s ease-in-out infinite;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 /* vibeScoreReveal kept for VibeReport component use */
 @keyframes vibeScoreReveal {
   0%   { opacity: 0; transform: scale(0.85); }
