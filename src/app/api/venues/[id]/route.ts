@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
@@ -57,6 +57,7 @@ export async function GET(
     "anonymous";
 
   const rate = checkRateLimit(`venues-detail:${ip}`, 60, 60_000);
+  const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? 60_000) / 1000);
     return NextResponse.json<APIResponse<never>>(
@@ -65,7 +66,7 @@ export async function GET(
         error: { code: "RATE_LIMITED", message: "Too many requests." },
         meta: { cached: true, generatedAt, requestId },
       },
-      { status: 429, headers: { "Retry-After": String(retrySeconds) } }
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } }
     );
   }
 
@@ -78,7 +79,7 @@ export async function GET(
         error: { code: "MISSING_ID", message: "Venue id is required." },
         meta: { cached: true, generatedAt, requestId },
       },
-      { status: 400 }
+      { status: 400, headers }
     );
   }
 
@@ -104,13 +105,16 @@ export async function GET(
         error: { code: "VENUE_NOT_FOUND", message: "Venue was not found in the cached launch-zone database." },
         meta: { cached: true, generatedAt, requestId },
       },
-      { status: 404 }
+      { status: 404, headers }
     );
   }
 
-  return NextResponse.json<APIResponse<{ venue: ConsumerVenue }>>({
-    status: "success",
-    data: { venue: mapVenue(data as Record<string, unknown>) },
-    meta: { cached: true, generatedAt, requestId },
-  });
+  return NextResponse.json<APIResponse<{ venue: ConsumerVenue }>>(
+    {
+      status: "success",
+      data: { venue: mapVenue(data as Record<string, unknown>) },
+      meta: { cached: true, generatedAt, requestId },
+    },
+    { headers }
+  );
 }

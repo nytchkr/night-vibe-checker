@@ -14,6 +14,13 @@ interface RateLimitEntry {
   windowStart: number; // epoch ms
 }
 
+export interface RateLimitResult {
+  allowed: boolean;
+  limit: number;
+  remaining: number;
+  retryAfterMs?: number;
+}
+
 // Module-level Map survives across requests in a long-running Node process.
 // In edge / serverless this resets per cold start — acceptable for MVP.
 const store = new Map<string, RateLimitEntry>();
@@ -31,23 +38,30 @@ export function checkRateLimit(
   key: string,
   max: number = RATE_LIMIT_MAX,
   windowMs: number = RATE_LIMIT_WINDOW_MS
-): { allowed: boolean; retryAfterMs?: number } {
+): RateLimitResult {
   const now = Date.now();
   const entry = store.get(key);
 
   // New key or expired window — start a fresh window
   if (!entry || now - entry.windowStart >= windowMs) {
     store.set(key, { count: 1, windowStart: now });
-    return { allowed: true };
+    return { allowed: true, limit: max, remaining: Math.max(0, max - 1) };
   }
 
   if (entry.count >= max) {
     const retryAfterMs = windowMs - (now - entry.windowStart);
-    return { allowed: false, retryAfterMs };
+    return { allowed: false, limit: max, remaining: 0, retryAfterMs };
   }
 
   entry.count += 1;
-  return { allowed: true };
+  return { allowed: true, limit: max, remaining: Math.max(0, max - entry.count) };
+}
+
+export function rateLimitHeaders(rate: RateLimitResult): Record<string, string> {
+  return {
+    "X-RateLimit-Limit": String(rate.limit),
+    "X-RateLimit-Remaining": String(rate.remaining),
+  };
 }
 
 /**
