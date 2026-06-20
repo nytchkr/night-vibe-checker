@@ -57,7 +57,7 @@ test.describe("NV-TEST-001 report journey auth gate", () => {
     await markOnboarded(page);
     await mockHomeVenues(page);
 
-    await page.goto("/");
+    await page.goto("/explore");
     await expect(page.getByText(reportVenue.name)).toBeVisible();
 
     await page.getByRole("link", { name: /^Sign in/ }).click();

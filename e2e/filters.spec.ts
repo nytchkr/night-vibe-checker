@@ -111,7 +111,7 @@ test.describe("Home filters", () => {
   });
 
   test("filter chips visible on home", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/explore");
 
     await expect(page.getByRole("button", { name: "All" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Packed" })).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("Home filters", () => {
   });
 
   test("search filters venues", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/explore");
 
     const venueLinks = page.getByRole("link", { name: /^Open / });
     await expect(venueLinks).toHaveCount(venues.length);

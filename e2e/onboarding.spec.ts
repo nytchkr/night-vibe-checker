@@ -28,7 +28,7 @@ test.describe("Onboarding overlay", () => {
     });
     await mockHomeVenues(page);
 
-    await page.goto("/");
+    await page.goto("/explore");
 
     const overlay = page.getByRole("dialog", { name: "South End Charlotte, live" });
     await expect(overlay).toBeVisible();

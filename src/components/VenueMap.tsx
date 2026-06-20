@@ -78,12 +78,12 @@ export function VenueMap() {
   );
 
   return (
-    <main className="relative h-[100dvh] w-full overflow-hidden bg-[#0A0A0F]">
+    <main className="relative w-full overflow-hidden bg-[#0A0A0F]" style={{ height: "calc(100dvh - 64px)" }}>
       <MapContainer
         center={SOUTH_END_CENTER}
         zoom={15}
         scrollWheelZoom={false}
-        style={{ height: "100dvh", width: "100%" }}
+        style={{ height: "100%", width: "100%" }}
         className="z-0"
       >
         <TileLayer

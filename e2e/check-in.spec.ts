@@ -81,7 +81,7 @@ test.describe("VibeCheck consumer check-in flow", () => {
     await markOnboarded(page);
     await mockFeed(page);
 
-    await page.goto("/");
+    await page.goto("/explore");
 
     await expect(page.getByText("Feed Test Club")).toBeVisible();
     await expect(page.getByText("Feed Test Club")).toBeVisible();
