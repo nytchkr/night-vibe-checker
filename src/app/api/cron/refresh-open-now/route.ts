@@ -25,7 +25,13 @@ type GooglePlaceDetailsResponse = {
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return req.headers.get("authorization") === `Bearer ${secret}`;
+  const auth = req.headers.get("authorization");
+  const cronSecret = req.headers.get("x-cron-secret");
+  return (
+    auth === `Bearer ${secret}` ||
+    cronSecret === secret ||
+    req.nextUrl.searchParams.get("secret") === secret
+  );
 }
 
 async function fetchOpenNow(placeId: string, googlePlacesKey: string) {
@@ -47,15 +53,15 @@ async function fetchOpenNow(placeId: string, googlePlacesKey: string) {
   return payload.result?.opening_hours?.open_now ?? null;
 }
 
-export async function GET(req: NextRequest) {
+async function refreshOpenNowFromGoogle(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const googlePlacesKey = process.env.GOOGLE_PLACES_KEY;
+  const googlePlacesKey = process.env.GOOGLE_PLACES_API_KEY ?? process.env.GOOGLE_PLACES_KEY;
   if (!googlePlacesKey) {
     return NextResponse.json(
-      { error: "Missing GOOGLE_PLACES_KEY server environment variable." },
+      { error: "Missing GOOGLE_PLACES_API_KEY server environment variable." },
       { status: 500 }
     );
   }
@@ -108,4 +114,12 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ refreshed: updates.length, errors });
+}
+
+export async function GET(req: NextRequest) {
+  return refreshOpenNowFromGoogle(req);
+}
+
+export async function POST(req: NextRequest) {
+  return refreshOpenNowFromGoogle(req);
 }
