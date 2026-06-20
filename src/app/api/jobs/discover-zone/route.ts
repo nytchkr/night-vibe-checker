@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
-import { discoverZone } from "@/lib/places";
+import { discoverZone, PlacesApiError } from "@/lib/places";
 import { supabaseAdmin } from "@/lib/supabase";
 
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = req.headers.get("authorization");
-  return auth === `Bearer ${secret}` || req.nextUrl.searchParams.get("secret") === secret;
+  const cronSecret = req.headers.get("x-cron-secret");
+  return (
+    auth === `Bearer ${secret}` ||
+    cronSecret === secret ||
+    req.nextUrl.searchParams.get("secret") === secret
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -15,7 +20,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "error", error: { code: "UNAUTHORIZED" } }, { status: 401 });
   }
 
-  const venues = await discoverZone(LAUNCH_ZONE);
+  let venues;
+  try {
+    venues = await discoverZone(LAUNCH_ZONE);
+  } catch (error) {
+    console.error("[discover-zone] Places discovery failed:", error);
+    const status = error instanceof PlacesApiError ? error.statusCode : 500;
+    const message = error instanceof Error ? error.message : "Places discovery failed.";
+    return NextResponse.json(
+      { status: "error", error: { code: "PLACES_ERROR", message } },
+      { status }
+    );
+  }
+
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin.from("venues").upsert(
     venues.map((venue) => ({

@@ -10,6 +10,7 @@ if (typeof window !== "undefined") {
 }
 
 const PLACES_BASE = "https://maps.googleapis.com/maps/api/place";
+const PLACES_NEW_BASE = "https://places.googleapis.com/v1";
 const DISCOVERY_TYPES = ["bar", "night_club"] as const;
 
 export class PlacesApiError extends Error {
@@ -29,6 +30,14 @@ function apiKey(): string {
 }
 
 export function buildPhotoUrl(photoReference: string): string {
+  if (photoReference.startsWith("places/")) {
+    const params = new URLSearchParams({
+      maxWidthPx: "800",
+      key: apiKey(),
+    });
+    return `${PLACES_NEW_BASE}/${photoReference}/media?${params}`;
+  }
+
   const params = new URLSearchParams({
     maxwidth: "800",
     photo_reference: photoReference,
@@ -37,23 +46,8 @@ export function buildPhotoUrl(photoReference: string): string {
   return `${PLACES_BASE}/photo?${params}`;
 }
 
-/**
- * Follows the Google Place Photo redirect and returns the final CDN URL.
- * The Places Photo endpoint returns a 302 redirect to the actual image URL.
- * We capture that redirect URL so we can store a key-free CDN link in the DB.
- */
 export async function resolvePhotoUrl(photoReference: string): Promise<string> {
-  const redirectUrl = buildPhotoUrl(photoReference);
-  try {
-    const res = await fetch(redirectUrl, { redirect: "manual", cache: "no-store" });
-    // 302 redirect: Location header is the actual CDN URL
-    const location = res.headers.get("location");
-    if (location) return location;
-  } catch {
-    // Network error or non-redirect — fall back to the signed URL
-  }
-  // Fallback: return the signed URL (still works, just embeds the key)
-  return redirectUrl;
+  return buildPhotoUrl(photoReference);
 }
 
 type PlacesNearbyResult = {
@@ -66,6 +60,17 @@ type PlacesNearbyResult = {
   user_ratings_total?: number;
   price_level?: 1 | 2 | 3 | 4;
   photos?: { photo_reference?: string }[];
+};
+
+type PlacesNewNearbyResult = {
+  id?: string;
+  displayName?: { text?: string };
+  formattedAddress?: string;
+  location?: { latitude?: number; longitude?: number };
+  rating?: number;
+  userRatingCount?: number;
+  priceLevel?: string;
+  photos?: { name?: string }[];
 };
 
 export type DiscoveredVenue = {
@@ -108,36 +113,136 @@ function toDiscoveredVenue(
   };
 }
 
+function mapPriceLevel(priceLevel?: string): DiscoveredVenue["priceLevel"] {
+  switch (priceLevel) {
+    case "PRICE_LEVEL_INEXPENSIVE":
+      return 1;
+    case "PRICE_LEVEL_MODERATE":
+      return 2;
+    case "PRICE_LEVEL_EXPENSIVE":
+      return 3;
+    case "PRICE_LEVEL_VERY_EXPENSIVE":
+      return 4;
+    default:
+      return undefined;
+  }
+}
+
+function toDiscoveredVenueFromNew(
+  result: PlacesNewNearbyResult,
+  zone: LaunchZone,
+  category: string
+): DiscoveredVenue | null {
+  if (!result.id || !result.displayName?.text || !result.location) return null;
+
+  const photoReference = result.photos?.find((photo) => photo.name)?.name;
+  return {
+    placeId: result.id,
+    zoneId: zone.id,
+    name: result.displayName.text,
+    address: result.formattedAddress ?? "",
+    lat: result.location.latitude ?? 0,
+    lng: result.location.longitude ?? 0,
+    category,
+    googleRating: result.rating,
+    totalRatings: result.userRatingCount,
+    priceLevel: mapPriceLevel(result.priceLevel),
+    photoReference,
+    photoUrl: undefined,
+  };
+}
+
+function shouldFallbackToPlacesNew(json: { status?: string; error_message?: string }): boolean {
+  return (
+    json.status === "REQUEST_DENIED" &&
+    /legacy api|LegacyApiNotActivatedMapError/i.test(json.error_message ?? "")
+  );
+}
+
+async function discoverLegacyType(
+  zone: LaunchZone,
+  type: (typeof DISCOVERY_TYPES)[number]
+): Promise<{ venues: DiscoveredVenue[]; fallbackToPlacesNew: boolean }> {
+  const params = new URLSearchParams({
+    location: `${zone.center_lat},${zone.center_lng}`,
+    radius: String(zone.radius_m),
+    type,
+    key: apiKey(),
+  });
+
+  const res = await fetch(`${PLACES_BASE}/nearbysearch/json?${params}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new PlacesApiError(`Places discovery HTTP ${res.status}`, res.status);
+
+  const json = await res.json();
+  if (shouldFallbackToPlacesNew(json)) return { venues: [], fallbackToPlacesNew: true };
+  if (json.status === "REQUEST_DENIED") {
+    throw new PlacesApiError(`Places API denied: ${json.error_message}`, 403);
+  }
+  if (json.status === "OVER_QUERY_LIMIT") {
+    throw new PlacesApiError("Google Places quota exceeded.", 429);
+  }
+  if (json.status !== "OK" && json.status !== "ZERO_RESULTS") {
+    throw new PlacesApiError(`Places API status: ${json.status}`, 502);
+  }
+
+  return {
+    venues: ((json.results ?? []) as PlacesNearbyResult[])
+      .map((result) => toDiscoveredVenue(result, zone, type))
+      .filter((venue): venue is DiscoveredVenue => Boolean(venue)),
+    fallbackToPlacesNew: false,
+  };
+}
+
+async function discoverNewType(
+  zone: LaunchZone,
+  type: (typeof DISCOVERY_TYPES)[number]
+): Promise<DiscoveredVenue[]> {
+  const res = await fetch(`${PLACES_NEW_BASE}/places:searchNearby`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey(),
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.photos",
+    },
+    body: JSON.stringify({
+      includedTypes: [type],
+      maxResultCount: 20,
+      locationRestriction: {
+        circle: {
+          center: {
+            latitude: zone.center_lat,
+            longitude: zone.center_lng,
+          },
+          radius: zone.radius_m,
+        },
+      },
+    }),
+    cache: "no-store",
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const message = json?.error?.message ?? `Places API (New) HTTP ${res.status}`;
+    throw new PlacesApiError(`Places API (New) denied: ${message}`, res.status);
+  }
+
+  return ((json.places ?? []) as PlacesNewNearbyResult[])
+    .map((result) => toDiscoveredVenueFromNew(result, zone, type))
+    .filter((venue): venue is DiscoveredVenue => Boolean(venue));
+}
+
 export async function discoverZone(zone: LaunchZone): Promise<DiscoveredVenue[]> {
   const byPlaceId = new Map<string, DiscoveredVenue>();
 
   for (const type of DISCOVERY_TYPES) {
-    const params = new URLSearchParams({
-      location: `${zone.center_lat},${zone.center_lng}`,
-      radius: String(zone.radius_m),
-      type,
-      key: apiKey(),
-    });
+    const legacy = await discoverLegacyType(zone, type);
+    const discovered = legacy.fallbackToPlacesNew ? await discoverNewType(zone, type) : legacy.venues;
 
-    const res = await fetch(`${PLACES_BASE}/nearbysearch/json?${params}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) throw new PlacesApiError(`Places discovery HTTP ${res.status}`, res.status);
-
-    const json = await res.json();
-    if (json.status === "REQUEST_DENIED") {
-      throw new PlacesApiError(`Places API denied: ${json.error_message}`, 403);
-    }
-    if (json.status === "OVER_QUERY_LIMIT") {
-      throw new PlacesApiError("Google Places quota exceeded.", 429);
-    }
-    if (json.status !== "OK" && json.status !== "ZERO_RESULTS") {
-      throw new PlacesApiError(`Places API status: ${json.status}`, 502);
-    }
-
-    for (const result of (json.results ?? []) as PlacesNearbyResult[]) {
-      const venue = toDiscoveredVenue(result, zone, type);
-      if (!venue || byPlaceId.has(venue.placeId)) continue;
+    for (const venue of discovered) {
+      if (byPlaceId.has(venue.placeId)) continue;
       byPlaceId.set(venue.placeId, venue);
     }
   }
