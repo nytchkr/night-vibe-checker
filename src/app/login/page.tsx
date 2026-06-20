@@ -79,7 +79,7 @@ function LoginContent() {
       const client = createBrowserClient();
       const { error: signInError } = await client.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
 
       if (signInError) setError(signInError.message);
