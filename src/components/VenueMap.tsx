@@ -1,12 +1,26 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent } from "react";
 import Link from "next/link";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { VenueBottomSheet } from "@/components/VenueBottomSheet";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 const SOUTH_END_CENTER: [number, number] = [35.2178, -80.8597];
+const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
+  "28202": [35.2271, -80.8431],
+  "28203": [35.2178, -80.8597],
+  "28204": [35.22, -80.83],
+  "28205": [35.23, -80.79],
+  "28206": [35.25, -80.82],
+  "28207": [35.21, -80.81],
+  "28208": [35.22, -80.9],
+  "28209": [35.17, -80.85],
+  "28210": [35.14, -80.88],
+  "28211": [35.19, -80.78],
+  "28212": [35.2, -80.75],
+};
 
 type VenuePinStyle = {
   className: string;
@@ -57,6 +71,72 @@ function RecenterButton() {
       </svg>
       Recenter
     </button>
+  );
+}
+
+function ZipRecenterControl() {
+  const map = useMap();
+  const [zip, setZip] = useState("");
+  const [showInvalid, setShowInvalid] = useState(false);
+  const invalidTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (invalidTimerRef.current) {
+        clearTimeout(invalidTimerRef.current);
+      }
+    };
+  }, []);
+
+  function flashInvalid() {
+    setShowInvalid(true);
+    if (invalidTimerRef.current) {
+      clearTimeout(invalidTimerRef.current);
+    }
+    invalidTimerRef.current = setTimeout(() => setShowInvalid(false), 650);
+  }
+
+  function recenterForZip(nextZip: string) {
+    const center = CHARLOTTE_ZIP_CENTERS[nextZip];
+    if (!center) {
+      flashInvalid();
+      return;
+    }
+    setShowInvalid(false);
+    map.setView(center, 15);
+  }
+
+  function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    const nextZip = event.target.value.replace(/\D/g, "").slice(0, 5);
+    setZip(nextZip);
+    if (nextZip.length === 5) {
+      recenterForZip(nextZip);
+    }
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    recenterForZip(zip);
+  }
+
+  return (
+    <input
+      aria-label="Charlotte zip"
+      inputMode="numeric"
+      maxLength={5}
+      onChange={handleChange}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={handleKeyDown}
+      onMouseDown={(event) => event.stopPropagation()}
+      pattern="[0-9]*"
+      placeholder="Charlotte zip"
+      type="text"
+      value={zip}
+      className={`absolute left-1/2 top-4 z-[500] w-36 -translate-x-1/2 rounded-full border bg-black/70 px-3 py-1.5 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+        showInvalid ? "border-red-500" : "border-white/10"
+      }`}
+    />
   );
 }
 
@@ -118,6 +198,7 @@ export function VenueMap() {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         <FitBounds />
+        <ZipRecenterControl />
         <RecenterButton />
 
         {visibleVenues.map((venue) => {
