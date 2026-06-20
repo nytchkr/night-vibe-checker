@@ -100,7 +100,8 @@ test.describe("Map tab", () => {
     // VenueMap is dynamically imported (SSR=false) — Leaflet takes time to hydrate in headless
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
     await expect(page.locator(".leaflet-container")).toBeVisible();
-    await expect(page.getByText(/spots/)).toBeVisible({ timeout: 25000 });
+    // Legend pill visible (premium redesign replaced "N spots" counter with legend)
+    await expect(page.getByText(/Packed|Moderate|Quiet/i).first()).toBeVisible({ timeout: 25000 });
   });
 
   test("Report Vibe FAB is visible on /map", async ({ page }) => {

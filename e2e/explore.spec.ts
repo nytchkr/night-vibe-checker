@@ -100,7 +100,7 @@ test.describe("Explore tab", () => {
   test("/explore page loads with search bar visible", async ({ page }) => {
     await page.goto("/explore");
     await page.waitForLoadState("domcontentloaded");
-    await expect(page.getByRole("heading", { name: "South End Charlotte" })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("heading", { name: "South End" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByPlaceholder(/Search South End/)).toBeVisible({ timeout: 10000 });
   });
 

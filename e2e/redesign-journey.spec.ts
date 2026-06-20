@@ -66,24 +66,23 @@ test.describe("NV-067 full VibeCheck consumer journey", () => {
     await test.step("1. Open the local feed and see at least one venue card", async () => {
       await page.goto("/explore");
 
-      await expect(page.getByRole("heading", { name: "South End Charlotte" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "South End" })).toBeVisible();
       await expect(page.getByText("Could not load venues.")).toHaveCount(0);
 
       const firstCard = page.locator("main li").first();
       await expect(firstCard).toBeVisible();
       await expect(firstCard.getByText("Journey Test Club")).toBeVisible();
-      await expect(firstCard.getByRole("link", { name: "Sign in" })).toBeVisible();
     });
 
-    const firstCard = page.locator("main li").first();
-
-    await test.step("2. Click report from a feed card and land on login with return path", async () => {
-      await firstCard.getByRole("link", { name: "Sign in" }).click();
+    await test.step("2. Navigate to /vibe-check as guest and land on login with return path", async () => {
+      // Premium redesign: explore cards don't carry inline "Sign in" CTAs.
+      // Auth gate lives at /vibe-check — navigating there as a guest triggers the redirect.
+      await page.goto("/vibe-check?venueId=venue-journey-1&venueName=Journey+Test+Club");
       await expect(page).toHaveURL(/\/login\?return=/);
       const decoded = decodeURIComponent(page.url());
       expect(decoded).toContain("/vibe-check?venueId=venue-journey-1");
       expect(decoded).toContain("venueName=Journey+Test+Club");
-      await expect(page.getByRole("heading", { name: "Sign in to report" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
     });
 
     await test.step("3. Direct cold guest /vibe-check access redirects before form interaction", async () => {

@@ -90,22 +90,16 @@ test.describe("VibeCheck consumer check-in flow", () => {
   test("routes mobile guest report CTA from the feed to login", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await markOnboarded(page);
-    await mockFeed(page);
 
-    await page.goto("/explore");
+    // Premium redesign: explore cards no longer carry inline "Sign in" links.
+    // The auth gate is enforced by navigating to /vibe-check directly.
+    await page.goto("/vibe-check?venueId=venue-feed-1&venueName=Feed+Test+Club");
 
-    await expect(page.getByText("Feed Test Club")).toBeVisible();
-    await expect(page.getByText("Feed Test Club")).toBeVisible();
-
-    const reportLink = page.getByRole("link", { name: "Sign in" }).first();
-    await expect(reportLink).toBeVisible();
-
-    await reportLink.click();
     await expect(page).toHaveURL(/\/login\?return=/);
     expect(decodeURIComponent(page.url())).toContain(
       "/vibe-check?venueId=venue-feed-1&venueName=Feed+Test+Club",
     );
-    await expect(page.getByRole("heading", { name: "Sign in to report" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
   });
 
   test("guests hitting /vibe-check are redirected to login before the form renders", async ({ page }) => {
@@ -223,8 +217,9 @@ test.describe("VibeCheck consumer check-in flow", () => {
 
     await page.goto("/profile");
 
-    await expect(page.getByRole("heading", { name: "profile-e2e@example.com" })).toBeVisible();
-    await expect(page.getByText("Your Reports")).toBeVisible();
+    // Profile h1 shows "Profile" (premium redesign — email shown in body, not heading)
+    await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+    await expect(page.getByText("Your Vibes")).toBeVisible();
     await expect(page.getByText("Profile Test Club")).toBeVisible();
     await expect(page.getByText("Packed")).toBeVisible();
     await expect(page.getByText("Mixed / unsure")).toBeVisible();

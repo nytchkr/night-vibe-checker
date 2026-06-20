@@ -55,12 +55,10 @@ async function markOnboarded(page: Page) {
 test.describe("NV-TEST-001 report journey auth gate", () => {
   test("routes a guest home report CTA to login with a return parameter", async ({ page }) => {
     await markOnboarded(page);
-    await mockHomeVenues(page);
 
-    await page.goto("/explore");
-    await expect(page.getByText(reportVenue.name)).toBeVisible();
-
-    await page.getByRole("link", { name: /^Sign in/ }).click();
+    // Premium redesign: explore cards don't carry inline "Sign in" CTAs.
+    // Auth gate at /vibe-check — direct navigation triggers the login redirect.
+    await page.goto(`/vibe-check?venueId=${reportVenue.id}&venueName=Report+Journey+Club`);
 
     await expect(page).toHaveURL(/\/login\?return=/);
     const url = new URL(page.url());
@@ -74,7 +72,7 @@ test.describe("NV-TEST-001 report journey auth gate", () => {
 
     await expect(page.getByRole("link", { name: "Skip to main content" })).toHaveAttribute("href", "#main-content");
     await expect(page.locator("#main-content")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Sign in to report" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
     await expect(page.getByLabel("Email address")).toBeVisible();
   });
 

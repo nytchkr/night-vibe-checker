@@ -100,10 +100,10 @@ test.describe("NV-TEST-004 venue detail", () => {
     await page.goto(`/venues/${venue.id}`);
 
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
-    await expect(page.getByText("Right now")).toBeVisible();
-    await expect(page.getByText(/No data yet|Dead|Moderate|Packed/).first()).toBeVisible();
-    await expect(page.getByText("M/F crowd")).toBeVisible();
-    await expect(page.getByText(/No reads yet|% M/).first()).toBeVisible();
+    // Signal section: "Capacity" label (premium redesign) or "No check-ins yet" when null
+    await expect(page.getByText(/Capacity|No check-ins yet/i).first()).toBeVisible();
+    // M/F split row: shows percent breakdown or "needs 3+ check-ins"
+    await expect(page.getByText(/M\/F split|% M|check-ins/i).first()).toBeVisible();
   });
 
   test("venue detail page exposes the share button without invoking share", async ({ page, request }) => {

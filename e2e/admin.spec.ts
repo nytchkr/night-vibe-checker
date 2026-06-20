@@ -19,6 +19,6 @@ test.describe("NV-TEST-001 admin gate", () => {
 
     await expect(page).toHaveURL(/\/login\?return=/);
     expect(new URL(page.url()).searchParams.get("return")).toBe("/admin");
-    await expect(page.getByRole("heading", { name: "Sign in to report" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
   });
 });

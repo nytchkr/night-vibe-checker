@@ -65,14 +65,16 @@ test.describe("Saved venues", () => {
     expect(response.status()).toBe(401);
   });
 
-  test("save venue button is visible on explore page venue cards", async ({ page }) => {
+  test("venue cards appear in explore feed and link to detail pages", async ({ page }) => {
+    // Save (heart) button is on venue detail page — explore cards link to detail.
     await markOnboarded(page);
     await mockVenues(page);
 
     await page.goto("/explore");
-
     await expect(page.getByText("Bookmark Test Lounge")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Save Bookmark Test Lounge/i })).toBeVisible();
+    const cardLink = page.getByRole("link", { name: /Open Bookmark Test Lounge/i });
+    await expect(cardLink).toBeVisible();
+    await expect(cardLink).toHaveAttribute("href", /\/venues\//);
   });
 
   test("You tab shows pitch card for logged-out user", async ({ page }) => {
