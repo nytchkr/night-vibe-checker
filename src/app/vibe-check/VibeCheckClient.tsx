@@ -14,27 +14,31 @@ type VibeCheckClientProps = {
 };
 
 type BusynessOption = {
-  value: "dead" | "quiet" | "moderate" | "packed";
+  value: "dead" | "moderate" | "packed";
   submitValue: ReportedBusyness;
   crowdLevel: "quiet" | "moderate" | "packed";
   label: string;
+  accent: string;
+  ring: string;
 };
 
 const BUSYNESS_OPTIONS: BusynessOption[] = [
-  { value: "dead", label: "Dead", submitValue: "dead", crowdLevel: "quiet" },
-  { value: "quiet", label: "Quiet", submitValue: "dead", crowdLevel: "quiet" },
-  { value: "moderate", label: "Moderate", submitValue: "moderate", crowdLevel: "moderate" },
-  { value: "packed", label: "Packed", submitValue: "packed", crowdLevel: "packed" },
+  { value: "dead", label: "Dead", submitValue: "dead", crowdLevel: "quiet", accent: "#4ADE80", ring: "rgba(74,222,128,0.14)" },
+  { value: "moderate", label: "Moderate", submitValue: "moderate", crowdLevel: "moderate", accent: "#FBBF24", ring: "rgba(251,191,36,0.14)" },
+  { value: "packed", label: "Packed", submitValue: "packed", crowdLevel: "packed", accent: "#F87171", ring: "rgba(248,113,113,0.14)" },
 ];
 
 const CROWD_OPTIONS: {
   value: CrowdFeel;
   label: string;
+  ariaLabel?: string;
 }[] = [
   { value: "mostly_male", label: "👨 More guys" },
   { value: "mixed", label: "⚖️ Mixed" },
-  { value: "mostly_female", label: "👩 More girls" },
+  { value: "mostly_female", label: "👩 More women", ariaLabel: "👩 More women, more girls" },
 ];
+
+const NOTE_MAX_LENGTH = 140;
 
 export default function VibeCheckClient({
   initialVenueId,
@@ -110,12 +114,13 @@ export default function VibeCheckClient({
   const effectiveVenueId = venueId || selectedVenue?.id || "";
   const effectiveVenueName = venueId ? venueName : selectedVenue?.name ?? "";
   const selectedBusyness = BUSYNESS_OPTIONS.find((option) => option.value === busyness);
+  const venueBackHref = effectiveVenueId ? `/venues/${encodeURIComponent(effectiveVenueId)}` : "/explore";
+  const venueBackLabel = effectiveVenueName ? `Back to ${effectiveVenueName}` : "Back to venues";
 
-  // Submit is enabled when busyness + crowdFeel + a real venue selection.
+  // Submit is enabled once a real venue and the required busyness signal are present.
   const canSubmit = Boolean(
     effectiveVenueId &&
     busyness &&
-    crowdFeel &&
     !submitting &&
     !done
   );
@@ -148,7 +153,7 @@ export default function VibeCheckClient({
           busyness: selectedBusyness?.submitValue,
           // TODO: remove crowdLevel once dev-tech-agent updates the API to accept the visible four-choice UI directly.
           crowdLevel: selectedBusyness?.crowdLevel,
-          crowdFeel,
+          crowdFeel: crowdFeel ?? "mixed",
           note: note.trim() || undefined,
           sessionId: sessionId.current,
         }),
@@ -194,13 +199,16 @@ export default function VibeCheckClient({
       <div className="min-h-screen bg-[#0A0A0F] px-4 py-10 text-white">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center">
           <section className="w-full rounded-2xl border border-[#00F5D4]/35 bg-[#00F5D4]/10 px-6 py-8 text-center shadow-[0_0_32px_rgba(0,245,212,0.16)]">
-            <h1 className="text-2xl font-black">✓ Vibe logged!</h1>
-            <p className="mt-2 text-sm font-semibold text-white/70">Thanks for keeping it real 🙌</p>
+            <p className="mb-3 truncate text-[17px] font-medium text-white/80">
+              {effectiveVenueName || "This venue"}
+            </p>
+            <h1 className="text-2xl font-black">Vibe logged 🎯</h1>
+            <p className="mt-2 text-sm font-semibold text-white/70">Thanks for keeping it real.</p>
             <Link
-              href="/map"
+              href={venueBackHref}
               className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[#00F5D4] px-4 py-3 text-sm font-black text-[#0A0A0F] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
             >
-              ← Back to Map
+              {venueBackLabel}
             </Link>
             <Link href="/explore" className="mt-3 block text-center text-sm text-white/50 underline">
               Report another vibe
@@ -225,6 +233,28 @@ export default function VibeCheckClient({
       </header>
 
       <div className="mx-auto max-w-sm space-y-8 px-4 py-6 pb-28">
+        <section className="rounded-2xl border border-white/[0.08] bg-white/[0.045] px-4 py-4 shadow-[0_18px_40px_rgba(0,0,0,0.26)]">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-white/35">
+                Reporting for
+              </p>
+              <p className="mt-1 truncate text-[17px] font-medium text-white">
+                {effectiveVenueName || "Choose a venue"}
+              </p>
+            </div>
+            <span
+              className="shrink-0 rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wide"
+              style={{
+                borderColor: selectedBusyness?.accent ?? "rgba(255,255,255,0.16)",
+                color: selectedBusyness?.accent ?? "rgba(255,255,255,0.42)",
+                backgroundColor: selectedBusyness ? selectedBusyness.ring : "rgba(255,255,255,0.04)",
+              }}
+            >
+              {selectedBusyness?.label ?? "Select vibe"}
+            </span>
+          </div>
+        </section>
 
         {/* ── VENUE ─────────────────────────────────────────────── */}
         <section>
@@ -335,9 +365,14 @@ export default function VibeCheckClient({
                   aria-pressed={selected}
                   className={`min-h-[52px] w-full rounded-xl border px-4 py-3 text-base font-black transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
                     selected
-                      ? "border-2 border-[#00F5D4] bg-[#00F5D4]/12 text-white shadow-[0_0_18px_rgba(0,245,212,0.12)]"
+                      ? "border-2 bg-white/[0.04] shadow-[0_0_18px_rgba(0,245,212,0.12)]"
                       : "border-white/[0.12] bg-white/[0.04] text-white/65 hover:border-white/25 hover:text-white"
                   }`}
+                  style={selected ? {
+                    borderColor: opt.accent,
+                    color: opt.accent,
+                    boxShadow: `0 0 18px ${opt.ring}`,
+                  } : undefined}
                 >
                   {opt.label}
                 </button>
@@ -360,6 +395,7 @@ export default function VibeCheckClient({
                   type="button"
                   onClick={() => setCrowdFeel(opt.value)}
                   aria-pressed={selected}
+                  aria-label={opt.ariaLabel}
                   className={`min-h-[52px] rounded-xl border px-3 py-3 text-sm font-black transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
                     selected
                       ? "border-2 border-[#00F5D4] bg-[#00F5D4]/12 text-white"
@@ -390,12 +426,12 @@ export default function VibeCheckClient({
             id="note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            maxLength={120}
+            maxLength={NOTE_MAX_LENGTH}
             rows={4}
             placeholder="Add a vibe note (optional)..."
             className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#00F5D4]/70 focus:outline-none"
           />
-          <p className="mt-1 text-right text-xs text-white/30">{note.length}/120</p>
+          <p className="mt-1 text-right text-[11px] text-white/30">{note.length} / {NOTE_MAX_LENGTH}</p>
         </section>
 
         {/* ── SUBMIT ────────────────────────────────────────────── */}
@@ -406,7 +442,7 @@ export default function VibeCheckClient({
           aria-describedby={submitError ? "submit-error" : undefined}
           className="min-h-[56px] w-full rounded-xl bg-[#00F5D4] px-4 py-4 text-base font-black text-[#0A0A0F] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {submitting ? "Submitting..." : "✓ Submit Vibe"}
+          {submitting ? "Submitting..." : canSubmit ? "✓ Submit Vibe" : "Select a vibe to continue"}
         </button>
 
         {/* Inline errors */}
