@@ -11,13 +11,13 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { recomputeVenueSignal } from "@/lib/signals";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const MAX_VENUE_ID_LENGTH = 160;
 const DUPLICATE_WINDOW_MINUTES = 10;
-const POST_RATE_LIMIT_MAX = 5;
+const POST_RATE_LIMIT_MAX = 10;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
 
 const PostBodySchema = z.object({
@@ -131,21 +131,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const userId = await getUserId(req.headers.get("Authorization"));
-  if (!userId) {
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to report." }, meta },
-      { status: 401 }
-    );
-  }
-
   const ip = getClientIp(req);
   const rate = checkRateLimit(`check-ins:POST:${ip}`, POST_RATE_LIMIT_MAX, POST_RATE_LIMIT_WINDOW_MS);
+  const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? POST_RATE_LIMIT_WINDOW_MS) / 1000);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "RATE_LIMITED", message: "Too many check-in attempts. Try again in a minute." }, meta },
-      { status: 429, headers: { "Retry-After": String(retrySeconds) } }
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } }
+    );
+  }
+
+  const userId = await getUserId(req.headers.get("Authorization"));
+  if (!userId) {
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to report." }, meta },
+      { status: 401, headers }
     );
   }
 
@@ -155,7 +156,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "INVALID_JSON", message: "Request body must be valid JSON." }, meta },
-      { status: 400 }
+      { status: 400, headers }
     );
   }
 
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         error: { code: "VALIDATION_ERROR", message: parsed.error.errors.map((e) => e.message).join("; ") },
         meta,
       },
-      { status: 422 }
+      { status: 422, headers }
     );
   }
 
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!venue) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },
-      { status: 404 }
+      { status: 404, headers }
     );
   }
 
@@ -190,14 +191,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           },
           meta,
         },
-        { status: 429 }
+        { status: 429, headers }
       );
     }
   } catch (error) {
     console.error("[check-ins POST] duplicate guard failed:", error);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "DB_ERROR", message: "Could not validate report freshness." }, meta },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 
@@ -218,7 +219,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     console.error("[check-ins POST] insert failed:", error);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "DB_ERROR", message: "Could not save report." }, meta },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 
@@ -231,7 +232,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
     { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta },
-    { status: 201 }
+    { status: 201, headers }
   );
 }
 

@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     "anonymous";
 
   const rate = checkRateLimit(`venues:${ip}`, 60, 60_000);
+  const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? 60_000) / 1000);
     return NextResponse.json<APIResponse<never>>(
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         error: { code: "RATE_LIMITED", message: "Too many requests." },
         meta: { cached: true, generatedAt, requestId },
       },
-      { status: 429, headers: { "Retry-After": String(retrySeconds) } }
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } }
     );
   }
 
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         error: { code: "DB_ERROR", message: "Could not load cached venues." },
         meta: { cached: true, generatedAt, requestId },
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 
@@ -116,5 +117,5 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     status: "success",
     data: { zone: LAUNCH_ZONE, venues },
     meta: { cached: true, generatedAt, requestId },
-  });
+  }, { headers });
 }

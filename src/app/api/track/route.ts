@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 
 const TRACK_RATE_LIMIT_MAX = 30;
 const TRACK_RATE_LIMIT_WINDOW_MS = 60_000;
@@ -42,11 +42,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const ip = getClientIp(req);
   const rate = checkRateLimit(`track:POST:${ip}`, TRACK_RATE_LIMIT_MAX, TRACK_RATE_LIMIT_WINDOW_MS);
+  const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? TRACK_RATE_LIMIT_WINDOW_MS) / 1000);
     return NextResponse.json(
       { error: "Too many tracking requests." },
-      { status: 429, headers: { "Retry-After": String(retrySeconds) } },
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } },
     );
   }
 
@@ -54,12 +55,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     body = await req.json();
   } catch {
-    return jsonError("Request body must be valid JSON.", 400);
+    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400, headers });
   }
 
   const parsed = TrackBodySchema.safeParse(body);
   if (!parsed.success) {
-    return jsonError(parsed.error.errors.map((error) => error.message).join("; "), 422);
+    return NextResponse.json({ error: parsed.error.errors.map((error) => error.message).join("; ") }, { status: 422, headers });
   }
 
   const { error } = await supabaseAdmin.from("analytics_events").insert({
@@ -72,8 +73,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (error) {
     console.error("[track] insert failed:", error);
-    return jsonError("Could not record event.", 500);
+    return NextResponse.json({ error: "Could not record event." }, { status: 500, headers });
   }
 
-  return new NextResponse(null, { status: 204 });
+  return new NextResponse(null, { status: 204, headers });
 }
