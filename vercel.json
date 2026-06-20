@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/jobs/refresh-busyness",
-      "schedule": "0 20,21,22,23,0,1,2 * * *"
+      "schedule": "0 22 * * *"
     },
     {
       "path": "/api/jobs/discover-zone",
