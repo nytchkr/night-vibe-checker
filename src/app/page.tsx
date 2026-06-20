@@ -44,6 +44,30 @@ function normalizeCategory(category: string | null | undefined): CategoryFilter 
   return null;
 }
 
+function normalizeSearchText(value: string | null | undefined): string {
+  return (value ?? "").toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function HighlightText({ text, query }: { text: string; query: string }) {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return <>{text}</>;
+
+  const matchIndex = text.toLowerCase().indexOf(trimmedQuery.toLowerCase());
+  if (matchIndex === -1) return <>{text}</>;
+
+  const beforeMatch = text.slice(0, matchIndex);
+  const match = text.slice(matchIndex, matchIndex + trimmedQuery.length);
+  const afterMatch = text.slice(matchIndex + trimmedQuery.length);
+
+  return (
+    <>
+      {beforeMatch}
+      <mark className="rounded bg-yellow-400/30 px-0.5 text-white">{match}</mark>
+      {afterMatch}
+    </>
+  );
+}
+
 function FilterChip<T extends string>({
   label,
   active,
@@ -149,7 +173,15 @@ function reportHref(path: string, session: Session | null): string {
   return session ? path : `/login?return=${encodeURIComponent(path)}`;
 }
 
-function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Session | null }) {
+function VenueFeedCard({
+  venue,
+  session,
+  searchQuery,
+}: {
+  venue: ConsumerVenue;
+  session: Session | null;
+  searchQuery: string;
+}) {
   const signal = venue.signal;
   const busyness = getBusynessState(signal?.busyness0To100);
   const reportParams = new URLSearchParams({
@@ -185,7 +217,7 @@ function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Sess
                 href={`/venues/${encodeURIComponent(venue.id)}`}
                 className="min-w-0 truncate text-lg font-black leading-tight text-white transition-colors hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
               >
-                {venue.name}
+                <HighlightText text={venue.name} query={searchQuery} />
               </Link>
               {venue.openNow === true ? (
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-[0.08em] text-emerald-200">
@@ -315,14 +347,19 @@ export default function HomePage() {
   }, []);
 
   const sortedVenues = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
+    const normalizedSearch = normalizeSearchText(searchQuery.trim());
 
     return venues.filter((venue) => {
       if (venue.hidden) return false;
 
       const busyness = getBusynessState(venue.signal?.busyness0To100).label;
       const category = normalizeCategory(venue.category);
-      const matchesSearch = normalizedSearch.length === 0 || venue.name.toLowerCase().includes(normalizedSearch);
+      const searchableText = [
+        venue.name,
+        venue.address,
+        venue.category,
+      ].map(normalizeSearchText).join(" ");
+      const matchesSearch = normalizedSearch.length === 0 || searchableText.includes(normalizedSearch);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
 
@@ -482,7 +519,7 @@ export default function HomePage() {
         {!loading && !error && sortedVenues.length > 0 && feedView === "list" && (
           <ul className="space-y-3">
             {sortedVenues.map((venue) => (
-              <VenueFeedCard key={venue.id} venue={venue} session={session} />
+              <VenueFeedCard key={venue.id} venue={venue} session={session} searchQuery={searchQuery} />
             ))}
           </ul>
         )}
