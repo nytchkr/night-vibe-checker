@@ -249,6 +249,12 @@ function VenueFeedCard({
           </Link>
         </div>
 
+        <Link
+          href="/map"
+          className="inline-flex text-xs font-semibold text-[#00F5D4]/70 underline decoration-[#00F5D4]/35 underline-offset-4 transition-colors hover:text-[#00F5D4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+        >
+          View on Map
+        </Link>
       </div>
     </li>
   );
