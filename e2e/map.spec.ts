@@ -93,7 +93,6 @@ test.describe("Map tab", () => {
   });
 
   test("/map page loads", async ({ page, request }) => {
-    test.fail(true, "NV-MAP-001: /map currently hits the Next error boundary before the Leaflet surface mounts.");
 
     const response = await request.get("/map");
     expect(response.status()).toBe(200);
@@ -105,7 +104,6 @@ test.describe("Map tab", () => {
   });
 
   test("Report Vibe FAB is visible on /map", async ({ page }) => {
-    test.fail(true, "NV-MAP-001: /map currently hits the Next error boundary before the FAB mounts.");
 
     await page.goto("/map");
 
@@ -113,7 +111,6 @@ test.describe("Map tab", () => {
   });
 
   test("FAB links to /vibe-check", async ({ page }) => {
-    test.fail(true, "NV-MAP-001: /map currently hits the Next error boundary before the FAB mounts.");
 
     await page.goto("/map");
 

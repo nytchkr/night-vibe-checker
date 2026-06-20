@@ -110,7 +110,7 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
   test("home shows an empty state when the venue list is empty", async ({ page }) => {
     await mockVenues(page, []);
 
-    await page.goto("/");
+    await page.goto("/explore");
 
     await expect(page.getByRole("heading", { name: "How's South End tonight?" })).toBeVisible();
     await expect(page.getByText("No venues yet")).toBeVisible();
@@ -119,7 +119,7 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
   test("home loads when all venue signals are null", async ({ page }) => {
     await mockVenues(page, [nullSignalVenue]);
 
-    await page.goto("/");
+    await page.goto("/explore");
 
     await expect(page.getByText(nullSignalVenue.name)).toBeVisible();
     await expect(page.getByText("No data yet")).toBeVisible();
