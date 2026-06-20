@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRef, useState } from "react";
 import { timeAgo } from "@/lib/timeAgo";
 import type { ConsumerVenue } from "@/types";
 
@@ -42,13 +43,45 @@ function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
 }
 
 export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
+  const touchStartYRef = useRef<number | null>(null);
+  const [dragDelta, setDragDelta] = useState(0);
+
+  function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+    setDragDelta(0);
+  }
+
+  function handleTouchMove(event: React.TouchEvent<HTMLDivElement>) {
+    if (touchStartYRef.current == null) return;
+
+    const currentY = event.touches[0]?.clientY;
+    if (currentY == null) return;
+
+    setDragDelta(Math.max(0, currentY - touchStartYRef.current));
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (touchStartYRef.current == null) return;
+
+    const endY = event.changedTouches[0]?.clientY;
+    const deltaY = endY == null ? dragDelta : endY - touchStartYRef.current;
+    touchStartYRef.current = null;
+    setDragDelta(0);
+
+    if (deltaY > 80) {
+      onClose();
+    }
+  }
+
+  function handleTouchCancel() {
+    touchStartYRef.current = null;
+    setDragDelta(0);
+  }
+
   if (!venue) return null;
 
   const signal = venue.signal;
-  const reportParams = new URLSearchParams({
-    venueId: venue.id,
-    venueName: venue.name,
-  });
+  const reportHref = `/vibe-check?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`;
 
   return (
     <>
@@ -60,12 +93,26 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
       />
 
       <aside
-        className="fixed bottom-0 left-0 right-0 z-50 max-h-[55vh] translate-y-0 overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111118] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] transition-transform duration-200"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        className={`fixed bottom-0 left-0 right-0 z-50 max-h-[55vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111118] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] ${
+          dragDelta > 0 ? "" : "transition-transform duration-200"
+        }`}
+        style={{
+          paddingBottom: "env(safe-area-inset-bottom)",
+          transform: dragDelta > 0 ? `translateY(${dragDelta}px)` : undefined,
+        }}
         aria-label={`${venue.name} details`}
       >
         <div className="mx-auto w-full max-w-lg px-4 pb-4">
-          <div className="mx-auto mb-2 mt-3 h-1 w-10 rounded bg-white/20" />
+          <div
+            className="mx-auto flex h-9 w-20 touch-none items-center justify-center"
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
+            aria-label="Drag down to close"
+          >
+            <div className="h-1 w-10 rounded bg-white/20" />
+          </div>
 
           {venue.photoUrl ? (
             <img src={venue.photoUrl} alt={`${venue.name} venue`} className="h-28 w-full rounded-xl object-cover" />
@@ -103,7 +150,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                 View Details
               </Link>
               <Link
-                href={`/vibe-check?${reportParams.toString()}`}
+                href={reportHref}
                 className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#00F5D4] px-4 text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.35)] transition-colors hover:bg-[#2fffe2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
               >
                 ＋ Report Vibe
