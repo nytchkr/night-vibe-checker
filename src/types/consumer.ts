@@ -92,10 +92,10 @@ export interface ConsumerVenue {
   priceLevel?: 1 | 2 | 3 | 4;
   photoReference?: string;
   photoUrl?: string;
-  openNow?: boolean;
   phone?: string;
   website?: string;
   openingHours?: string[];
+  openNow?: boolean;
   hidden: boolean;
   signal: VenueSignal | null;
 }
