@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
+import { distanceMiles } from "@/lib/distance";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue } from "@/types";
@@ -16,8 +18,11 @@ type BusynessState = {
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
+type SortOption = "Busiest" | "Nearest";
+type UserLocation = { lat: number; lng: number };
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
+const SORT_OPTIONS: SortOption[] = ["Busiest", "Nearest"];
 const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
   { value: "All", label: "All" },
   { value: "Bar", label: "🍸 Bar" },
@@ -156,9 +161,11 @@ function MFRatioInline({
 function VenueFeedCard({
   venue,
   searchQuery,
+  distance,
 }: {
   venue: ConsumerVenue;
   searchQuery: string;
+  distance: number | null;
 }) {
   const signal = venue.signal;
   const busyness = getBusynessState(signal?.busyness0To100);
@@ -193,6 +200,9 @@ function VenueFeedCard({
           <MFRatioInline mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} />
         </span>
         <span className="flex shrink-0 items-center gap-2">
+          {distance != null ? (
+            <span className="text-[13px] font-semibold text-white/50">{distance.toFixed(1)} mi</span>
+          ) : null}
           <BusynessBadge value={signal?.busyness0To100} />
           <span className="text-2xl font-light leading-none text-white/[0.28]" aria-hidden="true">
             ›
@@ -226,6 +236,8 @@ export function ExplorePageClient() {
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [sortOption, setSortOption] = useState<SortOption>("Busiest");
+  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
   const fetchVenues = useCallback(async () => {
     setVenues(null);
@@ -247,6 +259,21 @@ export function ExplorePageClient() {
   useEffect(() => {
     void track("page_view", { meta: { page: "explore" } });
   }, [track]);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => undefined,
+      { maximumAge: 5 * 60 * 1000, timeout: 8000 },
+    );
+  }, []);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
@@ -290,11 +317,28 @@ export function ExplorePageClient() {
 
       return matchesSearch && matchesBusyness && matchesCategory && matchesOpenNow;
     }).sort((a, b) => {
+      if (sortOption === "Nearest" && userLocation) {
+        const aDistance = distanceMiles(userLocation.lat, userLocation.lng, a.lat, a.lng);
+        const bDistance = distanceMiles(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        return aDistance - bDistance || a.name.localeCompare(b.name);
+      }
+
       const aState = getBusynessState(a.signal?.busyness0To100);
       const bState = getBusynessState(b.signal?.busyness0To100);
       return bState.rank - aState.rank || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, openNowOnly, searchQuery, venues]);
+  }, [busynessFilter, categoryFilter, openNowOnly, searchQuery, sortOption, userLocation, venues]);
+
+  const venueDistances = useMemo(() => {
+    if (!userLocation || venues === null) return new Map<string, number>();
+
+    return new Map(
+      venues.map((venue) => [
+        venue.id,
+        distanceMiles(userLocation.lat, userLocation.lng, venue.lat, venue.lng),
+      ]),
+    );
+  }, [userLocation, venues]);
 
   const venuesCount = venues?.length ?? 0;
 
@@ -424,6 +468,17 @@ export function ExplorePageClient() {
               ))}
             </div>
 
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {SORT_OPTIONS.filter((option) => option !== "Nearest" || userLocation).map((option) => (
+                <CategoryFilterPill
+                  key={option}
+                  label={option}
+                  active={sortOption === option}
+                  onSelect={() => setSortOption(option)}
+                />
+              ))}
+            </div>
+
             <p className="text-sm font-bold text-white/55">{sortedVenues.length} spot{sortedVenues.length === 1 ? "" : "s"} showing</p>
           </div>
         </div>
@@ -471,6 +526,7 @@ export function ExplorePageClient() {
                 key={venue.id}
                 venue={venue}
                 searchQuery={searchQuery}
+                distance={venueDistances.get(venue.id) ?? null}
               />
             ))}
           </ul>
