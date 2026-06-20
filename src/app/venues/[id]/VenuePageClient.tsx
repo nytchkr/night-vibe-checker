@@ -27,6 +27,13 @@ function busynessLabel(value: number | null | undefined): string {
   return "Packed";
 }
 
+function shareBusynessLabel(value: number | null | undefined): "quiet" | "moderate" | "packed" | null {
+  if (value == null) return null;
+  if (value <= 33) return "quiet";
+  if (value <= 66) return "moderate";
+  return "packed";
+}
+
 function crowdFeelLabel(feel: ConsumerCheckIn["crowdFeel"]): string {
   switch (feel) {
     case "mostly_male": return "Mostly male";
@@ -250,11 +257,16 @@ export function VenuePageClient({
     if (!venue || typeof window === "undefined") return;
 
     const url = window.location.href;
+    const shareLabel = shareBusynessLabel(venue.signal?.busyness0To100);
+    const shareText = shareLabel
+      ? `${venue.name} is ${shareLabel} right now 🔥 — NightVibe South End`
+      : `${venue.name} — NightVibe South End`;
+
     if (navigator.share) {
       try {
         await navigator.share({
           title: venue.name,
-          text: `Check the vibe at ${venue.name}`,
+          text: shareText,
           url,
         });
         return;
