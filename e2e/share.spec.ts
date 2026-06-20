@@ -18,7 +18,7 @@ async function getShareVenue(request: APIRequestContext): Promise<TestVenue> {
   const body = await response.json();
   const venue = body?.data?.venues?.[0] as TestVenue | undefined;
   expect(venue, "expected at least one cached launch-zone venue").toBeTruthy();
-  return venue;
+  return venue!;
 }
 
 async function mockCheckIns(page: Page) {
