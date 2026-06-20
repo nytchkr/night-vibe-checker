@@ -6,21 +6,10 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShareButton } from "@/components/ShareButton";
+import { getBusynessState } from "@/lib/busyness";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue } from "@/types";
-
-type BusynessState = {
-  label: "No data yet" | "Dead" | "Moderate" | "Packed";
-  color: string;
-};
-
-function getBusynessState(value: number | null | undefined): BusynessState {
-  if (value == null) return { label: "No data yet", color: "#6B7280" };
-  if (value >= 67) return { label: "Packed", color: "#EF4444" };
-  if (value >= 34) return { label: "Moderate", color: "#F59E0B" };
-  return { label: "Dead", color: "#22C55E" };
-}
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
@@ -421,7 +410,7 @@ export function VenuePageClient({
               href={mapsHref}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex text-[13px] font-medium text-[#00F5D4]/85 transition-colors hover:text-[#00F5D4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+              className="inline-flex text-[13px] font-medium text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
             >
               Open in Google Maps
             </a>
@@ -448,7 +437,7 @@ export function VenuePageClient({
                 aria-label={`${saved ? "Unsave" : "Save"} ${venue.name}`}
                 aria-pressed={saved}
                 className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 disabled:opacity-60 ${
-                  saved ? "text-red-400" : "text-white/55 hover:text-white"
+                  saved ? "text-white" : "text-white/55 hover:text-white"
                 }`}
               >
                 <Heart size={19} fill={saved ? "currentColor" : "none"} aria-hidden="true" />

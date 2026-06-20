@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { getBusynessState } from "@/lib/busyness";
 import { timeAgo } from "@/lib/timeAgo";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
@@ -13,16 +14,7 @@ type VenueBottomSheetProps = {
 
 function busynessLabel(value: number | null | undefined) {
   if (value == null) return "No signal";
-  if (value >= 67) return "Packed 🔥";
-  if (value >= 34) return "Moderate";
-  return "Quiet";
-}
-
-function busynessClass(value: number | null | undefined) {
-  if (value == null) return "bg-white/10 text-white/50";
-  if (value >= 67) return "bg-red-500/20 text-red-400";
-  if (value >= 34) return "bg-yellow-500/20 text-yellow-400";
-  return "bg-zinc-700/50 text-zinc-400";
+  return getBusynessState(value).label;
 }
 
 function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
@@ -35,7 +27,7 @@ function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
   return (
     <div className="mt-3" aria-label={`${malePercent}% male, ${femalePercent}% female from ${signal.sampleSize} reports`}>
       <div className="flex h-1 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-        <div className="h-full bg-[#3B82F6]" style={{ width: `${malePercent}%` }} />
+        <div className="h-full bg-[#7C3AED]" style={{ width: `${malePercent}%` }} />
         <div className="h-full bg-[#EC4899]" style={{ width: `${femalePercent}%` }} />
       </div>
       <p className="mt-1 text-xs font-semibold text-white/45">👥 {signal.sampleSize} reports</p>
@@ -108,6 +100,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
 
   const signal = venue.signal;
   const reportHref = `/vibe-check?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`;
+  const busyness = getBusynessState(signal?.busyness0To100);
 
   return (
     <>
@@ -161,18 +154,21 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-[#00F5D4]/50 hover:bg-[#00F5D4]/10 hover:text-[#00F5D4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
                   aria-label={`Share ${venue.name}`}
                   title={copied ? "Link copied!" : "Share"}
                 >
                   <ShareIcon />
                   <span className="sr-only">Share</span>
                 </button>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-black ${busynessClass(signal?.busyness0To100)}`}>
+                <span
+                  className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-black text-white/55"
+                  style={busyness.level ? { borderColor: `${busyness.color}59`, backgroundColor: `${busyness.color}26`, color: busyness.color } : undefined}
+                >
                   {busynessLabel(signal?.busyness0To100)}
                 </span>
                 {copied ? (
-                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-[#00F5D4]/40 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-[#00F5D4] shadow-lg">
+                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-white/15 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-white/70 shadow-lg">
                     Link copied!
                   </span>
                 ) : null}

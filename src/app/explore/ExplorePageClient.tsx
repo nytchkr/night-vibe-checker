@@ -5,16 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
+import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue } from "@/types";
-
-type BusynessState = {
-  label: "No data yet" | "Quiet" | "Moderate" | "Packed";
-  color: string;
-  rank: number;
-};
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
@@ -30,13 +25,6 @@ const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
   { value: "Restaurant", label: "🍔 Restaurant" },
   { value: "Lounge", label: "🛋 Lounge" },
 ];
-
-function getBusynessState(value: number | null | undefined): BusynessState {
-  if (value == null) return { label: "No data yet", color: "#6B7280", rank: 0 };
-  if (value <= 33) return { label: "Quiet", color: "#71717A", rank: 1 };
-  if (value <= 66) return { label: "Moderate", color: "#F59E0B", rank: 2 };
-  return { label: "Packed", color: "#EF4444", rank: 3 };
-}
 
 function normalizeCategory(category: string | null | undefined): CategoryFilter | null {
   const value = (category ?? "").toLowerCase();
@@ -65,7 +53,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   return (
     <>
       {beforeMatch}
-      <mark className="rounded bg-yellow-400/30 px-0.5 text-white">{match}</mark>
+      <mark className="rounded bg-white/15 px-0.5 text-white">{match}</mark>
       {afterMatch}
     </>
   );
@@ -84,8 +72,8 @@ function FilterChip<T extends string>({
     <button
       type="button"
       onClick={() => onSelect(label)}
-      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444]/70 ${
-        active ? "border-white/70 bg-[#EF4444] text-white" : "border-transparent bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
+      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
+        active ? "border-white/40 bg-white/[0.16] text-white" : "border-transparent bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
       }`}
       aria-pressed={active}
     >
@@ -107,9 +95,9 @@ function CategoryFilterPill({
     <button
       type="button"
       onClick={onSelect}
-      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
         active
-          ? "border-[#00F5D4] bg-[#00F5D4]/10 text-[#00F5D4] shadow-[0_0_16px_rgba(0,245,212,0.22)]"
+          ? "border-white/35 bg-white/[0.14] text-white"
           : "border-white/10 bg-[#0A0A0F]/80 text-white/50 hover:border-white/20 hover:bg-white/10 hover:text-white/75"
       }`}
       aria-pressed={active}
@@ -196,8 +184,8 @@ function VenueFeedCard({
             {venue.openNow === true ? (
               <span className="inline-flex items-center gap-1.5" aria-label="Open now">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/40 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-white/55" />
                 </span>
                 Live
               </span>
@@ -368,7 +356,7 @@ export function ExplorePageClient() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
-                className="shrink-0 text-[#00F5D4]/70"
+                className="shrink-0 text-white/45"
               >
                 <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
                 <circle cx="12" cy="10" r="3" />
@@ -380,7 +368,7 @@ export function ExplorePageClient() {
               {session && (
                 <Link
                   href="/profile"
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
                 >
                   Profile
                 </Link>
@@ -403,7 +391,7 @@ export function ExplorePageClient() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search South End..."
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-[#00F5D4]/40 focus:outline-none focus:ring-0"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0"
                 aria-label="Search South End venues"
               />
               <svg
@@ -440,7 +428,7 @@ export function ExplorePageClient() {
                 onClick={() => setOpenNowOnly((p) => !p)}
                 className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
                   openNowOnly
-                    ? "bg-[#00F5D4] text-[#0A0A0F] border-[#00F5D4]"
+                    ? "border-white/35 bg-white/[0.16] text-white"
                     : "border-white/20 text-white/60 bg-transparent"
                 }`}
                 aria-pressed={openNowOnly}

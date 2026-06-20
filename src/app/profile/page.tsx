@@ -15,6 +15,7 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getBusynessState } from "@/lib/busyness";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 // --------------- Crowd badge --------------------------------
@@ -24,9 +25,9 @@ type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
 type SignalBusyness = "No signal" | "Quiet" | "Moderate" | "Packed";
 
 const BUSYNESS_CFG: Record<Busyness, { label: string; bg: string; text: string }> = {
-  dead:     { label: "Dead",     bg: "rgba(34,197,94,0.40)",  text: "#fff" },
-  moderate: { label: "Moderate", bg: "rgba(251,191,36,0.40)", text: "#fff" },
-  packed:   { label: "Packed",   bg: "rgba(249,115,22,0.40)", text: "#fff" },
+  dead:     { label: "Dead",     bg: "rgba(74,222,128,0.24)", text: "#4ADE80" },
+  moderate: { label: "Moderate", bg: "rgba(251,191,36,0.24)", text: "#FBBF24" },
+  packed:   { label: "Packed",   bg: "rgba(248,113,113,0.24)", text: "#F87171" },
 };
 
 const CROWD_FEEL_LABEL: Record<CrowdFeel, string> = {
@@ -57,27 +58,21 @@ function BusynessBadge({ level }: { level: string }) {
 
 function getSignalBusyness(value: number | null | undefined): SignalBusyness {
   if (value == null) return "No signal";
-  if (value >= 67) return "Packed";
-  if (value >= 34) return "Moderate";
-  return "Quiet";
+  // value is non-null here so getBusynessState returns "Quiet" | "Moderate" | "Packed"
+  return getBusynessState(value).label as SignalBusyness;
 }
 
 function SignalBusynessPill({ venue }: { venue: ConsumerVenue }) {
   if (venue.signal?.busyness0To100 == null) return null;
 
-  const label = getSignalBusyness(venue.signal?.busyness0To100);
-  const className =
-    label === "Packed"
-      ? "border-red-400/30 bg-red-500/15 text-red-200"
-      : label === "Moderate"
-      ? "border-yellow-400/30 bg-yellow-500/15 text-yellow-100"
-      : label === "Quiet"
-      ? "border-emerald-400/25 bg-emerald-500/12 text-emerald-100"
-      : "border-white/10 bg-white/[0.06] text-white/45";
+  const state = getBusynessState(venue.signal.busyness0To100);
 
   return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${className}`}>
-      {label}
+    <span
+      className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+      style={{ borderColor: `${state.color}59`, backgroundColor: `${state.color}26`, color: state.color }}
+    >
+      {getSignalBusyness(venue.signal.busyness0To100)}
     </span>
   );
 }
@@ -165,7 +160,7 @@ function CheckInRow({ item }: { item: CheckInItem }) {
           <div className="flex items-center gap-1.5 mt-2 flex-wrap">
             <BusynessBadge level={item.busyness} />
             {item.crowdFeel && (
-              <Badge className="border border-[#00F5D4]/25 bg-[#00F5D4]/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#00F5D4] hover:bg-[#00F5D4]/10">
+              <Badge className="border border-white/15 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/60 hover:bg-white/[0.06]">
                 {CROWD_FEEL_LABEL[item.crowdFeel as CrowdFeel] ?? item.crowdFeel}
               </Badge>
             )}
@@ -202,13 +197,13 @@ function LoggedOutPitch() {
 
   return (
     <div className="mx-auto mt-16 max-w-sm">
-      <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 shadow-[0_0_32px_rgba(0,245,212,0.05)]" aria-label="Sign up benefits">
+      <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6" aria-label="Sign up benefits">
         <h2 className="text-2xl font-black text-white">Your Night Out HQ</h2>
         <p className="mt-1 text-sm text-white/50">Sign up to unlock everything</p>
         <ul className="mt-6 space-y-3">
           {benefits.map((benefit) => (
             <li key={benefit} className="flex items-center gap-3">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#00F5D4]/10 text-[#00F5D4] text-sm">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-white/65 text-sm">
                 ✓
               </span>
               <span className="text-sm text-white/80">{benefit}</span>
@@ -402,8 +397,8 @@ export default function ProfilePage() {
         {session && (
           <section className="space-y-4" aria-label="Account summary">
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full border border-[#00F5D4]/20 bg-gradient-to-br from-[#00F5D4]/20 to-[#7c3aed]/20">
-                <span className="text-2xl font-black uppercase text-[#00F5D4]">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06]">
+                <span className="text-2xl font-black uppercase text-white/70">
                   {session.user.email?.[0] ?? "?"}
                 </span>
               </div>
