@@ -141,10 +141,48 @@ function ZipRecenterControl() {
   );
 }
 
+function VenueSearchControl({
+  searchQuery,
+  setSearchQuery,
+}: {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+}) {
+  return (
+    <div className="absolute left-1/2 top-14 z-[500] w-52 -translate-x-1/2">
+      <input
+        aria-label="Search venues"
+        onChange={(event) => setSearchQuery(event.target.value)}
+        onClick={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+        placeholder="Search venues..."
+        type="search"
+        value={searchQuery}
+        className="w-full rounded-full border border-white/10 bg-black/70 px-3 py-1.5 pr-9 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 [&::-webkit-search-cancel-button]:appearance-none"
+      />
+      {searchQuery.length > 0 && (
+        <button
+          type="button"
+          aria-label="Clear venue search"
+          onClick={(event) => {
+            event.stopPropagation();
+            setSearchQuery("");
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-lg leading-none text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function VenueMap() {
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
@@ -184,7 +222,19 @@ export function VenueMap() {
     () => venues.filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
     [venues],
   );
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const filteredVenues = useMemo(() => {
+    if (!normalizedSearchQuery) return visibleVenues;
+    return visibleVenues.filter((venue) => venue.name.toLowerCase().includes(normalizedSearchQuery));
+  }, [normalizedSearchQuery, visibleVenues]);
+  const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < visibleVenues.length;
   const showEmptyState = !loading && !error && visibleVenues.length === 0;
+
+  useEffect(() => {
+    if (!selectedVenueId) return;
+    if (filteredVenues.some((venue) => venue.id === selectedVenueId)) return;
+    setSelectedVenueId(null);
+  }, [filteredVenues, selectedVenueId]);
 
   const selectVenueFromList = useCallback((venue: ConsumerVenue) => {
     setSelectedVenueId(venue.id);
@@ -211,9 +261,10 @@ export function VenueMap() {
         />
         <FitBounds />
         <ZipRecenterControl />
+        <VenueSearchControl searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <RecenterButton />
 
-        {visibleVenues.map((venue) => {
+        {filteredVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
           const isLive = venue.signal?.busynessSource === "live";
           const isSelected = selectedVenueId === venue.id;
@@ -274,6 +325,12 @@ export function VenueMap() {
           );
         })}
       </MapContainer>
+
+      {showSearchCount && (
+        <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-full border border-white/10 bg-black/70 px-3 py-1.5 text-xs font-black text-white/75 shadow-2xl backdrop-blur">
+          Showing {filteredVenues.length} of {visibleVenues.length}
+        </div>
+      )}
 
       <div className="pointer-events-none absolute bottom-20 left-1/2 z-[1000] flex -translate-x-1/2 gap-3 whitespace-nowrap rounded-full border border-white/10 bg-black/70 px-4 py-2 text-xs font-bold text-white/70 shadow-2xl backdrop-blur-sm">
         <span>
@@ -343,7 +400,7 @@ export function VenueMap() {
         selectedVenueId={selectedVenueId}
         setSnap={setSheetSnap}
         snap={sheetSnap}
-        venues={visibleVenues}
+        venues={filteredVenues}
       />
 
       <style jsx global>{`
