@@ -12,7 +12,7 @@
     },
     {
       "path": "/api/cron/refresh-open-now",
-      "schedule": "0 * * * *"
+      "schedule": "0 21 * * *"
     }
   ],
   "buildCommand": "npm run build",
