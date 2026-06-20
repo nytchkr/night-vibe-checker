@@ -4,7 +4,11 @@
   "crons": [
     {
       "path": "/api/jobs/refresh-busyness",
-      "schedule": "0 2 * * *"
+      "schedule": "0 20,21,22,23,0,1,2 * * *"
+    },
+    {
+      "path": "/api/jobs/discover-zone",
+      "schedule": "0 18 * * *"
     }
   ],
   "buildCommand": "npm run build",
