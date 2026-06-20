@@ -1,31 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
+import { ShareButton } from "@/components/ShareButton";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
-import { buildVenueShareData } from "@/lib/venueShare";
 import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
 
 const blurDataUrl =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAzMiAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBzdG9wLWNvbG9yPSIjMEEwQTBGIi8+PHN0b3Agb2Zmc2V0PSIuNSIgc3RvcC1jb2xvcj0iIzJEMTk1RiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwRjVENCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIzMiIgaGVpZ2h0PSIyNCIgZmlsbD0idXJsKCNnKSIvPjwvc3ZnPg==";
 
-function busynessColor(value: number | null | undefined): string {
-  if (value == null) return "#6B7280";
-  if (value <= 33) return "#22C55E";
-  if (value <= 66) return "#F59E0B";
-  return "#EF4444";
-}
+type BusynessState = {
+  label: "No data yet" | "Dead" | "Moderate" | "Packed";
+  color: string;
+};
 
-function busynessLabel(value: number | null | undefined): string {
-  if (value == null) return "No data yet";
-  if (value <= 33) return "Quiet";
-  if (value <= 66) return "Moderate";
-  return "Packed";
+function getBusynessState(value: number | null | undefined): BusynessState {
+  if (value == null) return { label: "No data yet", color: "#6B7280" };
+  if (value >= 67) return { label: "Packed", color: "#EF4444" };
+  if (value >= 34) return { label: "Moderate", color: "#F59E0B" };
+  return { label: "Dead", color: "#6B7280" };
 }
 
 function crowdFeelLabel(feel: ConsumerCheckIn["crowdFeel"]): string {
@@ -60,6 +58,14 @@ function timeAgo(iso: string | null | undefined): string {
   return days === 1 ? "1d ago" : `${days}d ago`;
 }
 
+function freshnessLabel(signal: ConsumerVenue["signal"]): string {
+  if (!signal) return "No check-ins yet";
+  if (signal.busynessSource === "live") return "● Live";
+  const updatedAt = signal.lastBusynessRefresh ?? signal.computedAt ?? null;
+  const relative = timeAgo(updatedAt);
+  return relative === "Not updated yet" ? relative : `Updated ${relative}`;
+}
+
 function SourceBadge({ source }: { source: BusynessSource | null | undefined }) {
   if (!source) return null;
   const isLive = source === "live";
@@ -72,6 +78,17 @@ function SourceBadge({ source }: { source: BusynessSource | null | undefined }) 
         </span>
       )}
       {source}
+    </span>
+  );
+}
+
+function OpenNowBadge({ openNow }: { openNow: boolean | undefined }) {
+  if (openNow !== true) return null;
+
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.08em] text-emerald-200">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.75)]" aria-hidden="true" />
+      Open
     </span>
   );
 }
@@ -175,8 +192,6 @@ export function VenuePageClient({
   const [checkIns, setCheckIns] = useState<ConsumerCheckIn[]>([]);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void track("venue_view", { venueId });
@@ -226,17 +241,13 @@ export function VenuePageClient({
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
-    };
-  }, []);
-
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
-  const color = busynessColor(busyness);
-  const label = busynessLabel(busyness);
-  const updatedAt = signal?.lastBusynessRefresh ?? signal?.computedAt ?? null;
+  const busynessState = getBusynessState(busyness);
+  const color = busynessState.color;
+  const label = busynessState.label;
+  const hasSignal = signal != null;
+  const shareCaption = freshnessLabel(signal ?? null);
   const reportParams = useMemo(() => new URLSearchParams({
     venueId,
     venueName: venue?.name ?? "Venue",
@@ -247,37 +258,13 @@ export function VenuePageClient({
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
 
-  async function handleShare() {
-    if (!venue || typeof window === "undefined") return;
-
-    const shareData = buildVenueShareData(venue);
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(shareData.url ?? window.location.href);
-      setCopied(true);
-      if (copiedTimeoutRef.current) clearTimeout(copiedTimeoutRef.current);
-      copiedTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  }
-
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0F]/90 px-4 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3 py-4">
           <Link
-            href="/explore"
-            aria-label="Back to explore"
+            href="/map"
+            aria-label="Back to map"
             className="flex items-center gap-1.5 text-sm font-semibold text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/50"
           >
             <svg
@@ -294,7 +281,7 @@ export function VenuePageClient({
             >
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Back
+            Back to map
           </Link>
           {venue?.name && <p className="truncate text-sm font-medium text-white/50">{venue.name}</p>}
         </div>
@@ -317,21 +304,25 @@ export function VenuePageClient({
       {!loading && !error && venue && (
         <>
           {venue.photoUrl ? (
-            <div className="relative h-52 w-full overflow-hidden sm:h-[260px]">
-              <Image
-                src={venue.photoUrl}
-                alt={`${venue.name} venue photo`}
-                fill
-                className="object-cover"
-                sizes="100vw"
-                priority
-                placeholder="blur"
-                blurDataURL={blurDataUrl}
-              />
+            <div className="mx-auto mt-4 w-full max-w-lg px-4">
+              <div className="relative h-56 w-full overflow-hidden rounded-xl sm:h-[260px]">
+                <Image
+                  src={venue.photoUrl}
+                  alt={`${venue.name} venue photo`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, 512px"
+                  priority
+                  placeholder="blur"
+                  blurDataURL={blurDataUrl}
+                />
+              </div>
             </div>
           ) : (
-            <div className="flex h-52 w-full items-center justify-center bg-white/[0.05] text-sm font-semibold text-white/28 sm:h-[260px]">
-              No photo
+            <div className="mx-auto mt-4 w-full max-w-lg px-4">
+              <div className="flex h-56 w-full items-center justify-center rounded-xl bg-white/[0.05] text-sm font-semibold text-white/28 sm:h-[260px]">
+                No Google photo
+              </div>
             </div>
           )}
 
@@ -339,25 +330,11 @@ export function VenuePageClient({
             <section>
               <div className="flex flex-wrap items-center gap-2">
                 <CategoryChip category={venue.category} />
+                <OpenNowBadge openNow={venue.openNow} />
               </div>
               <div className="mt-3 flex items-start justify-between gap-3">
                 <h1 className="min-w-0 flex-1 text-[1.85rem] font-black leading-tight text-white">{venue.name}</h1>
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-white/40 bg-transparent px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-                    aria-label={`Share ${venue.name}`}
-                  >
-                    <span aria-hidden="true">📤</span>
-                    Share
-                  </button>
-                  {copied && (
-                    <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-[#00F5D4]/40 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-[#00F5D4] shadow-lg">
-                      Link copied!
-                    </span>
-                  )}
-                </div>
+                <ShareButton venue={venue} caption={shareCaption} className="shrink-0" />
               </div>
               <div className="mt-2 space-y-1.5">
                 <p className="text-sm leading-relaxed text-white/50">{venue.address}</p>
@@ -401,8 +378,8 @@ export function VenuePageClient({
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2 pt-1">
-                  <SourceBadge source={signal?.busynessSource} />
-                  <ConfidenceChip value={signal?.confidence0To1} sampleSize={signal?.sampleSize} />
+                  {hasSignal ? <SourceBadge source={signal?.busynessSource} /> : null}
+                  {hasSignal ? <ConfidenceChip value={signal?.confidence0To1} sampleSize={signal?.sampleSize} /> : null}
                 </div>
               </div>
 
@@ -414,21 +391,27 @@ export function VenuePageClient({
                 />
                 <span className="text-lg font-black" style={{ color }}>{label}</span>
               </div>
-              <div
-                className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10"
-                role="meter"
-                aria-label={`${label} busyness`}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={busyness ?? undefined}
-                aria-valuetext={busyness == null ? "No busyness data yet" : `${label}, ${busyness} out of 100`}
-              >
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${busyness ?? 0}%`, backgroundColor: color }}
-                />
-              </div>
-              <p className="mt-3 text-xs text-white/32">Updated {timeAgo(updatedAt)}</p>
+              {hasSignal ? (
+                <>
+                  <div
+                    className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10"
+                    role="meter"
+                    aria-label={`${label} busyness`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={busyness ?? undefined}
+                    aria-valuetext={busyness == null ? "No busyness data yet" : `${label}, ${busyness} out of 100`}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${busyness ?? 0}%`, backgroundColor: color }}
+                    />
+                  </div>
+                  <p className="mt-3 text-xs text-white/32">{freshnessLabel(signal)}</p>
+                </>
+              ) : (
+                <p className="mt-3 text-sm font-semibold text-white/45">No check-ins yet — be the first!</p>
+              )}
             </section>
 
             <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
@@ -477,9 +460,9 @@ export function VenuePageClient({
         <div className="mx-auto max-w-lg">
           <Link
             href={reportHref(`/vibe-check?${reportParams.toString()}`, session)}
-            className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-[#7C3AED] text-base font-black text-white shadow-[0_0_24px_rgba(124,58,237,0.28)] transition-all hover:bg-[#6D28D9] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60"
+            className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.26)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
           >
-            {session ? "Report the Vibe" : "Sign in to Report the Vibe"}
+            {session ? "＋ Report Vibe" : "Sign in to ＋ Report Vibe"}
           </Link>
         </div>
       </div>
