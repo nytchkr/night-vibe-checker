@@ -99,6 +99,14 @@ function timeAgo(iso: string): string {
   return d === 1 ? "1d ago" : `${d}d ago`;
 }
 
+function joinedDate(iso: string | undefined): string {
+  if (!iso) return "Joined recently";
+  return `Joined ${new Intl.DateTimeFormat("en", {
+    month: "short",
+    year: "numeric",
+  }).format(new Date(iso))}`;
+}
+
 // --------------- Check-in row -------------------------------
 
 interface CheckInItem {
@@ -374,14 +382,14 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-[#0A0A0F]">
       <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
         <div className="max-w-lg mx-auto py-4">
-          <h1 className="truncate text-white font-black text-2xl tracking-[-0.01em]">
-            {session?.user.email ?? (authChecked ? "You" : "Loading profile...")}
+          <h1 className="truncate text-2xl font-black tracking-tight text-white">
+            {session ? "Profile" : authChecked ? "You" : "Loading profile..."}
           </h1>
-          <p className="mt-0.5 text-sm font-semibold text-white/45">{session ? "Your Reports" : "Sign in to unlock your night out tools"}</p>
+          <p className="mt-0.5 text-sm font-semibold text-white/45">{session ? "Your night out account" : "Sign in to unlock your night out tools"}</p>
         </div>
       </header>
 
-      <div className="max-w-lg mx-auto px-4 py-6 space-y-5 pb-44">
+      <div className="max-w-lg mx-auto px-4 py-6 space-y-6 pb-44">
         {!authChecked && (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
@@ -392,27 +400,32 @@ export default function ProfilePage() {
 
         {/* Logged-in header */}
         {session && (
-          <div className="flex items-center gap-3 rounded-2xl border border-white/[0.09] p-4" style={{ background: "rgba(255,255,255,0.03)" }}>
-            <div className="w-10 h-10 rounded-full bg-[#00F5D4]/15 border border-[#00F5D4]/30 flex-shrink-0 flex items-center justify-center">
-              <span className="text-[#00F5D4] font-bold text-base uppercase">
-                {session.user.email?.[0] ?? "?"}
+          <section className="space-y-4" aria-label="Account summary">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full border border-[#00F5D4]/20 bg-gradient-to-br from-[#00F5D4]/20 to-[#7c3aed]/20">
+                <span className="text-2xl font-black uppercase text-[#00F5D4]">
+                  {session.user.email?.[0] ?? "?"}
+                </span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold text-white">{session.user.email}</p>
+                <p className="mt-1 text-xs font-semibold text-white/40">{joinedDate(session.user.created_at)}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/65">
+                {checkIns.length} vibe{checkIns.length === 1 ? "" : "s"} reported
+              </span>
+              <span className="rounded-full bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/65">
+                {savedVenues.length} saved spot{savedVenues.length === 1 ? "" : "s"}
               </span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-sm">Recent check-ins</p>
-              <p className="mt-0.5 text-xs text-white/40">
-                {checkIns.length} report{checkIns.length === 1 ? "" : "s"} saved to this account
-              </p>
-            </div>
-          </div>
+          </section>
         )}
 
         {session && (
           <section aria-label="Saved spots">
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <h2 className="text-lg font-black text-white">Saved Spots</h2>
-              <span className="text-xs font-semibold text-white/35">{savedVenues.length} saved</span>
-            </div>
+            <h2 className="mb-2 text-[10px] font-black uppercase tracking-widest text-white/30">Saved Spots</h2>
             {savedVenuesLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 2 }).map((_, i) => <CheckInSkeleton key={i} />)}
@@ -432,10 +445,7 @@ export default function ProfilePage() {
         {/* Check-in history */}
         {session && (
           <section aria-label="Your vibes">
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <h2 className="text-lg font-black text-white">Your Vibes</h2>
-              <span className="text-xs font-semibold text-white/35">{checkIns.length} total</span>
-            </div>
+            <h2 className="mb-2 text-[10px] font-black uppercase tracking-widest text-white/30">Your Vibes</h2>
             {checkInsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
@@ -469,7 +479,7 @@ export default function ProfilePage() {
           <Button
             onClick={handleSignOut}
             variant="ghost"
-            className="min-h-[48px] w-full border border-white/10 bg-white/[0.04] text-sm font-semibold text-white/55 hover:bg-white/[0.08] hover:text-white"
+            className="mt-8 min-h-0 w-full bg-transparent py-2 text-xs font-semibold text-white/30 hover:bg-transparent hover:text-white/50"
           >
             Sign out
           </Button>

@@ -92,29 +92,31 @@ function LoginContent() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] px-4 py-10 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center">
-        <section className="w-full space-y-6">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center justify-center">
+        <section className="w-full space-y-8">
           <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-black tracking-tight">Sign in to report</h1>
-            <p className="text-sm text-white/45">We'll send a magic link to your email</p>
+            <h1 className="text-3xl font-black tracking-tight text-white">
+              Night<span className="text-[#00F5D4]">Vibe</span>
+            </h1>
+            <p className="text-sm font-semibold text-white/50">Know before you go.</p>
           </div>
 
           {otpSent ? (
-            <div className="rounded-2xl bg-[#1E1E2E]/60 border border-white/[0.09] p-5 text-center space-y-3">
-              <p className="text-white font-semibold text-sm">Check your email</p>
-              <p className="text-white/40 text-xs leading-relaxed">
+            <div className="space-y-3 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5 text-center">
+              <p className="text-sm font-bold text-white">Check your email</p>
+              <p className="text-xs leading-relaxed text-white/45">
                 We sent a magic link to <strong className="text-white/70">{email}</strong>. Click it to sign in.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={googleSigningIn}
-                className="w-full flex items-center justify-center gap-3 bg-white text-[#0A0A0F] font-bold py-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 min-h-[48px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                className="flex h-12 w-full items-center justify-center gap-3 rounded-full bg-white text-sm font-bold text-gray-900 transition-all duration-150 hover:bg-white/92 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               >
-                <svg aria-hidden="true" viewBox="0 0 18 18" className="h-[18px] w-[18px]">
+                <svg aria-hidden="true" viewBox="0 0 18 18" className="h-5 w-5">
                   <path
                     fill="#4285F4"
                     d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.79 2.72v2.26h2.9c1.7-1.56 2.69-3.87 2.69-6.62z"
@@ -135,12 +137,13 @@ function LoginContent() {
                 {googleSigningIn ? "Connecting..." : "Continue with Google"}
               </button>
 
-              <div className="text-center text-sm text-white/20">───── or ─────</div>
+              <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-white/30">
+                <span className="h-px flex-1 bg-white/10" />
+                <span>or</span>
+                <span className="h-px flex-1 bg-white/10" />
+              </div>
 
-              <div
-                className="rounded-2xl border border-white/[0.09] p-4 space-y-3"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
+              <div className="space-y-3">
                 <label htmlFor="login-email" className="sr-only">
                   Email address
                 </label>
@@ -154,7 +157,7 @@ function LoginContent() {
                   autoComplete="email"
                   aria-invalid={error ? "true" : "false"}
                   aria-describedby={error ? "login-email-error" : undefined}
-                  className="w-full px-3.5 py-3 rounded-xl text-sm text-white bg-white/[0.06] border border-white/[0.09] placeholder:text-white/25 focus:outline-none focus:border-[#00F5D4]/50 focus:ring-2 focus:ring-[#00F5D4]/30 transition-colors duration-150 min-h-[48px]"
+                  className="h-12 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white transition-colors duration-150 placeholder:text-white/25 focus:border-[#00F5D4]/50 focus:outline-none focus:ring-2 focus:ring-[#00F5D4]/20"
                 />
                 {error && (
                   <p id="login-email-error" role="alert" className="text-xs text-[#FF2D78]">
@@ -165,8 +168,7 @@ function LoginContent() {
                   type="button"
                   onClick={handleSignIn}
                   disabled={!email.trim() || signingIn}
-                  className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-[#0A0A0F] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 min-h-[48px] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                  style={{ background: "linear-gradient(135deg, #00F5D4 0%, #00c9b0 100%)" }}
+                  className="h-12 w-full rounded-full bg-[#00F5D4] px-4 text-sm font-black text-[#0A0A0F] transition-all duration-150 hover:bg-[#2fffe2] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80"
                 >
                   {signingIn ? "Sending..." : "Send magic link"}
                 </button>

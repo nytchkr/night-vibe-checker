@@ -12,7 +12,7 @@ function MapIcon({ filled }: { filled?: boolean }) {
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
-      strokeWidth={filled ? 0 : 2}
+      strokeWidth={filled ? 2.5 : 2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
@@ -30,14 +30,14 @@ function ExploreIcon({ filled }: { filled?: boolean }) {
       width={22}
       height={22}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={filled ? 2.5 : 2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <circle cx={11} cy={11} r={7} />
+      <circle cx={11} cy={11} r={7} fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
       <path d="m20 20-3.5-3.5" />
     </svg>
   );
@@ -50,15 +50,15 @@ function MeIcon({ filled }: { filled?: boolean }) {
       width={22}
       height={22}
       viewBox="0 0 24 24"
-      fill="none"
+      fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
       strokeWidth={filled ? 2.5 : 2}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx={12} cy={7} r={4} />
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
+      <circle cx={12} cy={7} r={4} fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
     </svg>
   );
 }
@@ -79,15 +79,15 @@ function NavItem({
       href={href}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl py-2.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50 ${
+      className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50 ${
         active
-          ? "bg-white/[0.07] text-[#00F5D4] shadow-[0_0_18px_rgba(0,245,212,0.08)]"
-          : "text-white/38 hover:bg-white/[0.04] hover:text-white/75"
+          ? "text-[#00F5D4]"
+          : "text-white/35 hover:text-white/65"
       }`}
     >
+      {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#00F5D4]" />}
       {children}
-      <span className="text-[10px] font-semibold tracking-wide">{label}</span>
-      {active && <span className="absolute bottom-1 h-0.5 w-7 rounded-full bg-[#00F5D4]/80" />}
+      <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>
     </Link>
   );
 }
@@ -111,9 +111,9 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.08] bg-[#07070B]/92 backdrop-blur-2xl safe-area-inset-bottom"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0F]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
     >
-      <div className="mx-auto flex w-full max-w-lg items-end gap-1 px-3 py-2">
+      <div className="mx-auto flex h-16 w-full max-w-lg items-stretch px-3">
         <NavItem href="/map" label="Map" active={mapActive}>
           <MapIcon filled={mapActive} />
         </NavItem>
