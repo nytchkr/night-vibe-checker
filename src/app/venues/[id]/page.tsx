@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 import { VenuePageClient } from "./VenuePageClient";
@@ -121,10 +122,11 @@ export async function generateMetadata({ params }: VenuePageProps): Promise<Meta
 export default async function VenuePage({ params }: VenuePageProps) {
   const { id } = await params;
   const venue = await getVenue(id);
+  if (!venue) notFound();
 
   return (
     <>
-      {venue ? <link rel="canonical" href={`${siteUrl}/venues/${venue.id}`} /> : null}
+      <link rel="canonical" href={`${siteUrl}/venues/${venue.id}`} />
       <VenuePageClient venueId={id} initialVenue={venue} />
     </>
   );
