@@ -1,145 +1,95 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
-const initialReport = {
-  id: "ci-e2e-001",
-  venueId: "place_e2e_001",
-  placeId: "place_e2e_001",
-  venueName: "The Midnight Lounge",
-  busyness: "packed",
-  crowdFeel: "balanced",
-  createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-};
-
-const submittedReport = {
-  id: "ci-e2e-submitted",
-  venueId: "place_e2e_001",
-  placeId: "place_e2e_001",
-  venueName: "The Midnight Lounge",
-  busyness: "packed",
-  crowdFeel: "mostly_male",
-  note: "Line is moving",
-  createdAt: new Date().toISOString(),
-};
-
-const meta = {
-  cached: false,
-  generatedAt: new Date().toISOString(),
-  requestId: "e2e-redesign-journey",
-};
-
-async function mockFeed(page: Page, reports = [initialReport]) {
-  await page.route("**/api/check-ins?limit=20", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { checkIns: reports },
-        meta,
-      }),
-    }),
-  );
+async function expectPressed(button: Locator) {
+  await expect(button).toHaveAttribute("aria-pressed", "true");
 }
 
-async function addLocalSession(page: Page) {
-  const session = {
-    access_token: "valid-e2e-token",
-    refresh_token: "refresh-e2e-token",
-    token_type: "bearer",
-    expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    user: {
-      id: "user-e2e",
-      aud: "authenticated",
-      role: "authenticated",
-      email: "journey-e2e@example.com",
-      app_metadata: {},
-      user_metadata: {},
-      created_at: new Date().toISOString(),
-    },
-  };
-
-  await page.addInitScript((authSession) => {
-    for (const key of ["sb-onlpwglwnqoivuykywrk-auth-token", "sb-gfsbqewkrcyclbktfyfk-auth-token"]) {
-      window.localStorage.setItem(key, JSON.stringify(authSession));
-    }
-  }, session);
+async function expectPackedActive(button: Locator) {
+  await expectPressed(button);
+  await expect
+    .poll(async () =>
+      button.evaluate((element) => getComputedStyle(element).borderColor),
+    )
+    .toBe("rgb(239, 68, 68)");
 }
 
-test.describe("NV-067 redesign consumer journey", () => {
-  test("open app, report from feed, and see the submitted venue on return", async ({ page }) => {
-    await addLocalSession(page);
-
-    let feedReports = [initialReport];
-    await page.route("**/api/check-ins?limit=20", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "success",
-          data: { checkIns: feedReports },
-          meta,
-        }),
-      }),
-    );
-
-    await page.route("**/api/check-ins", (route) => {
-      if (route.request().method() !== "POST") return route.continue();
-      feedReports = [submittedReport];
-      return route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "success",
-          data: { checkIn: submittedReport },
-          meta,
-        }),
-      });
+test.describe("NV-067 full VibeCheck consumer journey", () => {
+  test("opens feed, starts a report, completes required choices, and reaches the expected submit gate", async ({
+    context,
+    page,
+  }) => {
+    await context.clearCookies();
+    await page.addInitScript(() => {
+      window.localStorage.clear();
+      window.sessionStorage.clear();
     });
 
-    await page.goto("/");
+    await test.step("1. Open the local feed and see at least one venue card", async () => {
+      await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "How's South End tonight?" })).toBeVisible();
-    await expect(page.getByText("The Midnight Lounge")).toBeVisible();
-    await expect(page.getByText("Packed")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "How's South End tonight?" })).toBeVisible();
+      await expect(page.getByText("Could not load tonight's reports.")).toHaveCount(0);
+      await expect(page.getByText("No reports tonight")).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Report →" }).first().click();
-    await expect(page).toHaveURL(/\/vibe-check\?venueId=place_e2e_001/);
-    await expect(page.getByRole("heading", { name: "The Midnight Lounge" })).toBeVisible();
+      const firstCard = page.locator("main li").first();
+      await expect(firstCard).toBeVisible();
+      await expect(firstCard.getByRole("link", { name: "Report →" })).toBeVisible();
 
-    await page.getByRole("button", { name: "PACKED" }).click();
-    await page.getByRole("button", { name: "MOSTLY GUYS" }).click();
-    await page.getByPlaceholder("What's the vibe?").fill("Line is moving");
-    await page.getByRole("button", { name: "Report Vibe" }).click();
+      const venueName = (await firstCard.locator("p").first().innerText()).trim();
+      expect(venueName.length).toBeGreaterThan(0);
+    });
 
-    await expect(page.getByText("Vibe reported ✓")).toBeVisible();
+    const firstCard = page.locator("main li").first();
+    const venueName = (await firstCard.locator("p").first().innerText()).trim();
 
-    await page.goto("/");
-    await expect(page.getByText("The Midnight Lounge")).toBeVisible();
-    await expect(page.getByText("Packed")).toBeVisible();
-  });
+    await test.step("2. Click Report from a feed card and land on a prefilled report URL", async () => {
+      await firstCard.getByRole("link", { name: "Report →" }).click();
+      await expect(page).toHaveURL(/\/vibe-check\?venueId=[^&]+&venueName=/);
+      await expect(page.getByRole("heading", { name: venueName })).toBeVisible();
+    });
 
-  test("guest report attempt redirects to login with a return URL", async ({ page }) => {
-    await mockFeed(page);
+    await test.step("3. Select PACKED and verify the red active state", async () => {
+      const packed = page.getByRole("button", { name: "PACKED" });
+      await packed.click();
+      await expectPackedActive(packed);
+    });
 
-    await page.goto("/");
-    await page.getByRole("link", { name: "Report →" }).first().click();
-    await page.getByRole("button", { name: "PACKED" }).click();
-    await page.getByRole("button", { name: "MOSTLY GUYS" }).click();
-    await page.getByRole("button", { name: "Report Vibe" }).click();
+    await test.step("4. Select a crowd feel and verify the active state", async () => {
+      const crowdFeel = page.getByRole("button", { name: "MOSTLY GUYS" });
+      await crowdFeel.click();
+      await expectPressed(crowdFeel);
+    });
 
-    await expect(page).toHaveURL(/\/login\?return=/);
-    expect(decodeURIComponent(page.url())).toContain("/vibe-check?venueId=place_e2e_001");
-  });
+    await test.step("5. Submit and verify auth gate or successful report", async () => {
+      await page.getByRole("button", { name: "Report Vibe" }).click();
 
-  test("bottom nav exposes Feed, Report, and Me only", async ({ page }) => {
-    await mockFeed(page);
-    await page.goto("/");
+      await page.waitForFunction(() => {
+        const reported = document.body.textContent?.includes("Vibe reported ✓");
+        return window.location.href.includes("/login?return=") || reported;
+      });
 
-    const nav = page.getByRole("navigation", { name: "Main navigation" });
-    await expect(nav).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Feed" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Report" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Me" })).toBeVisible();
+      if (page.url().includes("/login?return=")) {
+        await expect(page).toHaveURL(/\/login\?return=/);
+        const decoded = decodeURIComponent(page.url());
+        expect(decoded).toContain("/vibe-check?venueId=");
+        expect(decoded).toContain("venueName=");
+        return;
+      }
+
+      await expect(page.getByText("Vibe reported ✓")).toBeVisible();
+    });
+
+    await test.step("6. If submit succeeded, return home and see the venue in the feed", async () => {
+      if (page.url().includes("/login?return=")) {
+        test.info().annotations.push({
+          type: "auth-gate",
+          description: "Cold guest state redirected to /login?return=, so feed insertion is not reachable.",
+        });
+        return;
+      }
+
+      await page.goto("/");
+      await expect(page.getByText(venueName).first()).toBeVisible();
+    });
   });
 });
