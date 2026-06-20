@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -46,6 +46,7 @@ function CheckInInner() {
 
   const venueId = searchParams.get("venueId") ?? "";
   const venueName = decodeURIComponent(searchParams.get("venueName") ?? "");
+  const returnPath = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   // Stable sessionId for this check-in form instance
   const sessionId = useRef(crypto.randomUUID());
@@ -59,6 +60,20 @@ function CheckInInner() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [submitError, setSubmitError] = useState<{ type: "duplicate" | "generic"; msg: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const client = createBrowserClient();
+
+    client.auth.getSession().then(({ data }) => {
+      if (!active || data.session) return;
+      router.replace(`/login?return=${encodeURIComponent(returnPath)}`);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [returnPath, router]);
 
   const effectiveVenueId = venueId || "";
   const effectiveVenueName = venueId ? venueName : venueInput.trim();
@@ -84,8 +99,7 @@ function CheckInInner() {
 
       if (!token) {
         // Auth gate — redirect to login with return URL
-        const search = searchParams.toString() ? `?${searchParams.toString()}` : "";
-        router.push(`/login?return=${encodeURIComponent(pathname + search)}`);
+        router.push(`/login?return=${encodeURIComponent(returnPath)}`);
         return;
       }
 
@@ -139,9 +153,8 @@ function CheckInInner() {
     effectiveVenueId,
     effectiveVenueName,
     note,
-    pathname,
+    returnPath,
     router,
-    searchParams,
   ]);
 
   return (

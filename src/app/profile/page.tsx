@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -189,6 +190,7 @@ function SignInSection({
 // --------------- Main page ----------------------------------
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -268,6 +270,7 @@ export default function ProfilePage() {
   async function handleSignOut() {
     const client = createBrowserClient();
     await client.auth.signOut();
+    router.push("/");
   }
 
   return (
