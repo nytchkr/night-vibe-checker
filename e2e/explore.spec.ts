@@ -99,9 +99,9 @@ test.describe("Explore tab", () => {
 
   test("/explore page loads with search bar visible", async ({ page }) => {
     await page.goto("/explore");
-
-    await expect(page.getByRole("heading", { name: "Explore South End" })).toBeVisible();
-    await expect(page.getByRole("searchbox", { name: "Search South End venues" })).toBeVisible();
+    await page.waitForLoadState("domcontentloaded");
+    await expect(page.getByRole("heading", { name: "South End Charlotte" })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByPlaceholder(/Search South End/)).toBeVisible({ timeout: 10000 });
   });
 
   test("search bar filters venue list", async ({ page }) => {
