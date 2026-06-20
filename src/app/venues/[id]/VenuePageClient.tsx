@@ -7,6 +7,7 @@ import { Heart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShareButton } from "@/components/ShareButton";
 import { getBusynessState } from "@/lib/busyness";
+import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue } from "@/types";
@@ -273,6 +274,8 @@ export function VenuePageClient({
                   fill
                   sizes="100vw"
                   priority
+                  placeholder="blur"
+                  blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
                   className="object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/40 to-transparent" />

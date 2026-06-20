@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { getBusynessState } from "@/lib/busyness";
+import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { timeAgo } from "@/lib/timeAgo";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
@@ -134,7 +136,17 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
           </div>
 
           {venue.photoUrl ? (
-            <img src={venue.photoUrl} alt={`${venue.name} venue`} className="h-28 w-full rounded-xl object-cover" />
+            <div className="relative h-28 w-full overflow-hidden rounded-xl bg-white/[0.06]">
+              <Image
+                src={venue.photoUrl}
+                alt={`${venue.name} venue`}
+                fill
+                sizes="(max-width: 640px) calc(100vw - 32px), 512px"
+                placeholder="blur"
+                blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
+                className="object-cover"
+              />
+            </div>
           ) : (
             <div className="flex h-28 w-full items-center justify-center rounded-xl bg-white/[0.06] text-4xl font-black text-white/25">
               {venue.name.charAt(0).toUpperCase()}

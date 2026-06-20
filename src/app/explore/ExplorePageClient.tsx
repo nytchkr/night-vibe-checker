@@ -7,6 +7,7 @@ import type { Session } from "@supabase/supabase-js";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
+import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue } from "@/types";
@@ -158,6 +159,8 @@ function VenueFeedCard({
               alt={venue.name}
               fill
               sizes="(max-width: 640px) calc(100vw - 32px), 512px"
+              placeholder="blur"
+              blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
               className="object-cover"
             />
           ) : (
