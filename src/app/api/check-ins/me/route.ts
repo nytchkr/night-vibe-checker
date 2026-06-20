@@ -28,10 +28,13 @@ async function getUserId(authHeader: string | null): Promise<string | null> {
 }
 
 function mapCheckIn(row: Record<string, unknown>): ConsumerCheckIn {
+  const venue = row.venues as { name?: unknown } | null | undefined;
+
   return {
     id: row.id as string,
     venueId: row.venue_id as string,
     placeId: row.place_id as string,
+    venueName: venue?.name as string | undefined,
     busyness: row.busyness as ConsumerCheckIn["busyness"],
     crowdFeel: row.crowd_feel as ConsumerCheckIn["crowdFeel"],
     note: (row.note ?? undefined) as string | undefined,
@@ -53,9 +56,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await supabaseAdmin
     .from("check_ins")
-    .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
+    .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at, venues!inner(name)")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(20);
 
   if (error) {
     console.error("[check-ins/me GET] DB error:", error);
