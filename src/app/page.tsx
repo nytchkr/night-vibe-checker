@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
+import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
@@ -222,6 +223,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
+      <OnboardingOverlay />
+
       <header className="px-4 pb-5 pt-10">
         <div className="mx-auto max-w-lg">
           <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/45">
