@@ -73,7 +73,7 @@ function FilterChip<T extends string>({
     <button
       type="button"
       onClick={() => onSelect(label)}
-      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
+      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
         active ? "border-white/40 bg-white/[0.16] text-white" : "border-transparent bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
       }`}
       aria-pressed={active}
@@ -96,7 +96,7 @@ function CategoryFilterPill({
     <button
       type="button"
       onClick={onSelect}
-      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 ${
+      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
         active
           ? "border-white/35 bg-white/[0.14] text-white"
           : "border-white/10 bg-[#0A0A0F]/80 text-white/50 hover:border-white/20 hover:bg-white/10 hover:text-white/75"
@@ -146,10 +146,10 @@ function VenueFeedCard({
   const signalLabel = getSignalLabel(venue);
 
   return (
-    <li className="mb-3 last:mb-0">
+    <li className="mb-3 last:mb-0" role="article">
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="block overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
+        className="block overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
         aria-label={`Open ${venue.name}`}
       >
         <div className="relative aspect-video w-full overflow-hidden bg-white/[0.06]">
@@ -344,7 +344,7 @@ export function ExplorePageClient() {
     <div className="min-h-screen bg-[#0A0A0F]">
       <OnboardingOverlay />
 
-      <header className="px-4 pb-5 pt-10">
+      <header className="px-4 pb-5 pt-10" role="region" aria-label="Explore filters">
         <div className="mx-auto max-w-lg">
           <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/45">
             <div className="flex min-w-0 items-center gap-1.5">
@@ -371,7 +371,7 @@ export function ExplorePageClient() {
               {session && (
                 <Link
                   href="/profile"
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
                 >
                   Profile
                 </Link>
@@ -394,8 +394,8 @@ export function ExplorePageClient() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search South End..."
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0"
-                aria-label="Search South End venues"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                aria-label="Search venues"
               />
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -417,7 +417,7 @@ export function ExplorePageClient() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
                   aria-label="Clear search"
                 >
                   ×
@@ -429,7 +429,7 @@ export function ExplorePageClient() {
               <button
                 type="button"
                 onClick={() => setOpenNowOnly((p) => !p)}
-                className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+                className={`rounded-full border px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
                   openNowOnly
                     ? "border-white/35 bg-white/[0.16] text-white"
                     : "border-white/20 text-white/60 bg-transparent"
@@ -478,7 +478,7 @@ export function ExplorePageClient() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-lg space-y-3 px-4 pb-32" aria-label="Venue results">
+      <section className="mx-auto max-w-lg space-y-3 px-4 pb-32" role="region" aria-label="Venue results">
         {error && (
           <div
             role="alert"

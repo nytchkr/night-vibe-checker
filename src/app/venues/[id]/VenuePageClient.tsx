@@ -5,11 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ShareButton } from "@/components/ShareButton";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
+import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
 
 function timeAgo(iso: string | null | undefined): string {
@@ -99,6 +99,7 @@ export function VenuePageClient({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [savePending, setSavePending] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
@@ -205,6 +206,29 @@ export function VenuePageClient({
     }
   }
 
+  async function shareVenue() {
+    if (!venue) return;
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const shareData = buildVenueShareData(venue);
+
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // User cancelled or browser blocked native sharing; use clipboard fallback.
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareData.url ?? url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard is non-critical for the venue page.
+    }
+  }
+
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessPercent = clampPercent(busyness);
@@ -265,7 +289,7 @@ export function VenuePageClient({
 
       {!loading && !error && venue && (
         <>
-          <section className="relative aspect-video w-full overflow-hidden">
+          <section className="relative aspect-video w-full overflow-hidden" role="region" aria-label="Venue hero">
             {venue.photoUrl ? (
               <>
                 <Image
@@ -288,8 +312,8 @@ export function VenuePageClient({
 
             <Link
               href="/map"
-              aria-label="Back to map"
-              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              aria-label="Go back"
+              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -329,7 +353,7 @@ export function VenuePageClient({
           </div>
 
           <div className="mx-auto max-w-lg space-y-6 px-4 py-5">
-            <section className="space-y-4">
+            <section className="space-y-4" role="region" aria-label="Current venue signal">
               <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Right now</p>
               {hasBusynessRead ? (
                 <div className="space-y-5">
@@ -382,7 +406,7 @@ export function VenuePageClient({
               )}
             </section>
 
-            <section className="space-y-3 border-t border-white/[0.06] pt-5">
+            <section className="space-y-3 border-t border-white/[0.06] pt-5" role="region" aria-label="Venue hours">
               <p className="text-[15px] font-medium text-white">
                 Today · {hoursSummary.todayHours}
               </p>
@@ -391,7 +415,7 @@ export function VenuePageClient({
                   <button
                     type="button"
                     onClick={() => setHoursExpanded((expanded) => !expanded)}
-                    className="text-[13px] font-medium text-white/45 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+                    className="text-[13px] font-medium text-white/45 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
                     aria-expanded={hoursExpanded}
                   >
                     {hoursExpanded ? "Hide hours" : "See all hours"}
@@ -413,7 +437,7 @@ export function VenuePageClient({
               href={mapsHref}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex text-[13px] font-medium text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+              className="inline-flex text-[13px] font-medium text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
             >
               Open in Google Maps
             </a>
@@ -422,13 +446,13 @@ export function VenuePageClient({
       )}
 
       {venue && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#0A0A0F]/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl">
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#0A0A0F]/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
           <div className="mx-auto flex max-w-lg items-center gap-3">
             {authChecked && !accessToken ? (
               <Link
                 href="/login"
-                aria-label={`Sign in to save ${venue.name}`}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+                aria-label="Save venue"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
               >
                 <Heart size={19} aria-hidden="true" />
               </Link>
@@ -437,9 +461,9 @@ export function VenuePageClient({
                 type="button"
                 onClick={toggleSaved}
                 disabled={!authChecked || savePending}
-                aria-label={`${saved ? "Unsave" : "Save"} ${venue.name}`}
+                aria-label={saved ? "Remove from saved" : "Save venue"}
                 aria-pressed={saved}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 disabled:opacity-60 ${
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:opacity-60 ${
                   saved ? "text-white" : "text-white/55 hover:text-white"
                 }`}
               >
@@ -454,7 +478,33 @@ export function VenuePageClient({
               Report vibe +
             </Link>
 
-            <ShareButton venue={venue} className="shrink-0" />
+            <button
+              type="button"
+              onClick={shareVenue}
+              aria-label="Share venue"
+              title={copied ? "Link copied!" : "Share venue"}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={18}
+                height={18}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx={18} cy={5} r={3} />
+                <circle cx={6} cy={12} r={3} />
+                <circle cx={18} cy={19} r={3} />
+                <line x1={8.59} y1={13.51} x2={15.42} y2={17.49} />
+                <line x1={15.41} y1={6.51} x2={8.59} y2={10.49} />
+              </svg>
+              <span className="sr-only">{copied ? "Copied to clipboard" : "Share venue"}</span>
+            </button>
           </div>
         </div>
       )}

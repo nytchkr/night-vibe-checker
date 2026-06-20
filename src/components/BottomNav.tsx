@@ -79,7 +79,7 @@ function NavItem({
       href={href}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50 ${
+      className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
         active
           ? "text-[#00F5D4]"
           : "text-white/35 hover:text-white/65"

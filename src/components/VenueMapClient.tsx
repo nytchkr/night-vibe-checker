@@ -7,9 +7,9 @@ const VenueMap = dynamic(() => import("@/components/VenueMap"), { ssr: false });
 
 export default function VenueMapClient() {
   return (
-    <>
+    <section role="region" aria-label="Venue map">
       <VenueMap />
       <OnboardingOverlay />
-    </>
+    </section>
   );
 }
