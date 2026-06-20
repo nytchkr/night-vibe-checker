@@ -2,24 +2,48 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { buildVenueShareData } from "@/lib/venueShare";
+import type { ConsumerVenue } from "@/types";
 
-interface ShareButtonProps {
+type LegacyShareButtonProps = {
   venueName: string;
   vibeScore: number;
   summary: string;
   onCopied?: () => void;
+  caption?: string;
+  className?: string;
+};
+
+type VenueShareButtonProps = {
+  venue: ConsumerVenue;
+  caption?: string;
+  onCopied?: () => void;
+  className?: string;
+};
+
+type ShareButtonProps = LegacyShareButtonProps | VenueShareButtonProps;
+
+function isVenueShare(props: ShareButtonProps): props is VenueShareButtonProps {
+  return "venue" in props;
 }
 
-export function ShareButton({ venueName, vibeScore, summary, onCopied }: ShareButtonProps) {
+export function ShareButton(props: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
+  const caption = props.caption;
 
   async function handleShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
-    const text = `Vibe Score: ${vibeScore.toFixed(1)}/10 — ${summary.slice(0, 100)}${summary.length > 100 ? "…" : ""}`;
+    const shareData = isVenueShare(props)
+      ? buildVenueShareData(props.venue)
+      : {
+          title: `Night Vibe: ${props.venueName}`,
+          text: `Vibe Score: ${props.vibeScore.toFixed(1)}/10 — ${props.summary.slice(0, 100)}${props.summary.length > 100 ? "…" : ""}`,
+          url,
+        };
 
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
-        await navigator.share({ title: `Night Vibe: ${venueName}`, text, url });
+        await navigator.share(shareData);
         return;
       } catch {
         // user cancelled or browser blocked — fall through to clipboard
@@ -27,9 +51,9 @@ export function ShareButton({ venueName, vibeScore, summary, onCopied }: ShareBu
     }
 
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(shareData.url ?? url);
       setCopied(true);
-      onCopied?.();
+      props.onCopied?.();
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // clipboard unavailable — silent fail
@@ -37,22 +61,29 @@ export function ShareButton({ venueName, vibeScore, summary, onCopied }: ShareBu
   }
 
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      onClick={handleShare}
-      aria-label="Share vibe report"
-      title={copied ? "Link copied!" : "Share"}
-      className="
-        h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
-        text-white/45 hover:border-cyan-300/35 hover:bg-cyan-300/10 hover:text-cyan-100
-        focus-visible:text-white focus-visible:ring-white/30
-      "
-    >
-      <ShareIcon />
-      <span className="sr-only">{copied ? "Copied to clipboard!" : "Share"}</span>
-    </Button>
+    <div className={props.className}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={handleShare}
+        aria-label="Share vibe report"
+        title={copied ? "Link copied!" : "Share"}
+        className="
+          h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
+          text-white/45 hover:border-cyan-300/35 hover:bg-cyan-300/10 hover:text-cyan-100
+          focus-visible:text-white focus-visible:ring-white/30
+        "
+      >
+        <ShareIcon />
+        <span className="sr-only">{copied ? "Copied to clipboard!" : "Share"}</span>
+      </Button>
+      {caption ? (
+        <p className="mt-1 text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
+          {caption}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
