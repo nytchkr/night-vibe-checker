@@ -119,43 +119,27 @@ function CategoryFilterPill({
   );
 }
 
-function busynessBadgeClass(label: BusynessState["label"]): string {
-  if (label === "Packed") return "border-red-400/[0.35] bg-red-500/20 text-red-100 shadow-[0_0_18px_rgba(239,68,68,0.2)]";
-  if (label === "Moderate") return "border-amber-300/[0.35] bg-amber-400/20 text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.18)]";
-  return "border-zinc-300/20 bg-zinc-300/10 text-zinc-200";
+function getCategoryIcon(category: string | null | undefined): string {
+  const value = (category ?? "").toLowerCase();
+  if (value.includes("night_club") || value.includes("nightclub") || value.includes("club")) return "🎵";
+  if (value.includes("restaurant") || value.includes("food")) return "🍽";
+  if (value.includes("bar")) return "🍺";
+  return "📍";
 }
 
-function BusynessBadge({ value }: { value: number | null | undefined }) {
-  const state = getBusynessState(value);
-  const displayLabel = state.label === "Packed" ? "Packed 🔥" : state.label;
-  return (
-    <span className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-black ${busynessBadgeClass(state.label)}`}>
-      {displayLabel}
-    </span>
-  );
+function getCategoryChipLabel(category: string | null | undefined): string {
+  return normalizeCategory(category) ?? "Spot";
 }
 
-function MFRatioInline({
-  mfRatio,
-  sampleSize,
-}: {
-  mfRatio: number | null | undefined;
-  sampleSize: number | null | undefined;
-}) {
-  if (mfRatio == null || sampleSize == null || sampleSize < 3) return null;
+function getSignalLabel(venue: ConsumerVenue): string {
+  const signal = venue.signal;
+  if (!signal || signal.sampleSize < 3 || signal.mfRatio == null) return "No reads yet";
 
-  const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));
+  const busyness = getBusynessState(signal.busyness0To100).label;
+  const malePercent = Math.min(100, Math.max(0, Math.round(signal.mfRatio)));
   const femalePercent = 100 - malePercent;
 
-  return (
-    <span
-      className="mt-2 inline-flex items-center gap-2 text-xs font-black text-white/[0.62]"
-      aria-label={`${malePercent}% male, ${femalePercent}% female from ${sampleSize} reports`}
-    >
-      <span>👨 {malePercent}%</span>
-      <span>👩 {femalePercent}%</span>
-    </span>
-  );
+  return `${busyness} · 👨${malePercent}% 👩${femalePercent}%`;
 }
 
 function VenueFeedCard({
@@ -167,47 +151,63 @@ function VenueFeedCard({
   searchQuery: string;
   distance: number | null;
 }) {
-  const signal = venue.signal;
-  const busyness = getBusynessState(signal?.busyness0To100);
-  const venueMeta = [venue.category, venue.address].filter(Boolean).join(" · ");
+  const categoryLabel = getCategoryChipLabel(venue.category);
+  const priceLabel = "$".repeat(venue.priceLevel ?? 0) || "—";
+  const ratingLabel = venue.rating?.toFixed(1) ?? "—";
+  const signalLabel = getSignalLabel(venue);
 
   return (
-    <li className="border-b border-white/[0.05] last:border-b-0">
+    <li className="mb-3 last:mb-0">
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="flex min-h-[92px] w-full items-center gap-3 border-l-2 bg-white/[0.07] px-4 py-4 transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
-        style={{ borderLeftColor: busyness.color }}
+        className="block overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
         aria-label={`Open ${venue.name}`}
       >
-        <span
-          className="h-3.5 w-3.5 shrink-0 rounded-full ring-4 ring-white/[0.03]"
-          style={{ backgroundColor: busyness.color, boxShadow: `0 0 16px ${busyness.color}55` }}
-          aria-hidden="true"
-        />
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-base font-black leading-tight text-white">
+        <div className="relative aspect-video w-full overflow-hidden bg-white/[0.06]">
+          {venue.photoUrl ? (
+            <Image
+              src={venue.photoUrl}
+              alt={venue.name}
+              fill
+              sizes="(max-width: 640px) calc(100vw - 32px), 512px"
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-5xl" aria-hidden="true">
+              {getCategoryIcon(venue.category)}
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 py-3">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <h2 className="min-w-0 truncate text-[17px] font-medium leading-tight text-white">
               <HighlightText text={venue.name} query={searchQuery} />
+            </h2>
+            <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[11px] font-medium leading-none text-white/60">
+              {categoryLabel}
             </span>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-medium text-white/50">
+            <span>★ {ratingLabel}</span>
+            <span>{priceLabel}</span>
+            {distance != null ? <span>{distance.toFixed(1)} mi</span> : null}
             {venue.openNow === true ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-400/[0.12] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.08em] text-emerald-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.75)]" />
-                Open
+              <span className="inline-flex items-center gap-1.5" aria-label="Open now">
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                </span>
+                Live
               </span>
             ) : null}
-          </span>
-          <span className="mt-1 block truncate text-xs font-semibold text-white/48">{venueMeta}</span>
-          <MFRatioInline mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} />
-        </span>
-        <span className="flex shrink-0 items-center gap-2">
-          {distance != null ? (
-            <span className="text-[13px] font-semibold text-white/50">{distance.toFixed(1)} mi</span>
-          ) : null}
-          <BusynessBadge value={signal?.busyness0To100} />
-          <span className="text-2xl font-light leading-none text-white/[0.28]" aria-hidden="true">
-            ›
-          </span>
-        </span>
+          </div>
+
+          <p className="mt-2 truncate text-[13px] font-medium text-white/50">
+            {signalLabel}
+          </p>
+        </div>
       </Link>
     </li>
   );
@@ -215,13 +215,16 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="flex min-h-[92px] w-full animate-pulse items-center gap-3 border-b border-l-2 border-b-white/[0.05] border-l-white/10 bg-white/[0.07] px-4 py-4 last:border-b-0">
-      <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-white/10 ring-4 ring-white/[0.03]" />
-      <div className="min-w-0 flex-1">
-        <div className="mb-1 h-4 w-36 rounded bg-white/10" />
-        <div className="h-3 w-24 rounded bg-white/[0.06]" />
+    <div className="mb-3 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] last:mb-0">
+      <div className="aspect-video w-full animate-pulse bg-white/[0.06]" />
+      <div className="space-y-2 px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="h-5 w-40 animate-pulse rounded bg-white/10" />
+          <div className="h-5 w-16 animate-pulse rounded-full bg-white/10" />
+        </div>
+        <div className="h-4 w-28 animate-pulse rounded bg-white/[0.08]" />
+        <div className="h-4 w-44 animate-pulse rounded bg-white/[0.06]" />
       </div>
-      <div className="h-7 w-20 shrink-0 rounded-md bg-white/10" />
     </div>
   );
 }
@@ -495,7 +498,7 @@ export function ExplorePageClient() {
         )}
 
         {venues === null && !error && (
-          <div className="overflow-hidden rounded-2xl border border-white/[0.06]" role="status" aria-label="Loading venues">
+          <div role="status" aria-label="Loading venues">
             <p className="sr-only">Loading venues...</p>
             {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
           </div>
@@ -520,7 +523,7 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && sortedVenues.length > 0 && (
-          <ul className="overflow-hidden rounded-2xl border border-white/[0.06]">
+          <ul>
             {sortedVenues.map((venue) => (
               <VenueFeedCard
                 key={venue.id}
