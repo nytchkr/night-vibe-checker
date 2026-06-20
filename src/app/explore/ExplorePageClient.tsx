@@ -21,10 +21,16 @@ type BusynessState = {
 };
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
-type CategoryFilter = "All" | "Bar" | "Brewery" | "Club" | "Restaurant";
+type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
-const CATEGORY_FILTERS: CategoryFilter[] = ["All", "Bar", "Brewery", "Club", "Restaurant"];
+const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
+  { value: "All", label: "All" },
+  { value: "Bar", label: "🍸 Bar" },
+  { value: "Club", label: "🎵 Club" },
+  { value: "Restaurant", label: "🍔 Restaurant" },
+  { value: "Lounge", label: "🛋 Lounge" },
+];
 
 function getBusynessState(value: number | null | undefined): BusynessState {
   if (value == null) return { label: "No data yet", color: "#6B7280", rank: 0 };
@@ -35,9 +41,9 @@ function getBusynessState(value: number | null | undefined): BusynessState {
 
 function normalizeCategory(category: string | null | undefined): CategoryFilter | null {
   const value = (category ?? "").toLowerCase();
-  if (value.includes("brewery")) return "Brewery";
   if (value.includes("club") || value.includes("night_club") || value.includes("nightclub")) return "Club";
   if (value.includes("restaurant") || value.includes("food")) return "Restaurant";
+  if (value.includes("lounge")) return "Lounge";
   if (value.includes("bar")) return "Bar";
   return null;
 }
@@ -81,6 +87,31 @@ function FilterChip<T extends string>({
       onClick={() => onSelect(label)}
       className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#EF4444]/70 ${
         active ? "border-white/70 bg-[#EF4444] text-white" : "border-transparent bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CategoryFilterPill({
+  label,
+  active,
+  onSelect,
+}: {
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+        active
+          ? "border-[#00F5D4] bg-[#00F5D4]/10 text-[#00F5D4] shadow-[0_0_16px_rgba(0,245,212,0.22)]"
+          : "border-white/10 bg-[#0A0A0F]/80 text-white/50 hover:border-white/20 hover:bg-white/10 hover:text-white/75"
       }`}
       aria-pressed={active}
     >
@@ -440,11 +471,11 @@ export function ExplorePageClient() {
 
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {CATEGORY_FILTERS.map((filter) => (
-                <FilterChip
-                  key={filter}
-                  label={filter}
-                  active={categoryFilter === filter}
-                  onSelect={setCategoryFilter}
+                <CategoryFilterPill
+                  key={filter.value}
+                  label={filter.label}
+                  active={categoryFilter === filter.value}
+                  onSelect={() => setCategoryFilter(filter.value)}
                 />
               ))}
             </div>
