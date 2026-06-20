@@ -2,56 +2,40 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import L from "leaflet";
-import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { VenueBottomSheet } from "@/components/VenueBottomSheet";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 const SOUTH_END_CENTER: [number, number] = [35.2178, -80.8597];
-const CHARLOTTE_ZIPS: Record<string, [number, number]> = {
-  "28202": [35.2271, -80.8431],
-  "28203": [35.2074, -80.8641],
-  "28204": [35.2088, -80.8396],
-  "28205": [35.2237, -80.8051],
-  "28206": [35.2526, -80.831],
-  "28207": [35.2046, -80.8242],
-  "28208": [35.2157, -80.9016],
-  "28209": [35.1771, -80.8632],
-  "28210": [35.1484, -80.8751],
-  "28211": [35.1793, -80.8089],
-  "28212": [35.2008, -80.7728],
-  "28213": [35.2739, -80.784],
-};
 
 type VenuePinStyle = {
+  className: string;
+  fillOpacity: number;
   fillColor: string;
   radius: number;
-  opacity: number;
 };
 
 function getVenuePinStyle(venue: ConsumerVenue): VenuePinStyle {
   const busyness = venue.signal?.busyness0To100;
 
   if (busyness == null) {
-    return { fillColor: "#ffffff", radius: 6, opacity: 0.5 };
+    return { className: "venue-pin-null", fillColor: "#3f3f46", fillOpacity: 0.5, radius: 5 };
   }
   if (busyness >= 67) {
-    return { fillColor: "#ef4444", radius: 11, opacity: 1 };
+    return { className: "venue-pin-packed", fillColor: "#ef4444", fillOpacity: 0.95, radius: 13 };
   }
   if (busyness >= 34) {
-    return { fillColor: "#eab308", radius: 8, opacity: 1 };
+    return { className: "venue-pin-moderate", fillColor: "#eab308", fillOpacity: 0.95, radius: 10 };
   }
-  return { fillColor: "#71717a", radius: 7, opacity: 1 };
+  return { className: "venue-pin-quiet", fillColor: "#52525b", fillOpacity: 0.95, radius: 7 };
 }
 
-function FitBounds({ venues }: { venues: ConsumerVenue[] }) {
+function FitBounds() {
   const map = useMap();
 
   useEffect(() => {
-    if (venues.length === 0) return;
-    const bounds = venues.map((venue) => [venue.lat, venue.lng] as [number, number]);
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
-  }, [map, venues.length]);
+    map.setView(SOUTH_END_CENTER, 15);
+  }, [map]);
 
   return null;
 }
@@ -76,83 +60,11 @@ function RecenterButton() {
   );
 }
 
-function ZipRecenterControl() {
-  const map = useMap();
-  const [zip, setZip] = useState("");
-  const [showTooltip, setShowTooltip] = useState(false);
-
-  function submitZip() {
-    if (!/^\d{5}$/.test(zip)) {
-      setShowTooltip(true);
-      window.setTimeout(() => setShowTooltip(false), 1800);
-      return;
-    }
-
-    const coords = CHARLOTTE_ZIPS[zip];
-    if (!coords) {
-      setShowTooltip(true);
-      window.setTimeout(() => setShowTooltip(false), 1800);
-      return;
-    }
-
-    setShowTooltip(false);
-    map.flyTo(coords, 15);
-  }
-
-  return (
-    <div className="absolute left-4 top-4 z-[1000]">
-      <div className="relative flex items-center gap-1 rounded-xl border border-white/10 bg-black/75 p-1 shadow-2xl backdrop-blur">
-        <input
-          aria-label="Charlotte zip"
-          className="w-36 rounded-lg bg-white/10 px-2.5 py-2 text-sm font-bold text-white placeholder:text-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
-          inputMode="numeric"
-          maxLength={5}
-          pattern="[0-9]{5}"
-          placeholder="Charlotte zip..."
-          value={zip}
-          onChange={(event) => setZip(event.target.value.replace(/\D/g, "").slice(0, 5))}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") submitZip();
-          }}
-        />
-        <button
-          aria-label="Search Charlotte zip"
-          className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-sm text-white transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
-          type="button"
-          onClick={submitZip}
-        >
-          🔍
-        </button>
-        {showTooltip && (
-          <span className="absolute left-0 top-full mt-2 rounded-lg bg-[#ef4444] px-2 py-1 text-xs font-black text-white shadow-xl">
-            Charlotte zip only
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function VenueMap() {
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenue, setSelectedVenue] = useState<ConsumerVenue | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const liveIcon = useMemo(
-    () =>
-      L.divIcon({
-        className: "",
-        html: '<span class="live-pin"></span>',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-    L.Icon.Default.mergeOptions({ iconRetinaUrl: "", iconUrl: "", shadowUrl: "" });
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,31 +112,14 @@ export function VenueMap() {
         className="z-0"
       >
         <TileLayer
-          attribution="© OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
-        <FitBounds venues={visibleVenues} />
+        <FitBounds />
         <RecenterButton />
-        <ZipRecenterControl />
 
         {visibleVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
-          const isLive = venue.signal?.busynessSource === "live";
-
-          if (isLive) {
-            return (
-              <Marker
-                key={venue.id}
-                position={[venue.lat, venue.lng]}
-                icon={liveIcon}
-                eventHandlers={{ click: () => setSelectedVenue(venue) }}
-              >
-                <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
-                </Tooltip>
-              </Marker>
-            );
-          }
 
           return (
             <CircleMarker
@@ -232,11 +127,11 @@ export function VenueMap() {
               center={[venue.lat, venue.lng]}
               radius={pin.radius}
               pathOptions={{
-                color: "#ffffff",
+                className: pin.className,
+                color: "rgba(255,255,255,0.15)",
                 fillColor: pin.fillColor,
-                opacity: pin.opacity,
-                weight: 2,
-                fillOpacity: 0.9,
+                fillOpacity: pin.fillOpacity,
+                weight: 1.5,
               }}
               eventHandlers={{ click: () => setSelectedVenue(venue) }}
             >
@@ -248,19 +143,25 @@ export function VenueMap() {
         })}
       </MapContainer>
 
-      <div className="pointer-events-none absolute left-4 top-[76px] z-[1000] rounded-xl bg-black/70 px-3 py-2 text-xs font-black text-white/80 shadow-2xl backdrop-blur">
-        <span>🔴 Packed</span> <span>🟡 Moderate</span> <span>⚫ Quiet</span>
+      <div className="pointer-events-none absolute bottom-20 left-1/2 z-[1000] flex -translate-x-1/2 gap-3 whitespace-nowrap rounded-full border border-white/10 bg-black/70 px-4 py-2 text-xs font-bold text-white/70 shadow-2xl backdrop-blur-sm">
+        <span>
+          <span className="text-red-400">●</span> Packed
+        </span>
+        <span>
+          <span className="text-yellow-400">●</span> Moderate
+        </span>
+        <span>
+          <span className="text-zinc-500">●</span> Quiet
+        </span>
       </div>
 
-      {loading ? (
+      {loading && (
         <div className="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-[#0a0a0f]/80">
           <p className="animate-pulse text-sm font-black text-white/80">Loading venues...</p>
         </div>
-      ) : (
-        <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-xl bg-black/70 px-3 py-2 text-xs font-black text-white/80 shadow-2xl backdrop-blur">
-          {error ?? `${visibleVenues.length} spots`}
-        </div>
       )}
+
+      {error && !loading && <p className="sr-only">{error}</p>}
 
       <Link
         href="/vibe-check"
@@ -270,6 +171,34 @@ export function VenueMap() {
       </Link>
 
       <VenueBottomSheet venue={selectedVenue} onClose={() => setSelectedVenue(null)} />
+
+      <style jsx global>{`
+        .venue-pin-packed {
+          filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0.35)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: venue-pin-pulse 1.8s ease-out infinite;
+        }
+
+        .venue-pin-moderate {
+          filter: drop-shadow(0 0 8px rgba(234, 179, 8, 0.4));
+        }
+
+        @keyframes venue-pin-pulse {
+          0% {
+            filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0.35)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
+            transform: scale(1);
+          }
+          60% {
+            filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.18)) drop-shadow(0 0 18px rgba(239, 68, 68, 0.35));
+            transform: scale(1.14);
+          }
+          100% {
+            filter: drop-shadow(0 0 0 rgba(239, 68, 68, 0)) drop-shadow(0 0 12px rgba(239, 68, 68, 0.5));
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </main>
   );
 }
