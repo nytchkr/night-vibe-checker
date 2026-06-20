@@ -63,6 +63,8 @@ function getSignalBusyness(value: number | null | undefined): SignalBusyness {
 }
 
 function SignalBusynessPill({ venue }: { venue: ConsumerVenue }) {
+  if (venue.signal?.busyness0To100 == null) return null;
+
   const label = getSignalBusyness(venue.signal?.busyness0To100);
   const className =
     label === "Packed"
@@ -414,7 +416,7 @@ export default function ProfilePage() {
               </div>
             ) : savedVenues.length === 0 ? (
               <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
-                <p className="text-white/40 text-sm">Tap ♡ on any venue to save it</p>
+                <p className="text-white/40 text-sm">No saved spots yet — tap ❤ on any venue</p>
               </div>
             ) : (
               <ul className="space-y-3 list-none">
