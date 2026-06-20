@@ -11,6 +11,10 @@ type HealthPayload = {
   staleSince: string | null;
 };
 
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store",
+};
+
 async function countRows(table: "venues" | "venue_signals"): Promise<number | null> {
   try {
     const query = supabaseAdmin.from(table).select("*", { count: "exact", head: true });
@@ -83,5 +87,5 @@ export async function GET() {
     staleSince,
   };
 
-  return NextResponse.json(payload, { status: 200 });
+  return NextResponse.json(payload, { status: 200, headers: NO_STORE_HEADERS });
 }

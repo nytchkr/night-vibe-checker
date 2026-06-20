@@ -15,6 +15,10 @@ const BodySchema = z.object({
   venueId: z.string().uuid(),
 });
 
+const PRIVATE_GET_CACHE_HEADERS = {
+  "Cache-Control": "private, no-cache",
+};
+
 type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
   venueIds: string[];
   savedVenueIds: string[];
@@ -61,20 +65,21 @@ async function getUserId(req: NextRequest): Promise<string | null> {
 
 function missingSupabaseConfigResponse(
   error: unknown,
-  meta: { cached: boolean; generatedAt: string; requestId: string }
+  meta: { cached: boolean; generatedAt: string; requestId: string },
+  headers?: HeadersInit
 ): NextResponse<APIResponse<never>> | null {
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   console.error("[saved-venues] Supabase configuration error:", error.message);
   return NextResponse.json<APIResponse<never>>(
     { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
-    { status: 503 }
+    { status: 503, headers }
   );
 }
 
-function unauthorized(meta: { cached: boolean; generatedAt: string; requestId: string }) {
+function unauthorized(meta: { cached: boolean; generatedAt: string; requestId: string }, headers?: HeadersInit) {
   return NextResponse.json<APIResponse<never>>(
     { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to save venues." }, meta },
-    { status: 401 }
+    { status: 401, headers }
   );
 }
 
@@ -110,13 +115,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     assertSupabaseServerEnv();
   } catch (error) {
-    const response = missingSupabaseConfigResponse(error, meta);
+    const response = missingSupabaseConfigResponse(error, meta, PRIVATE_GET_CACHE_HEADERS);
     if (response) return response;
     throw error;
   }
 
   const userId = await getUserId(req);
-  if (!userId) return unauthorized(meta);
+  if (!userId) return unauthorized(meta, PRIVATE_GET_CACHE_HEADERS);
 
   const { data, error } = await supabaseAdmin
     .from("saved_venues")
@@ -128,7 +133,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     console.error("[saved-venues GET] DB error:", error);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "DB_ERROR", message: "Could not fetch saved venues." }, meta },
-      { status: 500 }
+      { status: 500, headers: PRIVATE_GET_CACHE_HEADERS }
     );
   }
 
@@ -140,7 +145,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     savedVenueIds,
     data: { savedVenueIds },
     meta,
-  });
+  }, { headers: PRIVATE_GET_CACHE_HEADERS });
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {

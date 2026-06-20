@@ -19,6 +19,9 @@ const MAX_VENUE_ID_LENGTH = 160;
 const DUPLICATE_WINDOW_MINUTES = 10;
 const POST_RATE_LIMIT_MAX = 10;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
+const PRIVATE_GET_CACHE_HEADERS = {
+  "Cache-Control": "private, no-cache",
+};
 
 const PostBodySchema = z.object({
   venueId: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH),
@@ -29,13 +32,14 @@ const PostBodySchema = z.object({
 
 function missingSupabaseConfigResponse(
   error: unknown,
-  meta: { cached: boolean; generatedAt: string; requestId: string }
+  meta: { cached: boolean; generatedAt: string; requestId: string },
+  headers?: HeadersInit
 ): NextResponse<APIResponse<never>> | null {
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   console.error("[check-ins] Supabase configuration error:", error.message);
   return NextResponse.json<APIResponse<never>>(
     { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
-    { status: 503 }
+    { status: 503, headers }
   );
 }
 
@@ -243,7 +247,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     assertSupabaseServerEnv();
   } catch (error) {
-    const response = missingSupabaseConfigResponse(error, meta);
+    const response = missingSupabaseConfigResponse(error, meta, PRIVATE_GET_CACHE_HEADERS);
     if (response) return response;
     throw error;
   }
@@ -264,7 +268,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       console.error("[check-ins GET feed] DB error:", error);
       return NextResponse.json<APIResponse<never>>(
         { status: "error", error: { code: "DB_ERROR", message: "Could not fetch reports." }, meta },
-        { status: 500 }
+        { status: 500, headers: PRIVATE_GET_CACHE_HEADERS }
       );
     }
 
@@ -272,14 +276,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       status: "success",
       data: { checkIns: ((data ?? []) as Record<string, unknown>[]).map(mapCheckIn) },
       meta,
-    });
+    }, { headers: PRIVATE_GET_CACHE_HEADERS });
   }
 
   const venue = await resolveVenue(venueIdParam);
   if (!venue) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },
-      { status: 404 }
+      { status: 404, headers: PRIVATE_GET_CACHE_HEADERS }
     );
   }
 
@@ -302,7 +306,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     console.error("[check-ins GET venue] DB error:", error ?? signalError);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "DB_ERROR", message: "Could not fetch venue reports." }, meta },
-      { status: 500 }
+      { status: 500, headers: PRIVATE_GET_CACHE_HEADERS }
     );
   }
 
@@ -324,5 +328,5 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       summary,
     },
     meta,
-  });
+  }, { headers: PRIVATE_GET_CACHE_HEADERS });
 }
