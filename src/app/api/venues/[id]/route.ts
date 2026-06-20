@@ -28,6 +28,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
   const signalRows = (row.venue_signals ?? []) as Record<string, unknown>[];
   return {
     id: row.id as string,
+    slug: (row.slug ?? undefined) as string | undefined,
     placeId: row.place_id as string,
     zoneId: row.zone_id as string,
     name: row.name as string,
@@ -87,6 +88,7 @@ export async function GET(
     .from("venues")
     .select(`
       id, place_id, zone_id, name, address, lat, lng, venue_type, category,
+      slug,
       google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
       venue_signals (
         venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,

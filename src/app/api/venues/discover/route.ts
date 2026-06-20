@@ -91,7 +91,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Return the venues we just upserted from the DB to confirm persisted state
   const { data: venueRows, error: fetchError } = await supabaseAdmin
     .from("venues")
-    .select("id, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden")
+    .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden")
     .eq("zone_id", LAUNCH_ZONE.id)
     .eq("hidden", false)
     .order("name", { ascending: true });
@@ -108,6 +108,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const venues: ConsumerVenue[] = ((venueRows ?? []) as Record<string, unknown>[]).map((row) => ({
     id: row.id as string,
+    slug: (row.slug ?? undefined) as string | undefined,
     placeId: row.place_id as string,
     zoneId: row.zone_id as string,
     name: row.name as string,
