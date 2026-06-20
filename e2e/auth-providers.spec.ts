@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
 // Run as a named smoke: npx playwright test e2e/auth-providers.spec.ts
 test.describe("Auth provider smoke", () => {
   test("Google OAuth provider is enabled in Supabase", async ({ request }) => {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://onlpwglwnqoivuykywrk.supabase.co";
     if (!supabaseUrl) test.skip(true, "NEXT_PUBLIC_SUPABASE_URL not set");
 
     const callbackUrl = encodeURIComponent(
