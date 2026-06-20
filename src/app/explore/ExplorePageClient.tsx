@@ -472,10 +472,10 @@ export function ExplorePageClient() {
               )}
             </div>
           </div>
-          <h1 className="text-[1.65rem] font-black leading-tight text-white">
-            Explore South End
+          <h1 className="text-xl font-black leading-tight text-white">
+            South End Charlotte
           </h1>
-          <p className="mt-1 text-sm text-white/42">Find your spot for tonight</p>
+          <p className="mt-1 text-sm text-[#00F5D4]/80">{venues.length} spots tracked tonight</p>
 
           <div className="mt-5 space-y-3">
             <div className="relative">
@@ -525,7 +525,7 @@ export function ExplorePageClient() {
               ))}
             </div>
 
-            <p className="text-sm font-bold text-white/55">{sortedVenues.length} spots open now</p>
+            <p className="text-sm font-bold text-white/55">{sortedVenues.length} spot{sortedVenues.length === 1 ? "" : "s"} showing</p>
           </div>
         </div>
       </header>
@@ -558,7 +558,9 @@ export function ExplorePageClient() {
         {!loading && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
             <p className="text-sm font-semibold text-white">
-              No packed spots right now — check back later 🎉
+              {searchQuery.trim().length > 0
+                ? `No spots match "${searchQuery.trim()}" — try a different name or category`
+                : "No spots match your filters — try adjusting them"}
             </p>
           </div>
         )}

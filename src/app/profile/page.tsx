@@ -174,21 +174,41 @@ function SavedVenueRow({ venue }: { venue: ConsumerVenue }) {
 }
 
 function LoggedOutPitch() {
+  const benefits = [
+    "Report the vibe — tell others how packed it is",
+    "Save your spots — bookmark bars for quick access",
+    "Check-in history — all your nights in one place",
+  ];
+
   return (
-    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5 shadow-[0_0_32px_rgba(0,245,212,0.05)]" aria-label="Sign up benefits">
-      <h2 className="text-2xl font-black text-white">Your Night Out HQ</h2>
-      <ul className="mt-4 space-y-3 text-sm font-semibold text-white/72">
-        <li className="flex gap-2"><span className="text-[#00F5D4]">✓</span><span>Report the vibe — tell others how packed it is</span></li>
-        <li className="flex gap-2"><span className="text-[#00F5D4]">✓</span><span>Save your spots — bookmark bars for quick access</span></li>
-        <li className="flex gap-2"><span className="text-[#00F5D4]">✓</span><span>See your history — all your check-ins in one place</span></li>
-      </ul>
-      <Button
-        asChild
-        className="mt-5 min-h-[52px] w-full rounded-2xl bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.32)] hover:bg-[#2fffe2]"
-      >
-        <Link href="/login?return=/profile">Sign up free</Link>
-      </Button>
-    </section>
+    <div className="mx-auto mt-16 max-w-sm">
+      <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 shadow-[0_0_32px_rgba(0,245,212,0.05)]" aria-label="Sign up benefits">
+        <h2 className="text-2xl font-black text-white">Your Night Out HQ</h2>
+        <p className="mt-1 text-sm text-white/50">Sign up to unlock everything</p>
+        <ul className="mt-6 space-y-3">
+          {benefits.map((benefit) => (
+            <li key={benefit} className="flex items-center gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#00F5D4]/10 text-[#00F5D4] text-sm">
+                ✓
+              </span>
+              <span className="text-sm text-white/80">{benefit}</span>
+            </li>
+          ))}
+        </ul>
+        <Button
+          asChild
+          className="mt-8 min-h-[52px] w-full rounded-xl bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.32)] hover:bg-[#2fffe2]"
+        >
+          <Link href="/login">Sign up free</Link>
+        </Button>
+        <p className="mt-3 text-center text-xs text-white/40">
+          Already have an account?{" "}
+          <Link href="/login" className="underline underline-offset-2 hover:text-white/60">
+            Sign in
+          </Link>
+        </p>
+      </section>
+    </div>
   );
 }
 
