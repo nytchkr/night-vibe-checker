@@ -10,6 +10,17 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY,
 );
 
+async function columnExists(column) {
+  const { error } = await sb.from("venues").select(column).limit(1);
+  return !error;
+}
+
+const hasPhoneColumn = await columnExists("phone");
+const hasWebsiteColumn = await columnExists("website");
+console.log(
+  `Schema: opening_hours=yes phone=${hasPhoneColumn ? "yes" : "no"} website=${hasWebsiteColumn ? "yes" : "no"}`,
+);
+
 const { data: venues, error } = await sb
   .from("venues")
   .select("id,name,place_id")
@@ -29,8 +40,8 @@ for (const v of venues ?? []) {
   const p = r.result ?? {};
   const update = {};
   if (p.opening_hours?.weekday_text) update.opening_hours = p.opening_hours.weekday_text;
-  if (p.formatted_phone_number) update.phone = p.formatted_phone_number;
-  if (p.website) update.website = p.website;
+  if (hasPhoneColumn && p.formatted_phone_number) update.phone = p.formatted_phone_number;
+  if (hasWebsiteColumn && p.website) update.website = p.website;
   if (Object.keys(update).length) {
     const { error: updateError } = await sb.from("venues").update(update).eq("id", v.id);
     if (updateError) {
