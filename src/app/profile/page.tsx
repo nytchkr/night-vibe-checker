@@ -15,6 +15,7 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PushOptIn } from "@/components/PushOptIn";
 import { getBusynessState } from "@/lib/busyness";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
@@ -465,6 +466,8 @@ export default function ProfilePage() {
             )}
           </section>
         )}
+
+        {session && <PushOptIn />}
 
         {/* Report CTA */}
         {session && (

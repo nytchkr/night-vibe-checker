@@ -28,3 +28,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(caches.match(request).then((hit) => hit || fetch(request)));
   }
 });
+
+self.addEventListener("push", (event) => {
+  const body = event.data ? event.data.text() : "Friday night picks are ready.";
+  event.waitUntil(
+    self.registration.showNotification("NightVibe", {
+      body,
+      icon: "/icon-192.png",
+    }),
+  );
+});
