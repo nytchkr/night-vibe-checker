@@ -70,7 +70,7 @@ async function getVenue(id: string): Promise<ConsumerVenue | null> {
       id, place_id, zone_id, name, address, lat, lng, venue_type, category,
       slug,
       rating, google_rating, total_ratings, price_level, photo_reference, photo_url, open_now,
-      hidden,
+      phone, website, opening_hours, hidden,
       venue_signals (
         venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
         confidence_0_1, sample_size, computed_at, last_busyness_refresh
