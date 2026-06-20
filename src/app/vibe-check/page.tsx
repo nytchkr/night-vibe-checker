@@ -1,10 +1,10 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import type { CrowdFeel, ReportedBusyness } from "@/types";
+import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -51,8 +51,11 @@ function CheckInInner() {
   // Stable sessionId for this check-in form instance
   const sessionId = useRef(crypto.randomUUID());
 
-  // Venue text input — only used when no venueId param
-  const [venueInput, setVenueInput] = useState("");
+  const [venueSearch, setVenueSearch] = useState("");
+  const [venues, setVenues] = useState<ConsumerVenue[]>([]);
+  const [venuesLoading, setVenuesLoading] = useState(false);
+  const [venuesError, setVenuesError] = useState<string | null>(null);
+  const [selectedVenueId, setSelectedVenueId] = useState("");
 
   const [busyness, setBusyness] = useState<ReportedBusyness | null>(null);
   const [crowdFeel, setCrowdFeel] = useState<CrowdFeel | null>(null);
@@ -75,12 +78,56 @@ function CheckInInner() {
     };
   }, [returnPath, router]);
 
-  const effectiveVenueId = venueId || "";
-  const effectiveVenueName = venueId ? venueName : venueInput.trim();
+  useEffect(() => {
+    if (venueId) return;
+    let active = true;
+    setVenuesLoading(true);
+    setVenuesError(null);
 
-  // Submit is enabled when busyness + crowdFeel + (venueId or typed venue name)
+    fetch("/api/venues")
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
+        if (!active) return;
+        setVenues(json?.data?.venues ?? []);
+      })
+      .catch(() => {
+        if (active) setVenuesError("Could not load venues.");
+      })
+      .finally(() => {
+        if (active) setVenuesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [venueId]);
+
+  const selectedVenue = useMemo(
+    () => venues.find((venue) => venue.id === selectedVenueId) ?? null,
+    [selectedVenueId, venues],
+  );
+
+  const filteredVenues = useMemo(() => {
+    const query = venueSearch.trim().toLowerCase();
+    const matches = query
+      ? venues.filter((venue) => (
+          venue.name.toLowerCase().includes(query) ||
+          venue.address.toLowerCase().includes(query)
+        ))
+      : venues;
+
+    return matches.slice(0, 8);
+  }, [venueSearch, venues]);
+
+  const effectiveVenueId = venueId || selectedVenue?.id || "";
+  const effectiveVenueName = venueId ? venueName : selectedVenue?.name ?? "";
+
+  // Submit is enabled when busyness + crowdFeel + a real venue selection.
   const canSubmit = Boolean(
-    (effectiveVenueId || venueInput.trim()) &&
+    effectiveVenueId &&
     busyness &&
     crowdFeel &&
     !submitting &&
@@ -138,8 +185,7 @@ function CheckInInner() {
       }
 
       setDone(true);
-      // Redirect to venue page after 2 seconds; fall back to home if no venueId
-      const dest = effectiveVenueId ? `/venues/${effectiveVenueId}` : "/";
+      const dest = `/venues/${encodeURIComponent(effectiveVenueId)}`;
       setTimeout(() => router.push(dest), 2000);
     } catch {
       setSubmitError({ type: "generic", msg: "Couldn't submit — tap to retry" });
@@ -156,6 +202,33 @@ function CheckInInner() {
     returnPath,
     router,
   ]);
+
+  if (done) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0A0A0F] px-6">
+        <div className="w-full max-w-sm rounded-2xl border border-[#7C3AED]/35 bg-[#7C3AED]/10 px-6 py-8 text-center shadow-[0_0_32px_rgba(124,58,237,0.22)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#22C55E]/18 text-[#22C55E]">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width={28}
+              height={28}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.8}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 12 4 4L19 6" />
+            </svg>
+          </div>
+          <h1 className="mt-5 text-2xl font-black text-white">Vibe reported</h1>
+          <p className="mt-2 text-sm text-white/50">Taking you back to {effectiveVenueName || "the venue"}.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
@@ -198,14 +271,60 @@ function CheckInInner() {
               </svg>
             </div>
           ) : (
-            // Plain text input when no venueId param
-            <input
-              type="text"
-              value={venueInput}
-              onChange={(e) => setVenueInput(e.target.value)}
-              placeholder="Venue name"
-              className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#7C3AED]/60 focus:outline-none"
-            />
+            <div className="space-y-3">
+              <input
+                type="search"
+                value={venueSearch}
+                onChange={(e) => {
+                  setVenueSearch(e.target.value);
+                  setSelectedVenueId("");
+                }}
+                placeholder="Search South End venues"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#7C3AED]/60 focus:outline-none"
+              />
+
+              <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                {venuesLoading && (
+                  <p className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/40">
+                    Loading venues...
+                  </p>
+                )}
+
+                {!venuesLoading && venuesError && (
+                  <p role="alert" className="rounded-xl border border-rose-500/35 bg-rose-950/50 px-4 py-3 text-sm text-rose-300">
+                    {venuesError}
+                  </p>
+                )}
+
+                {!venuesLoading && !venuesError && filteredVenues.map((venue) => {
+                  const selected = selectedVenueId === venue.id;
+                  return (
+                    <button
+                      key={venue.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedVenueId(venue.id);
+                        setVenueSearch(venue.name);
+                      }}
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60 ${
+                        selected
+                          ? "border-[#7C3AED]/70 bg-[#7C3AED]/18"
+                          : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
+                      }`}
+                    >
+                      <span className="block truncate text-sm font-bold text-white">{venue.name}</span>
+                      <span className="mt-0.5 block truncate text-xs text-white/38">{venue.address}</span>
+                    </button>
+                  );
+                })}
+
+                {!venuesLoading && !venuesError && filteredVenues.length === 0 && (
+                  <p className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/40">
+                    No matching venues.
+                  </p>
+                )}
+              </div>
+            </div>
           )}
         </section>
 
@@ -311,11 +430,6 @@ function CheckInInner() {
         >
           {submitting ? "Submitting..." : "Report Vibe"}
         </button>
-
-        {/* Inline success */}
-        {done && (
-          <p className="text-center text-sm font-semibold text-[#7C3AED]">Vibe reported ✓</p>
-        )}
 
         {/* Inline errors */}
         {submitError && (

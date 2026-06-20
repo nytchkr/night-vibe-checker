@@ -71,7 +71,21 @@ function SourceBadge({ source }: { source: BusynessSource | null | undefined }) 
   );
 }
 
-function ConfidenceChip({ value }: { value: number | null | undefined }) {
+function ConfidenceChip({
+  value,
+  sampleSize,
+}: {
+  value: number | null | undefined;
+  sampleSize: number | null | undefined;
+}) {
+  if ((sampleSize ?? 0) < 3) {
+    return (
+      <span className="inline-flex rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs font-bold text-white/55">
+        Early data
+      </span>
+    );
+  }
+
   const confidence = value ?? 0;
   const config =
     confidence < 0.3
@@ -133,7 +147,7 @@ function CheckInItem({ ci }: { ci: ConsumerCheckIn }) {
 function LoadingSkeleton() {
   return (
     <div className="space-y-4" role="status" aria-label="Loading venue">
-      <Skeleton className="h-[200px] rounded-none bg-white/10" />
+      <Skeleton className="h-52 rounded-none bg-white/10 sm:h-[260px]" />
       <div className="px-4">
         <Skeleton className="h-8 w-2/3 bg-white/10" />
         <Skeleton className="mt-3 h-4 w-4/5 bg-white/10" />
@@ -205,6 +219,11 @@ export default function VenuePage() {
     venueId,
     venueName: venue?.name ?? "Venue",
   }), [venueId, venue?.name]);
+  const mapsHref = useMemo(() => {
+    if (!venue) return "#";
+    const query = venue.address || `${venue.lat},${venue.lng}`;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  }, [venue]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
@@ -255,10 +274,10 @@ export default function VenuePage() {
             <img
               src={venue.photoUrl}
               alt=""
-              className="h-[200px] w-full object-cover"
+              className="h-52 w-full object-cover sm:h-[260px]"
             />
           ) : (
-            <div className="flex h-[200px] w-full items-center justify-center bg-white/[0.05] text-sm font-semibold text-white/28">
+            <div className="flex h-52 w-full items-center justify-center bg-white/[0.05] text-sm font-semibold text-white/28 sm:h-[260px]">
               No photo
             </div>
           )}
@@ -269,7 +288,32 @@ export default function VenuePage() {
                 <CategoryChip category={venue.category} />
               </div>
               <h1 className="mt-3 text-[1.85rem] font-black leading-tight text-white">{venue.name}</h1>
-              <p className="mt-1 text-sm leading-relaxed text-white/45">{venue.address}</p>
+              <div className="mt-2 space-y-1.5">
+                <p className="text-sm leading-relaxed text-white/50">{venue.address}</p>
+                <a
+                  href={mapsHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-[#00F5D4]/85 transition-colors hover:text-[#00F5D4] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+                >
+                  Open in Google Maps
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width={14}
+                    height={14}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.4}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M7 17 17 7" />
+                    <path d="M7 7h10v10" />
+                  </svg>
+                </a>
+              </div>
             </section>
 
             <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
@@ -287,7 +331,7 @@ export default function VenuePage() {
                 </div>
                 <div className="flex flex-col items-end gap-2 pt-1">
                   <SourceBadge source={signal?.busynessSource} />
-                  <ConfidenceChip value={signal?.confidence0To1} />
+                  <ConfidenceChip value={signal?.confidence0To1} sampleSize={signal?.sampleSize} />
                 </div>
               </div>
 
@@ -354,9 +398,9 @@ export default function VenuePage() {
         <div className="mx-auto max-w-lg">
           <Link
             href={reportHref(`/vibe-check?${reportParams.toString()}`, session)}
-            className="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-[#7C3AED] text-base font-black text-white transition-all hover:bg-[#6D28D9] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60"
+            className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-[#7C3AED] text-base font-black text-white shadow-[0_0_24px_rgba(124,58,237,0.28)] transition-all hover:bg-[#6D28D9] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60"
           >
-            {session ? "Report the Vibe" : "Sign in to report"}
+            {session ? "Report the Vibe" : "Sign in to Report the Vibe"}
           </Link>
         </div>
       </div>
