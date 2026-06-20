@@ -65,6 +65,8 @@ export function VenueMap() {
   const [selectedVenue, setSelectedVenue] = useState<ConsumerVenue | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const mapHeightClass =
+    process.env.NEXT_PUBLIC_ENV === "development" ? "h-[calc(100dvh-100px)]" : "h-[calc(100dvh-80px)]";
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +105,7 @@ export function VenueMap() {
   );
 
   return (
-    <main className="relative w-full overflow-hidden bg-[#0A0A0F]" style={{ height: "calc(100dvh - 64px)" }}>
+    <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
       <MapContainer
         center={SOUTH_END_CENTER}
         zoom={15}
