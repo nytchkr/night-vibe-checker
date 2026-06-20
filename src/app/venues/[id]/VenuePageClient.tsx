@@ -437,6 +437,34 @@ export function VenuePageClient({
                   <RatingLabel rating={venue.rating} />
                   <OpenNowBadge openNow={venue.openNow} />
                 </div>
+                {venue.phone && (
+                  <a
+                    href={`tel:${venue.phone}`}
+                    className="flex items-center gap-2 text-sm text-white/60 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                  >
+                    <span aria-hidden>📞</span> {venue.phone}
+                  </a>
+                )}
+                {venue.website && (
+                  <a
+                    href={venue.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-sm text-[#00F5D4] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/50"
+                  >
+                    <span aria-hidden>🌐</span> Website
+                  </a>
+                )}
+                {venue.openingHours && venue.openingHours.length > 0 && (
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-xs text-white/40">Hours</summary>
+                    <ul className="mt-1 space-y-0.5">
+                      {venue.openingHours.map((hour, index) => (
+                        <li key={index} className="text-xs text-white/50">{hour}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
                 <a
                   href={mapsHref}
                   target="_blank"

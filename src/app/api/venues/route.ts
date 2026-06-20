@@ -33,6 +33,9 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     : sig != null
     ? (sig as Record<string, unknown>)
     : undefined;
+  const openingHours = Array.isArray(row.opening_hours)
+    ? row.opening_hours.filter((hour): hour is string => typeof hour === "string")
+    : undefined;
   return {
     id: row.id as string,
     slug: (row.slug ?? undefined) as string | undefined,
@@ -50,6 +53,9 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
     openNow: row.open_now == null ? undefined : Boolean(row.open_now),
+    phone: (row.phone ?? undefined) as string | undefined,
+    website: (row.website ?? undefined) as string | undefined,
+    openingHours,
     hidden: Boolean(row.hidden),
     signal: mapSignal(signalRow),
   };
@@ -83,7 +89,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       id, place_id, zone_id, name, address, lat, lng, venue_type, category,
       slug,
       rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
-      open_now,
+      open_now, phone, website, opening_hours,
       venue_signals (
         venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
         confidence_0_1, sample_size, computed_at, last_busyness_refresh

@@ -93,6 +93,9 @@ export interface ConsumerVenue {
   photoReference?: string;
   photoUrl?: string;
   openNow?: boolean;
+  phone?: string;
+  website?: string;
+  openingHours?: string[];
   hidden: boolean;
   signal: VenueSignal | null;
 }
