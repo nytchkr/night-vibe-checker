@@ -203,7 +203,16 @@ function VenueFeedCard({
 }
 
 function CardSkeleton() {
-  return <div className="h-[72px] animate-pulse rounded-2xl bg-white/[0.04]" />;
+  return (
+    <div className="flex min-h-[72px] w-full animate-pulse items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3">
+      <div className="h-4 w-4 shrink-0 rounded-full bg-white/10" />
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 h-4 w-36 rounded bg-white/10" />
+        <div className="h-3 w-24 rounded bg-white/[0.06]" />
+      </div>
+      <div className="h-6 w-16 shrink-0 rounded-full bg-white/10" />
+    </div>
+  );
 }
 
 export function ExplorePageClient() {
@@ -432,7 +441,7 @@ export function ExplorePageClient() {
         {venues === null && !error && (
           <div className="space-y-3" role="status" aria-label="Loading venues">
             <p className="sr-only">Loading venues...</p>
-            {Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}
+            {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
           </div>
         )}
 
