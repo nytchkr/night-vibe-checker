@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import Link from "next/link";
+import { Loader2, RefreshCw } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
@@ -194,36 +195,34 @@ export function VenueMap() {
   const mapHeightClass =
     process.env.NEXT_PUBLIC_ENV === "development" ? "h-[calc(100dvh-100px)]" : "h-[calc(100dvh-80px)]";
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchVenues = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setError(null);
 
-    async function fetchVenues() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/venues");
-        if (!res.ok) throw new Error(`Venue fetch failed: ${res.status}`);
-        const json = (await res.json()) as APIResponse<{ venues: ConsumerVenue[] }>;
-        if (!cancelled) {
-          setVenues(json.data?.venues ?? []);
-        }
-      } catch {
-        if (!cancelled) {
-          setError("Map venues are unavailable.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+    try {
+      const res = await fetch("/api/venues", { signal });
+      if (!res.ok) throw new Error(`Venue fetch failed: ${res.status}`);
+      const json = (await res.json()) as APIResponse<{ venues: ConsumerVenue[] }>;
+      setVenues(json.data?.venues ?? []);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setVenues([]);
+      setError("Map venues are unavailable.");
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false);
       }
     }
+  }, []);
 
-    void fetchVenues();
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchVenues(controller.signal);
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
-  }, []);
+  }, [fetchVenues]);
 
   useEffect(() => {
     if (!selectedVenue) return;
@@ -242,6 +241,7 @@ export function VenueMap() {
     () => venues.filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
     [venues],
   );
+  const showEmptyState = !loading && !error && visibleVenues.length === 0;
 
   return (
     <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
@@ -315,12 +315,48 @@ export function VenueMap() {
       </div>
 
       {loading && (
-        <div className="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-[#0a0a0f]/80">
-          <p className="animate-pulse text-sm font-black text-white/80">Loading venues...</p>
+        <div className="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-sm font-black text-white shadow-2xl backdrop-blur">
+            <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin text-[#00F5D4]" />
+            <span>Loading spots...</span>
+          </div>
         </div>
       )}
 
-      {error && !loading && <p className="sr-only">{error}</p>}
+      {showEmptyState && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
+          <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
+            <h2 className="text-base font-black">No spots found</h2>
+            <p className="mt-2 text-sm font-semibold text-white/70">South End Charlotte venues coming soon</p>
+            <button
+              type="button"
+              onClick={() => void fetchVenues()}
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-black text-[#0A0A0F] shadow-[0_0_18px_rgba(0,245,212,0.32)] transition hover:bg-[#66ffea] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+              Refresh
+            </button>
+          </div>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
+          <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
+            <h2 className="text-base font-black">Couldn&apos;t load spots</h2>
+            <p className="mt-2 text-sm font-semibold text-white/70">Try again to refresh the South End map.</p>
+            <button
+              type="button"
+              onClick={() => void fetchVenues()}
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-black text-[#0A0A0F] shadow-[0_0_18px_rgba(0,245,212,0.32)] transition hover:bg-[#66ffea] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+              Retry
+            </button>
+          </div>
+          <p className="sr-only">{error}</p>
+        </div>
+      )}
 
       <Link
         href="/vibe-check"
