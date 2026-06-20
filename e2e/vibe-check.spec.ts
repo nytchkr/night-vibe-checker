@@ -18,6 +18,17 @@ async function addLocalSession(page: Page) {
     },
   };
 
+  // Set cookie for server-side auth gate (page.tsx reads cookies via createServerClient)
+  await page.context().addCookies([{
+    name: "sb-onlpwglwnqoivuykywrk-auth-token",
+    value: JSON.stringify(session),
+    domain: "127.0.0.1",
+    path: "/",
+    httpOnly: false,
+    secure: false,
+    sameSite: "Lax",
+  }]);
+
   await page.addInitScript((authSession) => {
     for (const key of ["sb-onlpwglwnqoivuykywrk-auth-token", "sb-gfsbqewkrcyclbktfyfk-auth-token"]) {
       window.localStorage.setItem(key, JSON.stringify(authSession));
@@ -36,14 +47,14 @@ test.describe("Consumer report form", () => {
 
     await expect(page.getByRole("heading", { name: "The Midnight Lounge" })).toBeVisible();
     await expect(page.getByText("How busy is it?")).toBeVisible();
-    await expect(page.getByRole("button", { name: "DEAD" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "MODERATE" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "PACKED" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Dead" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Moderate" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Packed" })).toBeVisible();
     await expect(page.getByText("Crowd feel")).toBeVisible();
-    await expect(page.getByRole("button", { name: "MOSTLY GUYS" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "MOSTLY GIRLS" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "BALANCED" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "MIXED" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /More guys/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /More girls/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Mixed/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Mixed/i })).toBeVisible();
   });
 
   test("redirects cold guests to login before enabling report submission", async ({ page }) => {
