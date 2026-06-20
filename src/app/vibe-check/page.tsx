@@ -238,7 +238,7 @@ function CheckInInner() {
     <div className="min-h-screen bg-[#0A0A0F]">
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0F]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-sm items-center gap-3 px-4">
-          <Link href="/" className="text-sm font-semibold text-white/55 hover:text-white">
+          <Link href="/explore" className="text-sm font-semibold text-white/55 hover:text-white">
             Back
           </Link>
           <h1 className="truncate text-base font-bold text-[#F9FAFB]">

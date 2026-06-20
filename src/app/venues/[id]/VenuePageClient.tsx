@@ -290,8 +290,8 @@ export function VenuePageClient({
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0F]/90 px-4 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3 py-4">
           <Link
-            href="/"
-            aria-label="Back to home"
+            href="/explore"
+            aria-label="Back to explore"
             className="flex items-center gap-1.5 text-sm font-semibold text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/50"
           >
             <svg
