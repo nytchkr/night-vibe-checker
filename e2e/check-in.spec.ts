@@ -17,8 +17,14 @@ const feedReport = {
 };
 
 async function mockFeed(page: Page, checkIns = [feedReport]) {
-  await page.route("**/api/check-ins?limit=20", (route) =>
-    route.fulfill({
+  await page.route("**/api/check-ins**", (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() !== "GET" || url.pathname !== "/api/check-ins" || url.searchParams.get("limit") !== "20") {
+      return route.continue();
+    }
+
+    return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
@@ -26,8 +32,8 @@ async function mockFeed(page: Page, checkIns = [feedReport]) {
         data: { checkIns },
         meta,
       }),
-    }),
-  );
+    });
+  });
 }
 
 async function addLocalSession(page: Page) {
@@ -83,7 +89,12 @@ test.describe("VibeCheck consumer check-in flow", () => {
 
     await page.getByRole("button", { name: "PACKED" }).click();
     await page.getByRole("button", { name: "MOSTLY GUYS" }).click();
-    await page.getByRole("button", { name: "Report Vibe" }).click();
+    await expect(page.getByRole("button", { name: "PACKED" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "MOSTLY GUYS" })).toHaveAttribute("aria-pressed", "true");
+
+    const submit = page.getByRole("button", { name: "Report Vibe" });
+    await expect(submit).toBeEnabled();
+    await submit.click();
 
     await expect(page).toHaveURL(/\/login\?return=/);
     expect(decodeURIComponent(page.url())).toContain("/vibe-check?venueId=venue-123");
@@ -121,8 +132,12 @@ test.describe("VibeCheck consumer check-in flow", () => {
     await page.goto("/vibe-check?venueId=venue-123&venueName=The%20Midnight%20Lounge");
     await page.getByRole("button", { name: "PACKED" }).click();
     await page.getByRole("button", { name: "MOSTLY GUYS" }).click();
+    await expect(page.getByRole("button", { name: "PACKED" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "MOSTLY GUYS" })).toHaveAttribute("aria-pressed", "true");
     await page.getByPlaceholder("What's the vibe?").fill("Line is moving");
-    await page.getByRole("button", { name: "Report Vibe" }).click();
+    const submit = page.getByRole("button", { name: "Report Vibe" });
+    await expect(submit).toBeEnabled();
+    await submit.click();
 
     await expect(page.getByText("Vibe reported ✓")).toBeVisible();
     expect(checkInPayload).toMatchObject({
@@ -150,7 +165,12 @@ test.describe("VibeCheck consumer check-in flow", () => {
     await page.goto("/vibe-check?venueId=venue-123&venueName=The%20Midnight%20Lounge");
     await page.getByRole("button", { name: "MODERATE" }).click();
     await page.getByRole("button", { name: "BALANCED" }).click();
-    await page.getByRole("button", { name: "Report Vibe" }).click();
+    await expect(page.getByRole("button", { name: "MODERATE" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "BALANCED" })).toHaveAttribute("aria-pressed", "true");
+
+    const submit = page.getByRole("button", { name: "Report Vibe" });
+    await expect(submit).toBeEnabled();
+    await submit.click();
 
     await expect(page.getByText("Could not save report.")).toBeVisible();
   });
