@@ -6,11 +6,7 @@ async function expectPressed(button: Locator) {
 
 async function expectPackedActive(button: Locator) {
   await expectPressed(button);
-  await expect
-    .poll(async () =>
-      button.evaluate((element) => getComputedStyle(element).borderColor),
-    )
-    .toBe("rgb(239, 68, 68)");
+  await expect(button).toHaveCSS("border-color", "rgb(239, 68, 68)");
 }
 
 test.describe("NV-067 full VibeCheck consumer journey", () => {
@@ -61,7 +57,9 @@ test.describe("NV-067 full VibeCheck consumer journey", () => {
     });
 
     await test.step("5. Submit and verify auth gate or successful report", async () => {
-      await page.getByRole("button", { name: "Report Vibe" }).click();
+      const submit = page.getByRole("button", { name: "Report Vibe" });
+      await expect(submit).toBeEnabled();
+      await submit.click();
 
       await page.waitForFunction(() => {
         const reported = document.body.textContent?.includes("Vibe reported ✓");
