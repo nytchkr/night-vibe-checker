@@ -3,11 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
 import { ShareButton } from "@/components/ShareButton";
-import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
 
@@ -138,10 +136,6 @@ function CategoryChip({ category }: { category: string }) {
   );
 }
 
-function reportHref(path: string, session: Session | null): string {
-  return session ? path : `/login?return=${encodeURIComponent(path)}`;
-}
-
 function CheckInItem({ ci }: { ci: ConsumerCheckIn }) {
   const chip = busynessChip(ci.busyness);
 
@@ -187,7 +181,6 @@ export function VenuePageClient({
   initialVenue: ConsumerVenue | null;
 }) {
   const track = useTrack();
-  const [session, setSession] = useState<Session | null>(null);
   const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
   const [checkIns, setCheckIns] = useState<ConsumerCheckIn[]>([]);
   const [loading, setLoading] = useState(!initialVenue);
@@ -227,20 +220,6 @@ export function VenuePageClient({
     return () => { cancelled = true; };
   }, [initialVenue, venueId]);
 
-  useEffect(() => {
-    const client = createBrowserClient();
-
-    client.auth.getSession().then(({ data }) => setSession(data.session));
-
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessState = getBusynessState(busyness);
@@ -252,6 +231,7 @@ export function VenuePageClient({
     venueId,
     venueName: venue?.name ?? "Venue",
   }), [venueId, venue?.name]);
+  const reportUrl = `/vibe-check?${reportParams.toString()}`;
   const mapsHref = useMemo(() => {
     if (!venue) return "#";
     const query = venue.address || `${venue.lat},${venue.lng}`;
@@ -459,10 +439,10 @@ export function VenuePageClient({
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl safe-area-inset-bottom">
         <div className="mx-auto max-w-lg">
           <Link
-            href={reportHref(`/vibe-check?${reportParams.toString()}`, session)}
+            href={reportUrl}
             className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.26)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
           >
-            {session ? "＋ Report Vibe" : "Sign in to ＋ Report Vibe"}
+            ＋ Report Vibe
           </Link>
         </div>
       </div>
