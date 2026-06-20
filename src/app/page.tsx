@@ -108,6 +108,7 @@ function SourceBadge({ source }: { source: VenueSignal["busynessSource"] | undef
 
 function BusynessPill({ value }: { value: number | null | undefined }) {
   const state = getBusynessState(value);
+  const displayLabel = state.label === "Packed" ? "Packed 🔥" : state.label;
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#0A0A0F]/80 px-2.5 py-1 text-xs font-bold text-white/85 shadow-lg backdrop-blur-md">
       <span
@@ -115,7 +116,7 @@ function BusynessPill({ value }: { value: number | null | undefined }) {
         style={{ backgroundColor: state.color, boxShadow: `0 0 10px ${state.color}80` }}
         aria-hidden="true"
       />
-      {state.label}
+      {displayLabel}
     </span>
   );
 }
@@ -179,20 +180,12 @@ function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Sess
       <div className="mt-3 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
-              <Link
-                href={`/venues/${encodeURIComponent(venue.id)}`}
-                className="min-w-0 truncate text-lg font-black leading-tight text-white transition-colors hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
-              >
-                {venue.name}
-              </Link>
-              {venue.openNow === true ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-black uppercase tracking-[0.08em] text-emerald-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.75)]" />
-                  Open
-                </span>
-              ) : null}
-            </div>
+            <Link
+              href={`/venues/${encodeURIComponent(venue.id)}`}
+              className="block truncate text-lg font-black leading-tight text-white transition-colors hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+            >
+              {venue.name}
+            </Link>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <SourceBadge source={signal?.busynessSource} />
             </div>
