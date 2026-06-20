@@ -19,17 +19,20 @@ function apiKey(): string {
 
 // Register venue with BestTime, returns venue_id
 async function registerVenue(venue: VenueRow, key: string): Promise<string> {
-  const res = await fetch("https://besttime.app/api/v1/forecasts", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      api_key_private: key,
-      venue_name: venue.name,
-      venue_address: venue.address,
-    }),
+  const params = new URLSearchParams({
+    api_key_private: key,
+    venue_name: venue.name,
+    venue_address: venue.address,
   });
-  if (!res.ok) throw new Error(`BestTime register HTTP ${res.status}`);
+  const res = await fetch(`https://besttime.app/api/v1/forecasts?${params}`, {
+    method: "POST",
+    cache: "no-store",
+  });
   const data = await res.json();
+  if (!res.ok || data.status === "Error") {
+    const message = typeof data.message === "string" ? data.message : JSON.stringify(data.message ?? {});
+    throw new Error(`BestTime register failed: ${message}`);
+  }
   const venueId: string | null = data.venue_info?.venue_id ?? data.venue?.venue_id ?? null;
   if (!venueId) throw new Error("BestTime register: no venue_id in response");
   return venueId;
@@ -70,6 +73,60 @@ export function busynessScoreForStorage(score: number): 16 | 50 | 84 {
   return 84;
 }
 
+function charlotteDateParts(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const weekday = parts.find((part) => part.type === "weekday")?.value;
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  return { weekday, hour };
+}
+
+export function fallbackForecastScore(date = new Date()): 16 | 50 | 84 {
+  const { weekday, hour } = charlotteDateParts(date);
+  const isFridayOrSaturday = weekday === "Fri" || weekday === "Sat";
+  const isLateWeekendCarryover = (weekday === "Sat" || weekday === "Sun") && hour < 2;
+
+  if ((isFridayOrSaturday && hour >= 22) || isLateWeekendCarryover) return 84;
+  if (isFridayOrSaturday && hour >= 20 && hour < 22) return 50;
+  if (["Mon", "Tue", "Wed", "Thu"].includes(weekday ?? "") && hour >= 23) return 16;
+  return 50;
+}
+
+async function writeBusyness(
+  venue: VenueRow,
+  bestTimeVenueId: string | null,
+  busyness: 16 | 50 | 84,
+  source: BusynessSource,
+  refreshedAt: string
+) {
+  const venueUpdate: Partial<Pick<VenueRow, "besttime_venue_id">> & { last_busyness_refresh: string } = {
+    last_busyness_refresh: refreshedAt,
+  };
+  if (bestTimeVenueId) {
+    venueUpdate.besttime_venue_id = bestTimeVenueId;
+  }
+
+  const { error: venueError } = await supabaseAdmin.from("venues").update(venueUpdate).eq("id", venue.id);
+  if (venueError) throw venueError;
+
+  const { error: signalError } = await supabaseAdmin.from("venue_signals").upsert(
+    {
+      venue_id: venue.id,
+      place_id: venue.place_id,
+      busyness_0_100: busyness,
+      busyness_source: source,
+      last_busyness_refresh: refreshedAt,
+      computed_at: refreshedAt,
+    },
+    { onConflict: "venue_id" }
+  );
+  if (signalError) throw signalError;
+}
+
 export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
   const { data: venues, error } = await supabaseAdmin
     .from("venues")
@@ -87,54 +144,47 @@ export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
     try {
       // Register if we don't have a besttime_venue_id yet
       let bestTimeVenueId = venue.besttime_venue_id;
-      if (!bestTimeVenueId) {
-        bestTimeVenueId = await registerVenue(venue, key);
-      }
+      let busynessValue: number | null = null;
+      let source: BusynessSource = "forecast";
+      let fallbackReason: string | undefined;
 
-      // Try live first, fall back to forecast
-      let busynessValue: number | null = await fetchLiveHour(bestTimeVenueId, key);
-      let source: BusynessSource;
+      try {
+        if (!bestTimeVenueId) {
+          bestTimeVenueId = await registerVenue(venue, key);
+        }
 
-      if (busynessValue !== null) {
-        source = "live";
-      } else {
-        busynessValue = await fetchForecastHour(bestTimeVenueId, key);
-        source = "forecast";
+        // Try live first, fall back to BestTime's forecast endpoint, then to
+        // the local heuristic if BestTime cannot return usable data.
+        try {
+          busynessValue = await fetchLiveHour(bestTimeVenueId, key);
+        } catch {
+          busynessValue = null;
+        }
+        if (busynessValue !== null) {
+          source = "live";
+        } else {
+          busynessValue = await fetchForecastHour(bestTimeVenueId, key);
+          source = "forecast";
+        }
+      } catch (err) {
+        fallbackReason = err instanceof Error ? err.message : "Unknown BestTime error";
       }
 
       if (busynessValue === null) {
-        results.push({ venueId: venue.id, ok: false, reason: "No BestTime read" });
-        continue;
+        busynessValue = fallbackForecastScore();
+        source = "forecast";
       }
 
       const refreshedAt = new Date().toISOString();
       const busyness = busynessScoreForStorage(busynessValue);
 
-      const { error: venueError } = await supabaseAdmin
-        .from("venues")
-        .update({
-          besttime_venue_id: bestTimeVenueId,
-          busyness_0_100: busyness,
-          busyness_source: source,
-          last_busyness_refresh: refreshedAt,
-        })
-        .eq("id", venue.id);
-      if (venueError) throw venueError;
+      await writeBusyness(venue, bestTimeVenueId, busyness, source, refreshedAt);
 
-      const { error: signalError } = await supabaseAdmin.from("venue_signals").upsert(
-        {
-          venue_id: venue.id,
-          place_id: venue.place_id,
-          busyness_0_100: busyness,
-          busyness_source: source,
-          last_busyness_refresh: refreshedAt,
-          computed_at: refreshedAt,
-        },
-        { onConflict: "venue_id" }
-      );
-      if (signalError) throw signalError;
-
-      results.push({ venueId: venue.id, ok: true });
+      results.push({
+        venueId: venue.id,
+        ok: true,
+        reason: fallbackReason ? `Fallback forecast: ${fallbackReason}` : undefined,
+      });
     } catch (err) {
       results.push({
         venueId: venue.id,
