@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
+import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { timeAgo } from "@/lib/timeAgo";
 import { useTrack } from "@/lib/useTrack";
@@ -217,10 +218,14 @@ function VenueFeedCard({
   venue,
   session,
   searchQuery,
+  saved,
+  onSavedChange,
 }: {
   venue: ConsumerVenue;
   session: Session | null;
   searchQuery: string;
+  saved: boolean;
+  onSavedChange: (venueId: string, saved: boolean) => void;
 }) {
   const signal = venue.signal;
   const busyness = getBusynessState(signal?.busyness0To100);
@@ -232,19 +237,28 @@ function VenueFeedCard({
 
   return (
     <li
-      className={`overflow-hidden rounded-2xl border bg-white/[0.04] p-3 transition-shadow ${
+      className={`relative overflow-hidden rounded-2xl border bg-white/[0.04] p-3 transition-shadow ${
         busyness.label === "Packed"
           ? "border-[#EF4444]/45 shadow-[0_0_24px_rgba(239,68,68,0.16)]"
           : "border-white/[0.09]"
       }`}
     >
+      <SaveVenueButton
+        venueId={venue.id}
+        venueName={venue.name}
+        accessToken={session?.access_token}
+        initialSaved={saved}
+        onSavedChange={onSavedChange}
+        className="absolute right-5 top-5 z-10"
+      />
+
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         className="relative block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
         aria-label={`Open ${venue.name}`}
       >
         <VenuePhoto venue={venue} />
-        <span className="absolute right-2 top-2 flex flex-col items-end">
+        <span className="absolute left-2 top-2 flex flex-col items-start">
           <BusynessPill value={signal?.busyness0To100} />
           <MFRatioMiniBar mfRatio={signal?.mfRatio} sampleSize={signal?.sampleSize} computedAt={signal?.computedAt} />
         </span>
@@ -311,6 +325,7 @@ export function ExplorePageClient() {
   const track = useTrack();
   const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
+  const [savedVenueIds, setSavedVenueIds] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -333,6 +348,19 @@ export function ExplorePageClient() {
     }
   }, []);
 
+  const fetchSavedVenues = useCallback(async (accessToken: string) => {
+    try {
+      const res = await fetch("/api/saved-venues", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      setSavedVenueIds(new Set(json?.data?.savedVenueIds ?? []));
+    } catch {
+      // Non-fatal: venue browsing should still work if saved state cannot load.
+    }
+  }, []);
+
   useEffect(() => {
     fetchVenues();
   }, [fetchVenues]);
@@ -349,15 +377,32 @@ export function ExplorePageClient() {
   useEffect(() => {
     const client = createBrowserClient();
 
-    client.auth.getSession().then(({ data }) => setSession(data.session));
+    client.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session?.access_token) void fetchSavedVenues(data.session.access_token);
+    });
 
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      if (nextSession?.access_token) {
+        void fetchSavedVenues(nextSession.access_token);
+      } else {
+        setSavedVenueIds(new Set());
+      }
     });
 
     return () => subscription.unsubscribe();
+  }, [fetchSavedVenues]);
+
+  const handleSavedChange = useCallback((venueId: string, saved: boolean) => {
+    setSavedVenueIds((current) => {
+      const next = new Set(current);
+      if (saved) next.add(venueId);
+      else next.delete(venueId);
+      return next;
+    });
   }, []);
 
   const sortedVenues = useMemo(() => {
@@ -521,7 +566,14 @@ export function ExplorePageClient() {
         {!loading && !error && sortedVenues.length > 0 && (
           <ul className="space-y-3">
             {sortedVenues.map((venue) => (
-              <VenueFeedCard key={venue.id} venue={venue} session={session} searchQuery={searchQuery} />
+              <VenueFeedCard
+                key={venue.id}
+                venue={venue}
+                session={session}
+                searchQuery={searchQuery}
+                saved={savedVenueIds.has(venue.id)}
+                onSavedChange={handleSavedChange}
+              />
             ))}
           </ul>
         )}

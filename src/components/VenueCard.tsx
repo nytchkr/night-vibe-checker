@@ -16,6 +16,7 @@
 
 // TODO(NV-076): VenueBasic removed with vibe.ts — prop type will be replaced by ConsumerVenue
 import { VibeTagBadge } from "./VibeTagBadge";
+import { SaveVenueButton } from "./SaveVenueButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -43,6 +44,7 @@ function timeAgo(isoString: string): string {
 
 // Minimal venue shape — will be replaced by ConsumerVenue once NV-076 ships
 interface VenueShape {
+  id?: string;
   placeId: string;
   name: string;
   googleRating?: number;
@@ -57,6 +59,7 @@ interface VenueCardProps {
   isChecking?: boolean;
   className?: string;
   isSaved?: boolean;
+  accessToken?: string | null;
   onSaveToggle?: (venueId: string, saved: boolean) => void;
   /** Live crowd level from check-ins */
   crowdBadge?: CrowdLevel;
@@ -87,15 +90,33 @@ function PriceLevel({ level }: { level?: number }) {
   );
 }
 
-function CompactCard({ venue, topTags, onVibeCheck, isChecking }: Omit<VenueCardProps, "variant" | "className">) {
+function CompactCard({
+  venue,
+  topTags,
+  onVibeCheck,
+  isChecking,
+  isSaved,
+  accessToken,
+  onSaveToggle,
+}: Omit<VenueCardProps, "variant" | "className">) {
   return (
     <Card
-      className="w-56 overflow-hidden rounded-2xl border-white/10 bg-zinc-950/95 text-white shadow-2xl"
+      className="relative w-56 overflow-hidden rounded-2xl border-white/10 bg-zinc-950/95 text-white shadow-2xl"
       style={{ background: "linear-gradient(145deg, rgba(24,24,27,0.98), rgba(39,39,42,0.92))", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
     >
       <CardContent className="p-3">
+        {venue.id && (
+          <SaveVenueButton
+            venueId={venue.id}
+            venueName={venue.name}
+            accessToken={accessToken}
+            initialSaved={isSaved}
+            onSavedChange={onSaveToggle}
+            className="absolute right-2 top-2 h-9 w-9"
+          />
+        )}
         <div className="flex items-center gap-3">
-          <div className="min-w-0">
+          <div className="min-w-0 pr-10">
             <p className="text-white font-semibold text-sm leading-tight truncate">{venue.name}</p>
             <div className="flex items-center gap-2 mt-0.5">
               <StarRating rating={venue.googleRating} />
@@ -132,6 +153,9 @@ function FullCard({
   onVibeCheck,
   isChecking,
   className,
+  isSaved,
+  accessToken,
+  onSaveToggle,
   crowdBadge,
   lastReportedAt,
   reportCount,
@@ -143,13 +167,24 @@ function FullCard({
 
   return (
     <div
-      className={`rounded-2xl overflow-hidden border border-white/[0.09] ${className ?? ""}`}
+      className={`relative rounded-2xl overflow-hidden border border-white/[0.09] ${className ?? ""}`}
       style={{ background: "rgba(255,255,255,0.04)" }}
     >
+      {venue.id && (
+        <SaveVenueButton
+          venueId={venue.id}
+          venueName={venue.name}
+          accessToken={accessToken}
+          initialSaved={isSaved}
+          onSavedChange={onSaveToggle}
+          className="absolute right-2 top-2 z-10 h-9 w-9"
+        />
+      )}
+
       {/* Crowd color bar */}
       {crowd ? (
         <div
-          className="w-full flex items-center px-3 min-h-[32px]"
+          className="w-full flex items-center px-3 pr-12 min-h-[32px]"
           style={{ background: crowd.bg, borderBottom: `1px solid ${crowd.border}` }}
         >
           <span className="text-[14px] font-bold" style={{ color: crowd.text }}>
@@ -192,7 +227,7 @@ function FullCard({
 
 export function VenueCard({ variant = "full", ...props }: VenueCardProps) {
   if (variant === "compact") {
-    const { isSaved: _isSaved, onSaveToggle: _onSaveToggle, crowdBadge: _cb, lastReportedAt: _lr, reportCount: _rc, ...compactProps } = props;
+    const { crowdBadge: _cb, lastReportedAt: _lr, reportCount: _rc, ...compactProps } = props;
     return <CompactCard {...compactProps} />;
   }
   return <FullCard {...props} />;

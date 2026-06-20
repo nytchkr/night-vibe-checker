@@ -3,8 +3,8 @@
 // ============================================================
 // Profile Page  — NV-062, NV-065
 //
-// Logged-in: "Your Reports" header + recent check-ins.
-// Logged-out users are redirected to /login?return=/profile.
+// Logged-in: profile, recent check-ins, saved venues, and settings.
+// Logged-out: pitch card with sign-up CTA.
 // ============================================================
 
 import { useEffect, useState } from "react";
@@ -15,11 +15,13 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { ConsumerVenue, VenueSignal } from "@/types";
 
 // --------------- Crowd badge --------------------------------
 
 type Busyness = "dead" | "moderate" | "packed";
 type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
+type SignalBusyness = "No signal" | "Quiet" | "Moderate" | "Packed";
 
 const BUSYNESS_CFG: Record<Busyness, { label: string; bg: string; text: string }> = {
   dead:     { label: "Dead",     bg: "rgba(34,197,94,0.40)",  text: "#fff" },
@@ -34,6 +36,12 @@ const CROWD_FEEL_LABEL: Record<CrowdFeel, string> = {
   mixed: "Mixed / unsure",
 };
 
+const SOURCE_LABEL: Record<NonNullable<VenueSignal["busynessSource"]>, string> = {
+  live: "Source: live check-in",
+  forecast: "Source: BestTime forecast",
+  crowd: "Source: crowd report",
+};
+
 function BusynessBadge({ level }: { level: string }) {
   const cfg = BUSYNESS_CFG[level as Busyness];
   if (!cfg) return null;
@@ -45,6 +53,35 @@ function BusynessBadge({ level }: { level: string }) {
       {cfg.label}
     </span>
   );
+}
+
+function getSignalBusyness(value: number | null | undefined): SignalBusyness {
+  if (value == null) return "No signal";
+  if (value >= 67) return "Packed";
+  if (value >= 34) return "Moderate";
+  return "Quiet";
+}
+
+function SignalBusynessPill({ venue }: { venue: ConsumerVenue }) {
+  const label = getSignalBusyness(venue.signal?.busyness0To100);
+  const className =
+    label === "Packed"
+      ? "border-red-400/30 bg-red-500/15 text-red-200"
+      : label === "Moderate"
+      ? "border-yellow-400/30 bg-yellow-500/15 text-yellow-100"
+      : label === "Quiet"
+      ? "border-emerald-400/25 bg-emerald-500/12 text-emerald-100"
+      : "border-white/10 bg-white/[0.06] text-white/45";
+
+  return (
+    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${className}`}>
+      {label}
+    </span>
+  );
+}
+
+function sourceLabel(source: VenueSignal["busynessSource"] | null | undefined): string {
+  return source ? SOURCE_LABEL[source] : "Source: no current signal";
 }
 
 // --------------- Time ago -----------------------------------
@@ -119,6 +156,42 @@ function CheckInRow({ item }: { item: CheckInItem }) {
   );
 }
 
+function SavedVenueRow({ venue }: { venue: ConsumerVenue }) {
+  return (
+    <li className="rounded-2xl border border-white/[0.09] px-3 py-3" style={{ background: "rgba(255,255,255,0.04)" }}>
+      <Link href={`/venues/${encodeURIComponent(venue.id)}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[15px] font-bold leading-snug text-white">{venue.name}</p>
+            <p className="mt-1 truncate text-xs font-semibold text-white/42">{venue.category || "Venue"}</p>
+          </div>
+          <SignalBusynessPill venue={venue} />
+        </div>
+        <p className="mt-2 text-[11px] font-semibold text-white/35">{sourceLabel(venue.signal?.busynessSource)}</p>
+      </Link>
+    </li>
+  );
+}
+
+function LoggedOutPitch() {
+  return (
+    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5 shadow-[0_0_32px_rgba(0,245,212,0.05)]" aria-label="Sign up benefits">
+      <h2 className="text-2xl font-black text-white">Your Night Out HQ</h2>
+      <ul className="mt-4 space-y-3 text-sm font-semibold text-white/72">
+        <li className="flex gap-2"><span className="text-[#00F5D4]">✓</span><span>Report the vibe — tell others how packed it is</span></li>
+        <li className="flex gap-2"><span className="text-[#00F5D4]">✓</span><span>Save your spots — bookmark bars for quick access</span></li>
+        <li className="flex gap-2"><span className="text-[#00F5D4]">✓</span><span>See your history — all your check-ins in one place</span></li>
+      </ul>
+      <Button
+        asChild
+        className="mt-5 min-h-[52px] w-full rounded-2xl bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.32)] hover:bg-[#2fffe2]"
+      >
+        <Link href="/login?return=/profile">Sign up free</Link>
+      </Button>
+    </section>
+  );
+}
+
 // --------------- Skeleton -----------------------------------
 
 function CheckInSkeleton() {
@@ -139,9 +212,12 @@ function CheckInSkeleton() {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const [authChecked, setAuthChecked] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [savedVenues, setSavedVenues] = useState<ConsumerVenue[]>([]);
+  const [checkInsLoading, setCheckInsLoading] = useState(false);
+  const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -149,11 +225,16 @@ export default function ProfilePage() {
     client.auth.getSession().then(({ data }) => {
       const activeSession = data.session ?? readLocalTestSession();
       if (!activeSession) {
-        router.replace("/login?return=/profile");
+        setSession(null);
+        setCheckIns([]);
+        setSavedVenues([]);
+        setAuthChecked(true);
         return;
       }
       setSession(activeSession);
+      setAuthChecked(true);
       fetchCheckIns(activeSession.access_token);
+      fetchSavedVenues(activeSession.access_token);
     });
 
     const { data: { subscription } } = client.auth.onAuthStateChange((_event, sess) => {
@@ -161,18 +242,21 @@ export default function ProfilePage() {
       if (!activeSession) {
         setSession(null);
         setCheckIns([]);
-        router.replace("/login?return=/profile");
+        setSavedVenues([]);
+        setAuthChecked(true);
         return;
       }
       setSession(activeSession);
+      setAuthChecked(true);
       fetchCheckIns(activeSession.access_token);
+      fetchSavedVenues(activeSession.access_token);
     });
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, []);
 
   async function fetchCheckIns(token: string) {
-    setLoading(true);
+    setCheckInsLoading(true);
     try {
       const res = await fetch("/api/check-ins/me", {
         headers: { Authorization: `Bearer ${token}` },
@@ -202,7 +286,31 @@ export default function ProfilePage() {
     } catch {
       // non-fatal
     } finally {
-      setLoading(false);
+      setCheckInsLoading(false);
+    }
+  }
+
+  async function fetchSavedVenues(token: string) {
+    setSavedVenuesLoading(true);
+    try {
+      const [savedRes, venuesRes] = await Promise.all([
+        fetch("/api/saved-venues", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/venues"),
+      ]);
+
+      if (!savedRes.ok || !venuesRes.ok) return;
+
+      const [savedJson, venuesJson] = await Promise.all([savedRes.json(), venuesRes.json()]);
+      const savedIds = (savedJson.data?.savedVenueIds ?? []) as string[];
+      const venues = (venuesJson.data?.venues ?? []) as ConsumerVenue[];
+      const venueById = new Map(venues.map((venue) => [venue.id, venue]));
+      setSavedVenues(savedIds.map((id) => venueById.get(id)).filter((venue): venue is ConsumerVenue => Boolean(venue)));
+    } catch {
+      // Non-fatal: profile history still renders if saved venues cannot load.
+    } finally {
+      setSavedVenuesLoading(false);
     }
   }
 
@@ -217,13 +325,20 @@ export default function ProfilePage() {
       <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
         <div className="max-w-lg mx-auto py-4">
           <h1 className="truncate text-white font-black text-2xl tracking-[-0.01em]">
-            {session?.user.email ?? "Loading profile..."}
+            {session?.user.email ?? (authChecked ? "You" : "Loading profile...")}
           </h1>
-          <p className="mt-0.5 text-sm font-semibold text-white/45">Your Reports</p>
+          <p className="mt-0.5 text-sm font-semibold text-white/45">{session ? "Your Reports" : "Sign in to unlock your night out tools"}</p>
         </div>
       </header>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-5 pb-44">
+        {!authChecked && (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
+          </div>
+        )}
+
+        {authChecked && !session && <LoggedOutPitch />}
 
         {/* Logged-in header */}
         {session && (
@@ -243,23 +358,51 @@ export default function ProfilePage() {
         )}
 
         {/* Check-in history */}
-        <section aria-label="Your reports">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
+        {session && (
+          <section aria-label="Your reports">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <h2 className="text-lg font-black text-white">Check-in History</h2>
+              <span className="text-xs font-semibold text-white/35">{checkIns.length} total</span>
             </div>
-          ) : checkIns.length === 0 ? (
-            <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
-              <p className="text-white/40 text-sm">No reports yet. Be the first to vibe-check a venue!</p>
+            {checkInsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
+              </div>
+            ) : checkIns.length === 0 ? (
+              <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
+                <p className="text-white/40 text-sm">No reports yet. Be the first to vibe-check a venue!</p>
+              </div>
+            ) : (
+              <ul className="space-y-3 list-none">
+                {checkIns.map((ci) => (
+                  <li key={ci.id}><CheckInRow item={ci} /></li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {session && (
+          <section aria-label="Saved spots">
+            <div className="mb-3 flex items-end justify-between gap-3">
+              <h2 className="text-lg font-black text-white">Saved Spots</h2>
+              <span className="text-xs font-semibold text-white/35">{savedVenues.length} saved</span>
             </div>
-          ) : (
-            <ul className="space-y-3 list-none">
-              {checkIns.map((ci) => (
-                <li key={ci.id}><CheckInRow item={ci} /></li>
-              ))}
-            </ul>
-          )}
-        </section>
+            {savedVenuesLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 2 }).map((_, i) => <CheckInSkeleton key={i} />)}
+              </div>
+            ) : savedVenues.length === 0 ? (
+              <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
+                <p className="text-white/40 text-sm">Tap ♡ on any venue to save it</p>
+              </div>
+            ) : (
+              <ul className="space-y-3 list-none">
+                {savedVenues.map((venue) => <SavedVenueRow key={venue.id} venue={venue} />)}
+              </ul>
+            )}
+          </section>
+        )}
 
         {/* Report CTA */}
         {session && (
