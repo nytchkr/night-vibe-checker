@@ -7,7 +7,7 @@ import "./globals.css";
 const siteUrl = "https://night-vibe-checker.vercel.app";
 const title = "NightVibe — South End Charlotte";
 const description = "See how busy South End bars and clubs are right now. Real-time crowd vibes.";
-const ogImage = `${siteUrl}/icon-512.png`;
+const ogImage = "/og-image.png";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -33,9 +33,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: ogImage,
-        width: 512,
-        height: 512,
-        alt: title,
+        width: 1200,
+        height: 630,
       },
     ],
     type: "website",

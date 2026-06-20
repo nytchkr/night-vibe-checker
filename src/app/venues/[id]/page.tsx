@@ -6,7 +6,7 @@ import { VenuePageClient } from "./VenuePageClient";
 const siteUrl = "https://night-vibe-checker.vercel.app";
 const fallbackTitle = "NightVibe — South End Charlotte";
 const fallbackDescription = "See how busy South End bars and clubs are right now. Real-time crowd vibes.";
-const fallbackImage = `${siteUrl}/icon-512.png`;
+const fallbackImage = "/og-image.png";
 
 export const dynamic = "force-dynamic";
 
@@ -73,13 +73,20 @@ async function getVenue(id: string): Promise<ConsumerVenue | null> {
   return mapVenue(data as Record<string, unknown>);
 }
 
+function getVenueDescription(venue: ConsumerVenue): string {
+  const busyness = venue.signal?.busyness0To100;
+  if (typeof busyness === "number") {
+    return `${venue.name} is currently ${Math.round(busyness)}/100 busy in South End Charlotte. See who's out tonight on NightVibe.`;
+  }
+
+  return `See the live crowd vibe at ${venue.name} in South End Charlotte.`;
+}
+
 export async function generateMetadata({ params }: VenuePageProps): Promise<Metadata> {
   const { id } = await params;
   const venue = await getVenue(id);
-  const title = venue?.name ?? fallbackTitle;
-  const description = venue
-    ? `See the live crowd vibe at ${venue.name} in South End Charlotte.`
-    : fallbackDescription;
+  const title = venue ? `${venue.name} — NightVibe` : fallbackTitle;
+  const description = venue ? getVenueDescription(venue) : fallbackDescription;
   const image = venue?.photoUrl ?? fallbackImage;
   const url = `${siteUrl}/venues/${encodeURIComponent(id)}`;
 
