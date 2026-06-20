@@ -112,7 +112,7 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
 
     await page.goto("/explore");
 
-    await expect(page.getByRole("heading", { name: "How's South End tonight?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "South End Charlotte" })).toBeVisible();
     await expect(page.getByText("No venues yet")).toBeVisible();
   });
 

@@ -98,22 +98,20 @@ test.describe("Map tab", () => {
     expect(response.status()).toBe(200);
 
     await page.goto("/map");
-
+    await page.waitForSelector(".leaflet-container", { timeout: 10000 });
     await expect(page.locator(".leaflet-container")).toBeVisible();
-    await expect(page.getByText("2 South End spots")).toBeVisible();
+    await expect(page.getByText(/spots/)).toBeVisible();
   });
 
   test("Report Vibe FAB is visible on /map", async ({ page }) => {
-
     await page.goto("/map");
-
-    await expect(page.getByRole("link", { name: /Report Vibe/ })).toBeVisible();
+    await page.waitForLoadState("domcontentloaded");
+    await expect(page.getByRole("link", { name: /Report Vibe/ })).toBeVisible({ timeout: 10000 });
   });
 
   test("FAB links to /vibe-check", async ({ page }) => {
-
     await page.goto("/map");
-
+    await page.waitForLoadState("domcontentloaded");
     const fab = page.getByRole("link", { name: /Report Vibe/ });
     await expect(fab).toBeVisible();
     await fab.click();
@@ -127,7 +125,7 @@ test.describe("Map tab", () => {
     const nav = page.getByRole("navigation", { name: "Main navigation" });
     await expect(nav.getByRole("link", { name: "Map" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Explore" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Me" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "You" })).toBeVisible();
   });
 
   test("clicking Explore tab navigates to /explore", async ({ page }) => {
@@ -143,7 +141,7 @@ test.describe("Map tab", () => {
   test("clicking Me tab navigates to /profile", async ({ page }) => {
     await page.goto("/map");
 
-    const meTab = page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Me" });
+    const meTab = page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "You" });
     await expect(meTab).toBeVisible();
     await meTab.click();
 

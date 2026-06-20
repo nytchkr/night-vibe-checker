@@ -98,7 +98,8 @@ test.describe("NV-TEST-004 venue detail", () => {
   test("clicking a venue card navigates to the venue detail page", async ({ page }) => {
     await mockVenueApis(page);
 
-    await page.goto("/");
+    await page.goto("/explore");
+    await page.waitForLoadState("domcontentloaded");
     await page.getByRole("link", { name: `Open ${venue.name}` }).click();
 
     await expect(page).toHaveURL(`/venues/${venue.id}`);

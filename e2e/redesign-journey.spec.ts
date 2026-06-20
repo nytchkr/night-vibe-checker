@@ -66,7 +66,7 @@ test.describe("NV-067 full VibeCheck consumer journey", () => {
     await test.step("1. Open the local feed and see at least one venue card", async () => {
       await page.goto("/explore");
 
-      await expect(page.getByRole("heading", { name: "How's South End tonight?" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "South End Charlotte" })).toBeVisible();
       await expect(page.getByText("Could not load venues.")).toHaveCount(0);
 
       const firstCard = page.locator("main li").first();
