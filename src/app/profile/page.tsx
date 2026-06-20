@@ -426,8 +426,10 @@ export default function ProfilePage() {
                 {Array.from({ length: 2 }).map((_, i) => <CheckInSkeleton key={i} />)}
               </div>
             ) : savedVenues.length === 0 ? (
-              <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
-                <p className="text-white/40 text-sm">No saved spots yet — tap ❤ on any venue</p>
+              <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center">
+                <p className="text-4xl mb-3">🤍</p>
+                <h3 className="text-white font-bold text-lg">No saved spots yet</h3>
+                <p className="text-white/50 text-sm mt-1">Heart a venue to save it for quick access</p>
               </div>
             ) : (
               <ul className="space-y-3 list-none">
@@ -446,8 +448,13 @@ export default function ProfilePage() {
                 {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
               </div>
             ) : checkIns.length === 0 ? (
-              <div className="rounded-2xl bg-white/5 border border-white/[0.08] p-6 text-center">
-                <p className="text-white/40 text-sm">No vibes reported yet — go check in!</p>
+              <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center">
+                <p className="text-4xl mb-3">🌙</p>
+                <h3 className="text-white font-bold text-lg">Your first night awaits</h3>
+                <p className="text-white/50 text-sm mt-1">Report the vibe at any venue to see your history here</p>
+                <Link href="/explore" className="mt-4 inline-flex items-center justify-center rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-bold text-[#0A0A0F]">
+                  Find a venue
+                </Link>
               </div>
             ) : (
               <ul className="space-y-3 list-none">
