@@ -43,7 +43,11 @@ test.describe("Magic-link login flow", () => {
   });
 
   test("shows the magic-link sent state after Supabase accepts the OTP request", async ({ page }) => {
+    let redirectTo: string | null = null;
+
     await page.route("**/auth/v1/otp**", (route) => {
+      redirectTo = new URL(route.request().url()).searchParams.get("redirect_to");
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -51,12 +55,16 @@ test.describe("Magic-link login flow", () => {
       });
     });
 
-    await page.goto("/login");
+    await page.goto("/login?return=/vibe-check?venueId=venue-123");
     await page.getByLabel(/email/i).fill("magic-link-e2e@example.com");
     await page.getByRole("button", { name: /send/i }).click();
 
     await expect(page.getByText("Check your email")).toBeVisible();
     await expect(page.getByText(/magic-link-e2e@example.com/)).toBeVisible();
+    expect(redirectTo).toContain("/auth/callback?return=%2Fvibe-check%3FvenueId%3Dvenue-123");
+    await expect
+      .poll(() => page.evaluate(() => window.sessionStorage.getItem("nightvibe.postAuthReturnUrl")))
+      .toBe("/vibe-check?venueId=venue-123");
   });
 
   test("redirects authenticated users from login to the return URL", async ({ page }) => {
@@ -65,5 +73,20 @@ test.describe("Magic-link login flow", () => {
     await page.goto("/login?return=/profile");
 
     await expect(page).toHaveURL(/\/profile/);
+  });
+
+  test("uses the stored return URL when the callback return parameter is missing", async ({ page }) => {
+    await page.goto("/");
+    await page.evaluate(() => {
+      window.sessionStorage.setItem("nightvibe.postAuthReturnUrl", "/vibe-check?venueId=venue-123");
+    });
+    await addLocalSession(page);
+
+    await page.goto("/login?auth=callback");
+
+    await expect(page).toHaveURL(/\/vibe-check\?venueId=venue-123/);
+    await expect
+      .poll(() => page.evaluate(() => window.sessionStorage.getItem("nightvibe.postAuthReturnUrl")))
+      .toBeNull();
   });
 });

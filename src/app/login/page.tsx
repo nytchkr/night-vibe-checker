@@ -1,18 +1,48 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
+const POST_AUTH_RETURN_KEY = "nightvibe.postAuthReturnUrl";
+
 function safeReturnUrl(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  if (!value || value === "/" || value === "/map" || !value.startsWith("/") || value.startsWith("//")) {
+    return "/profile";
+  }
   return value;
+}
+
+function readStoredReturnUrl() {
+  try {
+    return safeReturnUrl(window.sessionStorage.getItem(POST_AUTH_RETURN_KEY));
+  } catch {
+    return "/profile";
+  }
+}
+
+function storeReturnUrl(returnUrl: string) {
+  try {
+    window.sessionStorage.setItem(POST_AUTH_RETURN_KEY, returnUrl);
+  } catch {
+    // Storage can be unavailable in private contexts. The callback URL still carries the return path.
+  }
+}
+
+function clearStoredReturnUrl() {
+  try {
+    window.sessionStorage.removeItem(POST_AUTH_RETURN_KEY);
+  } catch {
+    // Ignore storage cleanup failures; auth should still proceed.
+  }
 }
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const hasReturnParam = searchParams.has("return");
+  const redirectedRef = useRef(false);
   const returnUrl = useMemo(
     () => safeReturnUrl(searchParams.get("return")),
     [searchParams]
@@ -28,7 +58,12 @@ function LoginContent() {
     const client = createBrowserClient();
 
     function redirectAfterAuth(session: Session | null) {
-      if (session) router.push(returnUrl);
+      if (!session || redirectedRef.current) return;
+
+      redirectedRef.current = true;
+      const destination = hasReturnParam ? returnUrl : readStoredReturnUrl();
+      clearStoredReturnUrl();
+      router.push(destination);
     }
 
     client.auth.getSession().then(({ data }) => redirectAfterAuth(data.session));
@@ -40,7 +75,7 @@ function LoginContent() {
     });
 
     return () => subscription.unsubscribe();
-  }, [returnUrl, router]);
+  }, [hasReturnParam, returnUrl, router]);
 
   async function handleSignIn() {
     if (!email.trim() || signingIn) return;
@@ -50,6 +85,7 @@ function LoginContent() {
 
     try {
       const client = createBrowserClient();
+      storeReturnUrl(returnUrl);
       const redirectTo = `${window.location.origin}/auth/callback?return=${encodeURIComponent(returnUrl)}`;
       const { error: signInError } = await client.auth.signInWithOtp({
         email: email.trim(),
@@ -77,6 +113,7 @@ function LoginContent() {
 
     try {
       const client = createBrowserClient();
+      storeReturnUrl(returnUrl);
       const { error: signInError } = await client.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${window.location.origin}/auth/callback?return=${encodeURIComponent(returnUrl)}` },
