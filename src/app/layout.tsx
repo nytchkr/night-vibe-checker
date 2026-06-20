@@ -12,6 +12,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Night Vibe Checker — Live crowd reports",
   description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "NightVibe",
+  },
   openGraph: {
     title: "Night Vibe Checker — Live crowd reports",
     description: "Real-time crowd and vibe reports from nightlife venues. Check before you go.",
@@ -30,6 +36,8 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0a0a0a",
 };
 
 const isDev = process.env.NEXT_PUBLIC_ENV === "development";
