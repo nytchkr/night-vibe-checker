@@ -195,12 +195,15 @@ export default function VibeCheckClient({
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center">
           <section className="w-full rounded-2xl border border-[#00F5D4]/35 bg-[#00F5D4]/10 px-6 py-8 text-center shadow-[0_0_32px_rgba(0,245,212,0.16)]">
             <h1 className="text-2xl font-black">✓ Vibe logged!</h1>
-            <p className="mt-2 text-sm font-semibold text-white/70">Thanks for keeping it real.</p>
+            <p className="mt-2 text-sm font-semibold text-white/70">Thanks for keeping it real 🙌</p>
             <Link
               href="/map"
-              className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-xl border border-[#00F5D4]/50 px-4 py-3 text-sm font-black text-[#00F5D4] transition-colors hover:bg-[#00F5D4]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[#00F5D4] px-4 py-3 text-sm font-black text-[#0A0A0F] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
             >
-              Back to Map
+              ← Back to Map
+            </Link>
+            <Link href="/explore" className="mt-3 block text-center text-sm text-white/50 underline">
+              Report another vibe
             </Link>
           </section>
         </div>
