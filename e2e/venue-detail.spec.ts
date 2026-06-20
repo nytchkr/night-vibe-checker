@@ -100,10 +100,11 @@ test.describe("NV-TEST-004 venue detail", () => {
     await page.goto(`/venues/${venue.id}`);
 
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
-    // Signal section: "Capacity" label (premium redesign) or "No check-ins yet" when null
-    await expect(page.getByText(/Capacity|No check-ins yet/i).first()).toBeVisible();
-    // M/F split row: shows percent breakdown or "needs 3+ check-ins"
-    await expect(page.getByText(/M\/F split|% M|check-ins/i).first()).toBeVisible();
+    await expect(page.getByText(venue.address).first()).toBeVisible();
+    // Signal section: current redesign shows "Right now"; older signal-rich state shows "Capacity".
+    await expect(page.getByText(/Right now|Capacity/i).first()).toBeVisible();
+    // M/F split row: shows percent breakdown or the empty "No reads yet" state.
+    await expect(page.getByText(/No reads yet|% M|check-ins/i).first()).toBeVisible();
   });
 
   test("venue detail page exposes the share button without invoking share", async ({ page, request }) => {
@@ -123,6 +124,16 @@ test.describe("NV-TEST-004 venue detail", () => {
     const directions = page.getByRole("link", { name: /Open in Google Maps|Get Directions|Google Maps/i });
     await expect(directions).toBeVisible();
     await expect(directions).toHaveAttribute("href", /google\.com\/maps/);
+  });
+
+  test("venue detail page keeps the redesigned sticky report action", async ({ page, request }) => {
+    const venue = await getTestVenue(request);
+
+    await page.goto(`/venues/${venue.id}`);
+
+    const reportAction = page.getByRole("link", { name: /Report Vibe/i });
+    await expect(reportAction).toBeVisible();
+    await expect(reportAction).toHaveAttribute("href", new RegExp(`/vibe-check\\?venueId=${venue.id}`));
   });
 
   test("unauthenticated heart button links to login", async ({ page, request }) => {

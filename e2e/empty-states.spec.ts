@@ -122,8 +122,8 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
     await page.goto("/explore");
 
     await expect(page.getByText(nullSignalVenue.name)).toBeVisible();
-    await expect(page.getByText("No data yet")).toBeVisible();
-    // MFRatioMiniBar returns null when signal is entirely absent (no sampleSize/computedAt) — no "No reads yet" shown
+    await expect(page.getByText("No reads yet")).toBeVisible();
+    // MFRatioMiniBar returns text, not icon imagery, when signal is entirely absent.
     await expect(page.getByRole("img", { name: /male/i })).toHaveCount(0);
   });
 

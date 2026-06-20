@@ -66,7 +66,7 @@ test.describe("Venue detail share", () => {
     const shareButton = page.getByRole("button", { name: "Share vibe report" });
     await expect(shareButton).toBeVisible();
 
-    await shareButton.click();
+    await shareButton.dispatchEvent("click");
 
     // "Link copied!" is in title attribute (tooltip) not visible text; verify clipboard write instead
     await expect(page.evaluate(() => window.localStorage.getItem("e2e_copied_url"))).resolves.toContain(

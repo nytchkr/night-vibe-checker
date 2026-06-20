@@ -111,6 +111,33 @@ test.describe("Map tab", () => {
     await expect(page.getByRole("link", { name: /Report Vibe/ })).toBeVisible({ timeout: 10000 });
   });
 
+  test("redesigned bottom sheet lists venue previews", async ({ page }) => {
+    await page.goto("/map");
+    await page.waitForSelector(".leaflet-container", { timeout: 25000 });
+
+    const sheet = page.getByRole("region", { name: "South End venues" });
+    if (await sheet.count()) {
+      await expect(sheet).toBeVisible();
+      await expect(sheet.getByRole("button", { name: /South End · 2 spots open/ })).toBeVisible();
+
+      const packedVenue = sheet.getByRole("link", { name: /Map Test Club/ });
+      await expect(packedVenue).toBeVisible();
+      await expect(packedVenue).toContainText("night_club");
+      await expect(packedVenue).toContainText("Packed");
+      await expect(packedVenue).toHaveAttribute("href", /\/venues\/map-packed-1/);
+      return;
+    }
+
+    await page.locator("path.leaflet-interactive").first().dispatchEvent("click");
+
+    const preview = page.getByRole("dialog", { name: /Map Test Club vibe preview/i });
+    await expect(preview).toBeVisible();
+    await expect(preview.getByRole("heading", { name: "Map Test Club" })).toBeVisible();
+    await expect(preview.getByText("night_club")).toBeVisible();
+    await expect(preview.getByText("Packed")).toBeVisible();
+    await expect(preview.getByRole("link", { name: /View Vibe/ })).toHaveAttribute("href", /\/venues\/map-packed-1/);
+  });
+
   test("FAB links to /vibe-check", async ({ page }) => {
     await page.goto("/map");
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
