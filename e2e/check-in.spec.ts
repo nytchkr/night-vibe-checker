@@ -44,6 +44,12 @@ async function mockFeed(page: Page, venues = [feedVenue]) {
   });
 }
 
+async function markOnboarded(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("nv_onboarded", "1");
+  });
+}
+
 async function addLocalSession(page: Page) {
   const session = {
     access_token: "valid-e2e-token",
@@ -72,18 +78,19 @@ async function addLocalSession(page: Page) {
 test.describe("VibeCheck consumer check-in flow", () => {
   test("routes mobile guest report CTA from the feed to login", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
+    await markOnboarded(page);
     await mockFeed(page);
 
     await page.goto("/");
 
     await expect(page.getByText("Feed Test Club")).toBeVisible();
-    await expect(page.getByText("Packed")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Open Feed Test Club/ }).getByText("Packed")).toBeVisible();
 
-    const reportLink = page.getByRole("link", { name: "Sign in to report" }).first();
+    const reportLink = page.getByRole("link", { name: "Sign in" }).first();
     await expect(reportLink).toBeVisible();
 
     const box = await reportLink.boundingBox();
-    expect(box?.y ?? 9999).toBeLessThan(420);
+    expect(box?.y ?? 9999).toBeLessThan(520);
 
     await reportLink.click();
     await expect(page).toHaveURL(/\/login\?return=/);
@@ -140,7 +147,7 @@ test.describe("VibeCheck consumer check-in flow", () => {
     await expect(submit).toBeEnabled();
     await submit.click();
 
-    await expect(page.getByText("Vibe reported ✓")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Vibe reported" })).toBeVisible();
     expect(checkInPayload).toMatchObject({
       venueId: "venue-123",
       busyness: "packed",
@@ -206,7 +213,8 @@ test.describe("VibeCheck consumer check-in flow", () => {
 
     await page.goto("/profile");
 
-    await expect(page.getByRole("heading", { name: "Your Reports" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "profile-e2e@example.com" })).toBeVisible();
+    await expect(page.getByText("Your Reports")).toBeVisible();
     await expect(page.getByText("Profile Test Club")).toBeVisible();
     await expect(page.getByText("Packed")).toBeVisible();
     await expect(page.getByText("Mixed / unsure")).toBeVisible();

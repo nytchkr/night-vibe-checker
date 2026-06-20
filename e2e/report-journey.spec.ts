@@ -46,8 +46,15 @@ async function mockHomeVenues(page: Page) {
   });
 }
 
+async function markOnboarded(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("nv_onboarded", "1");
+  });
+}
+
 test.describe("NV-TEST-001 report journey auth gate", () => {
   test("routes a guest home report CTA to login with a return parameter", async ({ page }) => {
+    await markOnboarded(page);
     await mockHomeVenues(page);
 
     await page.goto("/");
