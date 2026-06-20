@@ -51,6 +51,7 @@ async function markOnboarded(page: Page) {
 }
 
 async function addLocalSession(page: Page) {
+  const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
   const session = {
     access_token: "valid-e2e-token",
     refresh_token: "refresh-e2e-token",
@@ -72,10 +73,8 @@ async function addLocalSession(page: Page) {
   await page.context().addCookies([{
     name: "sb-onlpwglwnqoivuykywrk-auth-token",
     value: JSON.stringify(session),
-    domain: "127.0.0.1",
-    path: "/",
+    url: authOrigin,
     httpOnly: false,
-    secure: false,
     sameSite: "Lax",
   }]);
 

@@ -28,13 +28,12 @@ test.describe("Profile page", () => {
   });
 
   test("profile shows Your Vibes section empty state for new user", async ({ page }) => {
+    const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
     await page.context().addCookies([{
       name: "sb-onlpwglwnqoivuykywrk-auth-token",
       value: JSON.stringify(localSession),
-      domain: "127.0.0.1",
-      path: "/",
+      url: authOrigin,
       httpOnly: false,
-      secure: false,
       sameSite: "Lax",
     }]);
 
