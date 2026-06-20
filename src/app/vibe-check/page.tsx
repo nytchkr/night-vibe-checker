@@ -247,13 +247,13 @@ function CheckInInner() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-sm space-y-8 px-4 py-6 pb-28">
+      <div className="mx-auto max-w-sm space-y-8 px-4 py-6 pb-28">
 
         {/* ── VENUE ─────────────────────────────────────────────── */}
         <section>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
             Venue
-          </p>
+          </h2>
           {venueId ? (
             // Read-only locked display when venueId param is present
             <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB]">
@@ -276,7 +276,14 @@ function CheckInInner() {
             </div>
           ) : (
             <div className="space-y-3">
+              <label
+                htmlFor="venue-search"
+                className="sr-only"
+              >
+                Search South End venues
+              </label>
               <input
+                id="venue-search"
                 type="search"
                 value={venueSearch}
                 onChange={(e) => {
@@ -284,7 +291,9 @@ function CheckInInner() {
                   setSelectedVenueId("");
                 }}
                 placeholder="Search South End venues"
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#7C3AED]/60 focus:outline-none"
+                aria-describedby={venuesError ? "venue-search-error" : undefined}
+                aria-invalid={venuesError ? "true" : "false"}
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#7C3AED]/60 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30"
               />
 
               <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
@@ -295,7 +304,7 @@ function CheckInInner() {
                 )}
 
                 {!venuesLoading && venuesError && (
-                  <p role="alert" className="rounded-xl border border-rose-500/35 bg-rose-950/50 px-4 py-3 text-sm text-rose-300">
+                  <p id="venue-search-error" role="alert" className="rounded-xl border border-rose-500/35 bg-rose-950/50 px-4 py-3 text-sm text-rose-300">
                     {venuesError}
                   </p>
                 )}
@@ -312,9 +321,10 @@ function CheckInInner() {
                       }}
                       className={`w-full rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60 ${
                         selected
-                          ? "border-[#7C3AED]/70 bg-[#7C3AED]/18"
+                          ? "border-2 border-[#7C3AED] bg-[#7C3AED]/18"
                           : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
                       }`}
+                      aria-pressed={selected}
                     >
                       <span className="block truncate text-sm font-bold text-white">{venue.name}</span>
                       <span className="mt-0.5 block truncate text-xs text-white/38">{venue.address}</span>
@@ -334,9 +344,9 @@ function CheckInInner() {
 
         {/* ── BUSYNESS ──────────────────────────────────────────── */}
         <section>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
             How busy is it?
-          </p>
+          </h2>
           <div className="flex flex-col gap-3">
             {BUSYNESS_OPTIONS.map((opt) => {
               const selected = busyness === opt.value;
@@ -370,9 +380,9 @@ function CheckInInner() {
 
         {/* ── CROWD FEEL ────────────────────────────────────────── */}
         <section>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
             Crowd feel
-          </p>
+          </h2>
           <div className="grid grid-cols-2 gap-3">
             {CROWD_OPTIONS.map((opt) => {
               const selected = crowdFeel === opt.value;
@@ -430,7 +440,8 @@ function CheckInInner() {
           type="button"
           disabled={!canSubmit}
           onClick={handleSubmit}
-          className="min-h-[52px] w-full rounded-xl bg-[#7C3AED] text-base font-black text-white transition-all disabled:cursor-not-allowed disabled:opacity-40"
+          aria-describedby={submitError ? "submit-error" : undefined}
+          className="min-h-[52px] w-full rounded-xl bg-[#7C3AED] text-base font-black text-white transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Submitting..." : "Report Vibe"}
         </button>
@@ -438,6 +449,7 @@ function CheckInInner() {
         {/* Inline errors */}
         {submitError && (
           <p
+            id="submit-error"
             role="alert"
             className={`text-center text-sm ${
               submitError.type === "duplicate" ? "text-amber-400" : "text-rose-400"
@@ -446,7 +458,7 @@ function CheckInInner() {
             {submitError.msg}
           </p>
         )}
-      </main>
+      </div>
     </div>
   );
 }

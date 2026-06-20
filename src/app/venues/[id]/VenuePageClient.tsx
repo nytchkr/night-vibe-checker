@@ -310,14 +310,14 @@ export function VenuePageClient({
             </svg>
             Back
           </Link>
-          {venue?.name && <h2 className="truncate text-sm font-medium text-white/50">{venue.name}</h2>}
+          {venue?.name && <p className="truncate text-sm font-medium text-white/50">{venue.name}</p>}
         </div>
       </header>
 
       {loading && <LoadingSkeleton />}
 
       {!loading && error && (
-        <main className="mx-auto max-w-lg px-4 py-6 pb-36">
+        <div className="mx-auto max-w-lg px-4 py-6 pb-36">
           <div
             role="alert"
             className="rounded-2xl border border-rose-500/40 bg-rose-950/60 p-5 text-center"
@@ -325,7 +325,7 @@ export function VenuePageClient({
             <p className="font-medium text-rose-300">Could not load venue</p>
             <p className="mt-1 text-sm text-rose-400/70">{error}</p>
           </div>
-        </main>
+        </div>
       )}
 
       {!loading && !error && venue && (
@@ -334,7 +334,7 @@ export function VenuePageClient({
             <div className="relative h-52 w-full overflow-hidden sm:h-[260px]">
               <Image
                 src={venue.photoUrl}
-                alt=""
+                alt={`${venue.name} venue photo`}
                 fill
                 className="object-cover"
                 sizes="100vw"
@@ -349,7 +349,7 @@ export function VenuePageClient({
             </div>
           )}
 
-          <main className="mx-auto max-w-lg space-y-4 px-4 py-5 pb-36">
+          <div className="mx-auto max-w-lg space-y-4 px-4 py-5 pb-36">
             <section>
               <div className="flex flex-wrap items-center gap-2">
                 <CategoryChip category={venue.category} />
@@ -367,7 +367,7 @@ export function VenuePageClient({
                     Share
                   </button>
                   {copied && (
-                    <span className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-[#00F5D4]/40 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-[#00F5D4] shadow-lg">
+                    <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-[#00F5D4]/40 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-[#00F5D4] shadow-lg">
                       Link copied!
                     </span>
                   )}
@@ -428,7 +428,15 @@ export function VenuePageClient({
                 />
                 <span className="text-lg font-black" style={{ color }}>{label}</span>
               </div>
-              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10"
+                role="meter"
+                aria-label={`${label} busyness`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={busyness ?? undefined}
+                aria-valuetext={busyness == null ? "No busyness data yet" : `${label}, ${busyness} out of 100`}
+              >
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${busyness ?? 0}%`, backgroundColor: color }}
@@ -475,7 +483,7 @@ export function VenuePageClient({
                 </div>
               )}
             </section>
-          </main>
+          </div>
         </>
       )}
 

@@ -61,6 +61,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <body className="bg-[#0A0A0F] text-white font-sans antialiased min-h-screen">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10000] focus:rounded-full focus:bg-[#00F5D4] focus:px-4 focus:py-2 focus:text-sm focus:font-black focus:text-[#0A0A0F] focus:outline-none focus:ring-2 focus:ring-white"
+        >
+          Skip to main content
+        </a>
         {isDev && (
           <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center bg-amber-500/90 py-0.5">
             <span className="text-black text-[10px] font-bold tracking-widest uppercase">
@@ -68,7 +74,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </span>
           </div>
         )}
-        <main className={isDev ? "pb-20 pt-5" : "pb-20"}>{children}</main>
+        <main id="main-content" tabIndex={-1} className={isDev ? "pb-20 pt-5" : "pb-20"}>
+          {children}
+        </main>
         <BottomNav />
         <Script id="service-worker-registration" strategy="afterInteractive">
           {`if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') navigator.serviceWorker.register('/sw.js');`}

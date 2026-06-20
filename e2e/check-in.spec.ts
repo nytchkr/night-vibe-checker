@@ -177,7 +177,8 @@ test.describe("VibeCheck consumer check-in flow", () => {
     await expect(submit).toBeEnabled();
     await submit.click();
 
-    await expect(page.getByText("Could not save report.")).toBeVisible();
+    await expect(page.locator("#submit-error")).toHaveText("Could not save report.");
+    await expect(submit).toHaveAttribute("aria-describedby", "submit-error");
   });
 
   test("renders authenticated profile report history from /api/check-ins/me", async ({ page }) => {

@@ -72,8 +72,10 @@ test.describe("NV-TEST-001 report journey auth gate", () => {
   test("loads the login page with an email input", async ({ page }) => {
     await page.goto("/login?return=%2Fvibe-check");
 
+    await expect(page.getByRole("link", { name: "Skip to main content" })).toHaveAttribute("href", "#main-content");
+    await expect(page.locator("#main-content")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Sign in to report" })).toBeVisible();
-    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.getByLabel("Email address")).toBeVisible();
   });
 
   test("redirects direct guest vibe-check access to login", async ({ page }) => {
