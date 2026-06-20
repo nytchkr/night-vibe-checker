@@ -97,23 +97,24 @@ async function refreshOpenNowFromGoogle(req: NextRequest) {
     }
   }
 
+  let refreshed = 0;
   if (updates.length) {
-    const { error: upsertError } = await supabaseAdmin.from("venues").upsert(updates, {
-      onConflict: "id",
-    });
+    for (const update of updates) {
+      const { error: updateError } = await supabaseAdmin
+        .from("venues")
+        .update({ open_now: update.open_now })
+        .eq("id", update.id);
 
-    if (upsertError) {
-      return NextResponse.json(
-        {
-          refreshed: 0,
-          errors: [...errors, { venueId: "batch", error: upsertError.message }],
-        },
-        { status: 500 }
-      );
+      if (updateError) {
+        errors.push({ venueId: update.id, error: updateError.message });
+        continue;
+      }
+
+      refreshed += 1;
     }
   }
 
-  return NextResponse.json({ refreshed: updates.length, errors });
+  return NextResponse.json({ refreshed, errors });
 }
 
 export async function GET(req: NextRequest) {
