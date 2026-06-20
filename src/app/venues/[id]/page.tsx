@@ -1,101 +1,111 @@
 "use client";
 
-// ============================================================
-// Venue detail page  /venues/[id]  (NV-071)
-//
-// Fetches GET /api/check-ins?venueId=[id] which returns:
-//   { checkIns: ConsumerCheckIn[]; summary: CheckInSummary }
-//
-// Displays:
-//   • Back arrow → home
-//   • Venue name (from first check-in's venueName)
-//   • Busyness color bar (dominant crowd from summary)
-//   • M/F ratio bar (gray placeholder until crowd_feel data lands)
-//   • Confidence placeholder
-//   • Recent check-in list
-//   • Sticky bottom CTA: "Report the Vibe" → /vibe-check?venueId=...
-// ============================================================
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
-import type { ConsumerCheckIn, CheckInSummary } from "@/types";
+import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
 
-// --------------- Busyness helpers ----------------------------
-
-function busynessColor(value: number | null): string {
-  if (value == null) return "#6B7280";   // gray — no data
-  if (value >= 75) return "#EF4444";     // red — packed
-  if (value >= 40) return "#F59E0B";     // amber — moderate
-  return "#22C55E";                      // green — quiet
+function busynessColor(value: number | null | undefined): string {
+  if (value == null) return "#6B7280";
+  if (value <= 33) return "#22C55E";
+  if (value <= 66) return "#F59E0B";
+  return "#EF4444";
 }
 
-function busynessLabel(value: number | null): string {
-  if (value == null) return "No read yet";
-  if (value >= 75) return "Packed";
-  if (value >= 40) return "Moderate";
-  return "Quiet";
+function busynessLabel(value: number | null | undefined): string {
+  if (value == null) return "No data yet";
+  if (value <= 33) return "Quiet";
+  if (value <= 66) return "Moderate";
+  return "Packed";
 }
 
-// Crowd feel labels for the check-in list
-function crowdFeel(feel: ConsumerCheckIn["crowdFeel"]): string {
+function crowdFeelLabel(feel: ConsumerCheckIn["crowdFeel"]): string {
   switch (feel) {
-    case "mostly_male":   return "Mostly male";
+    case "mostly_male": return "Mostly male";
     case "mostly_female": return "Mostly female";
-    case "balanced":      return "Balanced";
-    case "mixed":         return "Mixed";
+    case "balanced": return "Balanced";
+    case "mixed": return "Mixed";
   }
 }
 
 function busynessChip(busyness: ConsumerCheckIn["busyness"]): { label: string; color: string } {
   switch (busyness) {
-    case "packed":   return { label: "Packed",   color: "#EF4444" };
+    case "packed": return { label: "Packed", color: "#EF4444" };
     case "moderate": return { label: "Moderate", color: "#F59E0B" };
-    case "dead":     return { label: "Quiet",    color: "#22C55E" };
+    case "dead": return { label: "Quiet", color: "#22C55E" };
   }
 }
 
-// --------------- Components ----------------------------------
+function timeAgo(iso: string | null | undefined): string {
+  if (!iso) return "Not updated yet";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "Just now";
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "Just now";
+  if (minutes === 1) return "1m ago";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours === 1) return "1h ago";
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "1d ago" : `${days}d ago`;
+}
 
-function BusynessBar({ value }: { value: number | null }) {
-  const color = busynessColor(value);
-  const label = busynessLabel(value);
-  const pct = value ?? 0;
+function SourceBadge({ source }: { source: BusynessSource | null | undefined }) {
+  if (!source) return null;
+  const isLive = source === "live";
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/60">
+      {isLive && (
+        <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#22C55E] opacity-70" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+        </span>
+      )}
+      {source}
+    </span>
+  );
+}
+
+function ConfidenceChip({ value }: { value: number | null | undefined }) {
+  const confidence = value ?? 0;
+  const config =
+    confidence < 0.3
+      ? { label: "Low confidence", color: "#9CA3AF" }
+      : confidence <= 0.7
+        ? { label: "Medium confidence", color: "#F59E0B" }
+        : { label: "High confidence", color: "#22C55E" };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <span
-          className="inline-block h-3 w-3 flex-shrink-0 rounded-full"
-          style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}80` }}
-          aria-hidden="true"
-        />
-        <span className="text-lg font-black" style={{ color }}>{label}</span>
-        {value != null && (
-          <span className="text-sm font-semibold text-white/40">{value}%</span>
-        )}
-      </div>
-      {/* Progress bar */}
-      <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: color }}
-        />
-      </div>
-    </div>
+    <span
+      className="inline-flex rounded-full border px-2.5 py-1 text-xs font-bold"
+      style={{
+        borderColor: `${config.color}55`,
+        backgroundColor: `${config.color}18`,
+        color: config.color,
+      }}
+    >
+      {config.label}
+    </span>
+  );
+}
+
+function CategoryChip({ category }: { category: string }) {
+  return (
+    <span className="inline-flex rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-xs font-bold capitalize text-white/60">
+      {category.replaceAll("_", " ")}
+    </span>
   );
 }
 
 function CheckInItem({ ci }: { ci: ConsumerCheckIn }) {
   const chip = busynessChip(ci.busyness);
-  const ts = new Date(ci.createdAt);
-  const timeStr = ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
     <div className="flex items-start gap-3 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 py-2.5">
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className="rounded-full px-2 py-0.5 text-[11px] font-bold"
@@ -103,42 +113,36 @@ function CheckInItem({ ci }: { ci: ConsumerCheckIn }) {
           >
             {chip.label}
           </span>
-          <span className="text-[11px] text-white/35">{crowdFeel(ci.crowdFeel)}</span>
+          <span className="text-[11px] text-white/35">{crowdFeelLabel(ci.crowdFeel)}</span>
         </div>
         {ci.note && (
-          <p className="mt-1 text-xs text-white/50 line-clamp-2">{ci.note}</p>
+          <p className="mt-1 line-clamp-2 text-xs text-white/50">{ci.note}</p>
         )}
       </div>
-      <span className="flex-shrink-0 text-[11px] text-white/25">{timeStr}</span>
+      <span className="shrink-0 text-[11px] text-white/25">{timeAgo(ci.createdAt)}</span>
     </div>
   );
 }
-
-// --------------- Loading skeleton ----------------------------
 
 function LoadingSkeleton() {
   return (
     <div className="space-y-4" role="status" aria-label="Loading venue">
-      <Skeleton className="h-10 w-2/3 bg-white/10" />
-      <Skeleton className="h-2 w-full rounded-full bg-white/10" />
-      <Skeleton className="h-2 w-full rounded-full bg-white/10" />
-      <div className="space-y-2.5 pt-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-14 rounded-xl bg-white/10" />
-        ))}
+      <Skeleton className="h-[200px] rounded-none bg-white/10" />
+      <div className="px-4">
+        <Skeleton className="h-8 w-2/3 bg-white/10" />
+        <Skeleton className="mt-3 h-4 w-4/5 bg-white/10" />
+        <Skeleton className="mt-5 h-28 rounded-2xl bg-white/10" />
       </div>
     </div>
   );
 }
-
-// --------------- Page ----------------------------------------
 
 export default function VenuePage() {
   const params = useParams<{ id: string }>();
   const venueId = params.id;
 
+  const [venue, setVenue] = useState<ConsumerVenue | null>(null);
   const [checkIns, setCheckIns] = useState<ConsumerCheckIn[]>([]);
-  const [summary, setSummary] = useState<CheckInSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,12 +154,16 @@ export default function VenuePage() {
 
     async function fetchData() {
       try {
-        const res = await fetch(`/api/check-ins?venueId=${encodeURIComponent(venueId)}`);
-        if (!res.ok) throw new Error(`${res.status}`);
-        const json = await res.json();
+        const [venueRes, checkInsRes] = await Promise.all([
+          fetch(`/api/venues/${encodeURIComponent(venueId)}`),
+          fetch(`/api/check-ins?venueId=${encodeURIComponent(venueId)}&limit=10`),
+        ]);
+        if (!venueRes.ok) throw new Error(`${venueRes.status}`);
+        const venueJson = await venueRes.json();
+        const checkInsJson = checkInsRes.ok ? await checkInsRes.json() : null;
         if (cancelled) return;
-        setCheckIns(json?.data?.checkIns ?? []);
-        setSummary(json?.data?.summary ?? null);
+        setVenue(venueJson?.data?.venue ?? null);
+        setCheckIns((checkInsJson?.data?.checkIns ?? []).slice(0, 10));
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Could not load venue.");
       } finally {
@@ -167,21 +175,18 @@ export default function VenuePage() {
     return () => { cancelled = true; };
   }, [venueId]);
 
-  // Derive venue name from first check-in if available
-  const venueName = checkIns[0]?.venueName ?? "Venue";
-  const busyness = summary?.busyness0To100 ?? null;
-  const mfRatio = summary?.mfRatio ?? null;
-  const confidence = summary?.confidence0To1 ?? null;
-  const sampleSize = summary?.sampleSize ?? 0;
-
-  const reportParams = new URLSearchParams({
+  const signal = venue?.signal;
+  const busyness = signal?.busyness0To100 ?? null;
+  const color = busynessColor(busyness);
+  const label = busynessLabel(busyness);
+  const updatedAt = signal?.lastBusynessRefresh ?? signal?.computedAt ?? null;
+  const reportParams = useMemo(() => new URLSearchParams({
     venueId,
-    venueName,
-  });
+    venueName: venue?.name ?? "Venue",
+  }), [venueId, venue?.name]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
-      {/* Header with back arrow */}
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0F]/90 px-4 backdrop-blur-xl">
         <div className="mx-auto flex max-w-lg items-center gap-3 py-4">
           <Link
@@ -189,7 +194,6 @@ export default function VenuePage() {
             aria-label="Back to home"
             className="flex items-center gap-1.5 text-sm font-semibold text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/50"
           >
-            {/* Left arrow */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width={16}
@@ -206,17 +210,14 @@ export default function VenuePage() {
             </svg>
             Back
           </Link>
-          {!loading && venueName !== "Venue" && (
-            <h2 className="truncate text-sm font-medium text-white/50">{venueName}</h2>
-          )}
+          {venue?.name && <h2 className="truncate text-sm font-medium text-white/50">{venue.name}</h2>}
         </div>
       </header>
 
-      {/* Body */}
-      <main className="mx-auto max-w-lg space-y-4 px-4 py-6 pb-36">
-        {loading && <LoadingSkeleton />}
+      {loading && <LoadingSkeleton />}
 
-        {error && (
+      {!loading && error && (
+        <main className="mx-auto max-w-lg px-4 py-6 pb-36">
           <div
             role="alert"
             className="rounded-2xl border border-rose-500/40 bg-rose-950/60 p-5 text-center"
@@ -224,45 +225,93 @@ export default function VenuePage() {
             <p className="font-medium text-rose-300">Could not load venue</p>
             <p className="mt-1 text-sm text-rose-400/70">{error}</p>
           </div>
-        )}
+        </main>
+      )}
 
-        {!loading && !error && (
-          <>
-            {/* Venue name */}
+      {!loading && !error && venue && (
+        <>
+          {venue.photoUrl ? (
+            <img
+              src={venue.photoUrl}
+              alt=""
+              className="h-[200px] w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-[200px] w-full items-center justify-center bg-white/[0.05] text-sm font-semibold text-white/28">
+              No photo
+            </div>
+          )}
+
+          <main className="mx-auto max-w-lg space-y-4 px-4 py-5 pb-36">
             <section>
-              <h1 className="text-[1.75rem] font-black leading-tight text-white">{venueName}</h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <CategoryChip category={venue.category} />
+              </div>
+              <h1 className="mt-3 text-[1.85rem] font-black leading-tight text-white">{venue.name}</h1>
+              <p className="mt-1 text-sm leading-relaxed text-white/45">{venue.address}</p>
             </section>
 
-            {/* Busyness signal */}
             <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
-                Right now
-              </p>
-              <BusynessBar value={busyness} />
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
+                    Right now
+                  </p>
+                  <div className="mt-3 flex items-end gap-2">
+                    <span className="text-5xl font-black leading-none" style={{ color }}>
+                      {busyness ?? "--"}
+                    </span>
+                    {busyness != null && <span className="pb-1 text-sm font-bold text-white/35">/100</span>}
+                  </div>
+                </div>
+                <div className="flex flex-col items-end gap-2 pt-1">
+                  <SourceBadge source={signal?.busynessSource} />
+                  <ConfidenceChip value={signal?.confidence0To1} />
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <span
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}80` }}
+                  aria-hidden="true"
+                />
+                <span className="text-lg font-black" style={{ color }}>{label}</span>
+              </div>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${busyness ?? 0}%`, backgroundColor: color }}
+                />
+              </div>
+              <p className="mt-3 text-xs text-white/32">Updated {timeAgo(updatedAt)}</p>
             </section>
 
-            {/* M/F ratio */}
             <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
                 M/F crowd
               </p>
-              <MFRatioBar
-                malePercent={mfRatio}
-                confidence={confidence}
-                sampleSize={sampleSize}
-              />
-              {sampleSize > 0 && (
-                <p className="mt-2 text-[11px] text-white/28">
-                  {sampleSize} report{sampleSize !== 1 ? "s" : ""}
-                  {confidence != null && ` · ${Math.round(confidence * 100)}% confidence`}
+              {signal?.mfRatio != null && signal.sampleSize >= 3 ? (
+                <>
+                  <MFRatioBar
+                    malePercent={signal.mfRatio}
+                    confidence={signal.confidence0To1}
+                    sampleSize={signal.sampleSize}
+                  />
+                  <p className="mt-2 text-[11px] text-white/28">
+                    {signal.sampleSize} report{signal.sampleSize !== 1 ? "s" : ""}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm font-semibold text-white/38">
+                  No crowd reads yet — be the first to report
                 </p>
               )}
             </section>
 
-            {/* Recent check-ins */}
             <section>
               <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/35">
-                Recent reports
+                Recent check-ins
               </p>
               {checkIns.length === 0 ? (
                 <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-5 text-center">
@@ -276,11 +325,10 @@ export default function VenuePage() {
                 </div>
               )}
             </section>
-          </>
-        )}
-      </main>
+          </main>
+        </>
+      )}
 
-      {/* Sticky bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto max-w-lg">
           <Link
