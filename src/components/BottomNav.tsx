@@ -49,7 +49,12 @@ function MeIcon({ filled }: { filled?: boolean }) {
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/internal") || pathname.startsWith("/agent-board") || pathname.startsWith("/admin")) {
+  if (
+    pathname.startsWith("/internal") ||
+    pathname.startsWith("/agent-board") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/login")
+  ) {
     return null;
   }
 
