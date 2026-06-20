@@ -281,7 +281,7 @@ export default function HomePage() {
       const json = await res.json();
       setVenues(json?.data?.venues ?? []);
     } catch {
-      setError("Could not load venues.");
+      setError("📡 Can't reach the server. Pull to refresh.");
     } finally {
       setLoading(false);
     }
@@ -450,9 +450,9 @@ export default function HomePage() {
         {error && (
           <div
             role="alert"
-            className="rounded-2xl border border-rose-500/40 bg-rose-950/60 px-4 py-3 text-sm text-rose-300"
+            className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center"
           >
-            {error}
+            <p className="text-sm font-semibold text-white">{error}</p>
           </div>
         )}
 
