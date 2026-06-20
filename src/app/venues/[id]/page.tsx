@@ -394,7 +394,7 @@ export default function VenuePage() {
         </>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl safe-area-inset-bottom">
         <div className="mx-auto max-w-lg">
           <Link
             href={reportHref(`/vibe-check?${reportParams.toString()}`, session)}
