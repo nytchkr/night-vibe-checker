@@ -30,10 +30,11 @@ function isVenueShare(props: ShareButtonProps): props is VenueShareButtonProps {
 export function ShareButton(props: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const caption = props.caption;
+  const isVenue = isVenueShare(props);
 
   async function handleShare() {
     const url = typeof window !== "undefined" ? window.location.href : "";
-    const shareData = isVenueShare(props)
+    const shareData = isVenue
       ? buildVenueShareData(props.venue)
       : {
           title: `Night Vibe: ${props.venueName}`,
@@ -41,7 +42,7 @@ export function ShareButton(props: ShareButtonProps) {
           url,
         };
 
-    if (typeof navigator !== "undefined" && "share" in navigator) {
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share(shareData);
         return;
@@ -51,7 +52,7 @@ export function ShareButton(props: ShareButtonProps) {
     }
 
     try {
-      await navigator.clipboard.writeText(shareData.url ?? url);
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       props.onCopied?.();
       setTimeout(() => setCopied(false), 2000);
@@ -61,13 +62,13 @@ export function ShareButton(props: ShareButtonProps) {
   }
 
   return (
-    <div className={props.className}>
+    <div className={["relative", props.className].filter(Boolean).join(" ")}>
       <Button
         type="button"
         variant="ghost"
         size="sm"
         onClick={handleShare}
-        aria-label="Share vibe report"
+        aria-label={isVenue ? "Share venue" : "Share vibe report"}
         title={copied ? "Link copied!" : "Share"}
         className="
           h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
@@ -78,6 +79,14 @@ export function ShareButton(props: ShareButtonProps) {
         <ShareIcon />
         <span className="sr-only">{copied ? "Copied to clipboard!" : "Share"}</span>
       </Button>
+      {copied ? (
+        <span
+          role="status"
+          className="absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-full border border-cyan-300/25 bg-black/85 px-2.5 py-1 text-xs font-medium text-cyan-100 shadow-lg"
+        >
+          Link copied!
+        </span>
+      ) : null}
       {caption ? (
         <p className="mt-1 text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
           {caption}
