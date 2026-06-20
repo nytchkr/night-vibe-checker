@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
+import { createBrowserClient } from "@/lib/supabase-browser";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 type BusynessState = {
@@ -67,7 +69,11 @@ function VenuePhoto({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
-function VenueFeedCard({ venue }: { venue: ConsumerVenue }) {
+function reportHref(path: string, session: Session | null): string {
+  return session ? path : `/login?return=${encodeURIComponent(path)}`;
+}
+
+function VenueFeedCard({ venue, session }: { venue: ConsumerVenue; session: Session | null }) {
   const signal = venue.signal;
   const reportParams = new URLSearchParams({
     venueId: venue.id,
@@ -101,10 +107,10 @@ function VenueFeedCard({ venue }: { venue: ConsumerVenue }) {
           </div>
 
           <Link
-            href={vibeCheckHref}
+            href={reportHref(vibeCheckHref, session)}
             className="flex min-h-[44px] shrink-0 items-center rounded-full border border-[#7C3AED]/60 px-3 text-xs font-bold text-[#C4B5FD] transition-colors hover:bg-[#7C3AED]/12 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60"
           >
-            Report →
+            {session ? "Report →" : "Sign in to report"}
           </Link>
         </div>
 
@@ -139,6 +145,7 @@ function CardSkeleton() {
 }
 
 export default function HomePage() {
+  const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,6 +168,20 @@ export default function HomePage() {
   useEffect(() => {
     fetchVenues();
   }, [fetchVenues]);
+
+  useEffect(() => {
+    const client = createBrowserClient();
+
+    client.auth.getSession().then(({ data }) => setSession(data.session));
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const sortedVenues = useMemo(() => {
     return [...venues].sort((a, b) => {
@@ -221,7 +242,7 @@ export default function HomePage() {
         {!loading && !error && sortedVenues.length > 0 && (
           <ul className="space-y-3">
             {sortedVenues.map((venue) => (
-              <VenueFeedCard key={venue.id} venue={venue} />
+              <VenueFeedCard key={venue.id} venue={venue} session={session} />
             ))}
           </ul>
         )}

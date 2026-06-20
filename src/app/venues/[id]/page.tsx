@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import type { Session } from "@supabase/supabase-js";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MFRatioBar } from "@/components/MFRatioBar";
+import { createBrowserClient } from "@/lib/supabase-browser";
 import type { BusynessSource, ConsumerCheckIn, ConsumerVenue } from "@/types";
 
 function busynessColor(value: number | null | undefined): string {
@@ -100,6 +102,10 @@ function CategoryChip({ category }: { category: string }) {
   );
 }
 
+function reportHref(path: string, session: Session | null): string {
+  return session ? path : `/login?return=${encodeURIComponent(path)}`;
+}
+
 function CheckInItem({ ci }: { ci: ConsumerCheckIn }) {
   const chip = busynessChip(ci.busyness);
 
@@ -141,6 +147,7 @@ export default function VenuePage() {
   const params = useParams<{ id: string }>();
   const venueId = params.id;
 
+  const [session, setSession] = useState<Session | null>(null);
   const [venue, setVenue] = useState<ConsumerVenue | null>(null);
   const [checkIns, setCheckIns] = useState<ConsumerCheckIn[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,6 +181,20 @@ export default function VenuePage() {
     fetchData();
     return () => { cancelled = true; };
   }, [venueId]);
+
+  useEffect(() => {
+    const client = createBrowserClient();
+
+    client.auth.getSession().then(({ data }) => setSession(data.session));
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
@@ -332,10 +353,10 @@ export default function VenuePage() {
       <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.07] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl">
         <div className="mx-auto max-w-lg">
           <Link
-            href={`/vibe-check?${reportParams.toString()}`}
+            href={reportHref(`/vibe-check?${reportParams.toString()}`, session)}
             className="flex min-h-[52px] w-full items-center justify-center rounded-2xl bg-[#7C3AED] text-base font-black text-white transition-all hover:bg-[#6D28D9] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60"
           >
-            Report the Vibe
+            {session ? "Report the Vibe" : "Sign in to report"}
           </Link>
         </div>
       </div>
