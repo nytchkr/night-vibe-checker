@@ -22,10 +22,8 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 const validPrefs = {
-  pushEnabled: true,
-  savedVenueBusy: true,
-  subscribedVenueAlerts: true,
-  friendCheckIns: false,
+  notifyBusyVenues: true,
+  notifyWeeklySummary: false,
 };
 
 function patchRequest(body: unknown, token = "token") {
@@ -73,7 +71,7 @@ describe("PATCH /api/profile/notification-prefs", () => {
     expect(res.status).toBe(422);
   });
 
-  it("upserts notification prefs on the profile row", async () => {
+  it("upserts notification prefs on the user preferences row", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     mockFrom.mockReturnValueOnce({ upsert });
 
@@ -83,10 +81,14 @@ describe("PATCH /api/profile/notification-prefs", () => {
 
     expect(res.status).toBe(200);
     expect(json.data.notificationPrefs).toEqual(validPrefs);
-    expect(mockFrom).toHaveBeenCalledWith("profiles");
+    expect(mockFrom).toHaveBeenCalledWith("user_preferences");
     expect(upsert).toHaveBeenCalledWith(
-      { id: "user-123", notification_prefs: validPrefs },
-      { onConflict: "id" },
+      expect.objectContaining({
+        user_id: "user-123",
+        notify_busy_venues: true,
+        notify_weekly_summary: false,
+      }),
+      { onConflict: "user_id" },
     );
   });
 });

@@ -6,10 +6,8 @@ import type { APIResponse } from "@/types";
 export const dynamic = "force-dynamic";
 
 const NotificationPrefsSchema = z.object({
-  pushEnabled: z.boolean(),
-  savedVenueBusy: z.boolean(),
-  subscribedVenueAlerts: z.boolean(),
-  friendCheckIns: z.boolean(),
+  notifyBusyVenues: z.boolean(),
+  notifyWeeklySummary: z.boolean(),
 });
 
 async function getBearerUserId(authHeader: string | null): Promise<string | null> {
@@ -68,10 +66,15 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   }
 
   const { error } = await supabaseAdmin
-    .from("profiles")
+    .from("user_preferences")
     .upsert(
-      { id: userId, notification_prefs: parsed.data.notificationPrefs },
-      { onConflict: "id" },
+      {
+        user_id: userId,
+        notify_busy_venues: parsed.data.notificationPrefs.notifyBusyVenues,
+        notify_weekly_summary: parsed.data.notificationPrefs.notifyWeeklySummary,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
     );
 
   if (error) {

@@ -4,52 +4,24 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { ArrowLeft } from "lucide-react";
 import { supabaseAdmin } from "@/lib/supabase";
-import { NotificationsClient, type AlertVenue, type NotificationPrefs } from "./NotificationsClient";
+import { NotificationsClient, type NotificationPrefs } from "./NotificationsClient";
 
 export const dynamic = "force-dynamic";
 
 const DEFAULT_PREFS: NotificationPrefs = {
-  pushEnabled: false,
-  savedVenueBusy: true,
-  subscribedVenueAlerts: true,
-  friendCheckIns: false,
+  notifyBusyVenues: true,
+  notifyWeeklySummary: false,
 };
 
-function normalizePrefs(value: unknown, hasPushSubscription: boolean): NotificationPrefs {
+function normalizePrefs(value: unknown): NotificationPrefs {
   const raw = value && typeof value === "object" ? value as Partial<NotificationPrefs> : {};
 
   return {
-    pushEnabled: typeof raw.pushEnabled === "boolean" ? raw.pushEnabled : hasPushSubscription,
-    savedVenueBusy: typeof raw.savedVenueBusy === "boolean" ? raw.savedVenueBusy : DEFAULT_PREFS.savedVenueBusy,
-    subscribedVenueAlerts:
-      typeof raw.subscribedVenueAlerts === "boolean" ? raw.subscribedVenueAlerts : DEFAULT_PREFS.subscribedVenueAlerts,
-    friendCheckIns: typeof raw.friendCheckIns === "boolean" ? raw.friendCheckIns : DEFAULT_PREFS.friendCheckIns,
+    notifyBusyVenues:
+      typeof raw.notifyBusyVenues === "boolean" ? raw.notifyBusyVenues : DEFAULT_PREFS.notifyBusyVenues,
+    notifyWeeklySummary:
+      typeof raw.notifyWeeklySummary === "boolean" ? raw.notifyWeeklySummary : DEFAULT_PREFS.notifyWeeklySummary,
   };
-}
-
-async function loadAlertVenues(userId: string): Promise<AlertVenue[]> {
-  const { data: alertRows } = await supabaseAdmin
-    .from("push_venue_alerts")
-    .select("venue_id")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  const venueIds = ((alertRows ?? []) as Array<{ venue_id: string | null }>)
-    .map((row) => row.venue_id)
-    .filter((id): id is string => Boolean(id));
-
-  if (venueIds.length === 0) return [];
-
-  const { data: venues } = await supabaseAdmin
-    .from("venues")
-    .select("id, name")
-    .in("id", venueIds);
-
-  const venueNames = new Map(
-    ((venues ?? []) as Array<{ id: string; name: string }>).map((venue) => [venue.id, venue.name]),
-  );
-
-  return venueIds.map((id) => ({ id, name: venueNames.get(id) ?? "Venue alert" }));
 }
 
 export default async function NotificationsPage() {
@@ -75,24 +47,19 @@ export default async function NotificationsPage() {
     redirect(`/login?return=${encodeURIComponent("/notifications")}`);
   }
 
-  const [profileResult, pushResult, alertVenues] = await Promise.all([
-    supabaseAdmin
-      .from("profiles")
-      .select("notification_prefs")
-      .eq("id", session.user.id)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("push_subscriptions")
-      .select("id")
-      .eq("user_id", session.user.id)
-      .limit(1),
-    loadAlertVenues(session.user.id),
-  ]);
+  const { data: prefsRow } = await supabaseAdmin
+    .from("user_preferences")
+    .select("notify_busy_venues, notify_weekly_summary")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
 
-  const hasPushSubscription = Boolean(pushResult.data?.length);
   const initialPrefs = normalizePrefs(
-    (profileResult.data as { notification_prefs?: unknown } | null)?.notification_prefs,
-    hasPushSubscription,
+    prefsRow
+      ? {
+          notifyBusyVenues: (prefsRow as { notify_busy_venues?: unknown }).notify_busy_venues,
+          notifyWeeklySummary: (prefsRow as { notify_weekly_summary?: unknown }).notify_weekly_summary,
+        }
+      : null,
   );
 
   return (
@@ -108,10 +75,12 @@ export default async function NotificationsPage() {
 
         <header className="mt-7 mb-8">
           <h1 className="font-display text-3xl font-black tracking-tight text-white">Notifications</h1>
-          <p className="mt-2 text-sm font-semibold text-white/45">Control your <span className="font-display">NightVibe</span> alerts</p>
+          <p className="mt-2 text-sm font-semibold text-white/45">
+            Choose when <span className="font-display">NightVibe</span> should reach you.
+          </p>
         </header>
 
-        <NotificationsClient initialPrefs={initialPrefs} initialAlertVenues={alertVenues} />
+        <NotificationsClient initialPrefs={initialPrefs} />
       </div>
     </main>
   );
