@@ -6,27 +6,58 @@ const BASE_URL = "https://night-vibe-checker.vercel.app";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  let data: { id: string }[] | null = null;
+  let data: { place_id: string | null }[] | null = null;
 
   try {
-    const result = await supabaseAdmin.from("venues").select("id").eq("hidden", false);
-    data = result.data as { id: string }[] | null;
+    const result = await supabaseAdmin
+      .from("venues")
+      .select("place_id")
+      .eq("hidden", false)
+      .not("place_id", "is", null);
+    data = result.data as { place_id: string | null }[] | null;
   } catch {
     data = null;
   }
 
-  const venues = (data ?? []).map((venue) => ({
-    url: `${BASE_URL}/venues/${venue.id}`,
-    lastModified: now,
-    changeFrequency: "daily" as const,
-    priority: 0.8,
-  }));
+  const venues = (data ?? []).flatMap((venue) => {
+    if (!venue.place_id) return [];
 
-  return [
-    { url: BASE_URL, lastModified: now, changeFrequency: "daily" as const, priority: 1 },
-    { url: `${BASE_URL}/map`, lastModified: now, changeFrequency: "daily" as const, priority: 0.9 },
-    { url: `${BASE_URL}/explore`, lastModified: now, changeFrequency: "daily" as const, priority: 0.9 },
-    { url: `${BASE_URL}/share`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.3 },
-    ...venues,
+    return [
+      {
+        url: `${BASE_URL}/venue/${encodeURIComponent(venue.place_id)}`,
+        lastModified: now,
+        changeFrequency: "hourly" as const,
+        priority: 0.8,
+      },
+    ];
+  });
+
+  const staticRoutes: MetadataRoute.Sitemap = [
+    {
+      url: BASE_URL,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 1,
+    },
+    {
+      url: `${BASE_URL}/map`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.95,
+    },
+    {
+      url: `${BASE_URL}/explore`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${BASE_URL}/profile`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.6,
+    },
   ];
+
+  return [...staticRoutes, ...venues];
 }

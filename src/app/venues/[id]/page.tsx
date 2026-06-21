@@ -14,7 +14,7 @@ type VenuePageProps = {
 };
 
 function getVenuePublicUrl(venue: ConsumerVenue): string {
-  return `${siteUrl}/venue/${encodeURIComponent(venue.slug || venue.id)}`;
+  return `${siteUrl}/venue/${encodeURIComponent(venue.placeId)}`;
 }
 
 function getVenueOgImage(venue: ConsumerVenue): string | undefined {

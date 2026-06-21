@@ -9,7 +9,7 @@ import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://night-vibe-checker.vercel.app";
+const siteUrl = "https://night-vibe-checker.vercel.app";
 const title = "nytchkr — Know the vibe before you go";
 const description =
   "Real-time bar and nightlife crowd tracker for Charlotte. See how packed a venue is and the male/female split before you go.";
@@ -34,7 +34,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL("https://night-vibe-checker.vercel.app"),
   title,
   description,
   alternates: {
