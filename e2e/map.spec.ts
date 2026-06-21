@@ -266,7 +266,7 @@ test.describe("Map tab", () => {
     await expect.poll(() => page.locator(".venue-cluster-pin").count()).toBe(venues.length);
   });
 
-  test("zip recenter control validates Charlotte zip codes", async ({ page }) => {
+  test("zip recenter control validates Charlotte-area zip codes and clears input", async ({ page }) => {
     await openMap(page);
 
     const zipInput = page.getByLabel("Charlotte zip");
@@ -279,6 +279,13 @@ test.describe("Map tab", () => {
     await zipInput.fill("28277");
     await zipInput.press("Enter");
     await expect(page.getByText("Enter a Charlotte zip code")).toHaveCount(0);
+
+    await zipInput.fill("28105");
+    await zipInput.press("Enter");
+    await expect(page.getByText("Enter a Charlotte zip code")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Clear zip code" }).click();
+    await expect(zipInput).toHaveValue("");
   });
 
   test("FAB links to /vibe-check", async ({ page }) => {

@@ -31,6 +31,13 @@ const BUSYNESS_FILTERS = ["All", "Busy", "Live only"] as const;
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
+  "28104": [35.0589, -80.724],
+  "28105": [35.1168, -80.7237],
+  "28110": [35.003, -80.549],
+  "28112": [34.982, -80.549],
+  "28117": [35.5849, -80.884],
+  "28134": [35.0855, -80.8923],
+  "28173": [34.9246, -80.7434],
   "28202": [35.2271, -80.8431],
   "28203": [35.2065, -80.8651],
   "28204": [35.2156, -80.8306],
@@ -47,15 +54,21 @@ const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
   "28215": [35.247, -80.738],
   "28216": [35.3079, -80.8826],
   "28217": [35.1617, -80.9085],
+  "28223": [35.3055, -80.7321],
   "28226": [35.1106, -80.854],
   "28227": [35.1868, -80.7201],
+  "28262": [35.3188, -80.7425],
   "28269": [35.3561, -80.8141],
+  "28270": [35.1231, -80.7629],
+  "28273": [35.1352, -80.939],
   "28277": [35.0559, -80.8434],
+  "28278": [35.1321, -81.008],
 };
 
 const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
 const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
+const CHARLOTTE_AREA_ZIP_PATTERN = /^28[12]\d{2}$/;
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -368,14 +381,15 @@ function ZipRecenterControl() {
   }
 
   function recenterForZip(nextZip: string) {
-    const center = CHARLOTTE_ZIP_CENTERS[nextZip];
-    if (!center) {
+    const normalizedZip = nextZip.trim();
+    const center = CHARLOTTE_ZIP_CENTERS[normalizedZip];
+    if (!CHARLOTTE_AREA_ZIP_PATTERN.test(normalizedZip) || !center) {
       flashInvalid();
       return;
     }
-    trackAnalytics("zip_recenter", { zip: nextZip });
+    trackAnalytics("zip_recenter", { zip: normalizedZip });
     setShowInvalid(false);
-    map.flyTo(center, 14, {
+    map.setView(center, 14, {
       animate: true,
       duration: 0.7,
     });
@@ -389,6 +403,11 @@ function ZipRecenterControl() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     recenterForZip(zip);
+  }
+
+  function clearZip() {
+    setZip("");
+    setShowInvalid(false);
   }
 
   return (
@@ -412,6 +431,16 @@ function ZipRecenterControl() {
             showInvalid ? "border-red-500" : "border-white/10"
           }`}
         />
+        {zip.length > 0 && (
+          <button
+            type="button"
+            aria-label="Clear zip code"
+            onClick={clearZip}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/70 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+          >
+            <X aria-hidden="true" className="h-4 w-4" />
+          </button>
+        )}
         <button
           type="submit"
           className="h-9 shrink-0 rounded-full bg-[#8B6CFF] px-3 text-xs font-black text-[#0A0A0E] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
