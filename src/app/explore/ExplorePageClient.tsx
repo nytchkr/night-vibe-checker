@@ -25,6 +25,7 @@ type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
 type NeighborhoodFilter = "All Areas" | "South End";
 type SortOption = "Nearest" | "Busiest" | "A-Z" | "Open Now";
 type UserLocation = { lat: number; lng: number };
+type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
 type ActivityFeedItem = {
   id: string;
   user: {
@@ -307,6 +308,29 @@ function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
+function getHottestBusynessLabel(level: number): HottestBusynessLabel {
+  if (level >= 81) return "Packed";
+  if (level >= 61) return "Busy";
+  if (level >= 41) return "Moderate";
+  if (level >= 21) return "Quiet";
+  return "Dead";
+}
+
+function getHottestBusynessColor(label: HottestBusynessLabel): string {
+  switch (label) {
+    case "Packed":
+      return "#FF2D78";
+    case "Busy":
+      return "#FF5B6A";
+    case "Moderate":
+      return "#FFB020";
+    case "Quiet":
+      return "#00F5D4";
+    case "Dead":
+      return "#5C6573";
+  }
+}
+
 function busynessChipLabel(level: BusynessLevel): string {
   if (level === "dead") return "Dead";
   return level[0].toUpperCase() + level.slice(1);
@@ -398,6 +422,51 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
         </div>
       </div>
     </article>
+  );
+}
+
+function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
+  if (venues.length === 0) return null;
+
+  return (
+    <section className="space-y-3" aria-label="Hottest Right Now">
+      <h2 className="font-display text-sm font-black text-white">Hottest Right Now</h2>
+      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04]">
+        {venues.map((venue, index) => {
+          const rawLevel = venue.signal?.busyness0To100 ?? 0;
+          const level = clampPercent(rawLevel);
+          const label = getHottestBusynessLabel(level);
+          const color = getHottestBusynessColor(label);
+
+          return (
+            <Link
+              key={venue.id}
+              href={`/venues/${encodeURIComponent(venue.id)}`}
+              onClick={() => trackAnalytics("hottest_right_now_tapped", { venueId: venue.id, rank: index + 1 })}
+              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-3.5 py-3 transition-colors last:border-b-0 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/60"
+              aria-label={`Open ${venue.name}, ranked number ${index + 1}, ${label}`}
+            >
+              <span className="font-display text-sm font-black text-white/45">#{index + 1}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-[14px] font-black text-white">{venue.name}</span>
+                <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
+                  <span
+                    className="block h-full rounded-full bg-gradient-to-r from-[#FFE066] via-[#FF8A3D] to-[#FF2D78]"
+                    style={{ width: `${level}%` }}
+                  />
+                </span>
+              </span>
+              <span
+                className="justify-self-end rounded-full border px-2 py-1 text-[11px] font-black leading-none"
+                style={{ borderColor: `${color}55`, backgroundColor: `${color}1F`, color }}
+              >
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -727,6 +796,22 @@ export function ExplorePageClient() {
     });
   }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption, userLocation, venues]);
 
+  const hottestVenues = useMemo(() => {
+    if (venues === null) return [];
+
+    return venues
+      .filter((venue) => {
+        const busynessLevel = venue.signal?.busyness0To100 ?? 0;
+        return !venue.hidden && Number.isFinite(busynessLevel) && busynessLevel > 0;
+      })
+      .sort((a, b) => {
+        const aBusyness = a.signal?.busyness0To100 ?? 0;
+        const bBusyness = b.signal?.busyness0To100 ?? 0;
+        return bBusyness - aBusyness || a.name.localeCompare(b.name);
+      })
+      .slice(0, 5);
+  }, [venues]);
+
   const venueDistances = useMemo(() => {
     if (!userLocation || venues === null) return new Map<string, number>();
 
@@ -854,6 +939,12 @@ export function ExplorePageClient() {
             South End
           </h1>
           <p className="mt-1 text-sm text-white/40">{venuesCount} spots tracked tonight</p>
+
+          {hottestVenues.length > 0 && (
+            <div className="mt-5">
+              <HottestRightNow venues={hottestVenues} />
+            </div>
+          )}
 
           <div className="mt-5">
             <TrendingStrip />
