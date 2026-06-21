@@ -4,7 +4,7 @@
 // Toast
 //
 // Fixed bottom-center notification.
-// Fades in immediately, fades out after 3s then calls onDone.
+// Fades in immediately, fades out after durationMs then calls onDone.
 //
 // Props:
 //   message  — text to display
@@ -17,29 +17,29 @@ import { useEffect, useState } from "react";
 interface ToastProps {
   message: string;
   onDone: () => void;
+  durationMs?: number;
+  fadeMs?: number;
+  className?: string;
 }
 
-export function Toast({ message, onDone }: ToastProps) {
+export function Toast({ message, onDone, durationMs = 2500, fadeMs = 500, className = "" }: ToastProps) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const hideTimer = setTimeout(() => setVisible(false), 2500);
-    const doneTimer = setTimeout(() => onDone(), 3000);
+    const hideTimer = setTimeout(() => setVisible(false), durationMs);
+    const doneTimer = setTimeout(() => onDone(), durationMs + fadeMs);
     return () => {
       clearTimeout(hideTimer);
       clearTimeout(doneTimer);
     };
-    // onDone is intentionally excluded — it should be a stable ref
-    // (useCallback) at the call-site; re-running would reset timers.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [durationMs, fadeMs, onDone]);
 
   return (
     <div
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      style={{ transition: "opacity 0.5s ease" }}
+      style={{ transition: `opacity ${fadeMs}ms ease` }}
       className={`
         fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999]
         rounded-xl bg-white/10 px-4 py-3
@@ -48,6 +48,7 @@ export function Toast({ message, onDone }: ToastProps) {
         pointer-events-none select-none
         whitespace-nowrap
         ${visible ? "opacity-100" : "opacity-0"}
+        ${className}
       `}
     >
       {message}

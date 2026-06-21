@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { ChevronDown, ChevronLeft, Heart, MapPin, Share2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, Heart, MapPin, Share2, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { MFBar } from "@/components/MFBar";
 import { Toast } from "@/components/Toast";
@@ -339,6 +339,7 @@ export function VenuePageClient({
   const [vibeSubmitting, setVibeSubmitting] = useState(false);
   const [vibeError, setVibeError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [checkInConfirmed, setCheckInConfirmed] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const photoStripRef = useRef<HTMLDivElement>(null);
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
@@ -352,6 +353,12 @@ export function VenuePageClient({
     if (!vibeSubmitting) setVibeReportOpen(false);
   });
   useFocusTrap(loginPromptOpen, loginDialogRef, () => setLoginPromptOpen(false));
+
+  useEffect(() => {
+    if (!checkInConfirmed) return;
+    const timer = window.setTimeout(() => setCheckInConfirmed(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [checkInConfirmed]);
 
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
@@ -717,7 +724,8 @@ export function VenuePageClient({
       setVibeBusyness(null);
       setVibeCrowdFeel(null);
       setVibeNote("");
-      setToast("Vibe reported! Thanks 🙌");
+      setToast("Check-in recorded! Thanks for the vibe.");
+      setCheckInConfirmed(true);
       haptic.success();
       trackAnalytics("vibe_check_submitted", {
         venue_id: reportVenueId,
@@ -835,7 +843,14 @@ export function VenuePageClient({
 
   return (
     <div className="min-h-screen bg-[#0A0A0E] pb-48">
-      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+      {toast && (
+        <Toast
+          message={toast}
+          durationMs={2500}
+          onDone={() => setToast(null)}
+          className="bottom-[calc(env(safe-area-inset-bottom)+8.75rem)] rounded-full border-white/10 bg-[#1A1A2E] px-5 py-3 font-semibold text-white shadow-2xl shadow-black/30"
+        />
+      )}
 
       {loading && <LoadingSkeleton />}
 
@@ -1477,9 +1492,21 @@ export function VenuePageClient({
                 haptic.light();
                 trackAnalytics("check_in", { venue_id: venue.id });
               }}
-              className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
+              className={`flex min-h-[54px] flex-1 items-center justify-center gap-2 rounded-2xl px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                checkInConfirmed
+                  ? "bg-[#1A1A2E] text-white hover:bg-[#1A1A2E]"
+                  : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
+              }`}
             >
-              Report the vibe
+              {checkInConfirmed ? (
+                <>
+                  <Check size={20} strokeWidth={3} aria-hidden="true" />
+                  Recorded
+                </>
+              ) : (
+                "Report the vibe"
+              )}
             </Link>
           </div>
         </div>
