@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { MapPin, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -265,13 +266,17 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             {!isPeek && (
               <div className="mb-4 overflow-hidden rounded-[14px] border border-white/[0.08] bg-white/[0.035]">
                 {photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={photoUrl}
-                    alt=""
-                    className="h-40 w-full object-cover"
-                    loading="lazy"
-                  />
+                  <div className="relative h-40 w-full">
+                    <Image
+                      src={photoUrl}
+                      alt=""
+                      fill
+                      sizes="100vw"
+                      loading="lazy"
+                      priority={false}
+                      className="object-cover"
+                    />
+                  </div>
                 ) : (
                   <div className="flex h-40 items-center justify-center bg-white/[0.035]">
                     <span className="font-display text-5xl font-semibold text-white/18">{venue.name.slice(0, 1)}</span>

@@ -35,7 +35,7 @@ const VENUE_SELECT_LEGACY = `
 `;
 
 const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
 };
 
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {

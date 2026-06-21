@@ -131,14 +131,15 @@ function CompactCard({
         )}
         <div className="flex items-center gap-3">
           {venue.photoUrl ? (
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white/[0.06]">
+            <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl bg-white/[0.06]">
               <Image
                 src={venue.photoUrl}
                 alt={venue.name}
-                width={56}
-                height={56}
-                sizes="56px"
+                width={72}
+                height={72}
+                sizes="72px"
                 loading="lazy"
+                priority={false}
                 placeholder="blur"
                 blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
                 className="h-full w-full object-cover"

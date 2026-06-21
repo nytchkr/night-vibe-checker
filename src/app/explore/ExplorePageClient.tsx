@@ -522,6 +522,7 @@ function VenueFeedCard({
               height={72}
               sizes="72px"
               loading={index === 0 ? "eager" : "lazy"}
+              priority={false}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"

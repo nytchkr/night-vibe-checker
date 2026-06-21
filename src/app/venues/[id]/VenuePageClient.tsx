@@ -917,7 +917,7 @@ export function VenuePageClient({
                   alt={`${venue.name} photo`}
                   fill
                   sizes="100vw"
-                  priority
+                  priority={false}
                   className="object-cover"
                 />
               ) : (
