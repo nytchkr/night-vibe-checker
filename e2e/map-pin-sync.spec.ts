@@ -106,6 +106,8 @@ const venues = [
   }),
 ];
 
+test.use({ serviceWorkers: "block" });
+
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("nv_onboarded", "1");
@@ -162,11 +164,11 @@ function venueRow(sheet: Locator, name: string) {
 }
 
 async function visiblePinCount(page: Page) {
-  return page.locator("path.leaflet-interactive").count();
+  return page.locator(".venue-cluster-pin").count();
 }
 
 async function selectedPinCount(page: Page) {
-  return page.locator('path.leaflet-interactive[stroke="#00F5D4"]').count();
+  return page.locator(".venue-cluster-pin-selected").count();
 }
 
 test.describe("Map pin/list sync", () => {
@@ -179,7 +181,7 @@ test.describe("Map pin/list sync", () => {
     const sheet = await openMap(page);
 
     await expect(venueRow(sheet, "Pin Sync Speakeasy")).toHaveCount(0);
-    await page.locator('path.leaflet-interactive[fill="#4ADE80"]').dispatchEvent("click");
+    await page.getByRole("button", { name: "Open Pin Sync Speakeasy details" }).click();
 
     const selectedVenue = venueRow(sheet, "Pin Sync Speakeasy");
     await expect(selectedVenue).toBeVisible({ timeout: 10000 });
@@ -207,7 +209,7 @@ test.describe("Map pin/list sync", () => {
     await selectedVenue.click();
 
     await expect(selectedVenue).toHaveAttribute("aria-pressed", "true");
-    await expect(selectedVenue).toHaveClass(/ring-\[#00F5D4\]\/60/);
+    await expect(selectedVenue).toHaveClass(/ring-\[#8B6CFF\]\/60/);
     await expect(selectedVenue).toHaveClass(/bg-white\/\[0\.1\]/);
   });
 

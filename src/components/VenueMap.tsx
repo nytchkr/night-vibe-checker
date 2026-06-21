@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -9,7 +9,7 @@ import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
 import { Check, ChevronDown, RefreshCw, X } from "lucide-react";
-import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
 import { inZone } from "@/lib/zone";
@@ -84,12 +84,6 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
   }
 }
 
-type VenuePinStyle = {
-  className: string;
-  fillOpacity: number;
-  fillColor: string;
-  radius: number;
-};
 type BusynessMapFilter = (typeof BUSYNESS_FILTERS)[number];
 
 function getBusynessColor(pct: number | null): string {
@@ -102,33 +96,6 @@ function getBusynessColor(pct: number | null): string {
 function hasLiveBusynessSource(venue: ConsumerVenue): boolean {
   const source = venue.signal?.busynessSource;
   return source === "live" || source === "crowd";
-}
-
-const createBusynessIcon = (pct: number | null, hasLiveSignal: boolean) => {
-  const color = getBusynessColor(pct);
-
-  return L.divIcon({
-    className: "",
-    html: `<div class="${hasLiveSignal ? "venue-pin-live-dot" : ""}" style="
-      width:14px;height:14px;border-radius:50%;
-      background:${color};
-      border:2px solid rgba(255,255,255,0.3);
-    "></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-  });
-};
-
-function getVenuePinStyle(venue: ConsumerVenue): VenuePinStyle {
-  const busyness = venue.signal?.busyness0To100;
-  const color = getBusynessColor(busyness ?? null);
-
-  if (busyness == null) {
-    return { className: "venue-pin-null", fillColor: color, fillOpacity: 0.8, radius: 7 };
-  }
-  if (busyness >= 67) return { className: "venue-pin-packed", fillColor: color, fillOpacity: 0.95, radius: 13 };
-  if (busyness >= 34) return { className: "venue-pin-moderate", fillColor: color, fillOpacity: 0.95, radius: 10 };
-  return { className: "venue-pin-quiet", fillColor: color, fillOpacity: 0.95, radius: 7 };
 }
 
 function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter) {
@@ -179,25 +146,6 @@ function RecenterButton({ center }: { center: [number, number] }) {
   );
 }
 
-function MapZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
-  const map = useMap();
-
-  useEffect(() => {
-    onZoomChange(map.getZoom());
-
-    function handleZoomEnd() {
-      onZoomChange(map.getZoom());
-    }
-
-    map.on("zoomend", handleZoomEnd);
-    return () => {
-      map.off("zoomend", handleZoomEnd);
-    };
-  }, [map, onZoomChange]);
-
-  return null;
-}
-
 function createVenueClusterIcon(cluster: L.MarkerCluster) {
   return L.divIcon({
     html: `<span>${cluster.getChildCount()}</span>`,
@@ -245,9 +193,12 @@ function ClusteredVenueMarkers({
   useEffect(() => {
     const clusterGroup = L.markerClusterGroup({
       chunkedLoading: true,
+      disableClusteringAtZoom: 15,
       iconCreateFunction: createVenueClusterIcon,
       maxClusterRadius: 60,
+      showCoverageOnHover: false,
       spiderfyOnMaxZoom: true,
+      zoomToBoundsOnClick: true,
     });
 
     clusterGroup.on("clusterclick", (event: L.LeafletEvent & { layer?: L.MarkerCluster }) => {
@@ -837,7 +788,6 @@ export function VenueMap({
   const [slowLoad, setSlowLoad] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
-  const [mapZoom, setMapZoom] = useState(15);
   const mapRef = useRef<LeafletMap | null>(null);
   const mapHeight = process.env.NEXT_PUBLIC_ENV === "development" ? "calc(100dvh - 100px)" : "calc(100dvh - 80px)";
   const cityCenter = useMemo<[number, number]>(() => [city.lat, city.lng], [city.lat, city.lng]);
@@ -1010,7 +960,6 @@ export function VenueMap({
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
           <CityMapCenter center={cityCenter} />
-          <MapZoomTracker onZoomChange={setMapZoom} />
           <ZipRecenterControl />
           <VenueSearchControl
             onVenueSelect={selectVenueFromSearch}
@@ -1020,71 +969,7 @@ export function VenueMap({
           />
           <RecenterButton center={cityCenter} />
 
-          {mapZoom < 14 && (
-            <ClusteredVenueMarkers venues={filteredVenues} selectedVenueId={selectedVenueId} onVenueClick={selectVenueFromMap} />
-          )}
-
-          {mapZoom >= 14 && filteredVenues.map((venue) => {
-            const pin = getVenuePinStyle(venue);
-            const busyness = venue.signal?.busyness0To100 ?? null;
-            const hasLiveSignal = hasLiveBusynessSource(venue);
-            const isSelected = selectedVenueId === venue.id;
-
-            return (
-              <Fragment key={venue.id}>
-                {isSelected && (
-                  <CircleMarker
-                    center={[venue.lat, venue.lng]}
-                    radius={pin.radius + 7}
-                    pathOptions={{
-                      color: "#8B6CFF",
-                      fillColor: "#8B6CFF",
-                      fillOpacity: 0.08,
-                      opacity: 0.72,
-                      weight: 2,
-                    }}
-                    interactive={false}
-                  />
-                )}
-                {hasLiveSignal && (
-                  <CircleMarker
-                    center={[venue.lat, venue.lng]}
-                    radius={pin.radius * 1.65}
-                    pathOptions={{
-                      className: "venue-pin-live-pulse",
-                      color: pin.fillColor,
-                      fillColor: pin.fillColor,
-                      fillOpacity: 0.18,
-                      opacity: 0.32,
-                      weight: 1,
-                    }}
-                    interactive={false}
-                  />
-                )}
-                <Marker
-                  position={[venue.lat, venue.lng]}
-                  icon={createBusynessIcon(busyness, hasLiveSignal)}
-                  alt={`${venue.name} map pin`}
-                  keyboard
-                  title={venue.name}
-                  eventHandlers={{
-                    add: (event) => {
-                      const markerElement = event.target.getElement?.() as HTMLElement | undefined;
-                      markerElement?.setAttribute("role", "button");
-                      markerElement?.setAttribute("aria-label", `Open ${venue.name} details`);
-                    },
-                    click: () => {
-                      selectVenueFromMap(venue);
-                    },
-                  }}
-                >
-                  <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
-                    <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
-                  </Tooltip>
-                </Marker>
-              </Fragment>
-            );
-          })}
+          <ClusteredVenueMarkers venues={filteredVenues} selectedVenueId={selectedVenueId} onVenueClick={selectVenueFromMap} />
         </MapContainer>
       </MapErrorBoundary>
 
@@ -1257,11 +1142,11 @@ export function VenueMap({
 
         .venue-cluster-icon {
           align-items: center;
-          background: #1a1a2e;
-          border: 2px solid #00f5d4;
+          background: #0a0a0e;
+          border: 2px solid rgba(255, 255, 255, 0.82);
           border-radius: 9999px;
-          box-shadow: 0 0 24px rgba(0, 245, 212, 0.34), 0 10px 30px rgba(0, 0, 0, 0.42);
-          color: #00f5d4;
+          box-shadow: 0 0 24px rgba(0, 245, 212, 0.34), 0 10px 30px rgba(0, 0, 0, 0.52);
+          color: #ffffff;
           display: flex;
           font-size: 14px;
           font-weight: 900;

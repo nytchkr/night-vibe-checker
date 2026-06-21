@@ -108,6 +108,8 @@ const venues = [
 
 const topFiveVenueNames = venues.slice(0, 5).map((venue) => venue.name);
 
+test.use({ serviceWorkers: "block" });
+
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("nv_onboarded", "1");
@@ -172,7 +174,7 @@ async function expectTopFiveVenues(sheet: Locator) {
 }
 
 async function selectedPinCount(page: Page) {
-  return page.locator('path.leaflet-interactive[stroke="#00F5D4"]').count();
+  return page.locator(".venue-cluster-pin-selected").count();
 }
 
 test.describe("Map tab", () => {
@@ -206,7 +208,7 @@ test.describe("Map tab", () => {
 
     const sheet = page.getByRole("region", { name: "South End venues" });
     await expect(sheet).toBeVisible({ timeout: 10000 });
-    await expect(sheet.getByRole("button", { name: /South End · 5 spots open/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /Expand South End venue list/ })).toBeVisible();
 
     const packedVenue = sheet.getByRole("button", { name: /Map Test Club/ });
     await expect(packedVenue).toBeVisible();
@@ -214,20 +216,37 @@ test.describe("Map tab", () => {
     await expect(packedVenue).toContainText("Packed");
   });
 
-  test("city selector switches neighborhoods and persists the selection", async ({ page }) => {
+  test("nearby venues collapse into a dark cluster when zoomed out", async ({ page }) => {
+    await openMap(page);
+
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
+
+    await page.locator(".leaflet-control-zoom-out").click();
+
+    const cluster = page.locator(".venue-cluster-icon").first();
+    await expect(cluster).toBeVisible({ timeout: 10000 });
+    await expect(cluster).toContainText(String(venues.length));
+    await expect(cluster).toHaveCSS("background-color", "rgb(10, 10, 14)");
+    await expect(cluster).toHaveCSS("color", "rgb(255, 255, 255)");
+
+    await cluster.click();
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
+  });
+
+  test("city selector shows coming-soon neighborhoods without switching away from launch city", async ({ page }) => {
     const sheet = await openMap(page);
 
-    await page.getByRole("button", { name: "South End", exact: true }).click();
+    await page.getByRole("button", { name: "Choose neighborhood, currently South End" }).click();
     const dialog = page.getByRole("dialog", { name: "Choose map city" });
     await expect(dialog).toBeVisible();
 
-    await dialog.getByRole("button", { name: /NoDa/ }).click();
+    await expect(dialog.getByRole("button", { name: /NoDa/ })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: /Uptown/ })).toBeDisabled();
+    await dialog.getByRole("button", { name: /South End/ }).click();
 
-    await expect(page.getByRole("region", { name: "NoDa venues" })).toBeVisible();
-    await expect(sheet).toHaveCount(0);
-    await expect(page.getByText(/NoDa venues coming soon|No venues in this area/i).first()).toBeVisible();
-    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("nightvibe:selected-city"))).toBe("noda-clt");
-    await expect.poll(() => page.locator("path.leaflet-interactive").count()).toBe(0);
+    await expect(sheet).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("nightvibe:selected-city"))).toBe("south-end-clt");
+    await expect.poll(() => page.locator(".venue-cluster-pin").count()).toBe(venues.length);
   });
 
   test("zip recenter control validates Charlotte zip codes", async ({ page }) => {
@@ -283,7 +302,7 @@ test.describe("Map tab", () => {
     await expect(youTab).toBeVisible();
     await youTab.click({ force: true });
 
-    await expect(page).toHaveURL(/\/login\?return=%2Fprofile/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/profile$/, { timeout: 10000 });
   });
 
   test("/ renders the default map tab", async ({ page }) => {
@@ -304,7 +323,7 @@ test.describe("Map bottom sheet", () => {
   test("shows collapsed bottom sheet by default", async ({ page }) => {
     const sheet = await openMap(page);
 
-    await expect(sheet.getByRole("button", { name: /South End · 5 spots open/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /Expand South End venue list/ })).toBeVisible();
     await expect
       .poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 })
       .toBeGreaterThanOrEqual(68);
@@ -344,7 +363,7 @@ test.describe("Map bottom sheet", () => {
   test("sheet snaps to mid when map pin is tapped", async ({ page }) => {
     const sheet = await openMap(page);
 
-    await page.locator("path.leaflet-interactive").first().dispatchEvent("click");
+    await page.getByRole("button", { name: "Open Map Test Club details" }).click();
 
     await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeGreaterThan(240);
     await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeLessThan(340);
