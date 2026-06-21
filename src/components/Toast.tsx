@@ -4,7 +4,7 @@
 // Toast
 //
 // Fixed bottom-center notification.
-// Fades in immediately, fades out after 2.5s then calls onDone.
+// Fades in immediately, fades out after 3s then calls onDone.
 //
 // Props:
 //   message  — text to display
@@ -20,13 +20,11 @@ interface ToastProps {
 }
 
 export function Toast({ message, onDone }: ToastProps) {
-  // visible drives the opacity transition; we start visible and
-  // switch to false after 2s so the 0.5s fade-out finishes at ~2.5s.
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const hideTimer = setTimeout(() => setVisible(false), 2000);
-    const doneTimer = setTimeout(() => onDone(), 2500);
+    const hideTimer = setTimeout(() => setVisible(false), 2500);
+    const doneTimer = setTimeout(() => onDone(), 3000);
     return () => {
       clearTimeout(hideTimer);
       clearTimeout(doneTimer);
@@ -44,11 +42,9 @@ export function Toast({ message, onDone }: ToastProps) {
       style={{ transition: "opacity 0.5s ease" }}
       className={`
         fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999]
-        px-5 py-3 rounded-xl
-        text-sm font-semibold text-white
-        bg-zinc-900
-        border border-[#00F5D4]
-        shadow-[0_0_16px_rgba(0,245,212,0.35)]
+        rounded-xl bg-white/10 px-4 py-3
+        text-sm font-medium text-white backdrop-blur
+        border border-white/10 shadow-xl
         pointer-events-none select-none
         whitespace-nowrap
         ${visible ? "opacity-100" : "opacity-0"}

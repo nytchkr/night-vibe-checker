@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { ChevronDown, Heart, MapPin, Share2 } from "lucide-react";
+import { ChevronDown, Heart, MapPin, Share2, X } from "lucide-react";
+import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
@@ -32,6 +33,16 @@ type VenueTip = {
   helpfulCount: number;
   createdAt: string;
 };
+
+type VenueReportReason = "wrong_hours" | "wrong_location" | "permanently_closed" | "duplicate" | "other";
+
+const VENUE_REPORT_REASONS: Array<{ value: VenueReportReason; label: string }> = [
+  { value: "wrong_hours", label: "Wrong hours" },
+  { value: "wrong_location", label: "Wrong location" },
+  { value: "permanently_closed", label: "Permanently closed" },
+  { value: "duplicate", label: "Duplicate" },
+  { value: "other", label: "Other" },
+];
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
@@ -282,6 +293,12 @@ export function VenuePageClient({
   const [tipDraft, setTipDraft] = useState("");
   const [tipSubmitting, setTipSubmitting] = useState(false);
   const [tipError, setTipError] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<VenueReportReason>("wrong_hours");
+  const [reportNotes, setReportNotes] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const photoStripRef = useRef<HTMLDivElement>(null);
 
@@ -570,6 +587,36 @@ export function VenuePageClient({
     }
   }
 
+  async function submitVenueReport() {
+    if (reportSubmitting) return;
+
+    setReportSubmitting(true);
+    setReportError(null);
+
+    try {
+      const res = await fetch(`/api/venues/${encodeURIComponent(venue?.id ?? venueId)}/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: reportReason,
+          notes: reportNotes.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+
+      setReportOpen(false);
+      setReportReason("wrong_hours");
+      setReportNotes("");
+      setToast("Thanks for the report!");
+      haptic.success();
+    } catch {
+      setReportError("Could not submit that report. Try again.");
+      haptic.error();
+    } finally {
+      setReportSubmitting(false);
+    }
+  }
+
   async function markTipHelpful(tipId: string) {
     haptic.light();
     const previousTips = tips;
@@ -636,6 +683,7 @@ export function VenuePageClient({
     : venue?.photoUrl;
   const tipCharactersRemaining = 200 - tipDraft.length;
   const canSubmitTip = tipDraft.trim().length >= 10 && tipDraft.trim().length <= 200 && !tipSubmitting;
+  const reportCharactersRemaining = 200 - reportNotes.length;
 
   useEffect(() => {
     setActivePhotoIndex(0);
@@ -653,6 +701,8 @@ export function VenuePageClient({
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] pb-48">
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
+
       {loading && <LoadingSkeleton />}
 
       {!loading && error && (
@@ -993,8 +1043,114 @@ export function VenuePageClient({
                 {copied ? "Copied" : "Share"}
               </button>
             </div>
+
+            <div className="flex justify-center pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setReportError(null);
+                  setReportOpen(true);
+                }}
+                className="text-xs font-medium text-white/30 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+              >
+                Report
+              </button>
+            </div>
           </div>
         </>
+      )}
+
+      {venue && reportOpen && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="venue-report-title"
+        >
+          <button
+            type="button"
+            aria-label="Close report form"
+            className="absolute inset-0 cursor-default"
+            onClick={() => {
+              if (!reportSubmitting) setReportOpen(false);
+            }}
+          />
+          <div className="relative mx-auto w-full max-w-lg rounded-2xl border border-white/10 bg-[#11111A] p-4 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="venue-report-title" className="text-lg font-black text-white">
+                Report an issue
+              </h2>
+              <button
+                type="button"
+                aria-label="Close report form"
+                onClick={() => {
+                  if (!reportSubmitting) setReportOpen(false);
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:opacity-50"
+                disabled={reportSubmitting}
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            </div>
+
+            <fieldset className="mt-4 space-y-2">
+              <legend className="sr-only">Report reason</legend>
+              {VENUE_REPORT_REASONS.map((reason) => (
+                <label
+                  key={reason.value}
+                  className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 text-sm font-semibold transition-colors ${
+                    reportReason === reason.value
+                      ? "border-[#00F5D4]/65 bg-[#00F5D4]/10 text-white"
+                      : "border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/[0.06]"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="venue-report-reason"
+                    value={reason.value}
+                    checked={reportReason === reason.value}
+                    onChange={() => setReportReason(reason.value)}
+                    className="h-4 w-4 accent-[#00F5D4]"
+                  />
+                  {reason.label}
+                </label>
+              ))}
+            </fieldset>
+
+            <div className="mt-4 space-y-2">
+              <label htmlFor="venue-report-notes" className="text-sm font-black text-white">
+                Additional notes (optional)
+              </label>
+              <textarea
+                id="venue-report-notes"
+                value={reportNotes}
+                onChange={(event) => {
+                  setReportNotes(event.target.value.slice(0, 200));
+                  if (reportError) setReportError(null);
+                }}
+                maxLength={200}
+                rows={3}
+                placeholder="What should we correct?"
+                className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#00F5D4]/60"
+              />
+              <div className="flex items-center justify-between gap-3">
+                <span className={`text-xs ${reportCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
+                  {reportCharactersRemaining} characters remaining
+                </span>
+                {reportError && <span className="text-right text-xs font-medium text-rose-300">{reportError}</span>}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={submitVenueReport}
+              disabled={reportSubmitting}
+              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#00F5D4] px-4 text-sm font-black text-[#0A0A0F] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+            >
+              {reportSubmitting ? "Submitting" : "Submit Report"}
+            </button>
+          </div>
+        </div>
       )}
 
       {venue && (
