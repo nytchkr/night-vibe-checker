@@ -16,7 +16,6 @@ import { getBusynessState } from "@/lib/busyness";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue, ReportedBusyness } from "@/types";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -313,7 +312,7 @@ export function VenuePageClient({
   const [savePending, setSavePending] = useState(false);
   const [alerting, setAlerting] = useState(false);
   const [alertPending, setAlertPending] = useState(false);
-  const [canNativeShare, setCanNativeShare] = useState(false);
+  const [canShareVenue, setCanShareVenue] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
@@ -355,7 +354,10 @@ export function VenuePageClient({
   }, [checkInConfirmed]);
 
   useEffect(() => {
-    setCanNativeShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
+    setCanShareVenue(
+      typeof navigator !== "undefined" &&
+        (typeof navigator.share === "function" || typeof navigator.clipboard?.writeText === "function"),
+    );
   }, []);
 
   useEffect(() => {
@@ -580,22 +582,31 @@ export function VenuePageClient({
   }
 
   async function shareVenue() {
-    if (!venue || typeof navigator === "undefined" || typeof navigator.share !== "function") return;
+    if (!venue || typeof navigator === "undefined" || typeof window === "undefined") return;
 
-    trackAnalytics("share_venue", { venueId: venue.id });
-    const shareData = buildVenueShareData(venue);
+    const shareData: ShareData = {
+      title: venue.name,
+      text: `Check out ${venue.name} on NightVibe`,
+      url: window.location.href,
+    };
+    trackAnalytics("venue_share", { venueId: venue.id });
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User cancelled or browser blocked native sharing.
+      }
+      return;
+    }
+
+    if (typeof navigator.clipboard?.writeText !== "function") return;
 
     try {
-      await navigator.share({
-        ...shareData,
-        url: typeof window !== "undefined" ? window.location.href : shareData.url,
-      });
-      trackAnalytics("share_card_shared", {
-        venue_id: venue.id,
-        method: "native",
-      });
+      await navigator.clipboard.writeText(window.location.href);
+      setToast("Copied!");
     } catch {
-      // User cancelled or browser blocked native sharing.
+      // Clipboard access can be denied by the browser.
     }
   }
 
@@ -1042,11 +1053,7 @@ export function VenuePageClient({
               </section>
             )}
 
-            <div
-              className={`grid gap-3 ${canNativeShare ? "grid-cols-2" : "grid-cols-1"}`}
-              role="group"
-              aria-label="Venue actions"
-            >
+            <div className="grid gap-3" role="group" aria-label="Venue actions">
               <a
                 href={mapsHref}
                 target="_blank"
@@ -1056,16 +1063,6 @@ export function VenuePageClient({
                 <MapPin size={17} aria-hidden="true" />
                 Get Directions
               </a>
-              {canNativeShare ? (
-                <button
-                  type="button"
-                  onClick={shareVenue}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#8B6CFF] p-3 text-sm font-bold text-white transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-                >
-                  <Share2 size={17} aria-hidden="true" />
-                  Share
-                </button>
-              ) : null}
             </div>
 
             <div className="flex justify-center pt-4">
@@ -1431,6 +1428,17 @@ export function VenuePageClient({
                 <Heart size={19} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
               </button>
             )}
+
+            {canShareVenue ? (
+              <button
+                type="button"
+                onClick={() => void shareVenue()}
+                aria-label={`Share ${venue.name}`}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              >
+                <Share2 size={19} aria-hidden="true" />
+              </button>
+            ) : null}
 
             <button
               type="button"
