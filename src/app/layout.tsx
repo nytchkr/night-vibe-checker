@@ -35,12 +35,14 @@ export const metadata: Metadata = {
     description: "Real-time busyness for Charlotte nightlife.",
     url: "https://nytchkr.com",
     siteName: "nytchkr",
+    images: ["/opengraph-image"],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "nytchkr",
     description: "Know the vibe before you go.",
+    images: ["/opengraph-image"],
   },
 };
 
