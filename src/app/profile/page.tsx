@@ -3,24 +3,20 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, Bookmark, ChevronRight, MapPin } from "lucide-react";
+import { Bell, Bookmark, ChevronRight, Info, MapPin } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
-import { useOnboardingGate } from "@/components/OnboardingGate";
 import { PageTransition } from "@/components/PageTransition";
-import { PushOptIn } from "@/components/PushOptIn";
 import { WELCOME_SEEN_STORAGE_KEY, WelcomeOverlay } from "@/components/WelcomeOverlay";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import type { APIResponse, ConsumerVenue, ReportedBusyness } from "@/types";
-
-type ProfileGender = "male" | "female" | "undisclosed";
+import type { APIResponse, ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 type CheckInItem = {
   id: string;
   venueId: string;
   venueName: string;
   busyness: ReportedBusyness | null;
+  crowdFeel: CrowdFeel | null;
   note: string | null;
   createdAt: string;
 };
@@ -30,6 +26,7 @@ type ProfileCheckInRecord = {
   venue_id: string | null;
   venue_name: string | null;
   busyness: ReportedBusyness | null;
+  crowd_feel: CrowdFeel | null;
   note: string | null;
   created_at: string;
 };
@@ -40,7 +37,6 @@ type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
 };
 
 type VenuesResponse = APIResponse<{ venues: ConsumerVenue[] }>;
-type ProfileGenderResponse = { gender: ProfileGender | null };
 type ProfileStreakResponse = {
   currentStreak: number;
   longestStreak: number;
@@ -53,12 +49,6 @@ const LOCAL_TEST_SESSION_KEYS = [
   "sb-onlpwglwnqoivuykywrk-auth-token",
 ] as const;
 
-const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
-  { value: "male", label: "Man" },
-  { value: "female", label: "Woman" },
-  { value: "undisclosed", label: "Rather not say" },
-];
-
 function getVenueName(row: ProfileCheckInRecord): string {
   return row.venue_name ?? row.venue_id ?? "Unknown venue";
 }
@@ -67,6 +57,13 @@ function formatBusyness(value: ReportedBusyness): string {
   if (value === "dead") return "Dead";
   if (value === "moderate") return "Moderate";
   return "Packed";
+}
+
+function formatCrowdFeel(value: CrowdFeel): string {
+  if (value === "mostly_male") return "More guys";
+  if (value === "mostly_female") return "More women";
+  if (value === "balanced") return "Balanced";
+  return "Mixed";
 }
 
 function formatRelativeTime(value: string): string {
@@ -91,12 +88,28 @@ function formatRelativeTime(value: string): string {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
 }
 
+function formatJoinedDate(value: string | undefined): string {
+  if (!value) return "Tonight";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Tonight";
+  return new Intl.DateTimeFormat("en", { month: "short", year: "numeric" }).format(date);
+}
+
 function getUserEmail(user: User | undefined): string {
   return user?.email ?? "Signed in";
 }
 
-function getUserInitial(email: string): string {
-  return email.trim().charAt(0).toUpperCase() || "Y";
+function getUserInitials(email: string): string {
+  const name = email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
+  const initials = name
+    ? name
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join("")
+    : email.charAt(0).toUpperCase();
+
+  return initials || "Y";
 }
 
 function readLocalTestSession(): Session | null {
@@ -131,187 +144,130 @@ function clearLocalTestSession() {
     }
   }
 
+  const authCookieNames = new Set<string>(LOCAL_TEST_SESSION_KEYS);
   for (const cookie of document.cookie.split(";")) {
     const name = cookie.split("=")[0]?.trim();
-    if (!name?.startsWith("sb-") || !name.endsWith("-auth-token")) continue;
-    document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+    if (name?.startsWith("sb-") && name.endsWith("-auth-token")) authCookieNames.add(name);
+  }
+
+  for (const name of authCookieNames) {
+    document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+    document.cookie = `${name}=; path=/; domain=${window.location.hostname}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
   }
 }
 
 function ProfileSkeleton() {
   return (
     <div className="space-y-4" role="status" aria-label="Loading profile">
-      <Skeleton className="h-24 rounded-2xl bg-white/10" />
-      <Skeleton className="h-44 rounded-2xl bg-white/10" />
-      <Skeleton className="h-24 rounded-2xl bg-white/10" />
+      <Skeleton className="h-28 rounded-[18px] bg-white/10" />
+      <Skeleton className="h-20 rounded-[18px] bg-white/10" />
+      <Skeleton className="h-44 rounded-[18px] bg-white/10" />
     </div>
   );
 }
 
 function LoggedOutState() {
-  const { requireAuth } = useOnboardingGate();
-
-  async function handleSignIn() {
-    await requireAuth({
-      id: "profile:onboarding",
-      label: "Sign in to save spots, report the vibe, and keep your night history.",
-      returnTo: "/profile",
-    });
-  }
-
   return (
-    <section className="mx-auto mt-16 max-w-sm rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
-      <p className="font-display text-[34px] font-semibold tracking-normal text-white">
-        nyt<span className="text-[#8B6CFF]">chkr</span>
+    <section className="flex min-h-[calc(100vh-13rem)] flex-col justify-between py-6 text-center" aria-label="Sign in">
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center">
+        <p className="font-display text-[34px] font-semibold tracking-normal text-white">
+          nyt<span className="text-[#8B6CFF]">chkr</span>
+        </p>
+        <h2 className="mt-6 font-display text-2xl font-semibold leading-tight tracking-normal text-[#F4F5F8]">
+          Know before you go.
+        </h2>
+        <p className="mt-3 text-[15px] font-medium leading-6 text-[#9CA2AE]">
+          Check in to venues · see the M/F vibe · save your spots
+        </p>
+        <p className="mt-4 text-[13px] font-medium text-[#646B79]">
+          Join Charlotte nightlife scouts
+        </p>
+
+        <a
+          href="/api/auth/google?return=/profile"
+          className="mt-8 flex min-h-12 w-full items-center justify-center rounded-full bg-gray-800 px-5 text-[15px] font-semibold text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+        >
+          Continue with Google
+        </a>
+        <Link
+          href="/login?return=/profile"
+          className="mt-4 text-[13px] font-medium text-[#9CA2AE] underline-offset-4 transition-colors hover:text-white hover:underline"
+        >
+          Or sign in with email
+        </Link>
+      </div>
+
+      <p className="px-4 pb-2 text-[12px] font-medium text-[#646B79]/75">
+        Guest view — sign in to check in and save venues
       </p>
-      <p className="mt-3 text-base font-semibold text-white/72">Sign in to see your profile</p>
-      <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-white/44">
-        Sign in to keep your check-ins tied to your account and build a real history of nights out.
-      </p>
-      <Button
-        type="button"
-        onClick={() => void handleSignIn()}
-        className="mt-7 min-h-[52px] w-full rounded-full bg-[#8B6CFF] text-base font-semibold text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.32)] hover:bg-[#8B6CFF]"
-      >
-        Sign in
-      </Button>
     </section>
   );
 }
 
-function AccountCard({
-  displayName,
+function AccountHeader({
   email,
-  checkInCount,
-  savedCount,
+  onSignOut,
 }: {
-  displayName: string;
   email: string;
-  checkInCount: number;
-  savedCount: number;
+  onSignOut: () => void;
 }) {
   return (
     <section
       id="profile-section"
-      className="scroll-mt-24 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4"
+      className="scroll-mt-24 rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4"
       aria-label="Account"
     >
       <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] text-lg font-black text-white ring-1 ring-[#8B6CFF]/45">
-          {getUserInitial(email)}
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] font-display text-lg font-semibold text-white ring-1 ring-[#8B6CFF]/40">
+          {getUserInitials(email)}
         </div>
-        <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-white">{displayName}</p>
-          <p className="mt-1 truncate text-sm font-semibold text-white/45">
-            {checkInCount} check-ins · {savedCount} saved
-          </p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-semibold text-[#F4F5F8]">{email}</p>
+          <p className="mt-1 text-[13px] font-medium text-[#646B79]">Charlotte nightlife scout</p>
         </div>
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="shrink-0 rounded-full px-2 py-2 text-[13px] font-medium text-[#646B79] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        >
+          Sign out
+        </button>
       </div>
     </section>
   );
 }
 
-function StreakCard({
-  streak,
-  loading,
+function StatsRow({
+  totalCheckIns,
+  savedCount,
+  joinedDate,
 }: {
-  streak: ProfileStreakResponse;
-  loading: boolean;
+  totalCheckIns: number;
+  savedCount: number;
+  joinedDate: string;
 }) {
-  const showFire = streak.currentStreak >= 3;
+  const stats = [
+    { label: "Check-ins", value: totalCheckIns.toLocaleString() },
+    { label: "Saved", value: savedCount.toLocaleString() },
+    { label: "Joined", value: joinedDate },
+  ];
 
   return (
     <section
-      className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101018] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.3)]"
-      aria-label="Night streak"
+      className="grid grid-cols-3 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.035]"
+      aria-label="Profile stats"
     >
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0568C]/70 to-transparent" />
-
-      {loading ? (
-        <div className="space-y-4" role="status" aria-label="Loading night streak">
-          <Skeleton className="h-4 w-28 rounded-full bg-white/10" />
-          <Skeleton className="h-16 w-32 rounded-2xl bg-white/10" />
-          <Skeleton className="h-4 w-40 rounded-full bg-white/10" />
-        </div>
-      ) : (
-        <div>
-          <p className="text-xs font-black uppercase tracking-normal text-[#F0568C]">Night streak</p>
-          <div className="mt-3 flex items-end gap-3">
-            <p className="font-display text-[64px] font-black leading-none tracking-normal text-white">
-              {streak.currentStreak}
-            </p>
-            {showFire && (
-              <span className="mb-2 text-3xl" aria-label="Streak fire" role="img">
-                🔥
-              </span>
-            )}
-          </div>
-          <p className="mt-2 text-base font-black text-white">Nights out in a row</p>
-          {streak.currentStreak === 0 && (
-            <p className="mt-1 text-sm font-semibold text-white/50">Start your streak tonight.</p>
-          )}
-          <p className="mt-4 text-sm font-semibold text-white/45">
-            {streak.totalCheckIns} check-ins total
+      {stats.map((stat, index) => (
+        <div
+          key={stat.label}
+          className={`min-w-0 px-3 py-4 text-center ${index > 0 ? "border-l border-white/[0.08]" : ""}`}
+        >
+          <p className="truncate font-display text-[19px] font-semibold leading-tight text-[#F4F5F8]">
+            {stat.value}
           </p>
+          <p className="mt-1 truncate text-[11.5px] font-medium text-[#646B79]">{stat.label}</p>
         </div>
-      )}
-    </section>
-  );
-}
-
-function VibeIdentitySection({
-  gender,
-  loading,
-  saving,
-  error,
-  onSelect,
-}: {
-  gender: ProfileGender | null;
-  loading: boolean;
-  saving: ProfileGender | null;
-  error: string;
-  onSelect: (gender: ProfileGender) => void;
-}) {
-  return (
-    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Your vibe identity">
-      <div>
-        <h2 className="font-display text-xl font-black text-white">Your vibe identity</h2>
-        {!loading && !gender && (
-          <p className="mt-1 text-sm font-semibold leading-6 text-white/45">
-            Tell us so vibe ratios reflect real people.
-          </p>
-        )}
-      </div>
-
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        {GENDER_OPTIONS.map((option) => {
-          const selected = gender === option.value;
-          const isSaving = saving === option.value;
-
-          return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onSelect(option.value)}
-              disabled={loading || Boolean(saving)}
-              className={`min-h-[44px] rounded-full border px-2 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                selected
-                  ? "border-[#8B6CFF] bg-[#8B6CFF] text-white"
-                  : "border-white/15 bg-transparent text-white/55 hover:border-white/25 hover:text-white/75"
-              }`}
-              aria-pressed={selected}
-            >
-              {isSaving ? "Saving" : option.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {error && (
-        <p className="mt-3 rounded-xl border border-[#F0568C]/25 bg-[#F0568C]/10 p-3 text-sm font-semibold text-[#F0568C]">
-          {error}
-        </p>
-      )}
+      ))}
     </section>
   );
 }
@@ -327,66 +283,75 @@ function CheckInsSection({
   loading: boolean;
   error: string;
 }) {
+  const recentCheckIns = checkIns.slice(0, 5);
+
   return (
-    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Check-in History">
+    <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4" aria-label="Recent check-ins">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-black text-white">Check-in History</h2>
-          <p className="mt-1 text-sm font-semibold text-white/45">
-            {loading ? "Loading..." : `${count} total`}
+          <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Recent check-ins</h2>
+          <p className="mt-1 text-[13px] font-medium text-[#646B79]">
+            {loading ? "Loading..." : `${count.toLocaleString()} total`}
           </p>
         </div>
-        <span className="rounded-full bg-[#F0568C]/15 px-3 py-1 text-xs font-black text-[#F0568C]">
-          Last 20
+        <span className="rounded-full border border-white/[0.08] px-3 py-1 text-[11.5px] font-medium text-[#9CA2AE]">
+          Last 5
         </span>
       </div>
 
       {loading && (
         <div className="mt-5 space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-16 rounded-xl bg-white/10" />
+            <Skeleton key={index} className="h-16 rounded-[14px] bg-white/10" />
           ))}
         </div>
       )}
 
       {!loading && error && (
-        <p className="mt-5 rounded-xl border border-[#F0568C]/25 bg-[#F0568C]/10 p-4 text-sm font-semibold text-[#F0568C]">
+        <p className="mt-5 rounded-[14px] border border-[#F0568C]/25 bg-[#F0568C]/10 p-4 text-[13px] font-medium text-[#F0568C]">
           {error}
         </p>
       )}
 
-      {!loading && !error && checkIns.length === 0 && (
-        <div className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 py-7 text-center">
+      {!loading && !error && recentCheckIns.length === 0 && (
+        <div className="mt-5 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/60 px-4 py-7 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <MapPin size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-base font-black text-white">No check-ins yet. Head out and check one in!</p>
+          <p className="mt-4 text-[15px] font-semibold text-[#F4F5F8]">No check-ins yet. Head out and check one in!</p>
           <Link
             href="/map"
-            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-[13px] font-semibold text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
           >
             Find venues on the map
           </Link>
         </div>
       )}
 
-      {!loading && !error && checkIns.length > 0 && (
-        <ul className="mt-5 space-y-3">
-          {checkIns.map((item) => (
-            <li key={item.id} className="rounded-xl border border-white/[0.08] bg-[#0A0A0E]/60 p-3">
+      {!loading && !error && recentCheckIns.length > 0 && (
+        <ul className="mt-5 divide-y divide-white/[0.08]">
+          {recentCheckIns.map((item) => (
+            <li key={item.id} className="py-3 first:pt-0 last:pb-0">
               <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 truncate text-sm font-black text-white">{item.venueName}</p>
-                <time className="shrink-0 text-xs font-semibold text-white/38" dateTime={item.createdAt}>
+                <p className="min-w-0 truncate text-[15px] font-semibold text-[#F4F5F8]">{item.venueName}</p>
+                <time className="shrink-0 text-[12px] font-medium text-[#646B79]" dateTime={item.createdAt}>
                   {formatRelativeTime(item.createdAt)}
                 </time>
               </div>
-              {item.busyness && (
-                <p className="mt-2 inline-flex rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-xs font-bold text-[#8B6CFF]">
-                  {formatBusyness(item.busyness)}
-                </p>
-              )}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {item.busyness && (
+                  <span className="rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-[12px] font-medium text-[#B7A8FF]">
+                    {formatBusyness(item.busyness)}
+                  </span>
+                )}
+                {item.crowdFeel && (
+                  <span className="rounded-full bg-white/[0.055] px-2.5 py-1 text-[12px] font-medium text-[#9CA2AE]">
+                    {formatCrowdFeel(item.crowdFeel)}
+                  </span>
+                )}
+              </div>
               {item.note && (
-                <p className="mt-2 text-sm font-semibold leading-5 text-white/55">{item.note}</p>
+                <p className="mt-2 text-[13px] font-medium leading-5 text-[#9CA2AE]">{item.note}</p>
               )}
             </li>
           ))}
@@ -408,46 +373,48 @@ function SavedVenuesSection({
   error: string;
 }) {
   const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
-  const savedVenues = savedVenueIds.map((id) => venuesById.get(id) ?? { id, name: id, category: "Saved venue" });
+  const savedVenues = savedVenueIds
+    .slice(0, 5)
+    .map((id) => venuesById.get(id) ?? { id, name: id, category: "Saved venue" });
 
   return (
-    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Saved venues">
+    <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4" aria-label="Saved venues">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-black text-white">Saved venues</h2>
-          <p className="mt-1 text-sm font-semibold text-white/45">
-            {loading ? "Loading..." : `${savedVenueIds.length} saved`}
+          <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Saved venues</h2>
+          <p className="mt-1 text-[13px] font-medium text-[#646B79]">
+            {loading ? "Loading..." : `${savedVenueIds.length.toLocaleString()} saved`}
           </p>
         </div>
-        <span className="rounded-full bg-[#8B6CFF]/14 px-3 py-1 text-xs font-black text-[#8B6CFF]">
-          Saves
+        <span className="rounded-full border border-white/[0.08] px-3 py-1 text-[11.5px] font-medium text-[#9CA2AE]">
+          Last 5
         </span>
       </div>
 
       {loading && (
         <div className="mt-5 space-y-3">
-          <Skeleton className="h-16 rounded-xl bg-white/10" />
+          <Skeleton className="h-16 rounded-[14px] bg-white/10" />
         </div>
       )}
 
       {!loading && error && (
-        <p className="mt-5 rounded-xl border border-[#F0568C]/25 bg-[#F0568C]/10 p-4 text-sm font-semibold text-[#F0568C]">
+        <p className="mt-5 rounded-[14px] border border-[#F0568C]/25 bg-[#F0568C]/10 p-4 text-[13px] font-medium text-[#F0568C]">
           {error}
         </p>
       )}
 
       {!loading && !error && savedVenueIds.length === 0 && (
-        <div className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 py-7 text-center">
+        <div className="mt-5 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/60 px-4 py-7 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <Bookmark size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-base font-black text-white">No saved spots yet</p>
-          <p className="mx-auto mt-2 max-w-[240px] text-sm font-semibold leading-6 text-white/50">
+          <p className="mt-4 text-[15px] font-semibold text-[#F4F5F8]">No saved spots yet</p>
+          <p className="mx-auto mt-2 max-w-[240px] text-[13px] font-medium leading-6 text-[#9CA2AE]">
             Save venues you want to revisit
           </p>
           <Link
             href="/explore"
-            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-[13px] font-semibold text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
           >
             Browse South End venues
           </Link>
@@ -455,20 +422,61 @@ function SavedVenuesSection({
       )}
 
       {!loading && !error && savedVenueIds.length > 0 && (
-        <ul className="mt-5 space-y-3">
+        <ul className="mt-5 divide-y divide-white/[0.08]">
           {savedVenues.map((venue) => (
-            <li key={venue.id}>
+            <li key={venue.id} className="py-3 first:pt-0 last:pb-0">
               <Link
                 href={`/venues/${encodeURIComponent(venue.id)}`}
-                className="block rounded-xl border border-white/[0.08] bg-[#0A0A0E]/60 p-3 transition-colors hover:border-[#8B6CFF]/35 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="group flex items-center justify-between gap-4 rounded-[14px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
-                <p className="truncate text-sm font-black text-white">{venue.name}</p>
-                <p className="mt-1 truncate text-xs font-semibold text-white/42">{venue.category}</p>
+                <span className="min-w-0">
+                  <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>
+                  <span className="mt-1 block truncate text-[12px] font-medium text-[#646B79]">{venue.category}</span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-[#646B79] transition-colors group-hover:text-[#9CA2AE]" aria-hidden="true" />
               </Link>
             </li>
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+function SettingsSection() {
+  return (
+    <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4" aria-label="Settings">
+      <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Settings</h2>
+      <div className="mt-4 divide-y divide-white/[0.08] border-y border-white/[0.08]">
+        <div className="flex min-h-14 items-center justify-between gap-4 py-3">
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-[#9CA2AE]">
+              <Bell size={17} strokeWidth={2.2} aria-hidden="true" />
+            </span>
+            <span className="truncate text-[15px] font-medium text-[#F4F5F8]">Notifications</span>
+          </span>
+          <button
+            type="button"
+            aria-label="Notifications toggle placeholder"
+            aria-pressed="false"
+            className="relative h-7 w-12 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.055] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          >
+            <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-[#646B79]" />
+          </button>
+        </div>
+        <Link
+          href="/about"
+          className="flex min-h-14 items-center justify-between gap-4 py-3 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-[#9CA2AE]">
+              <Info size={17} strokeWidth={2.2} aria-hidden="true" />
+            </span>
+            <span className="truncate text-[15px] font-medium text-[#F4F5F8]">About</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-[#646B79]" aria-hidden="true" />
+        </Link>
+      </div>
     </section>
   );
 }
@@ -488,15 +496,10 @@ function ProfileContent() {
     longestStreak: 0,
     totalCheckIns: 0,
   });
-  const [streakLoading, setStreakLoading] = useState(false);
   const [savedVenueIds, setSavedVenueIds] = useState<string[]>([]);
   const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
   const [savedVenuesError, setSavedVenuesError] = useState("");
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
-  const [gender, setGender] = useState<ProfileGender | null>(null);
-  const [genderLoading, setGenderLoading] = useState(false);
-  const [genderSaving, setGenderSaving] = useState<ProfileGender | null>(null);
-  const [genderError, setGenderError] = useState("");
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -510,7 +513,6 @@ function ProfileContent() {
         void fetchCheckIns(activeSession);
         void fetchStreak(activeSession);
         void fetchSavedVenues(activeSession);
-        void fetchGender(activeSession);
       } else {
         setCheckIns([]);
         setCheckInCount(0);
@@ -519,8 +521,6 @@ function ProfileContent() {
         setSavedVenueIds([]);
         setSavedVenuesError("");
         setVenues([]);
-        setGender(null);
-        setGenderError("");
       }
     }
 
@@ -585,6 +585,7 @@ function ProfileContent() {
         venueId: row.venue_id ?? "",
         venueName: getVenueName(row),
         busyness: row.busyness,
+        crowdFeel: row.crowd_feel,
         note: row.note,
         createdAt: row.created_at,
       })));
@@ -598,8 +599,6 @@ function ProfileContent() {
   }
 
   async function fetchStreak(activeSession: Session) {
-    setStreakLoading(true);
-
     try {
       const res = await fetch("/api/profile/streak", {
         headers: { Authorization: `Bearer ${activeSession.access_token}` },
@@ -618,8 +617,6 @@ function ProfileContent() {
       });
     } catch {
       setStreak({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 });
-    } finally {
-      setStreakLoading(false);
     }
   }
 
@@ -657,66 +654,12 @@ function ProfileContent() {
     }
   }
 
-  async function fetchGender(activeSession: Session) {
-    setGenderLoading(true);
-    setGenderError("");
-
-    try {
-      const res = await fetch("/api/profile/gender", {
-        headers: { Authorization: `Bearer ${activeSession.access_token}` },
-      });
-
-      if (!res.ok) {
-        setGender(null);
-        setGenderError("Could not load your vibe identity right now.");
-        return;
-      }
-
-      const json = (await res.json()) as ProfileGenderResponse;
-      setGender(json.gender ?? null);
-    } catch {
-      setGender(null);
-      setGenderError("Could not load your vibe identity right now.");
-    } finally {
-      setGenderLoading(false);
-    }
-  }
-
-  async function handleGenderSelect(nextGender: ProfileGender) {
-    if (!session) return;
-
-    setGenderSaving(nextGender);
-    setGenderError("");
-
-    try {
-      const res = await fetch("/api/profile/gender", {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ gender: nextGender }),
-      });
-
-      if (!res.ok) {
-        setGenderError("Could not save your vibe identity right now.");
-        return;
-      }
-
-      setGender(nextGender);
-    } catch {
-      setGenderError("Could not save your vibe identity right now.");
-    } finally {
-      setGenderSaving(null);
-    }
-  }
-
   async function handleSignOut() {
     const client = createBrowserClient();
     await client.auth.signOut();
     clearLocalTestSession();
     setSession(null);
-    router.push("/login");
+    router.replace("/profile");
   }
 
   function handleDismissWelcome() {
@@ -735,14 +678,14 @@ function ProfileContent() {
   }
 
   const userEmail = getUserEmail(session?.user);
-  const userDisplayName = userEmail;
+  const totalCheckIns = streak.totalCheckIns || checkInCount;
 
   return (
     <PageTransition>
       <div className="min-h-screen bg-[#0A0A0E] text-white">
         <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0E]/92 px-4 backdrop-blur-xl">
           <div className="mx-auto max-w-lg py-4">
-            <h1 className="font-display text-[34px] font-semibold tracking-normal text-white">You</h1>
+            <h1 className="font-display text-[34px] font-semibold tracking-normal text-[#F4F5F8]">You</h1>
           </div>
         </header>
 
@@ -751,25 +694,17 @@ function ProfileContent() {
           {authChecked && !session && <LoggedOutState />}
 
           {authChecked && session && (
-            <div className="space-y-5">
+            <div className="space-y-4">
               {showWelcome && <WelcomeOverlay onDismiss={handleDismissWelcome} />}
-              <AccountCard
-                displayName={userDisplayName}
-                email={userEmail}
-                checkInCount={checkInCount}
+              <AccountHeader email={userEmail} onSignOut={() => void handleSignOut()} />
+              <StatsRow
+                totalCheckIns={totalCheckIns}
                 savedCount={savedVenueIds.length}
-              />
-              <StreakCard streak={streak} loading={streakLoading} />
-              <VibeIdentitySection
-                gender={gender}
-                loading={genderLoading}
-                saving={genderSaving}
-                error={genderError}
-                onSelect={(nextGender) => void handleGenderSelect(nextGender)}
+                joinedDate={formatJoinedDate(session.user.created_at)}
               />
               <CheckInsSection
                 checkIns={checkIns}
-                count={checkInCount}
+                count={totalCheckIns}
                 loading={checkInsLoading}
                 error={checkInsError}
               />
@@ -779,30 +714,7 @@ function ProfileContent() {
                 loading={savedVenuesLoading}
                 error={savedVenuesError}
               />
-              <PushOptIn />
-              <Link
-                href="/notifications"
-                className="flex min-h-[64px] w-full items-center justify-between gap-4 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4 transition-colors hover:border-[#8B6CFF]/35 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[#8B6CFF]">
-                    <Bell size={18} strokeWidth={2.4} aria-hidden="true" />
-                  </span>
-                  <span className="truncate text-base font-black text-white">
-                    Notification preferences
-                  </span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-white/35" aria-hidden="true" />
-              </Link>
-
-              <Button
-                type="button"
-                onClick={handleSignOut}
-                variant="outline"
-                className="min-h-[52px] w-full rounded-full border-red-400/30 bg-transparent text-sm font-black text-red-400 hover:border-red-400/45 hover:bg-red-400/10 hover:text-red-300"
-              >
-                Sign out
-              </Button>
+              <SettingsSection />
             </div>
           )}
         </div>

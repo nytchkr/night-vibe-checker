@@ -13,6 +13,7 @@ type ProfileCheckInRow = {
   venue_id: string;
   venue_name: string | null;
   busyness: string | null;
+  crowd_feel: string | null;
   note: string | null;
   created_at: string;
 };
@@ -21,6 +22,7 @@ type CheckInRecord = {
   id: string;
   venue_id: string | null;
   busyness: string | null;
+  crowd_feel: string | null;
   note: string | null;
   created_at: string;
   venues?: { name?: string | null } | { name?: string | null }[] | null;
@@ -69,6 +71,7 @@ function mapRow(row: CheckInRecord): ProfileCheckInRow {
     venue_id: row.venue_id ?? "",
     venue_name: venueNameFrom(row),
     busyness: row.busyness,
+    crowd_feel: row.crowd_feel,
     note: row.note,
     created_at: row.created_at,
   };
@@ -80,7 +83,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ProfileCheckIn
 
   const { data, error } = await supabaseAdmin
     .from("check_ins")
-    .select("id,venue_id,busyness,note,created_at,venues(name)")
+    .select("id,venue_id,busyness,crowd_feel,note,created_at,venues(name)")
     .eq("user_id", userId)
     .eq("hidden", false)
     .order("created_at", { ascending: false })

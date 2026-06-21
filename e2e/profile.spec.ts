@@ -18,7 +18,7 @@ const localSession = {
 };
 
 async function addLocalSession(page: Page) {
-  const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
+  const authOrigin = new URL(process.env.BASE_URL ?? "http://localhost:3000").origin;
   for (const name of ["sb-onlpwglwnqoivuykywrk-auth-token", "sb-gfsbqewkrcyclbktfyfk-auth-token"]) {
     await page.context().addCookies([{
       name,
@@ -42,9 +42,16 @@ test.describe("Profile page", () => {
     await page.goto("/profile");
 
     await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByRole("heading", { name: "You" })).toBeVisible();
-    await expect(page.getByText("Sign in to see your profile")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "You", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Know before you go." })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Continue with Google" })).toHaveAttribute(
+      "href",
+      "/api/auth/google?return=/profile",
+    );
+    await expect(page.getByRole("link", { name: "Or sign in with email" })).toHaveAttribute(
+      "href",
+      "/login?return=/profile",
+    );
   });
 
   test("profile shows empty state for new user", async ({ page }) => {
@@ -104,7 +111,7 @@ test.describe("Profile page", () => {
 
     await page.goto("/profile");
 
-    await expect(page.getByRole("region", { name: "Check-in History" })).toContainText("No check-ins yet");
+    await expect(page.getByRole("region", { name: "Recent check-ins" })).toContainText("No check-ins yet");
     await expect(page.getByRole("link", { name: "Find venues on the map" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Saved venues" })).toContainText("No saved spots yet");
     await expect(page.getByRole("link", { name: "Browse South End venues" })).toBeVisible();
@@ -128,6 +135,7 @@ test.describe("Profile page", () => {
             venue_id: "venue-1",
             venue_name: "Trio",
             busyness: "packed",
+            crowd_feel: "balanced",
             note: "Line is moving",
             created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           },
@@ -158,10 +166,11 @@ test.describe("Profile page", () => {
 
     await page.goto("/profile");
 
-    const history = page.getByRole("region", { name: "Check-in History" });
+    const history = page.getByRole("region", { name: "Recent check-ins" });
     await expect(history).toContainText("Trio");
     await expect(history).toContainText("2h ago");
     await expect(history).toContainText("Packed");
+    await expect(history).toContainText("Balanced");
     await expect(history).toContainText("Line is moving");
   });
 
@@ -219,7 +228,8 @@ test.describe("Profile page", () => {
     await expect(page.getByText("profile-e2e@example.com")).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    await expect(page).toHaveURL(/\/profile$/);
+    await expect(page.getByRole("heading", { name: "Know before you go." })).toBeVisible();
 
     const storageSessions = await page.evaluate(() =>
       ["sb-onlpwglwnqoivuykywrk-auth-token", "sb-gfsbqewkrcyclbktfyfk-auth-token"]
@@ -237,7 +247,7 @@ test.describe("Profile page", () => {
     });
 
     await page.goto("/profile");
-    await expect(page.getByText("Sign in to see your profile")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Know before you go." })).toBeVisible();
 
     await page.goto("/vibe-check");
     await expect(page).toHaveURL(/\/login\?return=%2Fvibe-check/);

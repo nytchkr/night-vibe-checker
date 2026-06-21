@@ -50,6 +50,7 @@ describe("GET /api/profile/check-ins", () => {
           id: "check-in-1",
           venue_id: "venue-1",
           busyness: "packed",
+          crowd_feel: "balanced",
           note: "Line is moving",
           created_at: "2026-06-21T03:00:00.000Z",
           venues: { name: "Trio" },
@@ -64,7 +65,7 @@ describe("GET /api/profile/check-ins", () => {
 
     expect(res.status).toBe(200);
     expect(mockFrom).toHaveBeenCalledWith("check_ins");
-    expect(query.select).toHaveBeenCalledWith("id,venue_id,busyness,note,created_at,venues(name)");
+    expect(query.select).toHaveBeenCalledWith("id,venue_id,busyness,crowd_feel,note,created_at,venues(name)");
     expect(query.eq).toHaveBeenNthCalledWith(1, "user_id", "user-123");
     expect(query.eq).toHaveBeenNthCalledWith(2, "hidden", false);
     expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
@@ -75,6 +76,7 @@ describe("GET /api/profile/check-ins", () => {
         venue_id: "venue-1",
         venue_name: "Trio",
         busyness: "packed",
+        crowd_feel: "balanced",
         note: "Line is moving",
         created_at: "2026-06-21T03:00:00.000Z",
       },
