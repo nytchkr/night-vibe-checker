@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
-import { ChevronDown, Heart } from "lucide-react";
+import { ChevronDown, Heart, MapPin, Share2 } from "lucide-react";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
@@ -112,15 +112,24 @@ function formatWeekHours(hoursEntry: string): { day: string; hours: string; clos
   const day = getHoursDay(hoursEntry) ?? "";
   const hours = formatHoursText(hoursEntry);
   return {
-    day: day.slice(0, 3),
+    day,
     hours: isClosedHours(hours) ? "Closed" : hours.split(/\s*[–-]\s*/).map(formatShortTime).join(" – "),
     closed: isClosedHours(hours),
   };
 }
 
+function getCategoryAccent(category: string): string {
+  const value = category.toLowerCase();
+  if (value.includes("club") || value.includes("night")) return "#FF2D78";
+  if (value.includes("bar") || value.includes("pub")) return "#00F5D4";
+  if (value.includes("lounge")) return "#A855F7";
+  if (value.includes("restaurant")) return "#F59E0B";
+  return "#7C3AED";
+}
+
 function CategoryChip({ category }: { category: string }) {
   return (
-    <span className="inline-flex rounded-full border border-white/10 bg-black/35 px-2.5 py-1 text-[11px] font-medium capitalize text-white/75 backdrop-blur">
+    <span className="inline-flex rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white/85 backdrop-blur">
       {category.replaceAll("_", " ")}
     </span>
   );
@@ -144,27 +153,25 @@ function clampPercent(value: number | null | undefined): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
-function formatRating(rating: number | undefined): string | null {
-  if (rating == null || !Number.isFinite(rating)) return null;
-  return `★ ${rating.toFixed(1)}`;
-}
-
-function formatPriceLevel(priceLevel: ConsumerVenue["priceLevel"]): string | null {
-  if (!priceLevel || !Number.isFinite(priceLevel)) return null;
-  return "$".repeat(priceLevel);
-}
-
-function formatOpenNow(openNow: boolean | undefined): string | null {
-  if (openNow === undefined) return null;
-  return openNow ? "● Open now" : "○ Closed";
-}
-
 function sourceLabel(signal: ConsumerVenue["signal"], fallbackUpdatedAt: string | null | undefined): string {
   if (!signal || signal.busyness0To100 == null) return "";
   if (signal.busynessSource === "forecast") return "via BestTime forecast";
   if (signal.busynessSource === "live") return "via BestTime live";
   const sampleSize = signal.sampleSize ?? 0;
   return `from ${sampleSize} check-ins · ${timeAgo(fallbackUpdatedAt)}`;
+}
+
+function getCrowdFeel(malePercent: number | null): { emoji: string; label: string } {
+  if (malePercent == null) return { emoji: "⚖️", label: "Balanced" };
+  if (malePercent >= 58) return { emoji: "👨", label: "Male-leaning" };
+  if (malePercent <= 42) return { emoji: "👩", label: "Female-leaning" };
+  return { emoji: "⚖️", label: "Balanced" };
+}
+
+function getBusynessColor(percent: number): string {
+  if (percent >= 70) return "#F87171";
+  if (percent >= 40) return "#FBBF24";
+  return "#4ADE80";
 }
 
 export function VenuePageClient({
@@ -321,8 +328,10 @@ export function VenuePageClient({
   const updatedAt = signal?.lastBusynessRefresh ?? signal?.computedAt ?? null;
   const malePercent = signal?.mfRatio != null && signal.sampleSize >= 3 ? clampPercent(signal.mfRatio) : null;
   const femalePercent = malePercent == null ? null : 100 - malePercent;
+  const crowdFeel = getCrowdFeel(malePercent);
   const signalSourceLabel = sourceLabel(signal ?? null, updatedAt);
   const reportParams = useMemo(() => new URLSearchParams({
+    venue: venueId,
     venueId,
     venueName: venue?.name ?? "Venue",
   }), [venueId, venue?.name]);
@@ -338,6 +347,7 @@ export function VenuePageClient({
       hasHours: openingHours.length > 0,
       todayStatus: formatTodayHoursStatus(todayHours, previousHours),
       weekHours: openingHours.map(formatWeekHours),
+      today,
     };
   }, [venue?.openingHours]);
   const mapsHref = useMemo(() => {
@@ -345,18 +355,9 @@ export function VenuePageClient({
     const query = venue.address || `${venue.lat},${venue.lng}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
-  const statItems = useMemo(() => {
-    if (!venue) return [];
-    return [
-      formatRating(venue.rating),
-      formatPriceLevel(venue.priceLevel),
-      formatOpenNow(venue.openNow),
-      venue.address || null,
-    ].filter((item): item is string => Boolean(item));
-  }, [venue]);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] pb-28">
+    <div className="min-h-screen bg-[#0A0A0F] pb-48">
       {loading && <LoadingSkeleton />}
 
       {!loading && error && (
@@ -373,7 +374,14 @@ export function VenuePageClient({
 
       {!loading && !error && venue && (
         <>
-          <section className="relative aspect-video w-full overflow-hidden" role="region" aria-label="Venue hero">
+          <section
+            className="relative w-full overflow-hidden px-4 pb-8 pt-24"
+            role="region"
+            aria-label="Venue hero"
+            style={{
+              background: `linear-gradient(155deg, ${getCategoryAccent(venue.category)} 0%, rgba(10,10,15,0.92) 48%, #0A0A0F 100%)`,
+            }}
+          >
             {venue.photoUrl ? (
               <>
                 <Image
@@ -384,14 +392,12 @@ export function VenuePageClient({
                   priority
                   placeholder="blur"
                   blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-                  className="object-cover"
+                  className="object-cover opacity-25 mix-blend-luminosity"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/35 to-black/25" />
               </>
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-white/[0.04]">
-                <span className="text-7xl font-medium uppercase text-white/10">{venue.name.charAt(0)}</span>
-              </div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_10%,rgba(255,255,255,0.14),transparent_34%)]" />
             )}
 
             <Link
@@ -415,23 +421,58 @@ export function VenuePageClient({
               </svg>
             </Link>
 
-            <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
-              <div className="max-w-lg">
+            <div className="relative mx-auto max-w-lg">
+              <div>
                 <CategoryChip category={venue.category} />
-                <h1 className="mt-2 max-w-[21rem] text-2xl font-medium leading-tight text-white">{venue.name}</h1>
+                <h1 className="mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
+                {venue.address && (
+                  <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
+                )}
               </div>
             </div>
           </section>
 
           <div className="border-b border-white/[0.06]">
             <div className="mx-auto max-w-lg overflow-x-auto px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex w-max items-center gap-2 text-[13px] text-white/60">
-                {statItems.map((item, index) => (
-                  <div key={`${item}-${index}`} className="flex items-center gap-2">
-                    {index > 0 && <span className="text-white/25">·</span>}
-                    <span className="whitespace-nowrap">{item}</span>
+              <div className="flex w-max min-w-full gap-3">
+                <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Busyness</span>
+                    <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
-                ))}
+                  <div
+                    className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"
+                    role="meter"
+                    aria-label={`${label} busyness`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={hasBusynessRead ? busynessPercent : 0}
+                    aria-valuetext={hasBusynessRead ? `${busynessPercent}% busy` : "No busyness read yet"}
+                  >
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: hasBusynessRead ? `${busynessPercent}%` : "0%",
+                        backgroundColor: getBusynessColor(busynessPercent),
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Crowd feel</span>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xl" aria-hidden="true">{crowdFeel.emoji}</span>
+                    <span className="whitespace-nowrap text-sm font-black text-white">{crowdFeel.label}</span>
+                  </div>
+                </div>
+
+                <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Status</span>
+                  <p className={`mt-2 text-sm font-black ${venue.openNow ? "text-[#00F5D4]" : "text-white/30"}`}>
+                    {venue.openNow ? "Open Now" : "Closed"}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -439,41 +480,41 @@ export function VenuePageClient({
           <div className="mx-auto max-w-lg space-y-6 px-4 py-5">
             {hoursSummary.hasHours && (
               <section className="space-y-3" role="region" aria-label="Venue hours">
-                <div>
-                  <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Hours</p>
-                  <p className="mt-1 text-[15px] font-semibold text-white">{hoursSummary.todayStatus}</p>
-                </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setHoursExpanded((expanded) => !expanded)}
-                    className="inline-flex items-center gap-1 text-[13px] font-medium text-white/45 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
-                    aria-expanded={hoursExpanded}
-                    aria-controls="venue-hours-list"
-                  >
-                    See all hours
-                    <ChevronDown
-                      size={15}
-                      className={`transition-transform ${hoursExpanded ? "rotate-180" : ""}`}
-                      aria-hidden="true"
-                    />
-                  </button>
-                  {hoursExpanded && (
-                    <ul id="venue-hours-list" className="mt-2 space-y-1.5">
-                      {hoursSummary.weekHours.map((hour, index) => (
+                <button
+                  type="button"
+                  onClick={() => setHoursExpanded((expanded) => !expanded)}
+                  className="flex w-full items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                  aria-expanded={hoursExpanded}
+                  aria-controls="venue-hours-list"
+                >
+                  <span>
+                    <span className="block text-sm font-black text-white">Hours</span>
+                    <span className="mt-1 block text-[13px] font-medium text-white/45">{hoursSummary.todayStatus}</span>
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`shrink-0 text-white/45 transition-transform ${hoursExpanded ? "rotate-180" : ""}`}
+                    aria-hidden="true"
+                  />
+                </button>
+                {hoursExpanded && (
+                  <ul id="venue-hours-list" className="space-y-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                    {hoursSummary.weekHours.map((hour, index) => {
+                      const isToday = hour.day === hoursSummary.today;
+                      return (
                         <li
                           key={`${hour.day}-${index}`}
-                          className={`grid grid-cols-[2.5rem_1fr] gap-3 text-[13px] ${
-                            hour.closed ? "text-white/30" : "text-white/55"
+                          className={`grid grid-cols-[6.5rem_1fr] gap-3 text-[13px] ${
+                            isToday ? "text-[#00F5D4]" : hour.closed ? "text-white/30" : "text-white/55"
                           }`}
                         >
-                          <span className="font-medium">{hour.day}</span>
+                          <span className="font-bold">{hour.day}</span>
                           <span>{hour.hours}</span>
                         </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                      );
+                    })}
+                  </ul>
+                )}
               </section>
             )}
 
@@ -532,20 +573,31 @@ export function VenuePageClient({
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
 
-            <a
-              href={mapsHref}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex text-[13px] font-medium text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
-            >
-              Open in Google Maps
-            </a>
+            <div className="grid grid-cols-2 gap-3" role="group" aria-label="Venue sharing and directions">
+              <a
+                href={mapsHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+              >
+                <MapPin size={17} aria-hidden="true" />
+                Get Directions
+              </a>
+              <button
+                type="button"
+                onClick={shareVenue}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+              >
+                <Share2 size={17} aria-hidden="true" />
+                {copied ? "Copied" : "Share"}
+              </button>
+            </div>
           </div>
         </>
       )}
 
       {venue && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[#0A0A0F]/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4rem)] left-0 right-0 z-[60] border-t border-white/[0.08] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
           <div className="mx-auto flex max-w-lg items-center gap-3">
             {authChecked && !accessToken ? (
               <Link
@@ -572,38 +624,10 @@ export function VenuePageClient({
 
             <Link
               href={reportUrl}
-              className="flex min-h-[50px] flex-1 items-center justify-center rounded-full bg-[#00F5D4] px-5 text-[15px] font-medium text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+              className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#00F5D4] px-5 text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
             >
-              Report vibe +
+              Check In
             </Link>
-
-            <button
-              type="button"
-              onClick={shareVenue}
-              aria-label="Share venue"
-              title={copied ? "Link copied!" : "Share venue"}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={18}
-                height={18}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx={18} cy={5} r={3} />
-                <circle cx={6} cy={12} r={3} />
-                <circle cx={18} cy={19} r={3} />
-                <line x1={8.59} y1={13.51} x2={15.42} y2={17.49} />
-                <line x1={15.41} y1={6.51} x2={8.59} y2={10.49} />
-              </svg>
-              <span className="sr-only">{copied ? "Copied to clipboard" : "Share venue"}</span>
-            </button>
           </div>
         </div>
       )}
