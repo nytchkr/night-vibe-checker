@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import L from "leaflet";
@@ -31,19 +31,27 @@ const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
   "28202": [35.2271, -80.8431],
-  "28203": [35.2178, -80.8597],
-  "28204": [35.22, -80.83],
-  "28205": [35.23, -80.79],
-  "28206": [35.25, -80.82],
-  "28207": [35.21, -80.81],
-  "28208": [35.22, -80.9],
-  "28209": [35.17, -80.85],
-  "28210": [35.14, -80.88],
-  "28211": [35.19, -80.78],
-  "28212": [35.2, -80.75],
+  "28203": [35.2065, -80.8651],
+  "28204": [35.2156, -80.8306],
+  "28205": [35.2303, -80.8015],
+  "28206": [35.2612, -80.8283],
+  "28207": [35.1965, -80.832],
+  "28208": [35.222, -80.9088],
+  "28209": [35.1767, -80.859],
+  "28210": [35.144, -80.8694],
+  "28211": [35.1823, -80.7971],
+  "28212": [35.2002, -80.7685],
+  "28213": [35.282, -80.7842],
+  "28214": [35.2474, -80.9461],
+  "28215": [35.247, -80.738],
+  "28216": [35.3079, -80.8826],
+  "28217": [35.1617, -80.9085],
+  "28226": [35.1106, -80.854],
+  "28227": [35.1868, -80.7201],
+  "28269": [35.3561, -80.8141],
+  "28277": [35.0559, -80.8434],
 };
 
-const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
 const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
 const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
@@ -390,7 +398,6 @@ function ZipRecenterControl() {
   const map = useMap();
   const [zip, setZip] = useState("");
   const [showInvalid, setShowInvalid] = useState(false);
-  const [outOfZoneZip, setOutOfZoneZip] = useState(false);
   const invalidTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -406,61 +413,66 @@ function ZipRecenterControl() {
     if (invalidTimerRef.current) {
       clearTimeout(invalidTimerRef.current);
     }
-    invalidTimerRef.current = setTimeout(() => setShowInvalid(false), 650);
+    invalidTimerRef.current = setTimeout(() => setShowInvalid(false), 2500);
   }
 
   function recenterForZip(nextZip: string) {
     const center = CHARLOTTE_ZIP_CENTERS[nextZip];
     if (!center) {
-      setOutOfZoneZip(false);
       flashInvalid();
       return;
     }
     setShowInvalid(false);
-    setOutOfZoneZip(!inZone(center[0], center[1]));
-    map.setView(center, 15);
+    map.flyTo(center, 14, {
+      animate: true,
+      duration: 0.7,
+    });
   }
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const nextZip = event.target.value.replace(/\D/g, "").slice(0, 5);
     setZip(nextZip);
-    if (nextZip.length === 5) {
-      recenterForZip(nextZip);
-    }
   }
 
-  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.key !== "Enter") return;
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     recenterForZip(zip);
   }
 
   return (
-    <>
-      <input aria-label="Charlotte zip"
-        inputMode="numeric"
-        maxLength={5}
-        onChange={handleChange}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={handleKeyDown}
-        onMouseDown={(event) => event.stopPropagation()}
-        pattern="[0-9]*"
-        placeholder="Charlotte zip"
-        type="text"
-        value={zip}
-        className={`absolute left-1/2 top-4 z-[500] w-36 -translate-x-1/2 rounded-full border bg-black/70 px-3 py-1.5 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-          showInvalid ? "border-red-500" : "border-white/10"
-        }`}
-      />
-      {outOfZoneZip && (
-        <div
-          role="status"
-          className="pointer-events-none absolute left-1/2 top-[6.5rem] z-[500] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-[#F0568C]/25 bg-black/80 px-4 py-3 text-center text-xs font-bold leading-5 text-white/75 shadow-2xl backdrop-blur"
+    <form
+      onSubmit={handleSubmit}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      className="absolute left-4 top-16 z-[1000] w-[min(13rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-black/75 p-2 shadow-2xl backdrop-blur"
+    >
+      <div className="flex items-center gap-2">
+        <input
+          aria-label="Charlotte zip"
+          inputMode="numeric"
+          maxLength={5}
+          onChange={handleChange}
+          pattern="[0-9]*"
+          placeholder="Zip"
+          type="text"
+          value={zip}
+          className={`h-9 min-w-0 flex-1 rounded-full border bg-white/[0.06] px-3 text-sm font-bold text-white shadow-inner placeholder:text-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+            showInvalid ? "border-red-500" : "border-white/10"
+          }`}
+        />
+        <button
+          type="submit"
+          className="h-9 shrink-0 rounded-full bg-[#8B6CFF] px-3 text-xs font-black text-[#0A0A0E] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
-          {OUT_OF_ZONE_SEARCH_MESSAGE}
-        </div>
+          Go
+        </button>
+      </div>
+      {showInvalid && (
+        <p role="status" className="mt-2 px-1 text-xs font-bold text-[#FF6B9A]">
+          Enter a Charlotte zip code
+        </p>
       )}
-    </>
+    </form>
   );
 }
 

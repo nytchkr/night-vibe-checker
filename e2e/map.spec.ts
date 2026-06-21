@@ -230,6 +230,21 @@ test.describe("Map tab", () => {
     await expect.poll(() => page.locator("path.leaflet-interactive").count()).toBe(0);
   });
 
+  test("zip recenter control validates Charlotte zip codes", async ({ page }) => {
+    await openMap(page);
+
+    const zipInput = page.getByLabel("Charlotte zip");
+    await expect(zipInput).toBeVisible();
+
+    await zipInput.fill("99999");
+    await page.getByRole("button", { name: "Go" }).click();
+    await expect(page.getByText("Enter a Charlotte zip code")).toBeVisible();
+
+    await zipInput.fill("28277");
+    await zipInput.press("Enter");
+    await expect(page.getByText("Enter a Charlotte zip code")).toHaveCount(0);
+  });
+
   test("FAB links to /vibe-check", async ({ page }) => {
     await page.goto("/map");
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
