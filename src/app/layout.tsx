@@ -8,7 +8,7 @@ import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
-const title = "NightVibe — Charlotte Nightlife";
+const title = "nytchkr";
 const description =
   "See which Charlotte bars and clubs are packed right now. Real-time crowd vibes by neighborhood.";
 const ogImage = "/og-image.png";
@@ -30,13 +30,13 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "NightVibe",
+    title: "nytchkr",
   },
   openGraph: {
     title,
     description,
     url: siteUrl,
-    siteName: "NightVibe",
+    siteName: "nytchkr",
     images: [
       {
         url: ogImage,
