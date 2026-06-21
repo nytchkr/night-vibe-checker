@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Bookmark, MapPin } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { PageTransition } from "@/components/PageTransition";
@@ -195,9 +196,21 @@ function CheckInsSection({
       )}
 
       {!loading && !error && checkIns.length === 0 && (
-        <p className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.035] p-4 text-sm font-semibold leading-6 text-white/55">
-          No check-ins yet — be the first to report the vibe
-        </p>
+        <div className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 py-7 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
+            <MapPin size={22} strokeWidth={2.4} aria-hidden="true" />
+          </div>
+          <p className="mt-4 text-base font-black text-white">No check-ins yet</p>
+          <p className="mx-auto mt-2 max-w-[240px] text-sm font-semibold leading-6 text-white/50">
+            Be the first to report the vibe tonight
+          </p>
+          <Link
+            href="/map"
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+          >
+            Find venues on the map
+          </Link>
+        </div>
       )}
 
       {!loading && !error && checkIns.length > 0 && (
@@ -262,9 +275,21 @@ function SavedVenuesSection({
       )}
 
       {!loading && !error && savedVenueIds.length === 0 && (
-        <p className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.035] p-4 text-sm font-semibold leading-6 text-white/55">
-          No saved venues yet — tap the bookmark on any venue to save it.
-        </p>
+        <div className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.035] px-4 py-7 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
+            <Bookmark size={22} strokeWidth={2.4} aria-hidden="true" />
+          </div>
+          <p className="mt-4 text-base font-black text-white">No saved spots yet</p>
+          <p className="mx-auto mt-2 max-w-[240px] text-sm font-semibold leading-6 text-white/50">
+            Save venues you want to revisit
+          </p>
+          <Link
+            href="/explore"
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+          >
+            Browse South End venues
+          </Link>
+        </div>
       )}
 
       {!loading && !error && savedVenueIds.length > 0 && (
