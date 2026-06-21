@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 const mockRecomputeVenueSignal = vi.fn();
 const mockAssertSupabaseServerEnv = vi.fn();
 
@@ -22,7 +23,7 @@ vi.mock("@supabase/supabase-js", () => ({
 vi.mock("@/lib/supabase", () => ({
   assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
   MissingSupabaseEnvError: MockMissingSupabaseEnvError,
-  supabaseAdmin: { from: mockFrom, auth: { getUser: mockGetUser } },
+  supabaseAdmin: { from: mockFrom, rpc: mockRpc, auth: { getUser: mockGetUser } },
 }));
 
 vi.mock("@/lib/signals", () => ({
@@ -84,6 +85,7 @@ const CHECK_IN = {
   busyness: "packed",
   crowd_feel: "mostly_male",
   reporter_gender: "female",
+  gender_self_report: "f",
   note: "Line is moving",
   created_at: "2026-06-19T01:00:00.000Z",
 };
@@ -105,6 +107,7 @@ beforeEach(() => {
   vi.resetModules();
   mockAssertSupabaseServerEnv.mockReturnValue(undefined);
   mockAuth("user-123");
+  mockRpc.mockResolvedValue({ data: null, error: null });
   mockRecomputeVenueSignal.mockResolvedValue(SIGNAL);
 });
 
@@ -142,6 +145,7 @@ describe("POST /api/check-ins", () => {
         busyness: "packed",
         crowdFeel: "mostly_male",
         note: "Line is moving",
+        genderSelfReport: "f",
       })
     );
 
@@ -155,6 +159,7 @@ describe("POST /api/check-ins", () => {
       expect.objectContaining({
         user_id: "user-123",
         reporter_gender: "female",
+        gender_self_report: "f",
       })
     );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
@@ -184,6 +189,72 @@ describe("POST /api/check-ins", () => {
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         reporter_gender: null,
+        gender_self_report: null,
+      })
+    );
+  });
+
+  it("stores null gender self-report when the user skips", async () => {
+    const venueChain = chain({ data: VENUE });
+    const duplicateChain = chain({ data: [] });
+    const profileChain = chain({ data: { gender: "female" } });
+    const insertChain = chain({ data: { ...CHECK_IN, gender_self_report: null } });
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        venueId: VENUE.id,
+        busyness: "packed",
+        crowdFeel: "mostly_male",
+      })
+    );
+
+    expect(res.status).toBe(201);
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gender_self_report: null,
+      })
+    );
+  });
+
+  it("ensures the gender self-report column and retries when Supabase schema cache is stale", async () => {
+    const venueChain = chain({ data: VENUE });
+    const duplicateChain = chain({ data: [] });
+    const profileChain = chain({ data: { gender: "female" } });
+    const missingColumnChain = chain({
+      error: {
+        code: "PGRST204",
+        message: "Could not find the 'gender_self_report' column of 'check_ins' in the schema cache",
+      },
+    });
+    const retryInsertChain = chain({ data: CHECK_IN });
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(missingColumnChain)
+      .mockReturnValueOnce(retryInsertChain);
+
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        venueId: VENUE.id,
+        busyness: "packed",
+        crowdFeel: "mostly_male",
+        genderSelfReport: "f",
+      })
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockRpc).toHaveBeenCalledWith("ensure_check_ins_gender_self_report_column");
+    expect(retryInsertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gender_self_report: "f",
       })
     );
   });
@@ -199,6 +270,7 @@ describe("POST /api/check-ins", () => {
       request("POST", `http://localhost/api/venues/${VENUE.id}/check-in`, {
         busyness: "moderate",
         crowd_feel: "balanced",
+        gender_self_report: "m",
       }),
       { params: Promise.resolve({ id: VENUE.id }) }
     );
@@ -208,6 +280,7 @@ describe("POST /api/check-ins", () => {
       expect.objectContaining({
         user_id: "user-123",
         reporter_gender: "male",
+        gender_self_report: "m",
       })
     );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);

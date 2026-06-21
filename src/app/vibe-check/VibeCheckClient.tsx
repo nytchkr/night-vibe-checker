@@ -43,6 +43,18 @@ const CROWD_OPTIONS: {
 
 const NOTE_MAX_LENGTH = 140;
 
+type GenderSelfReport = "m" | "f" | null;
+
+const GENDER_SELF_REPORT_OPTIONS: {
+  value: GenderSelfReport;
+  label: string;
+  description: string;
+}[] = [
+  { value: "m", label: "Man", description: "Count me as M tonight" },
+  { value: "f", label: "Woman", description: "Count me as F tonight" },
+  { value: null, label: "Skip", description: "Do not include me in crowd mix" },
+];
+
 const BUSYNESS_SHARE_COPY: Record<ReportedBusyness, { emoji: string; label: string }> = {
   dead: { emoji: "🟢", label: "It's Easy Tonight" },
   moderate: { emoji: "🟡", label: "It's Warming Up" },
@@ -173,6 +185,7 @@ export default function VibeCheckClient({
   const [busyness, setBusyness] = useState<BusynessOption["value"] | null>(null);
   const [crowdFeel, setCrowdFeel] = useState<CrowdFeel | null>(null);
   const [note, setNote] = useState("");
+  const [genderSelfReport, setGenderSelfReport] = useState<GenderSelfReport>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
@@ -300,6 +313,7 @@ export default function VibeCheckClient({
           crowdLevel: selectedBusyness?.crowdLevel,
           crowdFeel: crowdFeel ?? "mixed",
           note: note.trim() || undefined,
+          genderSelfReport,
           sessionId: sessionId.current,
         }),
       });
@@ -344,6 +358,7 @@ export default function VibeCheckClient({
     router,
     selectedBusyness,
     haptic,
+    genderSelfReport,
   ]);
 
   const handleShareCard = useCallback(async () => {
@@ -690,6 +705,49 @@ export default function VibeCheckClient({
             className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none"
           />
           <p className="mt-1 text-right text-[11px] text-white/35">{note.length} / {NOTE_MAX_LENGTH}</p>
+        </section>
+
+        {/* ── GENDER SELF-REPORT ───────────────────────────────── */}
+        <section>
+          <div className="mb-3 space-y-1">
+            <p className="font-display text-xs font-semibold uppercase tracking-widest text-white/40">
+              Step 3{" "}
+              <span className="font-normal normal-case tracking-normal text-white/35">
+                (optional)
+              </span>
+            </p>
+            <h2 className="text-base font-black text-white">
+              Help us track the crowd mix — what best describes you tonight?
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-3">
+            {GENDER_SELF_REPORT_OPTIONS.map((opt) => {
+              const selected = genderSelfReport === opt.value;
+              const isSkip = opt.value == null;
+              return (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() => setGenderSelfReport(opt.value)}
+                  aria-pressed={selected}
+                  className={`min-h-[58px] rounded-xl border px-3 py-3 text-sm font-black transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                    selected
+                      ? isSkip
+                        ? "border-2 border-[#00F5D4] bg-[#00F5D4]/12 text-[#00F5D4]"
+                        : "border-2 border-[#8B6CFF] bg-[#8B6CFF]/12 text-white"
+                      : isSkip
+                        ? "border-[#00F5D4]/45 bg-[#00F5D4]/10 text-[#00F5D4] hover:border-[#00F5D4]"
+                        : "border-white/[0.12] bg-white/[0.04] text-white/60 hover:border-white/25 hover:text-white"
+                  }`}
+                >
+                  <span className="block">{opt.label}</span>
+                  <span className="mt-1 block text-[10px] font-semibold leading-tight text-current opacity-60">
+                    {opt.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </section>
 
         {/* ── SUBMIT ────────────────────────────────────────────── */}

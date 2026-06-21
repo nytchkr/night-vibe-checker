@@ -16,11 +16,27 @@ const CheckInBodySchema = z.object({
   busyness: z.enum(["dead", "moderate", "packed"]),
   crowd_feel: z.enum(["mostly_male", "mostly_female", "balanced", "mixed"]),
   note: z.string().trim().max(VIBE_NOTE_MAX_LENGTH).optional(),
+  gender_self_report: z.enum(["m", "f"]).nullable().optional(),
 });
 
 function normalizeReporterGender(gender: unknown): "male" | "female" | null {
   if (gender === "male" || gender === "female") return gender;
   return null;
+}
+
+function isMissingGenderSelfReportColumn(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string } | null | undefined;
+  const message = candidate?.message?.toLowerCase() ?? "";
+  return (
+    candidate?.code === "42703" ||
+    candidate?.code === "PGRST204" ||
+    (message.includes("gender_self_report") && message.includes("column"))
+  );
+}
+
+async function ensureGenderSelfReportColumn(): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("ensure_check_ins_gender_self_report_column");
+  if (error) throw error;
 }
 
 function meta(requestId: string) {
@@ -166,19 +182,39 @@ export async function POST(
 
   const reporterGender = await getReporterGender(userId);
 
-  const { data, error } = await supabaseAdmin
+  const insertPayload = {
+    venue_id: venue.id,
+    place_id: venue.place_id,
+    user_id: userId,
+    busyness: parsed.data.busyness,
+    crowd_feel: parsed.data.crowd_feel,
+    reporter_gender: reporterGender,
+    gender_self_report: parsed.data.gender_self_report ?? null,
+    note: parsed.data.note?.trim() || null,
+  };
+
+  const insertResult = await supabaseAdmin
     .from("check_ins")
-    .insert({
-      venue_id: venue.id,
-      place_id: venue.place_id,
-      user_id: userId,
-      busyness: parsed.data.busyness,
-      crowd_feel: parsed.data.crowd_feel,
-      reporter_gender: reporterGender,
-      note: parsed.data.note?.trim() || null,
-    })
+    .insert(insertPayload)
     .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
     .single();
+  let data = insertResult.data;
+  let error: unknown = insertResult.error;
+
+  if (error && isMissingGenderSelfReportColumn(error)) {
+    try {
+      await ensureGenderSelfReportColumn();
+      const retry = await supabaseAdmin
+        .from("check_ins")
+        .insert(insertPayload)
+        .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    } catch (ensureError) {
+      error = ensureError;
+    }
+  }
 
   if (error || !data) {
     console.error("[venue-check-in POST] DB error:", error);

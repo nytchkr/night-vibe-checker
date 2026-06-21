@@ -146,8 +146,13 @@ test.describe("VibeCheck consumer check-in flow", () => {
     await page.goto("/vibe-check?venueId=venue-123&venueName=The%20Midnight%20Lounge");
     await page.getByRole("button", { name: "Packed" }).click();
     await page.getByRole("button", { name: /More guys/i }).click();
+    await expect(page.getByText(/Step 3/i)).toBeVisible();
+    await expect(page.getByText(/optional/i).last()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Skip/i })).toBeVisible();
+    await page.getByRole("button", { name: /Woman/i }).click();
     await expect(page.getByRole("button", { name: "Packed" })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: /More guys/i })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: /Woman/i })).toHaveAttribute("aria-pressed", "true");
     await page.getByPlaceholder(/vibe note/i).fill("Line is moving");
     const submit = page.getByRole("button", { name: /Submit Vibe|Report Vibe/i });
     await expect(submit).toBeEnabled();
@@ -159,6 +164,7 @@ test.describe("VibeCheck consumer check-in flow", () => {
       busyness: "packed",
       crowdFeel: "mostly_male",
       note: "Line is moving",
+      genderSelfReport: "f",
     });
   });
 
