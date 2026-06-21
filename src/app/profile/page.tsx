@@ -40,6 +40,11 @@ type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
 
 type VenuesResponse = APIResponse<{ venues: ConsumerVenue[] }>;
 type ProfileGenderResponse = { gender: ProfileGender | null };
+type ProfileStreakResponse = {
+  currentStreak: number;
+  longestStreak: number;
+  totalCheckIns: number;
+};
 
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
 const WELCOME_DISMISSED_KEY = "nightvibe.welcomeDismissed";
@@ -231,6 +236,54 @@ function WelcomeCard({ onDismiss }: { onDismiss: () => void }) {
           </Link>
         ))}
       </div>
+    </section>
+  );
+}
+
+function StreakCard({
+  streak,
+  loading,
+}: {
+  streak: ProfileStreakResponse;
+  loading: boolean;
+}) {
+  const showFire = streak.currentStreak >= 3;
+
+  return (
+    <section
+      className="relative overflow-hidden rounded-2xl border border-white/[0.09] bg-[#101018] p-4 shadow-[0_22px_70px_rgba(0,0,0,0.3)]"
+      aria-label="Night streak"
+    >
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#F0568C]/70 to-transparent" />
+
+      {loading ? (
+        <div className="space-y-4" role="status" aria-label="Loading night streak">
+          <Skeleton className="h-4 w-28 rounded-full bg-white/10" />
+          <Skeleton className="h-16 w-32 rounded-2xl bg-white/10" />
+          <Skeleton className="h-4 w-40 rounded-full bg-white/10" />
+        </div>
+      ) : (
+        <div>
+          <p className="text-xs font-black uppercase tracking-normal text-[#F0568C]">Night streak</p>
+          <div className="mt-3 flex items-end gap-3">
+            <p className="font-display text-[64px] font-black leading-none tracking-normal text-white">
+              {streak.currentStreak}
+            </p>
+            {showFire && (
+              <span className="mb-2 text-3xl" aria-label="Streak fire" role="img">
+                🔥
+              </span>
+            )}
+          </div>
+          <p className="mt-2 text-base font-black text-white">Nights out in a row</p>
+          {streak.currentStreak === 0 && (
+            <p className="mt-1 text-sm font-semibold text-white/50">Start your streak tonight.</p>
+          )}
+          <p className="mt-4 text-sm font-semibold text-white/45">
+            {streak.totalCheckIns} check-ins total
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -457,6 +510,12 @@ function ProfileContent() {
   const [checkInCount, setCheckInCount] = useState(0);
   const [checkInsLoading, setCheckInsLoading] = useState(false);
   const [checkInsError, setCheckInsError] = useState("");
+  const [streak, setStreak] = useState<ProfileStreakResponse>({
+    currentStreak: 0,
+    longestStreak: 0,
+    totalCheckIns: 0,
+  });
+  const [streakLoading, setStreakLoading] = useState(false);
   const [savedVenueIds, setSavedVenueIds] = useState<string[]>([]);
   const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
   const [savedVenuesError, setSavedVenuesError] = useState("");
@@ -476,12 +535,14 @@ function ProfileContent() {
 
       if (activeSession?.user.id) {
         void fetchCheckIns(activeSession.user.id);
+        void fetchStreak(activeSession);
         void fetchSavedVenues(activeSession);
         void fetchGender(activeSession);
       } else {
         setCheckIns([]);
         setCheckInCount(0);
         setCheckInsError("");
+        setStreak({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 });
         setSavedVenueIds([]);
         setSavedVenuesError("");
         setVenues([]);
@@ -563,6 +624,32 @@ function ProfileContent() {
       setCheckInsError("Could not load your check-ins right now.");
     } finally {
       setCheckInsLoading(false);
+    }
+  }
+
+  async function fetchStreak(activeSession: Session) {
+    setStreakLoading(true);
+
+    try {
+      const res = await fetch("/api/profile/streak", {
+        headers: { Authorization: `Bearer ${activeSession.access_token}` },
+      });
+
+      if (!res.ok) {
+        setStreak({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 });
+        return;
+      }
+
+      const json = (await res.json()) as ProfileStreakResponse;
+      setStreak({
+        currentStreak: Number.isFinite(json.currentStreak) ? json.currentStreak : 0,
+        longestStreak: Number.isFinite(json.longestStreak) ? json.longestStreak : 0,
+        totalCheckIns: Number.isFinite(json.totalCheckIns) ? json.totalCheckIns : 0,
+      });
+    } catch {
+      setStreak({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 });
+    } finally {
+      setStreakLoading(false);
     }
   }
 
@@ -688,6 +775,7 @@ function ProfileContent() {
             <div className="space-y-5">
               {showWelcome && <WelcomeCard onDismiss={handleDismissWelcome} />}
               <AccountCard email={userEmail} />
+              <StreakCard streak={streak} loading={streakLoading} />
               <VibeIdentitySection
                 gender={gender}
                 loading={genderLoading}
