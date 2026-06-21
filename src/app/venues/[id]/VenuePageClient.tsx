@@ -922,7 +922,13 @@ export function VenuePageClient({
                     <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Busyness</span>
                     <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
-                  <BusynessMeter value={busyness} source={busynessSource} computedAt={signal?.computedAt ?? null} className="mt-3" />
+                  <BusynessMeter
+                    value={busyness}
+                    source={busynessSource}
+                    sampleSize={signal?.sampleSize ?? 0}
+                    computedAt={signal?.computedAt ?? null}
+                    className="mt-3"
+                  />
                 </div>
 
                 <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
@@ -996,7 +1002,12 @@ export function VenuePageClient({
                     <span className="text-sm font-black text-white">Busyness</span>
                     <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
-                  <BusynessMeter value={busyness} source={busynessSource} computedAt={signal?.computedAt ?? null} />
+                  <BusynessMeter
+                    value={busyness}
+                    source={busynessSource}
+                    sampleSize={signal?.sampleSize ?? 0}
+                    computedAt={signal?.computedAt ?? null}
+                  />
                 </div>
 
                 <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">

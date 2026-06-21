@@ -10,6 +10,7 @@ import { TrendingStrip } from "@/components/TrendingStrip";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { BUSYNESS_COLORS, getBusynessState, type BusynessLevel } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
+import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -410,6 +411,7 @@ function VenueFeedCard({
   const ratingLabel = rating?.toFixed(1);
   const hasBusyness = busyness !== null && Number.isFinite(busyness);
   const busynessState = getBusynessState(busyness);
+  const signalConfidenceLabel = hasBusyness ? formatSignalConfidenceLabel(signal) : null;
   const hasMfReading =
     signal?.mfRatio !== null &&
     signal?.mfRatio !== undefined &&
@@ -468,10 +470,13 @@ function VenueFeedCard({
 
           <div className="mt-2 min-h-[32px]">
             {hasCrowdReading ? (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : null}
-                <SignalFreshnessLabel signal={signal} />
-                {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : null}
+                  <SignalFreshnessLabel signal={signal} />
+                  {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
+                </div>
+                {signalConfidenceLabel ? <p className="text-xs text-gray-400">{signalConfidenceLabel}</p> : null}
               </div>
             ) : (
               <p className="line-clamp-1 text-[12px] font-medium text-[#9CA2AE]">

@@ -2,11 +2,13 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { BusynessBadge } from "@/components/BusynessBadge";
+import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import type { BusynessSource } from "@/types";
 
 interface BusynessMeterProps {
   value: number | null;
   source: BusynessSource | null;
+  sampleSize?: number;
   computedAt?: string | null;
   className?: string;
 }
@@ -21,8 +23,9 @@ function getBusynessConfig(value: number) {
   return { label: "Packed", color: "#FF5B6A" };
 }
 
-export function BusynessMeter({ value, source, computedAt = null, className }: BusynessMeterProps) {
+export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null, className }: BusynessMeterProps) {
   const prefersReducedMotion = useReducedMotion();
+  const confidenceLabel = formatSignalConfidenceLabel({ busynessSource: source, sampleSize });
 
   if (value == null || !Number.isFinite(value)) {
     return (
@@ -31,6 +34,7 @@ export function BusynessMeter({ value, source, computedAt = null, className }: B
           <span className="text-sm font-semibold text-[#9CA2AE]">No busyness data</span>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true" />
+        <p className="mt-1.5 text-xs text-gray-400">{confidenceLabel}</p>
       </div>
     );
   }
@@ -63,6 +67,7 @@ export function BusynessMeter({ value, source, computedAt = null, className }: B
           style={{ backgroundColor: config.color }}
         />
       </div>
+      <p className="mt-1.5 text-xs text-gray-400">{confidenceLabel}</p>
     </div>
   );
 }
