@@ -226,6 +226,24 @@ test.describe("Map tab", () => {
     await expect(packedVenue).toContainText("Packed");
   });
 
+  test("category pills filter the visible venue list", async ({ page }) => {
+    const sheet = await openMap(page);
+
+    const categoryFilters = page.getByRole("group", { name: "Map category filter" });
+    await expect(categoryFilters).toBeVisible();
+
+    for (const label of ["All", "Bars", "Clubs", "Restaurants", "Lounges"]) {
+      await expect(categoryFilters.getByRole("button", { name: label })).toBeVisible();
+    }
+
+    await categoryFilters.getByRole("button", { name: "Clubs" }).click();
+    await dragSheet(page, sheet, -230);
+
+    await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /Map Test Dance Hall/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /Map Test Cocktail Bar/ })).toHaveCount(0);
+  });
+
   test("nearby venues collapse into a dark cluster when zoomed out", async ({ page }) => {
     await openMap(page);
 

@@ -19,14 +19,16 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
-import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
+import type { MapSheetSnap } from "@/components/MapBottomSheet";
 import VenueBottomSheet from "@/components/VenueBottomSheet";
 
 const MapBottomSheet = dynamic(() => import("@/components/MapBottomSheet"), {
   ssr: false,
   loading: () => null,
 });
-const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
+type MapCategoryFilter = "All" | "Bars" | "Clubs" | "Restaurants" | "Lounges";
+
+const CATEGORY_FILTERS: MapCategoryFilter[] = ["All", "Bars", "Clubs", "Restaurants", "Lounges"];
 const BUSYNESS_FILTERS = ["All", "Busy", "Live only"] as const;
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 
@@ -111,16 +113,14 @@ function hasLivePinPulse(venue: ConsumerVenue): boolean {
   return venue.signal?.busynessSource === "live";
 }
 
-function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter) {
+function matchesCategoryFilter(venue: ConsumerVenue, filter: MapCategoryFilter) {
   if (filter === "All") return true;
 
   const category = venue.category.toLowerCase();
-  if (filter === "Bar") return category.includes("bar");
-  if (filter === "Club") return category.includes("club") || category.includes("night_club");
-  if (filter === "Lounge") return category.includes("lounge");
-  if (filter === "Rooftop") return category.includes("rooftop");
-  if (filter === "Live Music") return category.includes("live") || category.includes("music");
-  return category.includes("sports") && category.includes("bar");
+  if (filter === "Bars") return category.includes("bar");
+  if (filter === "Clubs") return category.includes("club") || category.includes("night_club");
+  if (filter === "Restaurants") return category.includes("restaurant") || category.includes("food");
+  return category.includes("lounge");
 }
 
 function matchesBusynessFilter(venue: ConsumerVenue, filter: BusynessMapFilter) {
@@ -641,6 +641,44 @@ function BusynessFilterBar({
   );
 }
 
+function CategoryFilterPills({
+  activeFilter,
+  onFilterChange,
+}: {
+  activeFilter: MapCategoryFilter;
+  onFilterChange: (filter: MapCategoryFilter) => void;
+}) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-[7.5rem] z-[1000] sm:top-[6.25rem]">
+      <div
+        aria-label="Map category filter"
+        className="pointer-events-auto flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="group"
+      >
+        {CATEGORY_FILTERS.map((filter) => {
+          const isActive = activeFilter === filter;
+
+          return (
+            <button
+              key={filter}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onFilterChange(filter)}
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black shadow-2xl backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                isActive
+                  ? "border-[#00F5D4]/45 bg-[#00F5D4] text-[#061013] shadow-[0_0_18px_rgba(0,245,212,0.25)]"
+                  : "border-white/10 bg-black/70 text-white/75 hover:bg-black/90 hover:text-white"
+              }`}
+            >
+              {filter}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function FilterFab({
   hasActiveFilters,
   onClick,
@@ -683,15 +721,15 @@ function VenueFilterSheet({
   onClose,
   openNowFilter,
 }: {
-  activeCategoryFilter: VenueCategoryFilter;
+  activeCategoryFilter: MapCategoryFilter;
   isOpen: boolean;
-  onApply: (category: VenueCategoryFilter, openNow: boolean) => void;
+  onApply: (category: MapCategoryFilter, openNow: boolean) => void;
   onClose: () => void;
   openNowFilter: boolean;
 }) {
   const haptic = useHaptic();
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  const [draftCategory, setDraftCategory] = useState<VenueCategoryFilter>(activeCategoryFilter);
+  const [draftCategory, setDraftCategory] = useState<MapCategoryFilter>(activeCategoryFilter);
   const [draftOpenNow, setDraftOpenNow] = useState(openNowFilter);
 
   useFocusTrap(isOpen, dialogRef, onClose);
@@ -809,7 +847,7 @@ export function VenueMap({
   const [detailVenueId, setDetailVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<VenueCategoryFilter>("All");
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<MapCategoryFilter>("All");
   const [activeBusynessFilter, setActiveBusynessFilter] = useState<BusynessMapFilter>("All");
   const [openNowFilter, setOpenNowFilter] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
@@ -1004,6 +1042,7 @@ export function VenueMap({
 
       <CitySelector city={city} onCityChange={onCityChange} />
       <BusynessFilterBar activeFilter={activeBusynessFilter} onFilterChange={setActiveBusynessFilter} />
+      <CategoryFilterPills activeFilter={activeCategoryFilter} onFilterChange={setActiveCategoryFilter} />
       <FilterFab hasActiveFilters={hasActiveFilters} onClick={() => setIsFilterSheetOpen(true)} />
 
       <VenueFilterSheet

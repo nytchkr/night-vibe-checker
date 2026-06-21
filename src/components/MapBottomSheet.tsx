@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { Info } from "lucide-react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
+import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
@@ -74,6 +75,20 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
+function MfRatioChip({ venue }: { venue: ConsumerVenue }) {
+  const signal = venue.signal;
+  const sampleSize = signal?.sampleSize ?? 0;
+  const percents = sampleSize >= 3 ? getMFRatioPercents(signal?.mfRatio) : null;
+
+  if (!percents) return null;
+
+  return (
+    <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-1 text-[11px] font-black text-white/55">
+      M/F {percents.male}/{percents.female}
+    </span>
+  );
+}
+
 function VenueRow({
   isSelected,
   onSelect,
@@ -104,7 +119,10 @@ function VenueRow({
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
           <OpenNowDot openNow={venue.openNow} />
-          <span className="truncate text-xs font-semibold text-white/35">{venue.address}</span>
+          <div className="flex min-w-0 items-center justify-end gap-2">
+            <MfRatioChip venue={venue} />
+            <span className="truncate text-xs font-semibold text-white/35">{venue.address}</span>
+          </div>
         </div>
       </button>
       <SaveVenueButton
