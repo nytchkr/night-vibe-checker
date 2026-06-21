@@ -1,33 +1,22 @@
-import type { ConsumerVenue, VenueSignal } from "@/types";
+import type { ConsumerVenue } from "@/types";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
 
-function shareStatusLabel(busyness: number | null | undefined): string {
-  if (busyness == null) return "no crowd read";
-  if (busyness >= 67) return "packed 🔥";
-  if (busyness >= 34) return "getting busy";
-  return "pretty chill";
-}
-
-function shareSourceLabel(source: VenueSignal["busynessSource"] | null | undefined): string {
-  if (source === "live" || source === "crowd") return " (live)";
-  if (source === "forecast") return " (forecast)";
-  return "";
+function shareBusynessText(busyness: number | null | undefined): string {
+  if (busyness == null || !Number.isFinite(busyness)) return "crowd status unavailable right now";
+  return `${Math.round(Math.min(100, Math.max(0, busyness)))}% packed right now`;
 }
 
 export function getVenueShareUrl(venue: Pick<ConsumerVenue, "id" | "slug">): string {
-  return `${siteUrl}/venue/${encodeURIComponent(venue.slug || venue.id)}`;
+  return `${siteUrl}/venues/${encodeURIComponent(venue.slug || venue.id)}`;
 }
 
 export function buildVenueShareData(venue: ConsumerVenue): ShareData {
-  const signal = venue.signal;
-  const label = shareStatusLabel(signal?.busyness0To100);
-  const source = shareSourceLabel(signal?.busynessSource);
   const url = getVenueShareUrl(venue);
 
   return {
-    title: venue.name,
-    text: `Check out ${venue.name} on nytchkr — ${label}${source} right now. ${url}`,
+    title: `${venue.name} on NightVibe`,
+    text: `Check out ${venue.name} on NightVibe — ${shareBusynessText(venue.signal?.busyness0To100)}`,
     url,
   };
 }

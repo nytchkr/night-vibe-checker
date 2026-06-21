@@ -8,6 +8,7 @@ import { track } from "@vercel/analytics";
 import { Check, ChevronDown, ChevronLeft, Heart, MapPin, Share2, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { MFBar } from "@/components/MFBar";
+import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +17,7 @@ import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueShare";
+import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -316,7 +317,7 @@ export function VenuePageClient({
   const [savePending, setSavePending] = useState(false);
   const [alerting, setAlerting] = useState(false);
   const [alertPending, setAlertPending] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
@@ -359,6 +360,10 @@ export function VenuePageClient({
     const timer = window.setTimeout(() => setCheckInConfirmed(false), 1500);
     return () => window.clearTimeout(timer);
   }, [checkInConfirmed]);
+
+  useEffect(() => {
+    setCanNativeShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
+  }, []);
 
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
@@ -575,34 +580,21 @@ export function VenuePageClient({
   }
 
   async function shareVenue() {
-    if (!venue) return;
-    const url = typeof window !== "undefined" ? window.location.href : "";
+    if (!venue || typeof navigator === "undefined" || typeof navigator.share !== "function") return;
+
     const shareData = buildVenueShareData(venue);
 
-    if (typeof navigator !== "undefined" && "share" in navigator) {
-      try {
-        await navigator.share(shareData);
-        trackAnalytics("share_card_shared", {
-          venue_id: venue.id,
-          method: "native",
-        });
-        return;
-      } catch {
-        // User cancelled or browser blocked native sharing; use clipboard fallback.
-      }
-    }
-
     try {
-      if (typeof navigator === "undefined" || !navigator.clipboard) return;
-      await navigator.clipboard.writeText(buildVenueShareClipboardText({ ...shareData, url: shareData.url ?? url }));
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.share({
+        ...shareData,
+        url: typeof window !== "undefined" ? window.location.href : shareData.url,
+      });
       trackAnalytics("share_card_shared", {
         venue_id: venue.id,
-        method: "clipboard",
+        method: "native",
       });
     } catch {
-      // Clipboard is non-critical for the venue page.
+      // User cancelled or browser blocked native sharing.
     }
   }
 
@@ -772,7 +764,7 @@ export function VenuePageClient({
   const busynessState = getBusynessState(busyness);
   const label = busynessState.label;
   const hasBusynessRead = busyness != null;
-  const updatedAt = signal?.lastBusynessRefresh ?? signal?.computedAt ?? null;
+  const updatedAt = signal?.lastBusynessRefresh ?? signal?.updatedAt ?? signal?.computedAt ?? null;
   const malePercent = signal?.mfRatio != null ? clampPercent(signal.mfRatio) : null;
   const femalePercent = malePercent == null ? null : 100 - malePercent;
   const crowdFeel = getCrowdFeel(malePercent);
@@ -1069,6 +1061,7 @@ export function VenuePageClient({
                     {signalSourceLabel}
                   </p>
                 )}
+                <SignalFreshnessLabel signal={signal} />
               </div>
               {!hasBusynessRead && !signal?.sampleSize && (
                 <p className="text-[13px] text-white/35">
@@ -1139,7 +1132,11 @@ export function VenuePageClient({
               </div>
             </section>
 
-            <div className="grid grid-cols-2 gap-3" role="group" aria-label="Venue sharing and directions">
+            <div
+              className={`grid gap-3 ${canNativeShare ? "grid-cols-2" : "grid-cols-1"}`}
+              role="group"
+              aria-label="Venue actions"
+            >
               <a
                 href={mapsHref}
                 target="_blank"
@@ -1149,14 +1146,16 @@ export function VenuePageClient({
                 <MapPin size={17} aria-hidden="true" />
                 Get Directions
               </a>
-              <button
-                type="button"
-                onClick={shareVenue}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-              >
-                <Share2 size={17} aria-hidden="true" />
-                {copied ? "Copied" : "Share"}
-              </button>
+              {canNativeShare ? (
+                <button
+                  type="button"
+                  onClick={shareVenue}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#8B6CFF] p-3 text-sm font-bold text-white transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                >
+                  <Share2 size={17} aria-hidden="true" />
+                  Share
+                </button>
+              ) : null}
             </div>
 
             <div className="flex justify-center pt-4">

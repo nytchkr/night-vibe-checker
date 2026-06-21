@@ -29,13 +29,14 @@ describe("venue share data", () => {
         sampleSize: 7,
         computedAt: "2026-06-21T00:00:00.000Z",
         lastBusynessRefresh: "2026-06-21T00:00:00.000Z",
+        updatedAt: "2026-06-21T00:00:00.000Z",
       },
     });
 
     expect(shareData).toEqual({
-      title: "Bar X",
-      text: "Check out Bar X on nytchkr — packed 🔥 (live) right now. https://night-vibe-checker.vercel.app/venue/bar-x",
-      url: "https://night-vibe-checker.vercel.app/venue/bar-x",
+      title: "Bar X on NightVibe",
+      text: "Check out Bar X on NightVibe — 72% packed right now",
+      url: "https://night-vibe-checker.vercel.app/venues/bar-x",
     });
   });
 
@@ -52,11 +53,20 @@ describe("venue share data", () => {
         sampleSize: 0,
         computedAt: "2026-06-21T00:00:00.000Z",
         lastBusynessRefresh: "2026-06-21T00:00:00.000Z",
+        updatedAt: "2026-06-21T00:00:00.000Z",
       },
     });
 
     expect(buildVenueShareClipboardText(shareData)).toBe(
-      "Check out Bar X on nytchkr — getting busy (forecast) right now. https://night-vibe-checker.vercel.app/venue/bar-x",
+      "Check out Bar X on NightVibe — 45% packed right now https://night-vibe-checker.vercel.app/venues/bar-x",
     );
+  });
+
+  it("does not invent a packed percentage when no signal is available", () => {
+    expect(buildVenueShareData(baseVenue)).toEqual({
+      title: "Bar X on NightVibe",
+      text: "Check out Bar X on NightVibe — crowd status unavailable right now",
+      url: "https://night-vibe-checker.vercel.app/venues/bar-x",
+    });
   });
 });
