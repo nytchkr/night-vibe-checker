@@ -13,6 +13,7 @@ import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-le
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
 import { useHaptic } from "@/hooks/useHaptic";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
@@ -681,8 +682,8 @@ export function VenueMap({
     process.env.NEXT_PUBLIC_ENV === "development" ? "h-[calc(100dvh-100px)]" : "h-[calc(100dvh-80px)]";
   const cityCenter = useMemo<[number, number]>(() => [city.lat, city.lng], [city.lat, city.lng]);
 
-  const fetchVenues = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true);
+  const fetchVenues = useCallback(async (signal?: AbortSignal, { showLoading = true }: { showLoading?: boolean } = {}) => {
+    if (showLoading) setLoading(true);
     setError(null);
 
     try {
@@ -699,11 +700,17 @@ export function VenueMap({
       setVenues([]);
       setError("Map venues are unavailable.");
     } finally {
-      if (!signal?.aborted) {
+      if (!signal?.aborted && showLoading) {
         setLoading(false);
       }
     }
   }, []);
+
+  const refreshVisibleVenues = useCallback(async () => {
+    await fetchVenues(undefined, { showLoading: false });
+  }, [fetchVenues]);
+
+  const { pulling, refreshing } = usePullToRefresh(refreshVisibleVenues);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -760,6 +767,25 @@ export function VenueMap({
 
   return (
     <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
+      {(pulling || refreshing) && (
+        <div
+          className="pointer-events-none fixed left-0 right-0 top-0 z-[1200] flex justify-center px-4 pt-3"
+          role={refreshing ? "status" : undefined}
+          aria-live="polite"
+        >
+          <div className="rounded-full border border-white/10 bg-black/75 px-4 py-2 text-xs font-black text-white/55 shadow-2xl backdrop-blur">
+            {refreshing ? (
+              <span className="flex items-center gap-2">
+                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#00F5D4] border-t-transparent" aria-hidden="true" />
+                <span className="sr-only">Refreshing map venues...</span>
+              </span>
+            ) : (
+              "Pull to refresh"
+            )}
+          </div>
+        </div>
+      )}
+
       <MapContainer
         ref={mapRef}
         center={cityCenter}

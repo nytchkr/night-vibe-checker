@@ -10,6 +10,7 @@ import { TrendingStrip } from "@/components/TrendingStrip";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { useHaptic } from "@/hooks/useHaptic";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
@@ -370,8 +371,8 @@ export function ExplorePageClient() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
-  const fetchVenues = useCallback(async () => {
-    setVenues(null);
+  const fetchVenues = useCallback(async ({ reset = false }: { reset?: boolean } = {}) => {
+    if (reset) setVenues(null);
     setError(null);
     try {
       const res = await fetch("/api/venues");
@@ -383,8 +384,14 @@ export function ExplorePageClient() {
     }
   }, []);
 
+  const refreshVenues = useCallback(async () => {
+    await fetchVenues();
+  }, [fetchVenues]);
+
+  const { pulling, refreshing } = usePullToRefresh(refreshVenues);
+
   useEffect(() => {
-    fetchVenues();
+    fetchVenues({ reset: true });
   }, [fetchVenues]);
 
   useEffect(() => {
@@ -517,6 +524,25 @@ export function ExplorePageClient() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
+      {(pulling || refreshing) && (
+        <div
+          className="fixed left-0 right-0 top-0 z-50 flex justify-center px-4 pt-3"
+          role={refreshing ? "status" : undefined}
+          aria-live="polite"
+        >
+          <div className="rounded-full border border-white/10 bg-[#0A0A0F]/90 px-4 py-2 text-xs font-black text-white/50 shadow-2xl backdrop-blur">
+            {refreshing ? (
+              <span className="flex items-center gap-2">
+                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#00F5D4] border-t-transparent" aria-hidden="true" />
+                <span className="sr-only">Refreshing venues...</span>
+              </span>
+            ) : (
+              "Pull to refresh"
+            )}
+          </div>
+        </div>
+      )}
+
       <header className="px-4 pb-5 pt-10" role="region" aria-label="Explore filters">
         <div className="mx-auto max-w-lg">
           <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/45">
