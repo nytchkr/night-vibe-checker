@@ -24,13 +24,21 @@ test.describe("Auth protection middleware", () => {
     await page.goto("/vibe-check");
 
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByText(/NightVibe|Sign in/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "nytchkr" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   });
 
-  test("unauthenticated: /profile redirects to /login", async ({ page }) => {
+  test("unauthenticated: /notifications redirects to /login", async ({ page }) => {
+    await page.goto("/notifications");
+
+    await expect(page).toHaveURL(/\/login\?return=%2Fnotifications/);
+  });
+
+  test("unauthenticated: /profile shows the logged-out You state", async ({ page }) => {
     await page.goto("/profile");
 
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/profile$/);
+    await expect(page.getByText("Sign in to see your profile")).toBeVisible();
   });
 
   test("unauthenticated: POST /api/check-ins returns 401", async ({ page }) => {

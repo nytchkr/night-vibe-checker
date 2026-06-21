@@ -50,6 +50,10 @@ type ProfileStreakResponse = {
 };
 
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
+const LOCAL_TEST_SESSION_KEYS = [
+  "sb-gfsbqewkrcyclbktfyfk-auth-token",
+  "sb-onlpwglwnqoivuykywrk-auth-token",
+] as const;
 
 const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
   { value: "male", label: "Man" },
@@ -87,12 +91,7 @@ function readLocalTestSession(): Session | null {
   if (process.env.NODE_ENV === "production") return null;
   if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) return null;
 
-  const keys = [
-    "sb-gfsbqewkrcyclbktfyfk-auth-token",
-    "sb-onlpwglwnqoivuykywrk-auth-token",
-  ];
-
-  for (const key of keys) {
+  for (const key of LOCAL_TEST_SESSION_KEYS) {
     try {
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
@@ -104,6 +103,26 @@ function readLocalTestSession(): Session | null {
   }
 
   return null;
+}
+
+function clearLocalTestSession() {
+  if (typeof window === "undefined") return;
+  if (process.env.NODE_ENV === "production") return;
+  if (!["localhost", "127.0.0.1"].includes(window.location.hostname)) return;
+
+  for (const key of LOCAL_TEST_SESSION_KEYS) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Ignore storage cleanup failures; Supabase signOut still clears its cookie session.
+    }
+  }
+
+  for (const cookie of document.cookie.split(";")) {
+    const name = cookie.split("=")[0]?.trim();
+    if (!name?.startsWith("sb-") || !name.endsWith("-auth-token")) continue;
+    document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+  }
 }
 
 function ProfileSkeleton() {
@@ -679,6 +698,8 @@ function ProfileContent() {
   async function handleSignOut() {
     const client = createBrowserClient();
     await client.auth.signOut();
+    clearLocalTestSession();
+    setSession(null);
     router.push("/login");
   }
 
