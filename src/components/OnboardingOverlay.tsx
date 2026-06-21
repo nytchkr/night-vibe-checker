@@ -213,10 +213,17 @@ export function OnboardingOverlay() {
                 onClick={() => setActiveSlide(index)}
                 aria-label={`Show ${item.title}`}
                 aria-current={index === activeSlide ? "step" : undefined}
-                className={`h-2.5 rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4] ${
-                  index === activeSlide ? "w-8 bg-[#00F5D4]" : "w-2.5 bg-white/24 hover:bg-white/40"
+                className={`group flex h-6 items-center justify-center rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4] ${
+                  index === activeSlide ? "w-8" : "w-6"
                 }`}
-              />
+              >
+                <span
+                  aria-hidden="true"
+                  className={`rounded-full transition-all ${
+                    index === activeSlide ? "h-2.5 w-8 bg-[#00F5D4]" : "h-2.5 w-2.5 bg-white/24 group-hover:bg-white/40"
+                  }`}
+                />
+              </button>
             ))}
           </div>
         </div>

@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   description,
   manifest: "/manifest.json",
   icons: {
+    icon: "/icon.svg",
     apple: "/icon-192.png",
   },
   appleWebApp: {
@@ -46,7 +47,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
   themeColor: "#0a0a0a",
 };
@@ -56,6 +56,11 @@ const isDev = process.env.NEXT_PUBLIC_ENV === "development";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://a.basemaps.cartocdn.com" />
+        <link rel="preconnect" href="https://b.basemaps.cartocdn.com" />
+        <link rel="preconnect" href="https://c.basemaps.cartocdn.com" />
+      </head>
       <body className="bg-[#0A0A0F] text-white font-sans antialiased min-h-screen">
         <a
           href="#main-content"

@@ -1,5 +1,9 @@
-import { redirect } from "next/navigation";
+import VenueMapClient from "@/components/VenueMapClient";
+
+export const metadata = {
+  title: "NightVibe - South End Charlotte",
+};
 
 export default function Home() {
-  redirect("/map");
+  return <VenueMapClient />;
 }
