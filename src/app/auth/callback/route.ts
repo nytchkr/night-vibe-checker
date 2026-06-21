@@ -3,8 +3,8 @@ import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { supabaseAdmin } from "@/lib/supabase";
 
 function safeReturnUrl(value: string | null): string {
-  if (!value || value === "/" || value === "/map" || !value.startsWith("/") || value.startsWith("//")) {
-    return "/profile";
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/map";
   }
   return value;
 }
@@ -21,9 +21,7 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get("code");
   const rawReturnUrl = searchParams.get("return");
   const returnUrl = safeReturnUrl(rawReturnUrl);
-  const redirectUrl = rawReturnUrl
-    ? `${origin}${returnUrl}`
-    : `${origin}/login?auth=callback`;
+  const redirectUrl = `${origin}${returnUrl}`;
 
   if (code) {
     const response = NextResponse.redirect(redirectUrl);
