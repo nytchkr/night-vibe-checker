@@ -6,11 +6,7 @@
       "path": "/api/cron/refresh-open-now",
       "schedule": "0 2 * * *"
     },
-    {
-      "path": "/api/cron/refresh-busyness",
-      "schedule": "0 2 * * *"
-    },
-    {
+{
       "path": "/api/jobs/discover-zone",
       "schedule": "0 18 * * *"
     }
