@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bell, Bookmark, ChevronRight, MapPin, X } from "lucide-react";
@@ -85,6 +86,22 @@ function getUserEmail(user: User | undefined): string {
   return user?.email ?? "Signed in";
 }
 
+function getUserDisplayName(user: User | undefined): string {
+  const metadata = user?.user_metadata;
+  const fullName = metadata?.full_name;
+  const name = metadata?.name;
+
+  if (typeof fullName === "string" && fullName.trim()) return fullName.trim();
+  if (typeof name === "string" && name.trim()) return name.trim();
+
+  return getUserEmail(user);
+}
+
+function getUserAvatarUrl(user: User | undefined): string | null {
+  const avatarUrl = user?.user_metadata?.avatar_url;
+  return typeof avatarUrl === "string" && avatarUrl.trim() ? avatarUrl : null;
+}
+
 function getUserInitial(email: string): string {
   return email.trim().charAt(0).toUpperCase() || "Y";
 }
@@ -154,7 +171,15 @@ function LoggedOutState() {
   );
 }
 
-function AccountCard({ email }: { email: string }) {
+function AccountCard({
+  avatarUrl,
+  displayName,
+  email,
+}: {
+  avatarUrl: string | null;
+  displayName: string;
+  email: string;
+}) {
   return (
     <section
       id="profile-section"
@@ -162,12 +187,22 @@ function AccountCard({ email }: { email: string }) {
       aria-label="Account"
     >
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#4F9DFF]/18 text-xl font-black text-[#4F9DFF] ring-1 ring-[#4F9DFF]/35">
-          {getUserInitial(email)}
-        </div>
+        {avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt={`${displayName} profile photo`}
+            width={48}
+            height={48}
+            className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-white/15"
+          />
+        ) : (
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#4F9DFF]/18 text-lg font-black text-[#4F9DFF] ring-1 ring-[#4F9DFF]/35">
+            {getUserInitial(email)}
+          </div>
+        )}
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-[#9CA2AE]">Signed in as</p>
-          <p className="mt-1 truncate text-base font-semibold text-white">{email}</p>
+          <p className="truncate text-base font-semibold text-white">{displayName}</p>
+          <p className="mt-1 truncate text-sm font-semibold text-white/45">{email}</p>
         </div>
       </div>
     </section>
@@ -756,6 +791,8 @@ function ProfileContent() {
   }
 
   const userEmail = getUserEmail(session?.user);
+  const userDisplayName = getUserDisplayName(session?.user);
+  const userAvatarUrl = getUserAvatarUrl(session?.user);
 
   return (
     <PageTransition>
@@ -773,7 +810,11 @@ function ProfileContent() {
           {authChecked && session && (
             <div className="space-y-5">
               {showWelcome && <WelcomeCard onDismiss={handleDismissWelcome} />}
-              <AccountCard email={userEmail} />
+              <AccountCard
+                avatarUrl={userAvatarUrl}
+                displayName={userDisplayName}
+                email={userEmail}
+              />
               <StreakCard streak={streak} loading={streakLoading} />
               <VibeIdentitySection
                 gender={gender}
