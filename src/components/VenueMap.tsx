@@ -16,6 +16,7 @@ import { inZone } from "@/lib/zone";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
@@ -588,7 +589,7 @@ function BusynessFilterBar({
   return (
     <div
       aria-label="Map busyness filter"
-      className="absolute right-4 top-16 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 rounded-full border border-white/10 bg-[#1A1A2E]/80 p-1 shadow-2xl backdrop-blur"
+      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 rounded-full border border-white/10 bg-[#1A1A2E]/80 p-1 shadow-2xl backdrop-blur sm:top-16"
       role="group"
     >
       {BUSYNESS_FILTERS.map((filter) => {
@@ -789,7 +790,7 @@ export function VenueMap({
   const [error, setError] = useState<string | null>(null);
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
   const mapRef = useRef<LeafletMap | null>(null);
-  const mapHeight = process.env.NEXT_PUBLIC_ENV === "development" ? "calc(100dvh - 100px)" : "calc(100dvh - 80px)";
+  const mapViewportStyle = getMapViewportStyle();
   const cityCenter = useMemo<[number, number]>(() => [city.lat, city.lng], [city.lat, city.lng]);
 
   const fetchVenues = useCallback(async (signal?: AbortSignal, { showLoading = true }: { showLoading?: boolean } = {}) => {
@@ -925,7 +926,7 @@ export function VenueMap({
   return (
     <main
       className="relative w-full overflow-hidden bg-[#0A0A0E]"
-      style={{ height: mapHeight, minHeight: "520px" }}
+      style={mapViewportStyle}
     >
       {(pulling || refreshing) && (
         <div
@@ -952,7 +953,7 @@ export function VenueMap({
           center={cityCenter}
           zoom={15}
           scrollWheelZoom={false}
-          style={{ height: mapHeight, minHeight: "520px", width: "100%" }}
+          style={{ ...mapViewportStyle, width: "100%" }}
           className="z-0"
         >
           <TileLayer
@@ -1008,14 +1009,8 @@ export function VenueMap({
       </div>
 
       {loading && (
-        <div className="pointer-events-none absolute inset-0 z-[1000] px-4" role="status" aria-label="Loading map venues">
-          <div className="absolute left-4 top-28 h-11 w-11 animate-pulse rounded-full bg-white/[0.06] shadow-2xl" />
-          <div className="absolute right-10 top-1/3 h-9 w-9 animate-pulse rounded-full bg-white/[0.06] shadow-2xl" />
-          <div className="absolute left-1/3 top-1/2 h-10 w-10 animate-pulse rounded-full bg-white/[0.06] shadow-2xl" />
-          <div className="absolute left-1/2 top-[42%] w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/70 px-5 py-4 shadow-2xl backdrop-blur">
-            <div className="h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
-            <div className="mt-3 h-3 w-full animate-pulse rounded bg-white/[0.06]" />
-          </div>
+        <div className="pointer-events-none absolute inset-0 z-[1000]">
+          <MapLoadingSkeleton className="h-full" style={{ height: "100%", minHeight: "100%" }} />
           {slowLoad && (
             <p className="absolute inset-x-0 bottom-28 text-center text-xs font-semibold text-white/40">
               Taking longer than usual...

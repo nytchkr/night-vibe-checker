@@ -116,13 +116,17 @@ async function markOnboarded(page: Page) {
   });
 }
 
-async function mockVenues(page: Page) {
+async function mockVenues(page: Page, delayMs = 0) {
   await page.route("**/api/venues**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
 
     if (request.method() !== "GET" || url.pathname !== "/api/venues") {
       return route.continue();
+    }
+
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
 
     return route.fulfill({
@@ -187,12 +191,18 @@ test.describe("Map tab", () => {
     const response = await request.get("/map");
     expect(response.status()).toBe(200);
 
-    await page.goto("/map");
+    await page.unroute("**/api/venues**");
+    await mockVenues(page, 2000);
+
+    await page.goto("/map", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("Loading map...")).toBeVisible({ timeout: 10000 });
     // VenueMap is dynamically imported (SSR=false) — Leaflet takes time to hydrate in headless
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
     await expect(page.locator(".leaflet-container")).toBeVisible();
     // Legend pill visible (premium redesign replaced "N spots" counter with legend)
     await expect(page.getByText(/Packed|Moderate|Quiet/i).first()).toBeVisible({ timeout: 25000 });
+    await expect(page.getByRole("group", { name: "Map busyness filter" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Filter venues" })).toBeVisible();
   });
 
   test("Report Vibe FAB is visible on /map", async ({ page }) => {
