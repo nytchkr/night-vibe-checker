@@ -125,6 +125,19 @@ test.describe("Explore tab", () => {
     await expect(page.getByText("Lowlight Lounge")).toHaveCount(0);
   });
 
+  test("empty filtered results can clear filters", async ({ page }) => {
+    await page.goto("/explore");
+
+    await page.getByRole("button", { name: /Restaurant/ }).click();
+
+    await expect(page.getByText("No venues match your filters")).toBeVisible();
+
+    await page.getByRole("button", { name: "Clear filters" }).click();
+
+    await expect(page.getByText("Pulse Room")).toBeVisible();
+    await expect(page.getByText("Lowlight Lounge")).toBeVisible();
+  });
+
   test("venue card click navigates to the venue detail route", async ({ page }) => {
     await page.goto("/explore");
 

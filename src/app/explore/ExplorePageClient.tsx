@@ -502,8 +502,8 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="pulse-fast mb-3 flex h-[114px] w-full overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.04] last:mb-0">
-      <div className="h-full w-[104px] shrink-0 bg-white/[0.06] sm:w-[118px]" />
+    <div className="mb-3 flex h-[114px] w-full animate-pulse overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] last:mb-0">
+      <div className="h-full w-[104px] shrink-0 bg-white/10 sm:w-[118px]" />
       <div className="flex min-w-0 flex-1 flex-col justify-between px-3.5 py-3">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
@@ -965,31 +965,32 @@ export function ExplorePageClient() {
         {venues === null && !error && (
           <div role="status" aria-label="Loading venues">
             <p className="sr-only">Loading venues...</p>
-            {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+            {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
           </div>
         )}
 
         {venues !== null && !error && venues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
-            <p className="text-sm font-semibold text-white">
-              No venues yet. Discovery job seeds South End venues.
-            </p>
+            <h2 className="font-display text-lg font-bold text-white">No venues found in South End yet</h2>
+            <Link
+              href="/map"
+              className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full border border-white/10 bg-white/[0.06] px-5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+            >
+              View map
+            </Link>
           </div>
         )}
 
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
             <div className="text-5xl" aria-hidden="true">🔍</div>
-            <h2 className="font-display mt-4 text-lg font-bold text-white">No spots match your filters</h2>
-            <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">
-              No spots match your vibe right now — try a different filter or check back later.
-            </p>
+            <h2 className="font-display mt-4 text-lg font-bold text-white">No venues match your filters</h2>
             <button
               type="button"
               onClick={clearFilters}
               className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
-              Reset Filters
+              Clear filters
             </button>
           </div>
         )}
