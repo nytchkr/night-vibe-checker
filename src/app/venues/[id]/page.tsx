@@ -13,21 +13,43 @@ type VenuePageProps = {
   params: Promise<{ id: string }>;
 };
 
+function getVenuePublicUrl(venue: ConsumerVenue): string {
+  return `${siteUrl}/venue/${encodeURIComponent(venue.slug || venue.id)}`;
+}
+
+function getVenueOgImage(venue: ConsumerVenue): string | undefined {
+  return venue.photoUrls?.[0] ?? venue.photoUrl;
+}
+
 function getVenueDescription(venue: ConsumerVenue): string {
-  const busynessText = getBusynessText(venue);
-  return `${busynessText}. ${venue.address ?? "South End Charlotte"}. Check the vibe before you go.`;
+  const parts = [getBusynessText(venue)];
+  const ratioText = getCrowdRatioText(venue);
+  if (ratioText) parts.push(ratioText);
+  return parts.join(" · ");
 }
 
 function getBusynessText(venue: ConsumerVenue): string {
   const busyness = venue.signal?.busyness0To100;
-  return typeof busyness === "number"
-    ? `${Math.round(busyness)}% busy right now`
-    : "Live busyness data";
+  if (typeof busyness !== "number") return "Live busyness unavailable";
+  if (busyness >= 67) return "Packed right now";
+  if (busyness >= 34) return "Moderate right now";
+  return "Quiet right now";
+}
+
+function getCrowdRatioText(venue: ConsumerVenue): string | null {
+  const mfRatio = venue.signal?.mfRatio;
+  if (typeof mfRatio !== "number") return null;
+
+  const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));
+  const womenPercent = 100 - malePercent;
+  if (malePercent === womenPercent) return "Balanced crowd";
+  return womenPercent > malePercent ? `${womenPercent}% women` : `${malePercent}% men`;
 }
 
 function getVenueJsonLd(venue: ConsumerVenue) {
-  const url = `${siteUrl}/venues/${encodeURIComponent(venue.id)}`;
+  const url = getVenuePublicUrl(venue);
   const ratingValue = venue.rating ?? venue.googleRating;
+  const image = getVenueOgImage(venue);
 
   return {
     "@context": "https://schema.org",
@@ -42,7 +64,7 @@ function getVenueJsonLd(venue: ConsumerVenue) {
       latitude: venue.lat,
       longitude: venue.lng,
     },
-    ...(venue.photoUrl ? { image: venue.photoUrl } : {}),
+    ...(image ? { image } : {}),
     ...(venue.phone ? { telephone: venue.phone } : {}),
     ...(venue.website ? { sameAs: venue.website } : {}),
     ...(typeof ratingValue === "number"
@@ -65,25 +87,26 @@ export async function generateMetadata({ params }: VenuePageProps): Promise<Meta
 
   if (!venue) return { title: "NightVibe" };
 
-  const busynessText = getBusynessText(venue);
-  const title = `${venue.name} — NightVibe`;
+  const title = `${venue.name} | NightVibe`;
+  const description = getVenueDescription(venue);
+  const url = getVenuePublicUrl(venue);
+  const image = getVenueOgImage(venue);
 
   return {
     title,
-    description: getVenueDescription(venue),
+    description,
     openGraph: {
-      title: `${venue.name} — Live Vibe Check`,
-      description: busynessText,
-      url: `${siteUrl}/venues/${encodeURIComponent(venue.id)}`,
-      images: venue.photoUrl
-        ? [{ url: venue.photoUrl, width: 1200, height: 630 }]
-        : [],
+      title,
+      description,
+      url,
+      images: image ? [{ url: image, width: 1200, height: 630 }] : [],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description: busynessText,
+      description,
+      images: image ? [image] : [],
     },
   };
 }
@@ -95,7 +118,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
 
   return (
     <>
-      <link rel="canonical" href={`${siteUrl}/venues/${venue.id}`} />
+      <link rel="canonical" href={getVenuePublicUrl(venue)} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(getVenueJsonLd(venue)) }}
