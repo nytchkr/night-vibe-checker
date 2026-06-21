@@ -173,27 +173,11 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
 
   useFocusTrap(open, dialogRef, closeGate);
 
-  async function handleGoogleSignIn() {
+  function handleGoogleSignIn() {
     if (googleSigningIn) return;
-
     setGoogleSigningIn(true);
-    setError("");
-
-    try {
-      const client = createBrowserClient();
-      const origin = getOAuthRedirectOrigin();
-      const returnTo = pendingAction?.returnTo ?? currentPath();
-      const { error: signInError } = await client.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${origin}/auth/callback?return=${encodeURIComponent(returnTo)}` },
-      });
-
-      if (signInError) setError(signInError.message);
-    } catch {
-      setError("Google sign-in is unavailable here. Use email instead.");
-    } finally {
-      setGoogleSigningIn(false);
-    }
+    const returnTo = pendingAction?.returnTo ?? currentPath();
+    window.location.href = `/api/auth/google?return=${encodeURIComponent(returnTo)}`;
   }
 
   async function handleEmailSignIn() {

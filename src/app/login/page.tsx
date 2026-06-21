@@ -130,28 +130,14 @@ function LoginContent() {
     }
   }
 
-  async function handleGoogleSignIn() {
+  function handleGoogleSignIn() {
     if (googleSigningIn) return;
-
     haptic.medium();
     setGoogleSigningIn(true);
-    setError("");
-
-    try {
-      const client = createBrowserClient();
-      storeReturnUrl(returnUrl);
-      const origin = getOAuthRedirectOrigin();
-      const { error: signInError } = await client.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${origin}/auth/callback?return=${encodeURIComponent(returnUrl)}` },
-      });
-
-      if (signInError) setError(signInError.message);
-    } catch {
-      setError("Could not start Google sign-in. Try again.");
-    } finally {
-      setGoogleSigningIn(false);
-    }
+    // Redirect to server-side route that sets the PKCE code_verifier as an
+    // HttpOnly cookie before handing off to Google — avoids document.cookie
+    // storage issues in browsers with strict privacy settings.
+    window.location.href = `/api/auth/google?return=${encodeURIComponent(returnUrl)}`;
   }
 
   return (
