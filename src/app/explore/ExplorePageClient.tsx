@@ -1004,14 +1004,14 @@ export function ExplorePageClient() {
             <div className="text-5xl" aria-hidden="true">🔍</div>
             <h2 className="font-display mt-4 text-lg font-bold text-white">No spots match your filters</h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">
-              Try clearing the search or changing the category
+              No spots match your vibe right now — try a different filter or check back later.
             </p>
             <button
               type="button"
               onClick={clearFilters}
               className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
-              Clear filters
+              Reset Filters
             </button>
           </div>
         )}

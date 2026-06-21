@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
+import { useOnboardingGate } from "@/components/OnboardingGate";
 import { PageTransition } from "@/components/PageTransition";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -107,6 +108,16 @@ function ProfileSkeleton() {
 }
 
 function LoggedOutState() {
+  const { requireAuth } = useOnboardingGate();
+
+  async function handleSignIn() {
+    await requireAuth({
+      id: "profile:onboarding",
+      label: "Sign in to save spots, report the vibe, and keep your night history.",
+      returnTo: "/profile",
+    });
+  }
+
   return (
     <section className="mx-auto mt-16 max-w-sm rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
       <p className="font-display text-[34px] font-semibold tracking-normal text-white">
@@ -117,10 +128,11 @@ function LoggedOutState() {
         Sign in to keep your check-ins tied to your account and build a real history of nights out.
       </p>
       <Button
-        asChild
+        type="button"
+        onClick={() => void handleSignIn()}
         className="mt-7 min-h-[52px] w-full rounded-full bg-[#8B6CFF] text-base font-semibold text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.32)] hover:bg-[#8B6CFF]"
       >
-        <Link href="/login">Sign in</Link>
+        Sign in
       </Button>
     </section>
   );

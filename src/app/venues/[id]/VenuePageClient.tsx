@@ -1057,7 +1057,7 @@ export function VenuePageClient({
               </div>
               {!hasBusynessRead && !signal?.sampleSize && (
                 <p className="text-[13px] text-white/35">
-                  No reads yet. Check in to help the next person decide.
+                  No live reads yet — be the first to report
                 </p>
               )}
             </section>
