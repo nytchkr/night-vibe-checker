@@ -9,8 +9,8 @@ import { useHaptic } from "@/hooks/useHaptic";
 const POST_AUTH_RETURN_KEY = "nightvibe.postAuthReturnUrl";
 
 function safeReturnUrl(value: string | null): string {
-  if (!value || value === "/" || value === "/map" || !value.startsWith("/") || value.startsWith("//")) {
-    return "/profile";
+  if (!value || value === "/" || !value.startsWith("/") || value.startsWith("//")) {
+    return "/map";
   }
   return value;
 }
