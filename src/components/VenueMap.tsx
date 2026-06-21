@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import L from "leaflet";
@@ -12,7 +12,6 @@ import { Check, ChevronDown, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
-import { getSignalLabel } from "@/lib/signalFreshness";
 import { inZone } from "@/lib/zone";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -92,17 +91,20 @@ function getBusynessColor(pct: number | null): string {
   return "#FF5B6A";
 }
 
-const createBusynessIcon = (pct: number | null, isLive: boolean) => {
+function hasLiveBusynessSource(venue: ConsumerVenue): boolean {
+  const source = venue.signal?.busynessSource;
+  return source === "live" || source === "crowd";
+}
+
+const createBusynessIcon = (pct: number | null, hasLiveSignal: boolean) => {
   const color = getBusynessColor(pct);
-  const pulse = isLive && pct !== null && pct > 33;
 
   return L.divIcon({
     className: "",
-    html: `<div class="${pulse ? "venue-pin-live-dot" : ""}" style="
+    html: `<div class="${hasLiveSignal ? "venue-pin-live-dot" : ""}" style="
       width:14px;height:14px;border-radius:50%;
       background:${color};
       border:2px solid rgba(255,255,255,0.3);
-      ${pulse ? `box-shadow:0 0 0 4px ${color}33;` : ""}
     "></div>`,
     iconSize: [14, 14],
     iconAnchor: [7, 7],
@@ -202,10 +204,10 @@ function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | n
   const busyness = venue.signal?.busyness0To100 ?? null;
   const color = getBusynessColor(busyness);
   const size = isSelected ? 18 : 14;
-  const pulse = getSignalLabel(venue.signal) === "live" && busyness !== null && busyness > 33;
+  const pulse = hasLiveBusynessSource(venue);
 
   return L.divIcon({
-    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="background:${color};${pulse ? `box-shadow:0 0 0 4px ${color}33;` : ""}"></span>`,
+    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="background:${color};"></span>`,
     className: `venue-cluster-pin${isSelected ? " venue-cluster-pin-selected" : ""}`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -427,7 +429,7 @@ function ZipRecenterControl() {
     }
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     event.preventDefault();
     recenterForZip(zip);
@@ -506,7 +508,7 @@ function VenueSearchControl({
     onVenueSelect(venue);
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (!showDropdown && event.key !== "Escape") return;
 
     if (event.key === "ArrowDown") {
@@ -1011,7 +1013,7 @@ export function VenueMap({
           {mapZoom >= 14 && filteredVenues.map((venue) => {
             const pin = getVenuePinStyle(venue);
             const busyness = venue.signal?.busyness0To100 ?? null;
-            const isLive = getSignalLabel(venue.signal) === "live";
+            const hasLiveSignal = hasLiveBusynessSource(venue);
             const isSelected = selectedVenueId === venue.id;
 
             return (
@@ -1030,7 +1032,7 @@ export function VenueMap({
                     interactive={false}
                   />
                 )}
-                {isLive && busyness !== null && busyness > 33 && (
+                {hasLiveSignal && (
                   <CircleMarker
                     center={[venue.lat, venue.lng]}
                     radius={pin.radius * 1.65}
@@ -1047,7 +1049,7 @@ export function VenueMap({
                 )}
                 <Marker
                   position={[venue.lat, venue.lng]}
-                  icon={createBusynessIcon(busyness, isLive)}
+                  icon={createBusynessIcon(busyness, hasLiveSignal)}
                   alt={`${venue.name} map pin`}
                   keyboard
                   title={venue.name}
@@ -1201,11 +1203,40 @@ export function VenueMap({
         }
 
         .venue-pin-live-dot {
-          animation: pin-pulse 1.5s ease-in-out infinite;
+          box-shadow: 0 0 0 4px rgba(255, 91, 106, 0.24), 0 0 18px rgba(255, 176, 32, 0.34);
+          display: block;
+          position: relative;
+        }
+
+        .venue-pin-live-dot::after {
+          animation: venue-pin-live-source-pulse 1.65s ease-out infinite;
+          border: 2px solid rgba(255, 91, 106, 0.72);
+          border-radius: inherit;
+          box-shadow: 0 0 20px rgba(255, 176, 32, 0.42);
+          content: "";
+          inset: -7px;
+          position: absolute;
+        }
+
+        @keyframes venue-pin-live-source-pulse {
+          0% {
+            opacity: 0.85;
+            transform: scale(0.82);
+          }
+
+          70% {
+            opacity: 0;
+            transform: scale(1.65);
+          }
+
+          100% {
+            opacity: 0;
+            transform: scale(1.65);
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .venue-pin-live-dot {
+          .venue-pin-live-dot::after {
             animation: none !important;
           }
         }
