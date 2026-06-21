@@ -10,6 +10,7 @@ type VenueRow = {
 
 export type RefreshResult = { venueId: string; ok: boolean; reason?: string };
 type BusynessSource = "live" | "forecast";
+type BestTimeRegistration = { venueId: string; currentForecast: number | null };
 
 function apiKey(): string {
   const key = process.env.BESTTIME_API_KEY;
@@ -17,8 +18,55 @@ function apiKey(): string {
   return key;
 }
 
-// Register venue with BestTime, returns venue_id
-async function registerVenue(venue: VenueRow, key: string): Promise<string> {
+function readObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function readNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function currentLocalDayAndHour(timeZone: string): { dayInt: number; hour: number } | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "short",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).formatToParts(new Date());
+    const weekday = parts.find((part) => part.type === "weekday")?.value;
+    const hour = Number(parts.find((part) => part.type === "hour")?.value);
+    const dayInt = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(weekday ?? "");
+    if (dayInt === -1 || !Number.isFinite(hour)) return null;
+    return { dayInt, hour };
+  } catch {
+    return null;
+  }
+}
+
+function currentForecastFromRegistration(data: unknown): number | null {
+  const payload = readObject(data);
+  const timeZone = readObject(payload?.venue_info)?.venue_timezone;
+  if (typeof timeZone !== "string") return null;
+
+  const current = currentLocalDayAndHour(timeZone);
+  const analysis = Array.isArray(payload?.analysis) ? payload.analysis : null;
+  const dayAnalysis = readObject(analysis?.[current?.dayInt ?? -1]);
+  if (!current || !dayAnalysis) return null;
+
+  const hourAnalysis = Array.isArray(dayAnalysis.hour_analysis) ? dayAnalysis.hour_analysis : [];
+  const hourIndex = hourAnalysis.findIndex((hour) => readNumber(readObject(hour)?.hour) === current.hour);
+  const dayRaw = Array.isArray(dayAnalysis.day_raw) ? dayAnalysis.day_raw : [];
+  return hourIndex >= 0 ? readNumber(dayRaw[hourIndex]) : null;
+}
+
+// Register venue with BestTime, returns venue_id and the current-hour forecast when present.
+async function registerVenue(venue: VenueRow, key: string): Promise<BestTimeRegistration> {
   const params = new URLSearchParams({
     api_key_private: key,
     venue_name: venue.name,
@@ -35,7 +83,7 @@ async function registerVenue(venue: VenueRow, key: string): Promise<string> {
   }
   const venueId: string | null = data.venue_info?.venue_id ?? data.venue?.venue_id ?? null;
   if (!venueId) throw new Error("BestTime register: no venue_id in response");
-  return venueId;
+  return { venueId, currentForecast: currentForecastFromRegistration(data) };
 }
 
 // Fetch live busyness for current hour
@@ -133,25 +181,57 @@ async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {
   for (const venue of venues) {
     try {
       let bestTimeVenueId = venue.besttime_venue_id;
+      let needsRegister = !bestTimeVenueId;
       let busynessValue: number | null = null;
+      let registeredForecast: number | null = null;
       let source: BusynessSource = "forecast";
       let fallbackReason: string | undefined;
 
       try {
-        if (!bestTimeVenueId) {
-          bestTimeVenueId = await registerVenue(venue, key);
-        }
+        for (let attempt = 0; attempt <= 1; attempt++) {
+          if (needsRegister) {
+            const registration = await registerVenue(venue, key);
+            bestTimeVenueId = registration.venueId;
+            registeredForecast = registration.currentForecast;
+            needsRegister = false;
+          }
 
-        try {
-          busynessValue = await fetchLiveHour(bestTimeVenueId, key);
-        } catch {
-          busynessValue = null;
-        }
-        if (busynessValue !== null) {
-          source = "live";
-        } else {
-          busynessValue = await fetchForecastHour(bestTimeVenueId, key);
-          source = "forecast";
+          try {
+            busynessValue = await fetchLiveHour(bestTimeVenueId!, key);
+          } catch {
+            busynessValue = null;
+          }
+          if (busynessValue !== null) {
+            source = "live";
+            break;
+          }
+
+          try {
+            busynessValue = await fetchForecastHour(bestTimeVenueId!, key);
+            source = "forecast";
+            break;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "";
+            if (message.includes("HTTP 404") && attempt === 0) {
+              needsRegister = true;
+              bestTimeVenueId = null;
+              registeredForecast = null;
+              const { error } = await supabaseAdmin
+                .from("venues")
+                .update({ besttime_venue_id: null })
+                .eq("id", venue.id);
+              if (error) throw error;
+              fallbackReason = "Stale BestTime ID cleared; re-registering";
+            } else {
+              if (registeredForecast !== null) {
+                busynessValue = registeredForecast;
+                source = "forecast";
+                fallbackReason = fallbackReason ?? "Using current forecast from new BestTime registration";
+                break;
+              }
+              throw err;
+            }
+          }
         }
       } catch (err) {
         fallbackReason = err instanceof Error ? err.message : "Unknown BestTime error";
