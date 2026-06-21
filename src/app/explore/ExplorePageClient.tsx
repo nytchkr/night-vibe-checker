@@ -6,7 +6,6 @@ import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
-import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
@@ -502,8 +501,6 @@ export function ExplorePageClient() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0F]">
-      <OnboardingOverlay />
-
       <header className="px-4 pb-5 pt-10" role="region" aria-label="Explore filters">
         <div className="mx-auto max-w-lg">
           <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/45">

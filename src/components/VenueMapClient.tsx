@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { hasCompletedOnboarding } from "@/components/OnboardingOverlay";
 import { CITIES, DEFAULT_CITY } from "@/lib/cities";
 import type { City, CityId } from "@/lib/cities";
 
@@ -11,7 +12,6 @@ const OnboardingOverlay = dynamic(
   { ssr: false },
 );
 
-const ONBOARDING_STORAGE_KEY = "nv_onboarded";
 const CITY_STORAGE_KEY = "nightvibe:selected-city";
 
 function getCityById(cityId: string | null): City {
@@ -22,7 +22,7 @@ function OnboardingGate() {
   const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    if (window.localStorage.getItem(ONBOARDING_STORAGE_KEY) === "1") return;
+    if (hasCompletedOnboarding()) return;
 
     const show = () => setShouldRender(true);
     const idleWindow = window as Window & {
