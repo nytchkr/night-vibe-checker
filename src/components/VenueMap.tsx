@@ -332,18 +332,96 @@ function ZipRecenterControl() {
 }
 
 function VenueSearchControl({
+  onVenueSelect,
   searchQuery,
   setSearchQuery,
+  venues,
 }: {
+  onVenueSelect: (venue: ConsumerVenue) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  venues: ConsumerVenue[];
 }) {
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const suggestions = useMemo(() => {
+    if (!normalizedSearchQuery) return [];
+    return venues.filter((venue) => venue.name.toLowerCase().includes(normalizedSearchQuery)).slice(0, 6);
+  }, [normalizedSearchQuery, venues]);
+  const showDropdown = isDropdownOpen && normalizedSearchQuery.length > 0;
+
+  useEffect(() => {
+    setActiveSuggestionIndex(0);
+  }, [normalizedSearchQuery]);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!containerRef.current || containerRef.current.contains(event.target as Node)) return;
+      setIsDropdownOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, []);
+
+  function selectSuggestion(venue: ConsumerVenue) {
+    setSearchQuery(venue.name);
+    setIsDropdownOpen(false);
+    onVenueSelect(venue);
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (!showDropdown && event.key !== "Escape") return;
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setIsDropdownOpen(true);
+      setActiveSuggestionIndex((currentIndex) => {
+        if (suggestions.length === 0) return 0;
+        return (currentIndex + 1) % suggestions.length;
+      });
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setIsDropdownOpen(true);
+      setActiveSuggestionIndex((currentIndex) => {
+        if (suggestions.length === 0) return 0;
+        return (currentIndex - 1 + suggestions.length) % suggestions.length;
+      });
+      return;
+    }
+
+    if (event.key === "Enter") {
+      if (!showDropdown || suggestions.length === 0) return;
+      event.preventDefault();
+      selectSuggestion(suggestions[activeSuggestionIndex] ?? suggestions[0]);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      setIsDropdownOpen(false);
+    }
+  }
+
   return (
-    <div className="absolute left-1/2 top-14 z-[500] w-52 -translate-x-1/2">
+    <div ref={containerRef} className="absolute left-1/2 top-14 z-[500] w-52 -translate-x-1/2">
       <input
         aria-label="Search venues"
-        onChange={(event) => setSearchQuery(event.target.value)}
+        aria-expanded={showDropdown}
+        aria-haspopup="listbox"
+        onChange={(event) => {
+          setSearchQuery(event.target.value);
+          setIsDropdownOpen(true);
+        }}
         onClick={(event) => event.stopPropagation()}
+        onFocus={() => setIsDropdownOpen(true)}
+        onKeyDown={handleKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
         placeholder="Search venues..."
         type="search"
@@ -357,12 +435,47 @@ function VenueSearchControl({
           onClick={(event) => {
             event.stopPropagation();
             setSearchQuery("");
+            setIsDropdownOpen(false);
           }}
           onMouseDown={(event) => event.stopPropagation()}
           className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-lg leading-none text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
         >
           ×
         </button>
+      )}
+      {showDropdown && (
+        <div
+          role="listbox"
+          aria-label="Venue suggestions"
+          className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#111118] shadow-xl"
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {suggestions.length > 0 ? (
+            suggestions.map((venue, index) => {
+              const isActive = index === activeSuggestionIndex;
+
+              return (
+                <button
+                  key={venue.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isActive}
+                  onClick={() => selectSuggestion(venue)}
+                  onMouseEnter={() => setActiveSuggestionIndex(index)}
+                  className={`block w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-white/[0.06] ${
+                    isActive ? "bg-white/[0.08]" : ""
+                  }`}
+                >
+                  <span className="block truncate text-sm font-bold text-white">{venue.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-white/40">{venue.category}</span>
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-4 py-3 text-xs text-white/30">No venues found</div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -446,6 +559,11 @@ export function VenueMap({
     });
   }, []);
 
+  const selectVenueFromSearch = useCallback((venue: ConsumerVenue) => {
+    setActiveCategoryFilter("All");
+    selectVenueFromList(venue);
+  }, [selectVenueFromList]);
+
   const selectVenueFromMap = useCallback((venue: ConsumerVenue) => {
     setSelectedVenueId(venue.id);
     setSheetSnap("mid");
@@ -468,7 +586,12 @@ export function VenueMap({
         <CityMapCenter center={cityCenter} />
         <MapZoomTracker onZoomChange={setMapZoom} />
         <ZipRecenterControl />
-        <VenueSearchControl searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+        <VenueSearchControl
+          onVenueSelect={selectVenueFromSearch}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          venues={visibleVenues}
+        />
         <RecenterButton center={cityCenter} />
 
         {mapZoom < 14 && (
