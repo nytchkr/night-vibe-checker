@@ -6,13 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  const cronSecret = req.headers.get("x-cron-secret");
-  return (
-    auth === `Bearer ${secret}` ||
-    cronSecret === secret ||
-    req.nextUrl.searchParams.get("secret") === secret
-  );
+  return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
 export async function POST(req: NextRequest) {

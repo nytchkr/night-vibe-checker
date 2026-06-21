@@ -21,7 +21,6 @@ function formatRefreshTime(value: string | null): string {
 export function AdminVenueTable({ initialVenues, token }: Props) {
   const [venues, setVenues] = useState<AdminVenue[]>(initialVenues);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [refreshingId, setRefreshingId] = useState<string | null>(null);
 
   function updateVenue(updated: AdminVenue) {
     setVenues((prev) => prev.map((venue) => (venue.id === updated.id ? updated : venue)));
@@ -49,23 +48,6 @@ export function AdminVenueTable({ initialVenues, token }: Props) {
       alert("Venue update failed. Please try again.");
     } finally {
       setBusyId(null);
-    }
-  }
-
-  async function refreshVenue(venue: AdminVenue) {
-    setRefreshingId(venue.id);
-    try {
-      const res = await fetch(`/api/jobs/refresh-busyness?venueId=${encodeURIComponent(venue.id)}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error("Refresh failed");
-      const refreshedAt = new Date().toISOString();
-      updateVenue({ ...venue, lastBusynessRefresh: refreshedAt });
-    } catch {
-      alert("Refresh failed. Check BestTime configuration and try again.");
-    } finally {
-      setRefreshingId(null);
     }
   }
 
@@ -120,13 +102,6 @@ export function AdminVenueTable({ initialVenues, token }: Props) {
                       className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/25 transition-all disabled:opacity-40"
                     >
                       {venue.hidden ? "Unhide venue" : "Hide venue"}
-                    </button>
-                    <button
-                      onClick={() => refreshVenue(venue)}
-                      disabled={refreshingId === venue.id}
-                      className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-[#8B6CFF]/20 text-[#8B6CFF] hover:bg-[#8B6CFF]/10 hover:border-[#8B6CFF]/40 transition-all disabled:opacity-40"
-                    >
-                      {refreshingId === venue.id ? "Refreshing" : "Refresh signal"}
                     </button>
                   </div>
                 </td>
