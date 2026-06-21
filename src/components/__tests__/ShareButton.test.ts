@@ -8,9 +8,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 describe("ShareButton share logic", () => {
   const shareProps = {
-    venueName: "Test Bar",
-    vibeScore: 8.2,
-    summary: "Great vibes all night long with a packed dance floor and good cocktails.",
+    title: "Test Bar on nytchkr",
+    text: "Check out Test Bar on nytchkr — Packed right now",
   };
 
   beforeEach(() => {
@@ -37,12 +36,11 @@ describe("ShareButton share logic", () => {
 
     // Simulate the handleShare logic from ShareButton
     const url = globalThis.window?.location?.href ?? "";
-    const text = `Vibe Score: ${shareProps.vibeScore.toFixed(1)}/10 — ${shareProps.summary.slice(0, 100)}`;
-    await navigator.share({ title: `Night Vibe: ${shareProps.venueName}`, text, url });
+    await navigator.share({ title: shareProps.title, text: shareProps.text, url });
 
     expect(mockShare).toHaveBeenCalledWith({
-      title: "Night Vibe: Test Bar",
-      text: expect.stringContaining("8.2/10"),
+      title: "Test Bar on nytchkr",
+      text: "Check out Test Bar on nytchkr — Packed right now",
       url: "http://localhost:3000/vibe-check",
     });
   });
@@ -63,23 +61,29 @@ describe("ShareButton share logic", () => {
     const hasShare = typeof navigator !== "undefined" && "share" in navigator;
     expect(hasShare).toBe(false);
 
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(`${shareProps.text} ${url}`);
     onCopied();
 
-    expect(mockWriteText).toHaveBeenCalledWith(url);
+    expect(mockWriteText).toHaveBeenCalledWith(
+      "Check out Test Bar on nytchkr — Packed right now http://localhost:3000/vibe-check",
+    );
     expect(onCopied).toHaveBeenCalledTimes(1);
   });
 
-  it("truncates long summaries to 100 chars in share text", () => {
-    const longSummary = "A".repeat(200);
-    const text = `Vibe Score: 7.5/10 — ${longSummary.slice(0, 100)}…`;
-    expect(text).toContain("…");
-    expect(text.indexOf("…")).toBeLessThan(130);
+  it("uses the current window URL when no url prop is provided", () => {
+    const url = globalThis.window?.location?.href ?? "";
+    expect({
+      title: shareProps.title,
+      text: shareProps.text,
+      url,
+    }).toEqual({
+      title: "Test Bar on nytchkr",
+      text: "Check out Test Bar on nytchkr — Packed right now",
+      url: "http://localhost:3000/vibe-check",
+    });
   });
 
-  it("does not append ellipsis for short summaries", () => {
-    const shortSummary = "Great spot.";
-    const text = `Vibe Score: 7.5/10 — ${shortSummary.slice(0, 100)}${shortSummary.length > 100 ? "…" : ""}`;
-    expect(text).not.toContain("…");
+  it("keeps no-data venue text honest", () => {
+    expect("Check out Test Bar on nytchkr").not.toContain("right now");
   });
 });

@@ -5,8 +5,10 @@ import { MapPin, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
+import { ShareButton } from "@/components/ShareButton";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
+import { buildVenueShareData } from "@/lib/venueShare";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
@@ -309,12 +311,18 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
             <div className="mt-3 flex items-center justify-between gap-3">
               <MiniMFRatio venue={venue} />
-              <Link
-                href={`/venues/${encodeURIComponent(venue.id)}`}
-                className="shrink-0 text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
-              >
-                Open venue →
-              </Link>
+              <div className="flex shrink-0 items-center gap-2">
+                <ShareButton
+                  {...buildVenueShareData(venue)}
+                  className="h-9 w-9 text-white/75 hover:text-white focus-visible:ring-[#8B6CFF]/70"
+                />
+                <Link
+                  href={`/venues/${encodeURIComponent(venue.id)}`}
+                  className="text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                >
+                  Open venue →
+                </Link>
+              </div>
             </div>
 
             {!isPeek && (

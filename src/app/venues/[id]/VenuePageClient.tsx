@@ -4,15 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Clock, Heart, MapPin, Share2, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Heart, MapPin, Users, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { useOnboardingGate } from "@/components/OnboardingGate";
+import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buildVenueShareData } from "@/lib/venueShare";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -690,35 +692,6 @@ export function VenuePageClient({
     }
   }
 
-  async function shareVenue() {
-    if (!venue || typeof navigator === "undefined" || typeof window === "undefined") return;
-
-    const shareData: ShareData = {
-      title: venue.name,
-      text: `Check out ${venue.name} on nytchkr`,
-      url: window.location.href,
-    };
-    trackAnalytics("venue_share", { venueId: venue.id });
-
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share(shareData);
-      } catch {
-        // User cancelled or browser blocked native sharing.
-      }
-      return;
-    }
-
-    if (typeof navigator.clipboard?.writeText !== "function") return;
-
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setToast("Copied!");
-    } catch {
-      // Clipboard access can be denied by the browser.
-    }
-  }
-
   async function submitVenueReport() {
     if (reportSubmitting) return;
 
@@ -973,14 +946,10 @@ export function VenuePageClient({
                 >
                   <Heart size={19} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void shareVenue()}
-                  aria-label={`Share ${venue.name}`}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur transition-colors hover:bg-black/55 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-                >
-                  <Share2 size={19} aria-hidden="true" />
-                </button>
+                <ShareButton
+                  {...buildVenueShareData(venue)}
+                  className="h-11 w-11 border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55 hover:text-white focus-visible:ring-[#8B6CFF]/60"
+                />
               </div>
             </div>
 

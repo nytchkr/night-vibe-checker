@@ -1,22 +1,31 @@
 import type { ConsumerVenue } from "@/types";
+import { getBusynessState } from "@/lib/busyness";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
 
-function shareBusynessText(busyness: number | null | undefined): string {
-  if (busyness == null || !Number.isFinite(busyness)) return "crowd status unavailable right now";
-  return `${Math.round(Math.min(100, Math.max(0, busyness)))}% packed right now`;
+export type VenueShareData = {
+  title: string;
+  text: string;
+  url: string;
+};
+
+export function getVenueShareText(venue: Pick<ConsumerVenue, "name" | "signal">): string {
+  const busyness = venue.signal?.busyness0To100;
+  if (busyness == null || !Number.isFinite(busyness)) return `Check out ${venue.name} on nytchkr`;
+
+  return `Check out ${venue.name} on nytchkr — ${getBusynessState(busyness).label} right now`;
 }
 
 export function getVenueShareUrl(venue: Pick<ConsumerVenue, "id" | "slug">): string {
   return `${siteUrl}/venues/${encodeURIComponent(venue.slug || venue.id)}`;
 }
 
-export function buildVenueShareData(venue: ConsumerVenue): ShareData {
+export function buildVenueShareData(venue: ConsumerVenue): VenueShareData {
   const url = getVenueShareUrl(venue);
 
   return {
-    title: `${venue.name} on NightVibe`,
-    text: `Check out ${venue.name} on NightVibe — ${shareBusynessText(venue.signal?.busyness0To100)}`,
+    title: `${venue.name} on nytchkr`,
+    text: getVenueShareText(venue),
     url,
   };
 }
