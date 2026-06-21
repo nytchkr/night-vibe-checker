@@ -778,6 +778,15 @@ export function VenuePageClient({
     const query = venue.address || `${venue.lat},${venue.lng}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
+  const vibeCheckHref = useMemo(() => {
+    if (!venue) return "/vibe-check";
+    const params = new URLSearchParams({
+      venue: venue.id,
+      venueId: venue.id,
+      venueName: venue.name,
+    });
+    return `/vibe-check?${params.toString()}`;
+  }, [venue]);
   const galleryPhotoUrls = useMemo(() => {
     const urls = [venue?.photoUrl, ...(venue?.photoUrls ?? [])].filter((url): url is string => Boolean(url));
     return urls.filter((url, index) => url.length > 0 && urls.indexOf(url) === index);
@@ -1444,14 +1453,16 @@ export function VenuePageClient({
               {alerting ? "Alerting 🔔" : "Alert Me"}
             </button>
 
-            <button
-              type="button"
-              onClick={openVibeReport}
-              disabled={!authChecked}
-              className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-all hover:bg-[#A896FF] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            <Link
+              href={vibeCheckHref}
+              onClick={() => {
+                haptic.light();
+                trackAnalytics("check_in", { venue_id: venue.id });
+              }}
+              className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
             >
               Report the vibe
-            </button>
+            </Link>
           </div>
         </div>
       )}

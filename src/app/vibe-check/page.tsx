@@ -54,7 +54,7 @@ export default async function VibeCheckPage({ searchParams }: VibeCheckPageProps
 
   return (
     <VibeCheckClient
-      initialVenueId={firstParam(params.venueId)}
+      initialVenueId={firstParam(params.venue) || firstParam(params.venueId)}
       initialVenueName={firstParam(params.venueName)}
       returnPath={returnPath}
     />

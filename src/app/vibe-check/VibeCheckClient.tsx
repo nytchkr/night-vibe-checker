@@ -8,7 +8,7 @@ import { motion } from "framer-motion";
 import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
-import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
+import type { APIResponse, ConsumerVenue, CrowdFeel, ReportedBusyness, VenueSignal } from "@/types";
 
 type VibeCheckClientProps = {
   initialVenueId: string;
@@ -64,6 +64,87 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
   }
 }
 
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function isDuplicateCheckInError(status: number, json: APIResponse<unknown>) {
+  if (status !== 429) return false;
+
+  const code = json.error?.code;
+  const message = json.error?.message?.toLowerCase() ?? "";
+  return (
+    code === "DUPLICATE_CHECK_IN" ||
+    (message.includes("already reported") && message.includes("recent"))
+  );
+}
+
+function SignalPreview({ signal }: { signal: VenueSignal | null }) {
+  if (!signal) {
+    return (
+      <div className="mt-5 rounded-2xl border border-white/[0.07] bg-white/[0.045] px-4 py-4 text-left">
+        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/35">Live signal</p>
+        <p className="mt-2 text-sm font-semibold text-white/60">Updating the venue signal...</p>
+      </div>
+    );
+  }
+
+  const busynessPercent = signal.busyness0To100 == null ? null : clampPercent(signal.busyness0To100);
+  const malePercent = signal.mfRatio == null ? null : clampPercent(signal.mfRatio);
+  const femalePercent = malePercent == null ? null : 100 - malePercent;
+
+  return (
+    <div className="mt-5 rounded-2xl border border-white/[0.07] bg-white/[0.045] px-4 py-4 text-left">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#00F5D4]">Live signal updated</p>
+          <p className="mt-1 text-sm font-semibold text-white/55">
+            {signal.sampleSize} {signal.sampleSize === 1 ? "report" : "reports"}
+          </p>
+        </div>
+        <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-emerald-300">
+          {signal.busynessSource ?? "crowd"}
+        </span>
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-end justify-between gap-3">
+          <p className="text-sm font-black text-white">Busyness</p>
+          <p className="text-sm font-black text-white">
+            {busynessPercent == null ? "--" : busynessPercent}
+            <span className="text-xs text-white/35">/100</span>
+          </p>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-[#00F5D4]"
+            style={{ width: `${busynessPercent ?? 0}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-sm font-black text-white">Crowd read</p>
+        {malePercent == null || femalePercent == null ? (
+          <p className="mt-2 text-sm font-semibold text-white/50">No M/F read yet</p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm font-semibold">
+              <span style={{ color: "#4F9DFF" }}>~{malePercent}% M</span>
+              <span className="text-white/35"> / </span>
+              <span style={{ color: "#F0568C" }}>~{femalePercent}% F</span>
+            </p>
+            <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
+              <div className="h-full bg-[#4F9DFF]" style={{ width: `${malePercent}%` }} />
+              <div className="h-full bg-[#F0568C]" style={{ width: `${femalePercent}%` }} />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function VibeCheckClient({
   initialVenueId,
   initialVenueName,
@@ -86,6 +167,8 @@ export default function VibeCheckClient({
   const [venuesLoading, setVenuesLoading] = useState(false);
   const [venuesError, setVenuesError] = useState<string | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState("");
+  const [lockedVenue, setLockedVenue] = useState<ConsumerVenue | null>(null);
+  const [lockedVenueLoading, setLockedVenueLoading] = useState(false);
 
   const [busyness, setBusyness] = useState<BusynessOption["value"] | null>(null);
   const [crowdFeel, setCrowdFeel] = useState<CrowdFeel | null>(null);
@@ -94,6 +177,7 @@ export default function VibeCheckClient({
   const [done, setDone] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [submitError, setSubmitError] = useState<{ type: "duplicate" | "generic"; msg: string } | null>(null);
+  const [submittedSignal, setSubmittedSignal] = useState<VenueSignal | null>(null);
 
   useEffect(() => {
     if (venueId) return;
@@ -122,6 +206,36 @@ export default function VibeCheckClient({
     };
   }, [venueId]);
 
+  useEffect(() => {
+    if (!venueId || venueName) {
+      setLockedVenue(null);
+      return;
+    }
+
+    let active = true;
+    setLockedVenueLoading(true);
+
+    fetch(`/api/venues/${encodeURIComponent(venueId)}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`${res.status}`);
+        return res.json() as Promise<APIResponse<{ venue: ConsumerVenue }>>;
+      })
+      .then((json) => {
+        if (!active) return;
+        setLockedVenue(json.data?.venue ?? null);
+      })
+      .catch(() => {
+        if (active) setLockedVenue(null);
+      })
+      .finally(() => {
+        if (active) setLockedVenueLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [venueId, venueName]);
+
   const selectedVenue = useMemo(
     () => venues.find((venue) => venue.id === selectedVenueId) ?? null,
     [selectedVenueId, venues],
@@ -140,7 +254,8 @@ export default function VibeCheckClient({
   }, [venueSearch, venues]);
 
   const effectiveVenueId = venueId || selectedVenue?.id || "";
-  const effectiveVenueName = venueId ? venueName : selectedVenue?.name ?? "";
+  const effectiveVenueName = venueId ? (venueName || lockedVenue?.name || "") : selectedVenue?.name ?? "";
+  const effectiveSignal = submittedSignal ?? lockedVenue?.signal ?? selectedVenue?.signal ?? null;
   const selectedBusyness = BUSYNESS_OPTIONS.find((option) => option.value === busyness);
   const venueBackHref = effectiveVenueId ? `/venues/${encodeURIComponent(effectiveVenueId)}` : "/explore";
   const venueBackLabel = effectiveVenueName ? `Back to ${effectiveVenueName}` : "Back to venues";
@@ -189,22 +304,24 @@ export default function VibeCheckClient({
         }),
       });
 
+      const json = await res.json().catch(() => ({} as APIResponse<{ signal?: VenueSignal }>));
+
       if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        if (res.status === 429 && json?.error?.code === "DUPLICATE_CHECK_IN") {
+        if (isDuplicateCheckInError(res.status, json)) {
           setSubmitError({
             type: "duplicate",
-            msg: "You already reported this spot recently. Try again in a few minutes.",
+            msg: "You already reported the vibe here recently — come back in a bit!",
           });
         } else {
           setSubmitError({
             type: "generic",
-            msg: json?.error?.message ?? "Couldn't submit — tap to retry",
+            msg: json.error?.message ?? "Couldn't submit — tap to retry",
           });
         }
         return;
       }
 
+      setSubmittedSignal(json.data?.signal ?? null);
       haptic.success();
       setDone(true);
       trackAnalytics("vibe_check_submitted", {
@@ -280,8 +397,10 @@ export default function VibeCheckClient({
             <p className="mb-3 truncate text-[17px] font-medium text-white/80">
               {effectiveVenueName || "This venue"}
             </p>
-            <h1 className="font-display text-2xl font-black">Vibe logged 🎯</h1>
-            <p className="mt-2 text-sm font-semibold text-white/70">Thanks for keeping it real.</p>
+            <h1 className="font-display text-2xl font-black">Vibe reported!</h1>
+            <p className="mt-2 text-sm font-semibold text-white/70">Thanks. The live read is updated now.</p>
+
+            <SignalPreview signal={effectiveSignal} />
 
             <article
               aria-describedby="vibe-report-card-description"
@@ -364,7 +483,7 @@ export default function VibeCheckClient({
             Back
           </Link>
           <h1 className="font-display truncate text-base font-bold text-[#F9FAFB]">
-            {venueName || "Report Vibe"}
+            {effectiveVenueName || "Report Vibe"}
           </h1>
         </div>
       </header>
@@ -401,7 +520,9 @@ export default function VibeCheckClient({
           {venueId ? (
             // Read-only locked display when venueId param is present
             <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB]">
-              <span className="flex-1 truncate">{venueName || venueId}</span>
+              <span className="flex-1 truncate">
+                {effectiveVenueName || (lockedVenueLoading ? "Loading venue..." : venueId)}
+              </span>
               <svg
                 width="14"
                 height="14"
