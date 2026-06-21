@@ -24,6 +24,15 @@ type VenueActivityItem = {
   minutesAgo: number;
 };
 
+type VenueTip = {
+  id: string;
+  venueId: string;
+  userId: string | null;
+  tip: string;
+  helpfulCount: number;
+  createdAt: string;
+};
+
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
   const ms = Date.now() - new Date(iso).getTime();
@@ -267,6 +276,11 @@ export function VenuePageClient({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
+  const [tips, setTips] = useState<VenueTip[]>([]);
+  const [tipsLoading, setTipsLoading] = useState(false);
+  const [tipDraft, setTipDraft] = useState("");
+  const [tipSubmitting, setTipSubmitting] = useState(false);
+  const [tipError, setTipError] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const photoStripRef = useRef<HTMLDivElement>(null);
 
@@ -325,6 +339,33 @@ export function VenuePageClient({
     }
 
     void fetchVenueActivity();
+    return () => {
+      cancelled = true;
+    };
+  }, [venue?.id, venueId]);
+
+  useEffect(() => {
+    const tipsVenueId = venue?.id ?? venueId;
+    if (!tipsVenueId) return;
+
+    let cancelled = false;
+    setTipsLoading(true);
+
+    async function fetchTips() {
+      try {
+        const res = await fetch(`/api/venues/${encodeURIComponent(tipsVenueId)}/tips`);
+        if (!res.ok) throw new Error(`${res.status}`);
+        const json = await res.json();
+        const nextTips = json?.data?.tips;
+        if (!cancelled) setTips(Array.isArray(nextTips) ? nextTips : []);
+      } catch {
+        if (!cancelled) setTips([]);
+      } finally {
+        if (!cancelled) setTipsLoading(false);
+      }
+    }
+
+    void fetchTips();
     return () => {
       cancelled = true;
     };
@@ -482,6 +523,65 @@ export function VenuePageClient({
     }
   }
 
+  async function submitTip() {
+    if (tipSubmitting) return;
+
+    if (!accessToken) {
+      router.push(`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`);
+      return;
+    }
+
+    const tip = tipDraft.trim();
+    if (tip.length < 10 || tip.length > 200) {
+      setTipError("Tips must be 10 to 200 characters.");
+      return;
+    }
+
+    setTipSubmitting(true);
+    setTipError(null);
+
+    try {
+      const res = await fetch(`/api/venues/${encodeURIComponent(venue?.id ?? venueId)}/tips`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ tip }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      const savedTip = json?.data?.tip;
+      if (savedTip) {
+        setTips((current) => [savedTip as VenueTip, ...current].slice(0, 10));
+        setTipDraft("");
+      }
+    } catch {
+      setTipError("Could not share that tip. Try again.");
+    } finally {
+      setTipSubmitting(false);
+    }
+  }
+
+  async function markTipHelpful(tipId: string) {
+    const previousTips = tips;
+    setTips((current) =>
+      current.map((tip) => tip.id === tipId ? { ...tip, helpfulCount: tip.helpfulCount + 1 } : tip),
+    );
+
+    try {
+      const res = await fetch(`/api/tips/${encodeURIComponent(tipId)}/helpful`, { method: "POST" });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      const helpfulCount = json?.data?.tip?.helpfulCount;
+      if (typeof helpfulCount === "number") {
+        setTips((current) => current.map((tip) => tip.id === tipId ? { ...tip, helpfulCount } : tip));
+      }
+    } catch {
+      setTips(previousTips);
+    }
+  }
+
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessPercent = clampPercent(busyness);
@@ -526,6 +626,8 @@ export function VenuePageClient({
   const heroPhotoUrl = hasGallery
     ? galleryPhotoUrls[Math.min(activePhotoIndex, galleryPhotoUrls.length - 1)]
     : venue?.photoUrl;
+  const tipCharactersRemaining = 200 - tipDraft.length;
+  const canSubmitTip = tipDraft.trim().length >= 10 && tipDraft.trim().length <= 200 && !tipSubmitting;
 
   useEffect(() => {
     setActivePhotoIndex(0);
@@ -803,6 +905,66 @@ export function VenuePageClient({
             </section>
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
+
+            <section className="space-y-4" role="region" aria-label="Tips from locals">
+              <h2 className="text-lg font-bold text-white">💡 Tips from locals</h2>
+
+              {tipsLoading ? (
+                <div className="space-y-3" role="status" aria-label="Loading tips">
+                  <Skeleton className="h-16 rounded-2xl bg-white/10" />
+                  <Skeleton className="h-16 rounded-2xl bg-white/10" />
+                </div>
+              ) : tips.length > 0 ? (
+                <ul className="space-y-3">
+                  {tips.map((tip) => (
+                    <li key={tip.id} className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
+                      <p className="text-sm leading-relaxed text-white/75">{tip.tip}</p>
+                      <button
+                        type="button"
+                        onClick={() => markTipHelpful(tip.id)}
+                        className="mt-3 text-xs font-bold text-[#00F5D4] transition-colors hover:text-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                      >
+                        {tip.helpfulCount} found this helpful
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/30">
+                  Be the first to leave a tip!
+                </p>
+              )}
+
+              <div className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
+                <label htmlFor="venue-tip" className="text-sm font-black text-white">Add a tip</label>
+                <textarea
+                  id="venue-tip"
+                  value={tipDraft}
+                  onChange={(event) => {
+                    setTipDraft(event.target.value.slice(0, 200));
+                    if (tipError) setTipError(null);
+                  }}
+                  maxLength={200}
+                  rows={3}
+                  placeholder="Share the best time to go, where to stand, or what to order."
+                  className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#00F5D4]/60"
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <span className={`text-xs ${tipCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
+                    {tipCharactersRemaining} characters remaining
+                  </span>
+                  <button
+                    type="button"
+                    onClick={submitTip}
+                    disabled={!canSubmitTip}
+                    className="rounded-xl bg-[#00F5D4] px-4 py-2 text-sm font-black text-[#0A0A0F] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+                  >
+                    {tipSubmitting ? "Sharing" : "Share"}
+                  </button>
+                </div>
+                {tipError && <p className="text-xs font-medium text-rose-300">{tipError}</p>}
+              </div>
+            </section>
 
             <div className="grid grid-cols-2 gap-3" role="group" aria-label="Venue sharing and directions">
               <a
