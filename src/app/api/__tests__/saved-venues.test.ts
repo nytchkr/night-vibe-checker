@@ -19,7 +19,7 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
-vi.mock("@supabase/auth-helpers-nextjs", () => ({
+vi.mock("@supabase/ssr", () => ({
   createServerClient: vi.fn(() => ({
     auth: { getUser: mockCookieGetUser },
   })),
@@ -79,18 +79,19 @@ describe("/api/saved-venues", () => {
     expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
     await expect(res.json()).resolves.toMatchObject({
       status: "success",
+      place_ids: ["google-place-text-id", "uuid-or-slug-id"],
       venueIds: ["google-place-text-id", "uuid-or-slug-id"],
       data: { savedVenueIds: ["google-place-text-id", "uuid-or-slug-id"] },
     });
   });
 
-  it("saves a non-UUID venue ID for the authenticated user", async () => {
+  it("saves a non-UUID place_id for the authenticated user", async () => {
     mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
     const upsert = vi.fn(async () => ({ error: null }));
     mockFrom.mockReturnValue({ upsert });
 
     const { POST } = await import("../saved-venues/route");
-    const res = await POST(request("POST", { venueId: "place_text_123" }, "token"));
+    const res = await POST(request("POST", { place_id: "place_text_123" }, "token"));
 
     expect(res.status).toBe(200);
     expect(upsert).toHaveBeenCalledWith(
@@ -99,9 +100,25 @@ describe("/api/saved-venues", () => {
     );
     await expect(res.json()).resolves.toMatchObject({
       status: "success",
+      ok: true,
       venueId: "place_text_123",
       saved: true,
     });
+  });
+
+  it("still accepts legacy venueId bodies", async () => {
+    mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+    const upsert = vi.fn(async () => ({ error: null }));
+    mockFrom.mockReturnValue({ upsert });
+
+    const { POST } = await import("../saved-venues/route");
+    const res = await POST(request("POST", { venueId: "legacy-id" }, "token"));
+
+    expect(res.status).toBe(200);
+    expect(upsert).toHaveBeenCalledWith(
+      { user_id: "user-123", venue_id: "legacy-id" },
+      { onConflict: "user_id,venue_id" },
+    );
   });
 });
 

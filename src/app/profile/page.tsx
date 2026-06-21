@@ -33,6 +33,7 @@ type ProfileCheckInRecord = {
 };
 
 type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
+  place_ids?: string[];
   venueIds?: string[];
   savedVenueIds?: string[];
 };
@@ -373,7 +374,11 @@ function SavedVenuesSection({
   loading: boolean;
   error: string;
 }) {
-  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
+  const venuesById = new Map<string, ConsumerVenue>();
+  venues.forEach((venue) => {
+    venuesById.set(venue.id, venue);
+    venuesById.set(venue.placeId, venue);
+  });
   const savedVenues = savedVenueIds
     .slice(0, 5)
     .map((id) => venuesById.get(id) ?? { id, name: id, category: "Saved venue" });
@@ -642,7 +647,7 @@ function ProfileContent() {
 
       const savedJson = (await savedRes.json()) as SavedVenueIdsResponse;
       const venuesJson = (await venuesRes.json()) as VenuesResponse;
-      const ids = savedJson.venueIds ?? savedJson.savedVenueIds ?? savedJson.data?.savedVenueIds ?? [];
+      const ids = savedJson.place_ids ?? savedJson.venueIds ?? savedJson.savedVenueIds ?? savedJson.data?.savedVenueIds ?? [];
 
       setSavedVenueIds(Array.isArray(ids) ? ids : []);
       setVenues(Array.isArray(venuesJson.data?.venues) ? venuesJson.data.venues : []);

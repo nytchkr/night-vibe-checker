@@ -1,25 +1,32 @@
-// ============================================================
-// GET/POST/DELETE /api/saved-venues
-// Authenticated saved venue IDs for the current user.
-// ============================================================
+/*
+-- CREATE TABLE IF NOT EXISTS saved_venues (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE, place_id text NOT NULL, created_at timestamptz DEFAULT now(), UNIQUE(user_id, place_id));
+*/
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
-const BodySchema = z.object({
-  venueId: z.string().trim().min(1).max(200),
-});
+export const dynamic = "force-dynamic";
+
+const BodySchema = z
+  .object({
+    place_id: z.string().trim().min(1).max(200).optional(),
+    venueId: z.string().trim().min(1).max(200).optional(),
+  })
+  .transform((body) => ({ placeId: body.place_id ?? body.venueId }))
+  .refine((body): body is { placeId: string } => Boolean(body.placeId), {
+    message: "place_id is required.",
+  });
 
 const PRIVATE_GET_CACHE_HEADERS = {
   "Cache-Control": "private, no-cache",
 };
 
 type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
+  place_ids: string[];
   venueIds: string[];
   savedVenueIds: string[];
 };
@@ -39,14 +46,13 @@ async function getBearerUserId(authHeader: string | null): Promise<string | null
   return data.user.id;
 }
 
-async function getCookieUserId(): Promise<string | null> {
-  const cookieStore = await cookies();
+async function getCookieUserId(req: NextRequest): Promise<string | null> {
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => cookieStore.getAll().map(({ name, value }) => ({ name, value })),
+        getAll: () => req.cookies.getAll(),
       },
       auth: {
         persistSession: false,
@@ -60,7 +66,7 @@ async function getCookieUserId(): Promise<string | null> {
 }
 
 async function getUserId(req: NextRequest): Promise<string | null> {
-  return (await getCookieUserId()) ?? (await getBearerUserId(req.headers.get("Authorization")));
+  return (await getCookieUserId(req)) ?? (await getBearerUserId(req.headers.get("Authorization")));
 }
 
 function missingSupabaseConfigResponse(
@@ -100,13 +106,13 @@ async function readVenueId(req: NextRequest, meta: { cached: boolean; generatedA
   if (!parsed.success) {
     return {
       response: NextResponse.json<APIResponse<never>>(
-        { status: "error", error: { code: "VALIDATION_ERROR", message: "venueId is required." }, meta },
+        { status: "error", error: { code: "VALIDATION_ERROR", message: "place_id is required." }, meta },
         { status: 422 }
       ),
     };
   }
 
-  return { venueId: parsed.data.venueId };
+  return { placeId: parsed.data.placeId };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -141,6 +147,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<SavedVenueIdsResponse>({
     status: "success",
+    place_ids: savedVenueIds,
     venueIds: savedVenueIds,
     savedVenueIds,
     data: { savedVenueIds },
@@ -166,7 +173,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (parsed.response) return parsed.response;
 
   const { error } = await supabaseAdmin.from("saved_venues").upsert(
-    { user_id: userId, venue_id: parsed.venueId },
+    { user_id: userId, venue_id: parsed.placeId },
     { onConflict: "user_id,venue_id" }
   );
 
@@ -180,11 +187,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<SavedVenueMutationResponse>({
     status: "success",
-    venueId: parsed.venueId,
+    ok: true,
+    venueId: parsed.placeId,
     saved: true,
-    data: { venueId: parsed.venueId, saved: true },
+    data: { venueId: parsed.placeId, saved: true },
     meta,
-  });
+  } as SavedVenueMutationResponse & { ok: true });
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
@@ -208,7 +216,7 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
     .from("saved_venues")
     .delete()
     .eq("user_id", userId)
-    .eq("venue_id", parsed.venueId);
+    .eq("venue_id", parsed.placeId);
 
   if (error) {
     console.error("[saved-venues DELETE] DB error:", error);
@@ -220,9 +228,10 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<SavedVenueMutationResponse>({
     status: "success",
-    venueId: parsed.venueId,
+    ok: true,
+    venueId: parsed.placeId,
     saved: false,
-    data: { venueId: parsed.venueId, saved: false },
+    data: { venueId: parsed.placeId, saved: false },
     meta,
-  });
+  } as SavedVenueMutationResponse & { ok: true });
 }

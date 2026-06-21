@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Clock, Heart, MapPin, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, MapPin, Users, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { useOnboardingGate } from "@/components/OnboardingGate";
+import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
@@ -416,8 +417,6 @@ export function VenuePageClient({
   const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [savePending, setSavePending] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
@@ -565,39 +564,19 @@ export function VenuePageClient({
   }, [venue?.id, venueId]);
 
   useEffect(() => {
-    if (!venueId) return;
     let cancelled = false;
     const client = createBrowserClient();
 
-    async function fetchSavedState() {
+    async function fetchAuthState() {
       const { data } = await client.auth.getSession();
       const token = data.session?.access_token ?? null;
       if (cancelled) return;
 
       setAccessToken(token);
       setAuthChecked(true);
-
-      if (!token) {
-        setSaved(false);
-        return;
-      }
-
-      try {
-        const savedRes = await fetch("/api/saved-venues", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (savedRes.ok) {
-          const json = await savedRes.json();
-          const ids = json?.venueIds ?? json?.savedVenueIds ?? json?.data?.savedVenueIds ?? [];
-          if (!cancelled) setSaved(Array.isArray(ids) && ids.includes(venueId));
-        }
-      } catch {
-        // Saved lookup is non-critical; leave defaults if it fails.
-      }
     }
 
-    void fetchSavedState();
+    void fetchAuthState();
 
     const {
       data: { subscription },
@@ -605,22 +584,13 @@ export function VenuePageClient({
       const token = session?.access_token ?? null;
       setAccessToken(token);
       setAuthChecked(true);
-      if (!token) {
-        setSaved(false);
-      }
     });
 
     return () => {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [venueId]);
-
-  useEffect(() => {
-    if (!accessToken || savePending) return;
-    if (!consumePendingAction(`save:${venueId}`)) return;
-    void toggleSaved();
-  }, [accessToken, consumePendingAction, savePending, venueId]);
+  }, []);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -649,47 +619,6 @@ export function VenuePageClient({
     setVibeError(null);
     setVibeStep(1);
     setVibeReportOpen(true);
-  }
-
-  async function toggleSaved() {
-    if (savePending) return;
-
-    const token = await getActiveAccessToken();
-    if (!token) {
-      await requireAuth({
-        id: `save:${venueId}`,
-        label: venue ? `Sign in to save ${venue.name}.` : "Sign in to save this venue.",
-        returnTo: currentPath(),
-        onAuthenticated: toggleSaved,
-      });
-      return;
-    }
-
-    const nextSaved = !saved;
-    if (nextSaved) {
-      haptic.light();
-    } else {
-      haptic.error();
-    }
-    setSaved(nextSaved);
-    setSavePending(true);
-
-    try {
-      const res = await fetch("/api/saved-venues", {
-        method: nextSaved ? "POST" : "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ venueId }),
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      trackAnalytics(nextSaved ? "save_venue" : "unsave_venue", { venueId });
-    } catch {
-      setSaved(!nextSaved);
-    } finally {
-      setSavePending(false);
-    }
   }
 
   async function submitVenueReport() {
@@ -934,18 +863,10 @@ export function VenuePageClient({
                 <span aria-hidden="true">&lt;</span>
               </button>
               <div className="absolute right-4 top-4 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => void toggleSaved()}
-                  disabled={!authChecked || savePending}
-                  aria-label={saved ? "Remove from saved" : "Save venue"}
-                  aria-pressed={saved}
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 shadow-lg backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-60 ${
-                    saved ? "text-[#F0568C]" : "text-white/70 hover:text-white"
-                  }`}
-                >
-                  <Heart size={19} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
-                </button>
+                <SaveButton
+                  placeId={venue.placeId}
+                  className="h-11 w-11 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55"
+                />
                 <ShareButton
                   {...buildVenueShareData(venue)}
                   className="h-11 w-11 border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55 hover:text-white focus-visible:ring-[#8B6CFF]/60"

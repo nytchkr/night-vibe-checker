@@ -6,6 +6,7 @@ import { MapPin, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
+import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
@@ -317,6 +318,10 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             <div className="mt-3 flex items-center justify-between gap-3">
               <MiniMFRatio venue={venue} />
               <div className="flex shrink-0 items-center gap-2">
+                <SaveButton
+                  placeId={venue.placeId}
+                  className="h-9 w-9 text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
+                />
                 <ShareButton
                   {...buildVenueShareData(venue)}
                   className="h-9 w-9 text-white/75 hover:text-white focus-visible:ring-[#8B6CFF]/70"
