@@ -53,6 +53,17 @@ type PlacesNearbyResult = {
   photos?: { photo_reference?: string }[];
 };
 
+type PlaceDetailsResponse = {
+  status?: string;
+  error_message?: string;
+  result?: {
+    opening_hours?: {
+      weekday_text?: string[];
+      open_now?: boolean;
+    };
+  };
+};
+
 export type DiscoveredVenue = {
   placeId: string;
   zoneId: string;
@@ -66,6 +77,8 @@ export type DiscoveredVenue = {
   priceLevel?: 1 | 2 | 3 | 4;
   photoReference?: string;
   photoUrl?: string;
+  openingHours?: string[];
+  openNow?: boolean;
 };
 
 function toDiscoveredVenue(
@@ -90,6 +103,40 @@ function toDiscoveredVenue(
     photoReference,
     // photoUrl resolved asynchronously in discoverZone after dedup
     photoUrl: undefined,
+  };
+}
+
+async function fetchPlaceHours(placeId: string): Promise<{ openingHours?: string[]; openNow?: boolean }> {
+  const params = new URLSearchParams({
+    place_id: placeId,
+    fields: "opening_hours",
+    key: apiKey(),
+  });
+
+  const res = await fetch(`${PLACES_BASE}/details/json?${params}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new PlacesApiError(`Place details HTTP ${res.status}`, res.status);
+
+  const json = (await res.json()) as PlaceDetailsResponse;
+  if (json.status === "REQUEST_DENIED") {
+    throw new PlacesApiError(`Places API denied: ${json.error_message}`, 403);
+  }
+  if (json.status === "OVER_QUERY_LIMIT") {
+    throw new PlacesApiError("Google Places quota exceeded.", 429);
+  }
+  if (json.status !== "OK" && json.status !== "ZERO_RESULTS") {
+    throw new PlacesApiError(`Places details status: ${json.status}`, 502);
+  }
+
+  const weekdayText = json.result?.opening_hours?.weekday_text;
+  const openingHours = Array.isArray(weekdayText)
+    ? weekdayText.filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
+    : undefined;
+
+  return {
+    openingHours: openingHours?.length ? openingHours : undefined,
+    openNow: json.result?.opening_hours?.open_now,
   };
 }
 
@@ -149,6 +196,14 @@ export async function discoverZone(zone: LaunchZone): Promise<DiscoveredVenue[]>
     venues.map(async (venue) => {
       if (venue.photoReference) {
         venue.photoUrl = await resolvePhotoUrl(venue.photoReference);
+      }
+      try {
+        const hours = await fetchPlaceHours(venue.placeId);
+        venue.openingHours = hours.openingHours;
+        venue.openNow = hours.openNow;
+      } catch {
+        venue.openingHours = undefined;
+        venue.openNow = undefined;
       }
     })
   );

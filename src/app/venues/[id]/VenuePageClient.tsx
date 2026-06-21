@@ -782,6 +782,7 @@ export function VenuePageClient({
   const reportCharactersRemaining = 200 - reportNotes.length;
   const selectedVibeBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
   const canSubmitVibe = Boolean(selectedVibeBusynessOption && !vibeSubmitting);
+  const hoursPanelId = "venue-hours-list";
 
   useEffect(() => {
     setActivePhotoIndex(0);
@@ -936,6 +937,51 @@ export function VenuePageClient({
                     </span>
                   </div>
                 )}
+                <section className="mt-4" role="region" aria-label="Venue hours">
+                  <button
+                    type="button"
+                    onClick={() => setHoursExpanded((expanded) => !expanded)}
+                    className="flex w-full items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                    aria-expanded={hoursExpanded}
+                    aria-controls={hoursPanelId}
+                  >
+                    <span>
+                      <span className="block text-sm font-black text-white">Hours</span>
+                      <span className="mt-1 block text-[13px] font-medium text-white/45">
+                        {hoursSummary.hasHours ? hoursSummary.todayStatus : "Hours not available"}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      size={18}
+                      className={`shrink-0 text-white/45 transition-transform ${hoursExpanded ? "rotate-180" : ""}`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  {hoursExpanded && (
+                    hoursSummary.hasHours ? (
+                      <ul id={hoursPanelId} className="mt-2 space-y-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+                        {hoursSummary.weekHours.map((hour, index) => {
+                          const isToday = hour.day === hoursSummary.today;
+                          return (
+                            <li
+                              key={`${hour.day}-${index}`}
+                              className={`grid grid-cols-[6.5rem_1fr] gap-3 text-[13px] ${
+                                isToday ? "text-[#8B6CFF]" : hour.closed ? "text-white/35" : "text-white/55"
+                              }`}
+                            >
+                              <span className="font-bold">{hour.day}</span>
+                              <span>{hour.hours}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p id={hoursPanelId} className="mt-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-[13px] font-medium text-white/45">
+                        Hours not available
+                      </p>
+                    )
+                  )}
+                </section>
               </div>
             </div>
           </section>
@@ -979,46 +1025,6 @@ export function VenuePageClient({
 
           <div className="mx-auto max-w-lg space-y-6 px-4 py-5">
             <WhoHereSection activity={venueActivity} />
-
-            {hoursSummary.hasHours && (
-              <section className="space-y-3" role="region" aria-label="Venue hours">
-                <button
-                  type="button"
-                  onClick={() => setHoursExpanded((expanded) => !expanded)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-                  aria-expanded={hoursExpanded}
-                  aria-controls="venue-hours-list"
-                >
-                  <span>
-                    <span className="block text-sm font-black text-white">Hours</span>
-                    <span className="mt-1 block text-[13px] font-medium text-white/45">{hoursSummary.todayStatus}</span>
-                  </span>
-                  <ChevronDown
-                    size={18}
-                    className={`shrink-0 text-white/45 transition-transform ${hoursExpanded ? "rotate-180" : ""}`}
-                    aria-hidden="true"
-                  />
-                </button>
-                {hoursExpanded && (
-                  <ul id="venue-hours-list" className="space-y-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-                    {hoursSummary.weekHours.map((hour, index) => {
-                      const isToday = hour.day === hoursSummary.today;
-                      return (
-                        <li
-                          key={`${hour.day}-${index}`}
-                          className={`grid grid-cols-[6.5rem_1fr] gap-3 text-[13px] ${
-                            isToday ? "text-[#8B6CFF]" : hour.closed ? "text-white/35" : "text-white/55"
-                          }`}
-                        >
-                          <span className="font-bold">{hour.day}</span>
-                          <span>{hour.hours}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-            )}
 
             <section className="space-y-4" role="region" aria-label="Current venue signal">
               <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Right now</p>

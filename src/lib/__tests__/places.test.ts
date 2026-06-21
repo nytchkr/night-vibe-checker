@@ -10,6 +10,29 @@ describe("Google Places discovery", () => {
   it("uses legacy Nearby Search for the launch zone and dedupes by place_id", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input.toString());
+      if (url.pathname.endsWith("/details/json")) {
+        expect(url.searchParams.get("fields")).toBe("opening_hours");
+        expect(url.searchParams.get("key")).toBe("places-test-key");
+
+        return Response.json({
+          status: "OK",
+          result: {
+            opening_hours: {
+              open_now: true,
+              weekday_text: [
+                "Monday: 5:00 PM – 2:00 AM",
+                "Tuesday: 5:00 PM – 2:00 AM",
+                "Wednesday: 5:00 PM – 2:00 AM",
+                "Thursday: 5:00 PM – 2:00 AM",
+                "Friday: 5:00 PM – 2:00 AM",
+                "Saturday: 5:00 PM – 2:00 AM",
+                "Sunday: Closed",
+              ],
+            },
+          },
+        });
+      }
+
       const type = url.searchParams.get("type");
 
       expect(url.toString()).toContain("/nearbysearch/json");
@@ -43,14 +66,21 @@ describe("Google Places discovery", () => {
 
     const venues = await discoverZone(LAUNCH_ZONE);
     const urls = fetchMock.mock.calls.map(([input]) => new URL(input.toString()));
+    const nearbyUrls = urls.filter((url) => url.pathname.endsWith("/nearbysearch/json"));
+    const detailUrls = urls.filter((url) => url.pathname.endsWith("/details/json"));
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(urls.map((url) => url.searchParams.get("type"))).toEqual([
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(nearbyUrls.map((url) => url.searchParams.get("type"))).toEqual([
       "bar",
       "night_club",
       "restaurant",
     ]);
     expect(urls.every((url) => url.hostname === "maps.googleapis.com")).toBe(true);
+    expect(detailUrls.map((url) => url.searchParams.get("place_id"))).toEqual([
+      "place-1",
+      "place-night_club",
+      "place-restaurant",
+    ]);
     expect(venues.map((venue) => venue.placeId)).toEqual([
       "place-1",
       "place-night_club",
@@ -68,6 +98,16 @@ describe("Google Places discovery", () => {
       photoReference: "bar-photo-reference",
       photoUrl:
         "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=bar-photo-reference&key=places-test-key",
+      openingHours: [
+        "Monday: 5:00 PM – 2:00 AM",
+        "Tuesday: 5:00 PM – 2:00 AM",
+        "Wednesday: 5:00 PM – 2:00 AM",
+        "Thursday: 5:00 PM – 2:00 AM",
+        "Friday: 5:00 PM – 2:00 AM",
+        "Saturday: 5:00 PM – 2:00 AM",
+        "Sunday: Closed",
+      ],
+      openNow: true,
     });
   });
 
