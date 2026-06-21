@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { triggerHapticFeedback } from "@/lib/haptics";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
 
@@ -624,6 +625,7 @@ export function VenuePageClient({
 
             <Link
               href={reportUrl}
+              onClick={() => triggerHapticFeedback([40, 20, 40])}
               className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#00F5D4] px-5 text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
             >
               Check In

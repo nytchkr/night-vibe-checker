@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { triggerHapticFeedback } from "@/lib/haptics";
 
 type PushState = "idle" | "saving" | "success" | "error" | "unsupported" | "denied";
 
@@ -80,6 +81,7 @@ export function PushOptIn() {
 
       setState("success");
       setMessage("You're in 🎯");
+      triggerHapticFeedback(20);
     } catch {
       setState("error");
       setMessage("Could not enable push notifications.");
@@ -111,7 +113,7 @@ export function PushOptIn() {
           disabled={state === "saving" || subscribed}
           className="shrink-0 rounded-full bg-[#00F5D4] px-4 text-xs font-black text-[#0A0A0F] hover:bg-[#2fffe2]"
         >
-          {state === "saving" ? "Saving..." : subscribed ? "On" : "Notify me"}
+          {state === "saving" ? "Saving..." : subscribed ? "On" : "Alert Me"}
         </Button>
       </CardContent>
     </Card>

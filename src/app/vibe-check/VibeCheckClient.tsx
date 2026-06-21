@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { triggerHapticFeedback } from "@/lib/haptics";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 type VibeCheckClientProps = {
@@ -191,6 +192,7 @@ export default function VibeCheckClient({
         return;
       }
 
+      triggerHapticFeedback([50, 30, 50]);
       setDone(true);
       track("vibe_submitted", {
         busyness: selectedBusyness?.submitValue ?? "",

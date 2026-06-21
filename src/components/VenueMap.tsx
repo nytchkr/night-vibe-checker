@@ -8,6 +8,7 @@ import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
+import { triggerHapticFeedback } from "@/lib/haptics";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import MapBottomSheet from "@/components/MapBottomSheet";
@@ -416,6 +417,7 @@ export function VenueMap({
                 }}
                 eventHandlers={{
                   click: () => {
+                    triggerHapticFeedback(15);
                     setSelectedVenueId(venue.id);
                     setSheetSnap("mid");
                   },

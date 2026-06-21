@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { track } from "@vercel/analytics";
+import { triggerHapticFeedback } from "@/lib/haptics";
 
 type VenueRatingValue = "up" | "down";
 
@@ -109,6 +110,7 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
     setPendingRating(rating);
     setError(null);
     setRatingState(nextState);
+    triggerHapticFeedback(30);
 
     try {
       const res = await fetch("/api/venue-ratings", {

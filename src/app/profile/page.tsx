@@ -18,6 +18,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PushOptIn } from "@/components/PushOptIn";
 import { getBusynessState } from "@/lib/busyness";
+import {
+  getHapticsPreference,
+  setHapticsPreference,
+  triggerHapticFeedback,
+  type HapticsPreference,
+} from "@/lib/haptics";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import type { ConsumerVenue } from "@/types";
 
@@ -278,8 +284,11 @@ export default function ProfilePage() {
   const [savedVenues, setSavedVenues] = useState<ConsumerVenue[]>([]);
   const [checkInsLoading, setCheckInsLoading] = useState(false);
   const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
+  const [hapticsPreference, setHapticsPreferenceState] = useState<HapticsPreference>("on");
 
   useEffect(() => {
+    setHapticsPreferenceState(getHapticsPreference());
+
     const client = createBrowserClient();
 
     client.auth.getSession().then(({ data }) => {
@@ -394,6 +403,7 @@ export default function ProfilePage() {
 
   const userEmail = session?.user.email ?? "";
   const userInitial = userEmail.trim().charAt(0).toUpperCase() || "?";
+  const hapticsEnabled = hapticsPreference === "on";
   const profileIsEmpty = session
     && !checkInsLoading
     && !savedVenuesLoading
@@ -404,6 +414,15 @@ export default function ProfilePage() {
     const client = createBrowserClient();
     await client.auth.signOut();
     router.push("/");
+  }
+
+  function toggleHapticsPreference() {
+    const nextPreference = hapticsPreference === "on" ? "off" : "on";
+    if (hapticsPreference === "on") {
+      triggerHapticFeedback(20);
+    }
+    setHapticsPreference(nextPreference);
+    setHapticsPreferenceState(nextPreference);
   }
 
   return (
@@ -514,6 +533,40 @@ export default function ProfilePage() {
                 ))}
               </ul>
             )}
+          </section>
+        )}
+
+        {session && !profileIsEmpty && <div className="border-t border-white/[0.06] my-6" />}
+
+        {session && (
+          <section aria-label="Preferences">
+            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Preferences</h2>
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4">
+              <div className="min-w-0">
+                <h3 className="text-base font-black leading-tight text-white">Haptics</h3>
+                <p className="mt-1 text-xs font-semibold text-white/45">
+                  Short taps for core interactions on supported phones.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={hapticsEnabled}
+                onClick={toggleHapticsPreference}
+                className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                  hapticsEnabled
+                    ? "border-[#00F5D4]/60 bg-[#00F5D4]/28"
+                    : "border-white/15 bg-white/[0.06]"
+                }`}
+              >
+                <span
+                  className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow-lg transition-transform ${
+                    hapticsEnabled ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+                <span className="sr-only">{hapticsEnabled ? "Turn haptics off" : "Turn haptics on"}</span>
+              </button>
+            </div>
           </section>
         )}
 
