@@ -9,7 +9,7 @@ import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
 import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
-import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -53,17 +53,46 @@ type VenuePinStyle = {
   fillColor: string;
   radius: number;
 };
+type VenueBusynessSource = NonNullable<ConsumerVenue["signal"]>["busynessSource"];
+
+function getBusynessColor(pct: number | null): string {
+  if (pct == null) return "#4F5567";
+  if (pct <= 33) return "#5C6573";
+  if (pct <= 66) return "#FFB020";
+  return "#FF5B6A";
+}
+
+function isLiveBusynessSource(source: VenueBusynessSource | undefined) {
+  return source === "live" || source === "crowd";
+}
+
+const createBusynessIcon = (pct: number | null, isLive: boolean) => {
+  const color = getBusynessColor(pct);
+  const pulse = isLive && pct !== null && pct > 33;
+
+  return L.divIcon({
+    className: "",
+    html: `<div class="${pulse ? "venue-pin-live-dot" : ""}" style="
+      width:14px;height:14px;border-radius:50%;
+      background:${color};
+      border:2px solid rgba(255,255,255,0.3);
+      ${pulse ? `box-shadow:0 0 0 4px ${color}33;` : ""}
+    "></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+};
 
 function getVenuePinStyle(venue: ConsumerVenue): VenuePinStyle {
   const busyness = venue.signal?.busyness0To100;
+  const color = getBusynessColor(busyness ?? null);
 
   if (busyness == null) {
-    return { className: "venue-pin-null", fillColor: "#3f3f46", fillOpacity: 0.5, radius: 5 };
+    return { className: "venue-pin-null", fillColor: color, fillOpacity: 0.8, radius: 7 };
   }
-  const state = getBusynessState(busyness);
-  if (state.level === "packed") return { className: "venue-pin-packed", fillColor: state.color, fillOpacity: 0.95, radius: 13 };
-  if (state.level === "moderate") return { className: "venue-pin-moderate", fillColor: state.color, fillOpacity: 0.95, radius: 10 };
-  return { className: "venue-pin-quiet", fillColor: state.color, fillOpacity: 0.95, radius: 7 };
+  if (busyness >= 67) return { className: "venue-pin-packed", fillColor: color, fillOpacity: 0.95, radius: 13 };
+  if (busyness >= 34) return { className: "venue-pin-moderate", fillColor: color, fillOpacity: 0.95, radius: 10 };
+  return { className: "venue-pin-quiet", fillColor: color, fillOpacity: 0.95, radius: 7 };
 }
 
 function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter) {
@@ -137,13 +166,15 @@ function createVenueClusterIcon(cluster: L.MarkerCluster) {
 }
 
 function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | null) {
-  const pin = getVenuePinStyle(venue);
   const isSelected = selectedVenueId === venue.id;
-  const size = (isSelected ? pin.radius + 2 : pin.radius) * 2;
+  const busyness = venue.signal?.busyness0To100 ?? null;
+  const color = getBusynessColor(busyness);
+  const size = isSelected ? 18 : 14;
+  const pulse = isLiveBusynessSource(venue.signal?.busynessSource) && busyness !== null && busyness > 33;
 
   return L.divIcon({
-    html: `<span style="background:${pin.fillColor};opacity:${pin.fillOpacity};"></span>`,
-    className: `venue-cluster-pin ${pin.className}${isSelected ? " venue-cluster-pin-selected" : ""}`,
+    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="background:${color};${pulse ? `box-shadow:0 0 0 4px ${color}33;` : ""}"></span>`,
+    className: `venue-cluster-pin${isSelected ? " venue-cluster-pin-selected" : ""}`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
     tooltipAnchor: [0, -(size / 2 + 8)],
@@ -816,7 +847,8 @@ export function VenueMap({
 
         {mapZoom >= 14 && filteredVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
-          const isLive = venue.signal?.busynessSource === "live";
+          const busyness = venue.signal?.busyness0To100 ?? null;
+          const isLive = isLiveBusynessSource(venue.signal?.busynessSource);
           const isSelected = selectedVenueId === venue.id;
 
           return (
@@ -835,7 +867,7 @@ export function VenueMap({
                   interactive={false}
                 />
               )}
-              {isLive && (
+              {isLive && busyness !== null && busyness > 33 && (
                 <CircleMarker
                   center={[venue.lat, venue.lng]}
                   radius={pin.radius * 1.65}
@@ -850,16 +882,9 @@ export function VenueMap({
                   interactive={false}
                 />
               )}
-              <CircleMarker
-                center={[venue.lat, venue.lng]}
-                radius={isSelected ? pin.radius + 2 : pin.radius}
-                pathOptions={{
-                  className: pin.className,
-                  color: isSelected ? "#8B6CFF" : "rgba(255,255,255,0.15)",
-                  fillColor: pin.fillColor,
-                  fillOpacity: pin.fillOpacity,
-                  weight: isSelected ? 3 : 1.5,
-                }}
+              <Marker
+                position={[venue.lat, venue.lng]}
+                icon={createBusynessIcon(busyness, isLive)}
                 eventHandlers={{
                   click: () => {
                     haptic.light();
@@ -871,7 +896,7 @@ export function VenueMap({
                 <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
                   <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
                 </Tooltip>
-              </CircleMarker>
+              </Marker>
             </Fragment>
           );
         })}
@@ -980,7 +1005,11 @@ export function VenueMap({
         }
 
         .venue-pin-quiet {
-          filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.34));
+          filter: drop-shadow(0 0 8px rgba(92, 101, 115, 0.38));
+        }
+
+        .venue-pin-live-dot {
+          animation: pin-pulse 1.5s ease-in-out infinite;
         }
 
         .venue-cluster-icon {
