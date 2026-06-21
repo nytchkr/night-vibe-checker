@@ -8,7 +8,7 @@ import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
+import { Check, ChevronDown, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
@@ -560,7 +560,7 @@ function VenueSearchControl({
               );
             })
           ) : (
-            <div className="px-4 py-3 text-xs text-white/30">No venues found</div>
+            <div className="px-4 py-3 text-xs text-white/35">No venues found</div>
           )}
         </div>
       )}
@@ -976,10 +976,13 @@ export function VenueMap({
       </div>
 
       {loading && (
-        <div className="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center px-4">
-          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-sm font-black text-white shadow-2xl backdrop-blur">
-            <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin text-[#8B6CFF]" />
-            <span>Loading spots...</span>
+        <div className="pointer-events-none absolute inset-0 z-[1000] px-4" role="status" aria-label="Loading map venues">
+          <div className="absolute left-4 top-28 h-11 w-11 animate-pulse rounded-full bg-white/[0.06] shadow-2xl" />
+          <div className="absolute right-10 top-1/3 h-9 w-9 animate-pulse rounded-full bg-white/[0.06] shadow-2xl" />
+          <div className="absolute left-1/3 top-1/2 h-10 w-10 animate-pulse rounded-full bg-white/[0.06] shadow-2xl" />
+          <div className="absolute left-1/2 top-[42%] w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-black/70 px-5 py-4 shadow-2xl backdrop-blur">
+            <div className="h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
+            <div className="mt-3 h-3 w-full animate-pulse rounded bg-white/[0.06]" />
           </div>
         </div>
       )}
@@ -1028,6 +1031,7 @@ export function VenueMap({
       <MapBottomSheet
         cityName={city.name}
         launchZoneNotice={isUserOutsideLaunchZone ? OUT_OF_ZONE_GEO_MESSAGE : null}
+        loading={loading}
         onVenueSelect={selectVenueFromList}
         selectedVenueId={selectedVenueId}
         setSnap={setSheetSnap}
@@ -1035,7 +1039,11 @@ export function VenueMap({
         venues={filteredVenues}
       />
 
-      <VenueBottomSheet venue={detailVenue} onClose={() => setDetailVenueId(null)} />
+      <VenueBottomSheet
+        loading={detailVenueId !== null && !detailVenue}
+        venue={detailVenue}
+        onClose={() => setDetailVenueId(null)}
+      />
 
       <style jsx global>{`
         .venue-pin-packed {

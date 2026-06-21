@@ -90,9 +90,28 @@ function VenueRow({
   );
 }
 
+function VenueRowSkeleton() {
+  return (
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="h-4 w-36 animate-pulse rounded bg-white/[0.06]" />
+          <div className="h-3 w-24 animate-pulse rounded bg-white/[0.06]" />
+        </div>
+        <div className="h-7 w-20 animate-pulse rounded-full bg-white/[0.06]" />
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="h-3 w-20 animate-pulse rounded bg-white/[0.06]" />
+        <div className="h-3 w-32 animate-pulse rounded bg-white/[0.06]" />
+      </div>
+    </div>
+  );
+}
+
 export default function MapBottomSheet({
   cityName,
   launchZoneNotice,
+  loading = false,
   onVenueSelect,
   selectedVenueId,
   setSnap,
@@ -101,6 +120,7 @@ export default function MapBottomSheet({
 }: {
   cityName: string;
   launchZoneNotice?: string | null;
+  loading?: boolean;
   onVenueSelect: (venue: ConsumerVenue) => void;
   selectedVenueId: string | null;
   setSnap: (snap: MapSheetSnap) => void;
@@ -269,7 +289,11 @@ export default function MapBottomSheet({
           aria-label={`${snap === "expanded" ? "Collapse" : "Expand"} ${cityName} venue list`}
           className="mx-auto mt-3 flex max-w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-2 text-sm font-black text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
-          {cityName} · {openCount} spots open
+          {loading ? (
+            <span className="h-5 w-36 animate-pulse rounded-full bg-white/[0.06]" aria-hidden="true" />
+          ) : (
+            `${cityName} · ${openCount} spots open`
+          )}
         </button>
       </div>
 
@@ -281,9 +305,15 @@ export default function MapBottomSheet({
             </div>
           )}
 
-          {venues.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3" role="status" aria-label="Loading map venues">
+              {Array.from({ length: snap === "collapsed" ? 2 : 4 }).map((_, index) => (
+                <VenueRowSkeleton key={index} />
+              ))}
+            </div>
+          ) : venues.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-sm font-medium text-white/30">No venues in this area · Try moving the map</p>
+              <p className="text-sm font-medium text-white/35">No venues in this area · Try moving the map</p>
             </div>
           ) : (
             visibleVenues.map((venue) => (

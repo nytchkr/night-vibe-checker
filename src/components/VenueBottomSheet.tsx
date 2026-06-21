@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Clock } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { timeAgo } from "@/lib/timeAgo";
@@ -11,6 +11,7 @@ import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueSh
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
+  loading?: boolean;
   venue: ConsumerVenue | null;
   onClose: () => void;
 };
@@ -103,10 +104,49 @@ function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
-export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
+function VenueBottomSheetSkeleton({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Close venue details"
+        className="fixed inset-0 z-[1190] cursor-default bg-black/35"
+        onClick={onClose}
+      />
+
+      <aside
+        className="fixed bottom-0 left-0 right-0 z-[1200] max-h-[72vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)]"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        role="status"
+        aria-label="Loading venue details"
+      >
+        <div className="mx-auto w-full max-w-lg px-4 pb-4">
+          <div className="mx-auto flex h-9 w-20 items-center justify-center">
+            <div className="h-1 w-10 rounded bg-white/20" />
+          </div>
+          <div className="h-28 w-full animate-pulse rounded-xl bg-white/[0.06]" />
+          <div className="mt-4 space-y-3">
+            <div className="h-6 w-48 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-4 w-64 animate-pulse rounded bg-white/[0.06]" />
+            <div className="h-24 animate-pulse rounded-2xl bg-white/[0.06]" />
+            <div className="h-10 animate-pulse rounded-full bg-white/[0.06]" />
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBottomSheetProps) {
   const touchStartYRef = useRef<number | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const photoUrl = venue?.photoUrls?.[0] ?? venue?.photoUrl;
+
+  useEffect(() => {
+    setPhotoLoading(Boolean(photoUrl));
+  }, [photoUrl]);
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     touchStartYRef.current = event.touches[0]?.clientY ?? null;
@@ -164,12 +204,12 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
     }
   }
 
+  if (loading) return <VenueBottomSheetSkeleton onClose={onClose} />;
   if (!venue) return null;
 
   const signal = venue.signal;
   const reportHref = `/vibe-check?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`;
   const busynessSource = signal?.busynessSource ?? null;
-  const photoUrl = venue.photoUrls?.[0] ?? venue.photoUrl;
 
   return (
     <>
@@ -204,6 +244,9 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
 
           {photoUrl ? (
             <div className="relative h-28 w-full overflow-hidden rounded-xl bg-white/[0.06]">
+              {photoLoading && (
+                <div className="absolute inset-0 z-10 animate-pulse bg-white/[0.06]" aria-hidden="true" />
+              )}
               <Image
                 src={photoUrl}
                 alt={`${venue.name} venue`}
@@ -213,10 +256,12 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                 placeholder="blur"
                 blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
                 className="object-cover"
+                onLoad={() => setPhotoLoading(false)}
+                onError={() => setPhotoLoading(false)}
               />
             </div>
           ) : (
-            <div className="flex h-28 w-full items-center justify-center rounded-xl bg-white/[0.06] text-4xl font-black text-white/25">
+            <div className="flex h-28 w-full items-center justify-center rounded-xl bg-white/[0.06] text-4xl font-black text-white/35">
               {venue.name.charAt(0).toUpperCase()}
             </div>
           )}
