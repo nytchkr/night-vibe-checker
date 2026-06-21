@@ -7,6 +7,7 @@ const PROTECTED_API_ROUTES = [
   "/api/ratings",
   "/api/venue-ratings",
   "/api/push/subscribe",
+  "/api/push/venue-alert",
 ] as const;
 
 type MiddlewareResponse = NextResponse<unknown>;

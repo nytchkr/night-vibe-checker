@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { ChevronDown, Heart, MapPin, Share2 } from "lucide-react";
 import { VenueRating } from "@/components/VenueRating";
@@ -182,12 +183,15 @@ export function VenuePageClient({
   venueId: string;
   initialVenue: ConsumerVenue | null;
 }) {
+  const router = useRouter();
   const trackedVenueView = useRef(false);
   const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [savePending, setSavePending] = useState(false);
+  const [alerting, setAlerting] = useState(false);
+  const [alertPending, setAlertPending] = useState(false);
   const [copied, setCopied] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -240,19 +244,32 @@ export function VenuePageClient({
 
       if (!token) {
         setSaved(false);
+        setAlerting(false);
         return;
       }
 
       try {
-        const res = await fetch("/api/saved-venues", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const json = await res.json();
-        const ids = json?.venueIds ?? json?.savedVenueIds ?? json?.data?.savedVenueIds ?? [];
-        if (!cancelled) setSaved(Array.isArray(ids) && ids.includes(venueId));
+        const [savedRes, alertRes] = await Promise.all([
+          fetch("/api/saved-venues", {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`/api/push/venue-alert?venueId=${encodeURIComponent(venueId)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (savedRes.ok) {
+          const json = await savedRes.json();
+          const ids = json?.venueIds ?? json?.savedVenueIds ?? json?.data?.savedVenueIds ?? [];
+          if (!cancelled) setSaved(Array.isArray(ids) && ids.includes(venueId));
+        }
+
+        if (alertRes.ok) {
+          const json = await alertRes.json();
+          if (!cancelled) setAlerting(Boolean(json?.alerting ?? json?.data?.alerting));
+        }
       } catch {
-        // Saving is non-critical; leave the default unsaved state if lookup fails.
+        // Saved/alert lookup is non-critical; leave defaults if it fails.
       }
     }
 
@@ -264,7 +281,10 @@ export function VenuePageClient({
       const token = session?.access_token ?? null;
       setAccessToken(token);
       setAuthChecked(true);
-      if (!token) setSaved(false);
+      if (!token) {
+        setSaved(false);
+        setAlerting(false);
+      }
     });
 
     return () => {
@@ -294,6 +314,35 @@ export function VenuePageClient({
       setSaved(!nextSaved);
     } finally {
       setSavePending(false);
+    }
+  }
+
+  async function toggleVenueAlert() {
+    if (alertPending) return;
+
+    if (!accessToken) {
+      router.push(`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`);
+      return;
+    }
+
+    const nextAlerting = !alerting;
+    setAlerting(nextAlerting);
+    setAlertPending(true);
+
+    try {
+      const res = await fetch("/api/push/venue-alert", {
+        method: nextAlerting ? "POST" : "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ venueId }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+    } catch {
+      setAlerting(!nextAlerting);
+    } finally {
+      setAlertPending(false);
     }
   }
 
@@ -622,6 +671,21 @@ export function VenuePageClient({
                 <Heart size={19} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={toggleVenueAlert}
+              disabled={!authChecked || alertPending}
+              aria-label={alerting ? `Disable busy alerts for ${venue.name}` : `Alert me when ${venue.name} gets busy`}
+              aria-pressed={alerting}
+              className={`flex min-h-[54px] min-w-[7.35rem] shrink-0 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:opacity-60 ${
+                alerting
+                  ? "border-[#00F5D4]/55 bg-[#00F5D4]/15 text-[#00F5D4] shadow-[0_0_20px_rgba(0,245,212,0.18)]"
+                  : "border-white/10 bg-white/[0.04] text-white/30 hover:border-white/20 hover:text-white/70"
+              }`}
+            >
+              {alerting ? "Alerting 🔔" : "Alert Me"}
+            </button>
 
             <Link
               href={reportUrl}
