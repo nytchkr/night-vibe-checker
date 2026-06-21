@@ -11,8 +11,11 @@ import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://night-vibe-checker.vercel.app";
 const title = "nytchkr — Know the vibe before you go";
-const description = "Real-time busyness and crowd vibe for bars and clubs in Charlotte, NC.";
+const description =
+  "Real-time bar and nightlife crowd tracker for Charlotte. See how packed a venue is and the male/female split before you go.";
 const themeColor = "#8B6CFF";
+const canonicalUrl = "https://night-vibe-checker.vercel.app";
+const ogImageUrl = `${canonicalUrl}/og-image.png`;
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
 const inter = Inter({
@@ -34,6 +37,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title,
   description,
+  alternates: {
+    canonical: canonicalUrl,
+  },
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -45,18 +51,25 @@ export const metadata: Metadata = {
     title: "nytchkr",
   },
   openGraph: {
-    title: "nytchkr",
-    description: "Real-time busyness for Charlotte nightlife.",
-    url: "https://nytchkr.com",
+    title,
+    description,
+    url: canonicalUrl,
     siteName: "nytchkr",
-    images: ["/opengraph-image"],
+    images: [
+      {
+        url: ogImageUrl,
+        width: 1200,
+        height: 630,
+        alt: "nytchkr nightlife vibe tracker preview",
+      },
+    ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "nytchkr",
-    description: "Know the vibe before you go.",
-    images: ["/opengraph-image"],
+    title,
+    description,
+    images: [ogImageUrl],
   },
 };
 
