@@ -132,6 +132,13 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+
+  .live-pin,
+  .venue-pin-live-pulse,
+  .venue-pin-live-dot,
+  .pulse-fast {
+    animation: none !important;
+  }
 }
 
 /* --------------- Utility classes ---------------------------- */
@@ -177,6 +184,14 @@
 
   .font-light {
     font-weight: 500;
+  }
+
+  .text-white\/35,
+  .text-white\/38,
+  .text-white\/40,
+  .text-white\/42,
+  .text-white\/44 {
+    color: rgba(255, 255, 255, 0.48);
   }
 }
 

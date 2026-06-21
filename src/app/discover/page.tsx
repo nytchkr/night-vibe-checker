@@ -95,6 +95,7 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
       <p className="text-white font-semibold text-sm">No nearby venues found.</p>
       <p className="text-white/40 text-xs">Refresh the area or head back to search with a venue name.</p>
       <button
+        type="button"
         onClick={onRefresh}
         className="
           px-5 py-2.5 rounded-xl text-sm font-semibold text-white
@@ -202,6 +203,7 @@ export default function DiscoverPage() {
             </div>
             {!isLoading && (
               <button
+                type="button"
                 onClick={fetchVenues}
                 aria-label="Refresh nearby venues"
                 className="
@@ -240,6 +242,7 @@ export default function DiscoverPage() {
             >
               <p className="text-rose-300 text-sm font-medium">{fetchError}</p>
               <button
+                type="button"
                 onClick={fetchVenues}
                 className="
                   px-5 py-2 rounded-xl text-sm font-semibold text-white
@@ -266,7 +269,7 @@ export default function DiscoverPage() {
                   key={venue.placeId}
                   type="button"
                   onClick={() => handleVibeCheck(venue)}
-                  className="w-full rounded-2xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-left text-white text-sm font-semibold hover:bg-white/[0.07] transition-colors duration-150"
+                  className="w-full rounded-2xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-left text-white text-sm font-semibold hover:bg-white/[0.07] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   {venue.name}
                 </button>

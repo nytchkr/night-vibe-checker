@@ -495,7 +495,7 @@ function VenueFeedCard({
                 {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
               </div>
             ) : (
-              <p className="line-clamp-1 text-[12px] font-medium text-[#646B79]">
+              <p className="line-clamp-1 text-[12px] font-medium text-[#9CA2AE]">
                 No live reads yet — be the first to report
               </p>
             )}

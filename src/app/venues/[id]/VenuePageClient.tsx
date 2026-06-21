@@ -15,6 +15,7 @@ import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
@@ -340,6 +341,17 @@ export function VenuePageClient({
   const [toast, setToast] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const photoStripRef = useRef<HTMLDivElement>(null);
+  const reportDialogRef = useRef<HTMLDivElement | null>(null);
+  const vibeDialogRef = useRef<HTMLDivElement | null>(null);
+  const loginDialogRef = useRef<HTMLDivElement | null>(null);
+
+  useFocusTrap(reportOpen, reportDialogRef, () => {
+    if (!reportSubmitting) setReportOpen(false);
+  });
+  useFocusTrap(vibeReportOpen, vibeDialogRef, () => {
+    if (!vibeSubmitting) setVibeReportOpen(false);
+  });
+  useFocusTrap(loginPromptOpen, loginDialogRef, () => setLoginPromptOpen(false));
 
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
@@ -1150,10 +1162,12 @@ export function VenuePageClient({
 
       {venue && reportOpen && (
         <div
+          ref={reportDialogRef}
           className="fixed inset-0 z-[80] flex items-end bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="venue-report-title"
+          tabIndex={-1}
         >
           <button
             type="button"
@@ -1243,10 +1257,12 @@ export function VenuePageClient({
 
       {venue && vibeReportOpen && (
         <div
+          ref={vibeDialogRef}
           className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="vibe-report-title"
+          tabIndex={-1}
         >
           <button
             type="button"
@@ -1374,10 +1390,12 @@ export function VenuePageClient({
 
       {venue && loginPromptOpen && (
         <div
+          ref={loginDialogRef}
           className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="vibe-login-title"
+          tabIndex={-1}
         >
           <button
             type="button"

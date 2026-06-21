@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { X } from "lucide-react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
 const POST_AUTH_ACTION_KEY = "nightvibe.postAuthAction";
@@ -100,6 +101,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
   const [googleSigningIn, setGoogleSigningIn] = useState(false);
   const [emailSigningIn, setEmailSigningIn] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAuthAction | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const resumeRef = useRef<(() => void | Promise<void>) | null>(null);
 
   const closeGate = useCallback(() => {
@@ -169,6 +171,8 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
     [consumePendingAction, requireAuth],
   );
 
+  useFocusTrap(open, dialogRef, closeGate);
+
   async function handleGoogleSignIn() {
     if (googleSigningIn) return;
 
@@ -225,10 +229,12 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
       {children}
       {open ? (
         <div
+          ref={dialogRef}
           className="fixed inset-0 z-[2000] bg-black/70 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="onboarding-gate-title"
+          tabIndex={-1}
         >
           <button
             type="button"

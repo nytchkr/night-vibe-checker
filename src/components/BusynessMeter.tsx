@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { BusynessBadge } from "@/components/BusynessBadge";
 import type { BusynessSource } from "@/types";
 
@@ -22,11 +22,13 @@ function getBusynessConfig(value: number) {
 }
 
 export function BusynessMeter({ value, source, computedAt = null, className }: BusynessMeterProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   if (value == null || !Number.isFinite(value)) {
     return (
       <div className={className}>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-[#646B79]">No busyness data</span>
+          <span className="text-sm font-semibold text-[#9CA2AE]">No busyness data</span>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true" />
       </div>
@@ -55,9 +57,9 @@ export function BusynessMeter({ value, source, computedAt = null, className }: B
       >
         <motion.div
           className="h-full rounded-full"
-          initial={{ width: "0%" }}
+          initial={prefersReducedMotion ? false : { width: "0%" }}
           animate={{ width: `${percent}%` }}
-          transition={{ duration: 0.55, ease: "easeOut" }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.55, ease: "easeOut" }}
           style={{ backgroundColor: config.color }}
         />
       </div>

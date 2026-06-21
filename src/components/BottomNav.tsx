@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
@@ -25,12 +25,14 @@ function parseStoredVenueIds(value: string | null): Set<string> {
 }
 
 function BadgeDot() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <motion.span
       aria-hidden="true"
-      initial={{ scale: 0 }}
+      initial={prefersReducedMotion ? false : { scale: 0 }}
       animate={{ scale: 1 }}
-      transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.7 }}
+      transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 28, mass: 0.7 }}
       className="absolute right-0 top-0 h-2 w-2 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.65)]"
     />
   );
@@ -117,7 +119,7 @@ function NavItem({
       className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
         active
           ? "text-[#8B6CFF]"
-          : "text-[#646B79] hover:text-[#9CA2AE]"
+          : "text-[#9CA2AE] hover:text-[#9CA2AE]"
       }`}
     >
       {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF]" />}

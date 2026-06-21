@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { ShareButton } from "@/components/ShareButton";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { formatSignalAge, getSignalLabel } from "@/lib/signalFreshness";
@@ -59,7 +61,7 @@ function BusynessMeter({ value }: { value: number | null | undefined }) {
     <section className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.045] p-3" aria-label="Busyness">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11.5px] font-semibold text-[#646B79]">Busyness</p>
+          <p className="text-[11.5px] font-semibold text-[#9CA2AE]">Busyness</p>
           <p className="mt-1 text-[19px] font-semibold text-[#F4F5F8]">{label}</p>
         </div>
         <p className="text-sm font-semibold" style={{ color: state.level ? state.color : "#9CA2AE" }}>
@@ -105,7 +107,13 @@ function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
-function VenueBottomSheetSkeleton({ onClose }: { onClose: () => void }) {
+function VenueBottomSheetSkeleton({
+  onClose,
+  sheetRef,
+}: {
+  onClose: () => void;
+  sheetRef: RefObject<HTMLElement>;
+}) {
   return (
     <>
       <button
@@ -116,11 +124,15 @@ function VenueBottomSheetSkeleton({ onClose }: { onClose: () => void }) {
       />
 
       <aside
+        ref={sheetRef}
         className="fixed bottom-0 left-0 right-0 z-[1200] max-h-[72vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-        role="status"
+        role="dialog"
+        aria-modal="true"
         aria-label="Loading venue details"
+        tabIndex={-1}
       >
+        <div role="status" className="sr-only">Loading venue details</div>
         <div className="mx-auto w-full max-w-lg px-4 pb-4">
           <div className="mx-auto flex h-9 w-20 items-center justify-center">
             <div className="h-1 w-10 rounded bg-white/20" />
@@ -141,6 +153,7 @@ function VenueBottomSheetSkeleton({ onClose }: { onClose: () => void }) {
 export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBottomSheetProps) {
   const router = useRouter();
   const { requireAuth } = useOnboardingGate();
+  const sheetRef = useRef<HTMLElement>(null);
   const touchStartYRef = useRef<number | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
   const [photoLoading, setPhotoLoading] = useState(false);
@@ -149,6 +162,8 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   useEffect(() => {
     setPhotoLoading(Boolean(photoUrl));
   }, [photoUrl]);
+
+  useFocusTrap(Boolean(loading || venue), sheetRef, onClose);
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     touchStartYRef.current = event.touches[0]?.clientY ?? null;
@@ -195,7 +210,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
     if (canContinue) router.push(reportHref);
   }
 
-  if (loading) return <VenueBottomSheetSkeleton onClose={onClose} />;
+  if (loading) return <VenueBottomSheetSkeleton onClose={onClose} sheetRef={sheetRef} />;
   if (!venue) return null;
 
   const signal = venue.signal;
@@ -218,6 +233,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
       />
 
       <aside
+        ref={sheetRef}
         className={`fixed bottom-0 left-0 right-0 z-[1200] max-h-[72vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] ${
           dragDelta > 0 ? "" : "transition-transform duration-200"
         }`}
@@ -225,7 +241,10 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
           paddingBottom: "env(safe-area-inset-bottom)",
           transform: dragDelta > 0 ? `translateY(${dragDelta}px)` : undefined,
         }}
+        role="dialog"
+        aria-modal="true"
         aria-label={`${venue.name} details`}
+        tabIndex={-1}
       >
         <div className="mx-auto w-full max-w-lg px-4 pb-4">
           <div

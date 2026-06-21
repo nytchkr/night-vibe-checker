@@ -14,6 +14,7 @@ import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
 import { getSignalLabel } from "@/lib/signalFreshness";
 import { inZone } from "@/lib/zone";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { City, CityId } from "@/lib/cities";
@@ -238,10 +239,17 @@ function ClusteredVenueMarkers({
 
     venues.forEach((venue) => {
       const marker = L.marker([venue.lat, venue.lng], {
+        alt: `${venue.name} map pin`,
         icon: createVenueClusterPin(venue, selectedVenueId),
+        keyboard: true,
         title: venue.name,
       });
 
+      marker.on("add", () => {
+        const markerElement = marker.getElement();
+        markerElement?.setAttribute("role", "button");
+        markerElement?.setAttribute("aria-label", `Open ${venue.name} details`);
+      });
       marker.bindTooltip(createVenueTooltip(venue.name), {
         direction: "top",
         offset: [0, -10],
@@ -268,6 +276,9 @@ function CitySelector({
   onCityChange: (cityId: CityId) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useFocusTrap(open, dialogRef, () => setOpen(false));
 
   function selectCity(cityId: CityId) {
     const nextCity = CITIES.find((option) => option.id === cityId);
@@ -296,7 +307,14 @@ function CitySelector({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[1400]" role="dialog" aria-modal="true" aria-label="Choose map city">
+        <div
+          ref={dialogRef}
+          className="fixed inset-0 z-[1400]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choose map city"
+          tabIndex={-1}
+        >
           <button
             type="button"
             aria-label="Close city selector"
@@ -634,8 +652,11 @@ function VenueFilterSheet({
   openNowFilter: boolean;
 }) {
   const haptic = useHaptic();
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const [draftCategory, setDraftCategory] = useState<VenueCategoryFilter>(activeCategoryFilter);
   const [draftOpenNow, setDraftOpenNow] = useState(openNowFilter);
+
+  useFocusTrap(isOpen, dialogRef, onClose);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -648,7 +669,14 @@ function VenueFilterSheet({
   const openNowActiveClass = draftOpenNow ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/60";
 
   return (
-    <div className="fixed inset-0 z-[1500]" role="dialog" aria-modal="true" aria-labelledby="venue-filter-title">
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-[1500]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="venue-filter-title"
+      tabIndex={-1}
+    >
       <button
         type="button"
         aria-label="Close filters"
@@ -973,7 +1001,15 @@ export function VenueMap({
                 <Marker
                   position={[venue.lat, venue.lng]}
                   icon={createBusynessIcon(busyness, isLive)}
+                  alt={`${venue.name} map pin`}
+                  keyboard
+                  title={venue.name}
                   eventHandlers={{
+                    add: (event) => {
+                      const markerElement = event.target.getElement?.() as HTMLElement | undefined;
+                      markerElement?.setAttribute("role", "button");
+                      markerElement?.setAttribute("aria-label", `Open ${venue.name} details`);
+                    },
                     click: () => {
                       selectVenueFromMap(venue);
                     },
@@ -1118,6 +1154,12 @@ export function VenueMap({
 
         .venue-pin-live-dot {
           animation: pin-pulse 1.5s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .venue-pin-live-dot {
+            animation: none !important;
+          }
         }
 
         .venue-cluster-icon {
