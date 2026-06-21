@@ -15,11 +15,12 @@ import type { ConsumerVenue } from "@/types";
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
-type SortOption = "Busiest" | "Nearest";
+type SortOption = "Nearest" | "Busiest" | "A-Z" | "Open Now";
 type UserLocation = { lat: number; lng: number };
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
-const SORT_OPTIONS: SortOption[] = ["Busiest", "Nearest"];
+const SORT_OPTIONS: SortOption[] = ["Nearest", "Busiest", "A-Z", "Open Now"];
+const PAGE_SIZE = 20;
 const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
   { value: "All", label: "All" },
   { value: "Bar", label: "🍸 Bar" },
@@ -101,6 +102,31 @@ function CategoryFilterPill({
         active
           ? "border-white/35 bg-white/[0.14] text-white"
           : "border-white/10 bg-[#0A0A0F]/80 text-white/50 hover:border-white/20 hover:bg-white/10 hover:text-white/75"
+      }`}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SortPill({
+  label,
+  active,
+  onSelect,
+}: {
+  label: SortOption;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
+        active
+          ? "border-[#00F5D4]/40 bg-[#00F5D4]/20 text-[#00F5D4]"
+          : "border-white/10 bg-white/[0.05] text-white/50 hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70"
       }`}
       aria-pressed={active}
     >
@@ -230,8 +256,8 @@ export function ExplorePageClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
-  const [openNowOnly, setOpenNowOnly] = useState(false);
   const [sortOption, setSortOption] = useState<SortOption>("Busiest");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
 
   const fetchVenues = useCallback(async () => {
@@ -276,6 +302,10 @@ export function ExplorePageClient() {
   }, []);
 
   useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [busynessFilter, categoryFilter, searchQuery, sortOption]);
+
+  useEffect(() => {
     const client = createBrowserClient();
 
     client.auth.getSession().then(({ data }) => {
@@ -308,7 +338,7 @@ export function ExplorePageClient() {
       const matchesSearch = normalizedSearch.length === 0 || searchableText.includes(normalizedSearch);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
-      const matchesOpenNow = !openNowOnly || venue.openNow === true;
+      const matchesOpenNow = sortOption !== "Open Now" || venue.openNow === true;
 
       return matchesSearch && matchesBusyness && matchesCategory && matchesOpenNow;
     }).sort((a, b) => {
@@ -318,11 +348,15 @@ export function ExplorePageClient() {
         return aDistance - bDistance || a.name.localeCompare(b.name);
       }
 
+      if (sortOption === "A-Z" || sortOption === "Nearest") {
+        return a.name.localeCompare(b.name);
+      }
+
       const aState = getBusynessState(a.signal?.busyness0To100);
       const bState = getBusynessState(b.signal?.busyness0To100);
       return bState.rank - aState.rank || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, openNowOnly, searchQuery, sortOption, userLocation, venues]);
+  }, [busynessFilter, categoryFilter, searchQuery, sortOption, userLocation, venues]);
 
   const venueDistances = useMemo(() => {
     if (!userLocation || venues === null) return new Map<string, number>();
@@ -336,6 +370,8 @@ export function ExplorePageClient() {
   }, [userLocation, venues]);
 
   const venuesCount = venues?.length ?? 0;
+  const visibleVenues = sortedVenues.slice(0, visibleCount);
+  const hasMoreVenues = sortedVenues.length > visibleVenues.length;
 
   const timeLabel = useMemo(() => (
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
@@ -426,21 +462,6 @@ export function ExplorePageClient() {
               )}
             </div>
 
-            <div className="flex">
-              <button
-                type="button"
-                onClick={() => setOpenNowOnly((p) => !p)}
-                className={`rounded-full border px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
-                  openNowOnly
-                    ? "border-white/35 bg-white/[0.16] text-white"
-                    : "border-white/20 text-white/60 bg-transparent"
-                }`}
-                aria-pressed={openNowOnly}
-              >
-                🟢 Open Now
-              </button>
-            </div>
-
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {BUSYNESS_FILTERS.map((filter) => (
                 <FilterChip
@@ -463,21 +484,27 @@ export function ExplorePageClient() {
               ))}
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {SORT_OPTIONS.filter((option) => option !== "Nearest" || userLocation).map((option) => (
-                <CategoryFilterPill
-                  key={option}
-                  label={option}
-                  active={sortOption === option}
-                  onSelect={() => setSortOption(option)}
-                />
-              ))}
-            </div>
-
-            <p className="text-sm font-bold text-white/55">{sortedVenues.length} spot{sortedVenues.length === 1 ? "" : "s"} showing</p>
           </div>
         </div>
       </header>
+
+      <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0F]/95 backdrop-blur" role="region" aria-label="Explore sort controls">
+        <div className="mx-auto max-w-lg px-4 py-2">
+          <div className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {SORT_OPTIONS.map((option) => (
+              <SortPill
+                key={option}
+                label={option}
+                active={sortOption === option}
+                onSelect={() => setSortOption(option)}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-white/30">
+            Showing {visibleVenues.length} venue{visibleVenues.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      </div>
 
       <section className="mx-auto max-w-lg space-y-3 px-4 pb-32" role="region" aria-label="Venue results">
         <TrendingStrip />
@@ -508,8 +535,10 @@ export function ExplorePageClient() {
 
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
-            <p className="text-sm font-semibold text-white">
-              {searchQuery.trim().length > 0
+            <p className={sortOption === "Open Now" ? "text-sm font-semibold text-white/30" : "text-sm font-semibold text-white"}>
+              {sortOption === "Open Now"
+                ? "No venues open right now · Check back later"
+                : searchQuery.trim().length > 0
                 ? `No spots match "${searchQuery.trim()}" — try a different name or category`
                 : "No spots match your filters — try adjusting them"}
             </p>
@@ -517,16 +546,28 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && sortedVenues.length > 0 && (
-          <ul>
-            {sortedVenues.map((venue) => (
-              <VenueFeedCard
-                key={venue.id}
-                venue={venue}
-                searchQuery={searchQuery}
-                distance={venueDistances.get(venue.id) ?? null}
-              />
-            ))}
-          </ul>
+          <>
+            <ul>
+              {visibleVenues.map((venue) => (
+                <VenueFeedCard
+                  key={venue.id}
+                  venue={venue}
+                  searchQuery={searchQuery}
+                  distance={venueDistances.get(venue.id) ?? null}
+                />
+              ))}
+            </ul>
+
+            {hasMoreVenues && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+                className="mt-2 w-full rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+              >
+                Load more
+              </button>
+            )}
+          </>
         )}
       </section>
     </div>
