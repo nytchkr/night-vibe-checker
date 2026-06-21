@@ -258,6 +258,7 @@ export default function MapBottomSheet({
         <button
           type="button"
           onClick={() => snapTo(snap === "expanded" ? "collapsed" : snap === "collapsed" ? "mid" : "expanded")}
+          aria-label={`${snap === "expanded" ? "Collapse" : "Expand"} ${cityName} venue list`}
           className="mx-auto mt-3 flex max-w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-2 text-sm font-black text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
         >
           {cityName} · {openCount} spots open

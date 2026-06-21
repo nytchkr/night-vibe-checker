@@ -234,6 +234,7 @@ function CitySelector({
         type="button"
         aria-expanded={open}
         aria-haspopup="dialog"
+        aria-label={`Choose neighborhood, currently ${city.name}`}
         onClick={() => setOpen(true)}
         className="absolute left-4 top-4 z-[1000] inline-flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3.5 py-2 text-sm font-black text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
       >

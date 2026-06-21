@@ -41,15 +41,19 @@ describe("GET /api/activity/feed", () => {
             user_id: "user-a",
             venue_id: "venue-1",
             created_at: "2026-06-21T03:10:00.000Z",
-            venues: { id: "venue-1", name: "The Neon Room", hidden: false },
           },
           {
             id: "check-in-2",
             user_id: "user-b",
             venue_id: "venue-2",
             created_at: "2026-06-21T03:05:00.000Z",
-            venues: { id: "venue-2", name: "Vault", hidden: false },
           },
+        ],
+      }))
+      .mockReturnValueOnce(chain({
+        data: [
+          { id: "venue-1", name: "The Neon Room" },
+          { id: "venue-2", name: "Vault" },
         ],
       }))
       .mockReturnValueOnce(chain({
@@ -76,7 +80,8 @@ describe("GET /api/activity/feed", () => {
       ],
     });
     expect(mockFrom).toHaveBeenNthCalledWith(1, "check_ins");
-    expect(mockFrom).toHaveBeenNthCalledWith(2, "profiles");
+    expect(mockFrom).toHaveBeenNthCalledWith(2, "venues");
+    expect(mockFrom).toHaveBeenNthCalledWith(3, "profiles");
   });
 
   it("falls back to user_id profiles when profiles.id is unavailable", async () => {
@@ -88,8 +93,12 @@ describe("GET /api/activity/feed", () => {
             user_id: "user-a",
             venue_id: "venue-1",
             created_at: "2026-06-21T03:10:00.000Z",
-            venues: { id: "venue-1", name: "The Neon Room", hidden: false },
           },
+        ],
+      }))
+      .mockReturnValueOnce(chain({
+        data: [
+          { id: "venue-1", name: "The Neon Room" },
         ],
       }))
       .mockReturnValueOnce(chain({ error: { message: "column profiles.id does not exist" } }))
