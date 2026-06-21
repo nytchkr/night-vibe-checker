@@ -73,29 +73,6 @@ export function busynessScoreForStorage(score: number): 16 | 50 | 84 {
   return 84;
 }
 
-function charlotteDateParts(date: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    hour: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const weekday = parts.find((part) => part.type === "weekday")?.value;
-  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
-  return { weekday, hour };
-}
-
-export function fallbackForecastScore(date = new Date()): 16 | 50 | 84 {
-  const { weekday, hour } = charlotteDateParts(date);
-  const isFridayOrSaturday = weekday === "Fri" || weekday === "Sat";
-  const isLateWeekendCarryover = (weekday === "Sat" || weekday === "Sun") && hour < 2;
-
-  if ((isFridayOrSaturday && hour >= 22) || isLateWeekendCarryover) return 84;
-  if (isFridayOrSaturday && hour >= 20 && hour < 22) return 50;
-  if (["Mon", "Tue", "Wed", "Thu"].includes(weekday ?? "") && hour >= 23) return 16;
-  return 50;
-}
-
 async function writeBusyness(
   venue: VenueRow,
   bestTimeVenueId: string | null,
@@ -185,8 +162,12 @@ async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {
       }
 
       if (busynessValue === null) {
-        busynessValue = fallbackForecastScore();
-        source = "forecast";
+        results.push({
+          venueId: venue.id,
+          ok: false,
+          reason: fallbackReason ?? "BestTime did not return live or forecast busyness.",
+        });
+        continue;
       }
 
       const refreshedAt = new Date().toISOString();
@@ -197,7 +178,7 @@ async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {
       results.push({
         venueId: venue.id,
         ok: true,
-        reason: fallbackReason ? `Fallback forecast: ${fallbackReason}` : undefined,
+        reason: fallbackReason,
       });
     } catch (err) {
       results.push({
