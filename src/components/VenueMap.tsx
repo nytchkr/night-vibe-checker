@@ -304,24 +304,30 @@ function CitySelector({
             <div className="mx-auto mt-4 flex w-full max-w-md flex-col gap-2">
               {CITIES.map((option) => {
                 const isSelected = option.id === city.id;
+                const comingSoon = "comingSoon" in option && option.comingSoon;
 
                 return (
                   <button
                     key={option.id}
                     type="button"
                     aria-current={isSelected ? "true" : undefined}
-                    onClick={() => selectCity(option.id)}
+                    disabled={comingSoon}
+                    onClick={() => !comingSoon && selectCity(option.id)}
                     className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-                      isSelected
-                        ? "border-[#8B6CFF]/45 bg-[#8B6CFF]/15 text-white"
-                        : "border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.07]"
+                      comingSoon
+                        ? "cursor-not-allowed border-white/[0.05] bg-white/[0.02] opacity-50"
+                        : isSelected
+                          ? "border-[#8B6CFF]/45 bg-[#8B6CFF]/15 text-white"
+                          : "border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.07]"
                     }`}
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-black">{option.name}</span>
-                      <span className="mt-1 block truncate text-xs font-semibold text-white/45">{option.city}</span>
+                      <span className="mt-1 block truncate text-xs font-semibold text-white/45">
+                        {comingSoon ? "Coming soon" : option.city}
+                      </span>
                     </span>
-                    {isSelected && <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-[#8B6CFF]" />}
+                    {isSelected && !comingSoon && <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-[#8B6CFF]" />}
                   </button>
                 );
               })}
@@ -975,17 +981,16 @@ export function VenueMap({
       )}
 
       {showEmptyState && (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
-          <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
-            <h2 className="font-display text-base font-black">No spots found</h2>
-            <p className="mt-2 text-sm font-semibold text-white/70">{city.name} venues coming soon</p>
+        <div className="pointer-events-none absolute inset-x-0 bottom-44 z-[999] flex justify-center px-4">
+          <div className="pointer-events-auto w-full max-w-xs rounded-2xl border border-white/10 bg-black/80 px-5 py-4 text-center text-white shadow-2xl backdrop-blur">
+            <p className="text-sm font-black">{city.name} — coming soon</p>
+            <p className="mt-1 text-xs font-semibold text-white/55">We&apos;re live in South End Charlotte right now.</p>
             <button
               type="button"
-              onClick={() => void fetchVenues()}
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-5 py-2.5 text-sm font-black text-[#0A0A0E] shadow-[0_0_18px_rgba(139,108,255,0.32)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              onClick={() => onCityChange("south-end-clt")}
+              className="mt-3 inline-flex items-center justify-center rounded-full bg-[#8B6CFF] px-4 py-2 text-xs font-black text-[#0A0A0E] shadow-[0_0_14px_rgba(139,108,255,0.28)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
-              <RefreshCw aria-hidden="true" className="h-4 w-4" />
-              Refresh
+              Go to South End
             </button>
           </div>
         </div>

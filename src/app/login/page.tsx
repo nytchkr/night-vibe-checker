@@ -89,7 +89,8 @@ function LoginContent() {
     try {
       const client = createBrowserClient();
       storeReturnUrl(returnUrl);
-      const redirectTo = `${window.location.origin}/auth/callback?return=${encodeURIComponent(returnUrl)}`;
+      const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
+      const redirectTo = `${origin}/auth/callback?return=${encodeURIComponent(returnUrl)}`;
       const { error: signInError } = await client.auth.signInWithOtp({
         email: email.trim(),
         options: { emailRedirectTo: redirectTo },
@@ -118,9 +119,10 @@ function LoginContent() {
     try {
       const client = createBrowserClient();
       storeReturnUrl(returnUrl);
+      const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
       const { error: signInError } = await client.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback?return=${encodeURIComponent(returnUrl)}` },
+        options: { redirectTo: `${origin}/auth/callback?return=${encodeURIComponent(returnUrl)}` },
       });
 
       if (signInError) setError(signInError.message);
@@ -137,7 +139,7 @@ function LoginContent() {
         <section className="w-full space-y-8">
           <div className="space-y-2 text-center">
             <h1 className="font-display text-3xl font-black tracking-tight text-white">
-              Night<span className="text-[#8B6CFF]">Vibe</span>
+              nyt<span className="text-[#8B6CFF]">chkr</span>
             </h1>
             <p className="text-sm font-semibold text-white/50">Know before you go.</p>
           </div>

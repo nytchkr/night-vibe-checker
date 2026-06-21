@@ -8,9 +8,10 @@ export const CITIES = [
     lat: LAUNCH_ZONE.center_lat,
     lng: LAUNCH_ZONE.center_lng,
     zoneId: "south-end-charlotte",
+    comingSoon: false,
   },
-  { id: "noda-clt", name: "NoDa", city: "Charlotte, NC", lat: 35.2396, lng: -80.8106, zoneId: "noda-charlotte" },
-  { id: "uptown-clt", name: "Uptown", city: "Charlotte, NC", lat: 35.2271, lng: -80.8431, zoneId: "uptown-charlotte" },
+  { id: "noda-clt", name: "NoDa", city: "Charlotte, NC", lat: 35.2396, lng: -80.8106, zoneId: "noda-charlotte", comingSoon: true },
+  { id: "uptown-clt", name: "Uptown", city: "Charlotte, NC", lat: 35.2271, lng: -80.8431, zoneId: "uptown-charlotte", comingSoon: true },
 ] as const;
 
 export type City = (typeof CITIES)[number];
