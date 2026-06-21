@@ -17,6 +17,13 @@ import type { ConsumerVenue } from "@/types";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+type VenueActivityItem = {
+  displayName: string;
+  avatarUrl: string | null;
+  checkedInAt: string;
+  minutesAgo: number;
+};
+
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
   const ms = Date.now() - new Date(iso).getTime();
@@ -176,6 +183,60 @@ function getBusynessColor(percent: number): string {
   return "#4ADE80";
 }
 
+function initialFor(name: string): string {
+  const trimmed = name.trim();
+  return (trimmed[0] ?? "?").toUpperCase();
+}
+
+function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
+  if (activity.length === 0) return null;
+
+  const visibleActivity = activity.slice(0, 5);
+  const extraCount = Math.max(0, activity.length - visibleActivity.length);
+  const peopleLabel = activity.length === 1 ? "1 person checked in recently" : `${activity.length} people checked in recently`;
+
+  return (
+    <section
+      className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4"
+      role="region"
+      aria-label="Who's here"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-sm font-black text-white">Who's here</h2>
+          <p className="mt-1 text-xs font-medium text-white/40">{peopleLabel}</p>
+        </div>
+        <div className="flex items-center pl-2" aria-label={peopleLabel}>
+          {visibleActivity.map((item, index) => (
+            <div
+              key={`${item.displayName}-${item.checkedInAt}-${index}`}
+              className={`${index > 0 ? "-ml-2" : ""} relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-[#0A0A0F] bg-[#00F5D4] text-sm font-black text-[#0A0A0F] shadow-lg`}
+              title={item.displayName}
+            >
+              <span aria-hidden="true">{initialFor(item.displayName)}</span>
+              {item.avatarUrl && (
+                <img
+                  src={item.avatarUrl}
+                  alt={item.displayName}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+              )}
+            </div>
+          ))}
+          {extraCount > 0 && (
+            <div className="-ml-2 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-[#0A0A0F] bg-white text-[11px] font-black text-[#0A0A0F] shadow-lg">
+              +{extraCount}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function VenuePageClient({
   venueId,
   initialVenue,
@@ -196,6 +257,7 @@ export function VenuePageClient({
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
+  const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
 
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
@@ -228,6 +290,30 @@ export function VenuePageClient({
     fetchData();
     return () => { cancelled = true; };
   }, [initialVenue, venueId]);
+
+  useEffect(() => {
+    const activityVenueId = venue?.id ?? venueId;
+    if (!activityVenueId) return;
+
+    let cancelled = false;
+
+    async function fetchVenueActivity() {
+      try {
+        const res = await fetch(`/api/venues/${encodeURIComponent(activityVenueId)}/activity`);
+        if (!res.ok) throw new Error(`${res.status}`);
+        const json = await res.json();
+        const activity = json?.data?.activity;
+        if (!cancelled) setVenueActivity(Array.isArray(activity) ? activity : []);
+      } catch {
+        if (!cancelled) setVenueActivity([]);
+      }
+    }
+
+    void fetchVenueActivity();
+    return () => {
+      cancelled = true;
+    };
+  }, [venue?.id, venueId]);
 
   useEffect(() => {
     if (!venueId) return;
@@ -528,6 +614,8 @@ export function VenuePageClient({
           </div>
 
           <div className="mx-auto max-w-lg space-y-6 px-4 py-5">
+            <WhoHereSection activity={venueActivity} />
+
             {hoursSummary.hasHours && (
               <section className="space-y-3" role="region" aria-label="Venue hours">
                 <button
