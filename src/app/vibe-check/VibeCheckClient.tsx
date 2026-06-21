@@ -25,6 +25,8 @@ type BusynessOption = {
   ring: string;
 };
 
+type CrowdCompositionFeel = Extract<CrowdFeel, "mostly_male" | "mostly_female" | "balanced" | "mixed">;
+
 const BUSYNESS_OPTIONS: BusynessOption[] = [
   { value: "dead", label: "Dead", submitValue: "dead", crowdLevel: "quiet", accent: "#5C6573", ring: "rgba(92,101,115,0.14)" },
   { value: "moderate", label: "Moderate", submitValue: "moderate", crowdLevel: "moderate", accent: "#FFB020", ring: "rgba(255,176,32,0.14)" },
@@ -32,7 +34,7 @@ const BUSYNESS_OPTIONS: BusynessOption[] = [
 ];
 
 const CROWD_OPTIONS: {
-  value: CrowdFeel;
+  value: CrowdCompositionFeel;
   label: string;
   ariaLabel?: string;
 }[] = [
@@ -61,7 +63,7 @@ const BUSYNESS_SHARE_COPY: Record<ReportedBusyness, { emoji: string; label: stri
   packed: { emoji: "🔴", label: "It's Packed Tonight" },
 };
 
-const CROWD_SHARE_COPY: Record<CrowdFeel, { emoji: string; label: string }> = {
+const CROWD_SHARE_COPY: Record<CrowdCompositionFeel, { emoji: string; label: string }> = {
   mostly_male: { emoji: "👨", label: "More Guys" },
   balanced: { emoji: "⚖️", label: "Balanced Crowd" },
   mixed: { emoji: "⚖️", label: "Balanced Crowd" },
@@ -183,7 +185,7 @@ export default function VibeCheckClient({
   const [lockedVenueLoading, setLockedVenueLoading] = useState(false);
 
   const [busyness, setBusyness] = useState<BusynessOption["value"] | null>(null);
-  const [crowdFeel, setCrowdFeel] = useState<CrowdFeel | null>(null);
+  const [crowdFeel, setCrowdFeel] = useState<CrowdCompositionFeel | null>(null);
   const [note, setNote] = useState("");
   const [genderSelfReport, setGenderSelfReport] = useState<GenderSelfReport>(null);
   const [submitting, setSubmitting] = useState(false);
