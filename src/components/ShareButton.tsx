@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { track } from "@vercel/analytics";
 import { Button } from "@/components/ui/button";
-import { buildVenueShareData } from "@/lib/venueShare";
+import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
 
 type LegacyShareButtonProps = {
@@ -67,7 +67,8 @@ export function ShareButton(props: ShareButtonProps) {
     }
 
     try {
-      await navigator.clipboard.writeText(url);
+      if (typeof navigator === "undefined" || !navigator.clipboard) return;
+      await navigator.clipboard.writeText(buildVenueShareClipboardText({ ...shareData, url: shareData.url ?? url }));
       setCopied(true);
       props.onCopied?.();
       setTimeout(() => setCopied(false), 2000);

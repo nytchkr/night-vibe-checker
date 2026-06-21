@@ -35,3 +35,7 @@ export function buildVenueShareData(venue: ConsumerVenue): ShareData {
     url: getVenueShareUrl(venue),
   };
 }
+
+export function buildVenueShareClipboardText(shareData: ShareData): string {
+  return [shareData.text, shareData.url].filter(Boolean).join(" ");
+}

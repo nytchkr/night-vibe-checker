@@ -15,7 +15,7 @@ import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
-import { buildVenueShareData } from "@/lib/venueShare";
+import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -571,7 +571,8 @@ export function VenuePageClient({
     }
 
     try {
-      await navigator.clipboard.writeText(shareData.url ?? url);
+      if (typeof navigator === "undefined" || !navigator.clipboard) return;
+      await navigator.clipboard.writeText(buildVenueShareClipboardText({ ...shareData, url: shareData.url ?? url }));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
       trackAnalytics("share_card_shared", {

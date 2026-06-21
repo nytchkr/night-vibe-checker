@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { timeAgo } from "@/lib/timeAgo";
-import { buildVenueShareData } from "@/lib/venueShare";
+import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueShare";
 import { BusynessBadge } from "@/components/BusynessBadge";
 import type { ConsumerVenue } from "@/types";
 
@@ -97,7 +97,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
 
     try {
       if (!navigator.clipboard) return;
-      await navigator.clipboard.writeText(shareData.url ?? "");
+      await navigator.clipboard.writeText(buildVenueShareClipboardText(shareData));
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
