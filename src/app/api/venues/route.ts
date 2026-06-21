@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
+import { inZone } from "@/lib/zone";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
@@ -157,16 +158,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const venues = (data ?? []).map(mapVenue).sort((a, b) => {
-    const aBusyness = a.signal?.busyness0To100;
-    const bBusyness = b.signal?.busyness0To100;
+  const venues = (data ?? [])
+    .map(mapVenue)
+    .filter((venue) => inZone(venue.lat, venue.lng))
+    .sort((a, b) => {
+      const aBusyness = a.signal?.busyness0To100;
+      const bBusyness = b.signal?.busyness0To100;
 
-    if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
-    if (aBusyness == null) return 1;
-    if (bBusyness == null) return -1;
-    if (bBusyness !== aBusyness) return bBusyness - aBusyness;
-    return a.name.localeCompare(b.name);
-  });
+      if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
+      if (aBusyness == null) return 1;
+      if (bBusyness == null) return -1;
+      if (bBusyness !== aBusyness) return bBusyness - aBusyness;
+      return a.name.localeCompare(b.name);
+    });
 
   return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
     status: "success",

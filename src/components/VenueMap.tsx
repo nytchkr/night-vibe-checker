@@ -12,6 +12,7 @@ import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
+import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { City, CityId } from "@/lib/cities";
@@ -38,6 +39,9 @@ const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
   "28211": [35.19, -80.78],
   "28212": [35.2, -80.75],
 };
+
+const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
+const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
 
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
   try {
@@ -333,6 +337,7 @@ function ZipRecenterControl() {
   const map = useMap();
   const [zip, setZip] = useState("");
   const [showInvalid, setShowInvalid] = useState(false);
+  const [outOfZoneZip, setOutOfZoneZip] = useState(false);
   const invalidTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -354,10 +359,12 @@ function ZipRecenterControl() {
   function recenterForZip(nextZip: string) {
     const center = CHARLOTTE_ZIP_CENTERS[nextZip];
     if (!center) {
+      setOutOfZoneZip(false);
       flashInvalid();
       return;
     }
     setShowInvalid(false);
+    setOutOfZoneZip(!inZone(center[0], center[1]));
     map.setView(center, 15);
   }
 
@@ -376,22 +383,32 @@ function ZipRecenterControl() {
   }
 
   return (
-    <input
-      aria-label="Charlotte zip"
-      inputMode="numeric"
-      maxLength={5}
-      onChange={handleChange}
-      onClick={(event) => event.stopPropagation()}
-      onKeyDown={handleKeyDown}
-      onMouseDown={(event) => event.stopPropagation()}
-      pattern="[0-9]*"
-      placeholder="Charlotte zip"
-      type="text"
-      value={zip}
-      className={`absolute left-1/2 top-4 z-[500] w-36 -translate-x-1/2 rounded-full border bg-black/70 px-3 py-1.5 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-        showInvalid ? "border-red-500" : "border-white/10"
-      }`}
-    />
+    <>
+      <input
+        aria-label="Charlotte zip"
+        inputMode="numeric"
+        maxLength={5}
+        onChange={handleChange}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={handleKeyDown}
+        onMouseDown={(event) => event.stopPropagation()}
+        pattern="[0-9]*"
+        placeholder="Charlotte zip"
+        type="text"
+        value={zip}
+        className={`absolute left-1/2 top-4 z-[500] w-36 -translate-x-1/2 rounded-full border bg-black/70 px-3 py-1.5 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+          showInvalid ? "border-red-500" : "border-white/10"
+        }`}
+      />
+      {outOfZoneZip && (
+        <div
+          role="status"
+          className="pointer-events-none absolute left-1/2 top-[6.5rem] z-[500] w-[min(22rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-[#F0568C]/25 bg-black/80 px-4 py-3 text-center text-xs font-bold leading-5 text-white/75 shadow-2xl backdrop-blur"
+        >
+          {OUT_OF_ZONE_SEARCH_MESSAGE}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -708,6 +725,7 @@ export function VenueMap({
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
   const mapRef = useRef<LeafletMap | null>(null);
   const mapHeightClass =
@@ -752,6 +770,18 @@ export function VenueMap({
       controller.abort();
     };
   }, [fetchVenues]);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsUserOutsideLaunchZone(!inZone(position.coords.latitude, position.coords.longitude));
+      },
+      () => undefined,
+      { maximumAge: 5 * 60 * 1000, timeout: 8000 },
+    );
+  }, []);
 
   const visibleVenues = useMemo(
     () => venues.filter((venue) => venue.zoneId === city.zoneId && Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
@@ -988,6 +1018,7 @@ export function VenueMap({
 
       <MapBottomSheet
         cityName={city.name}
+        launchZoneNotice={isUserOutsideLaunchZone ? OUT_OF_ZONE_GEO_MESSAGE : null}
         onVenueSelect={selectVenueFromList}
         selectedVenueId={selectedVenueId}
         setSnap={setSheetSnap}

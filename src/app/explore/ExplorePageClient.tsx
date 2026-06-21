@@ -11,6 +11,7 @@ import { MFBar } from "@/components/MFBar";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
+import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
@@ -42,6 +43,23 @@ const SORT_OPTIONS: SortOption[] = ["Nearest", "Busiest", "A-Z", "Open Now"];
 const PAGE_SIZE = 20;
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
+const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
+const LOCATION_SEARCH_CENTERS: Record<string, [number, number]> = {
+  noda: [35.2396, -80.8106],
+  "no da": [35.2396, -80.8106],
+  uptown: [35.2271, -80.8431],
+  "28202": [35.2271, -80.8431],
+  "28203": [35.2178, -80.8597],
+  "28204": [35.22, -80.83],
+  "28205": [35.23, -80.79],
+  "28206": [35.25, -80.82],
+  "28207": [35.21, -80.81],
+  "28208": [35.22, -80.9],
+  "28209": [35.17, -80.85],
+  "28210": [35.14, -80.88],
+  "28211": [35.19, -80.78],
+  "28212": [35.2, -80.75],
+};
 const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
   { value: "All", label: "All" },
   { value: "Bar", label: "🍸 Bar" },
@@ -69,6 +87,16 @@ function normalizeCategory(category: string | null | undefined): CategoryFilter 
 
 function normalizeSearchText(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function getSearchedLocationCenter(query: string): [number, number] | null {
+  const normalized = normalizeSearchText(query.trim());
+  if (!normalized) return null;
+
+  const zip = normalized.match(/\b\d{5}\b/)?.[0];
+  if (zip && LOCATION_SEARCH_CENTERS[zip]) return LOCATION_SEARCH_CENTERS[zip];
+
+  return LOCATION_SEARCH_CENTERS[normalized] ?? null;
 }
 
 function parseStoredVenueIds(value: string | null): Set<string> {
@@ -650,6 +678,10 @@ export function ExplorePageClient() {
   const venuesCount = venues?.length ?? 0;
   const visibleVenues = sortedVenues.slice(0, visibleCount);
   const hasMoreVenues = sortedVenues.length > visibleVenues.length;
+  const searchedLocationCenter = getSearchedLocationCenter(searchQuery);
+  const showOutOfZoneSearchBanner = searchedLocationCenter
+    ? !inZone(searchedLocationCenter[0], searchedLocationCenter[1])
+    : false;
   const resultVenueNoun = categoryFilter === "All" ? "spot" : categoryFilter.toLowerCase();
   const resultAreaLabel = neighborhoodFilter === "All Areas" ? "all areas" : neighborhoodFilter;
   const resultCountLabel = `${sortedVenues.length} ${resultVenueNoun}${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
@@ -772,6 +804,15 @@ export function ExplorePageClient() {
                 </button>
               )}
             </div>
+
+            {showOutOfZoneSearchBanner && (
+              <div
+                role="status"
+                className="rounded-2xl border border-[#F0568C]/20 bg-[#F0568C]/10 px-4 py-3 text-sm font-semibold leading-5 text-white/70"
+              >
+                {OUT_OF_ZONE_SEARCH_MESSAGE}
+              </div>
+            )}
 
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {BUSYNESS_FILTERS.map((filter) => (

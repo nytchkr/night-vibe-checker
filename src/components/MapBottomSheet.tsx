@@ -92,6 +92,7 @@ function VenueRow({
 
 export default function MapBottomSheet({
   cityName,
+  launchZoneNotice,
   onVenueSelect,
   selectedVenueId,
   setSnap,
@@ -99,6 +100,7 @@ export default function MapBottomSheet({
   venues,
 }: {
   cityName: string;
+  launchZoneNotice?: string | null;
   onVenueSelect: (venue: ConsumerVenue) => void;
   selectedVenueId: string | null;
   setSnap: (snap: MapSheetSnap) => void;
@@ -273,6 +275,12 @@ export default function MapBottomSheet({
 
       <div className="h-[calc(100%-72px)] overflow-y-auto px-4 pb-6 [scrollbar-width:none]">
         <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
+          {launchZoneNotice && (
+            <div className="rounded-2xl border border-[#8B6CFF]/20 bg-[#8B6CFF]/10 px-4 py-3 text-sm font-semibold leading-5 text-white/70">
+              {launchZoneNotice}
+            </div>
+          )}
+
           {venues.length === 0 ? (
             <div className="px-4 py-8 text-center">
               <p className="text-sm font-medium text-white/30">No venues in this area · Try moving the map</p>
