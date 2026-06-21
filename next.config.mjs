@@ -4,6 +4,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 const nextConfig = {
   // react-leaflet is incompatible with React 18 StrictMode's double-invoke in dev
   reactStrictMode: false,
+  compress: true,
   allowedDevOrigins: ["127.0.0.1"],
   env: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? "",

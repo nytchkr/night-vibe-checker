@@ -20,9 +20,11 @@ import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoading
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap } from "@/components/MapBottomSheet";
-import VenueBottomSheet from "@/components/VenueBottomSheet";
-
 const MapBottomSheet = dynamic(() => import("@/components/MapBottomSheet"), {
+  ssr: false,
+  loading: () => null,
+});
+const VenueBottomSheet = dynamic(() => import("@/components/VenueBottomSheet"), {
   ssr: false,
   loading: () => null,
 });
