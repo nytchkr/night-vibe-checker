@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { NextRequest } from "next/server";
 
 const mockCookieGetUser = vi.fn();
@@ -106,10 +106,15 @@ describe("/api/saved-venues", () => {
 });
 
 function savedVenueSelectQuery(result: { data: unknown; error: unknown }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const query: any = {};
+  type Query = {
+    select: Mock<[], Query>;
+    eq: Mock<[], Query>;
+    order: Mock<[string, { ascending: boolean }], Promise<{ data: unknown; error: unknown }>>;
+  };
+
+  const query = {} as Query;
   query.select = vi.fn(() => query);
   query.eq = vi.fn(() => query);
-  query.order = vi.fn(async () => result);
+  query.order = vi.fn(async (_column: string, _options: { ascending: boolean }) => result);
   return query;
 }

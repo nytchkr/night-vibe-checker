@@ -331,6 +331,7 @@ export function VenuePageClient({
   const [reportError, setReportError] = useState<string | null>(null);
   const [vibeReportOpen, setVibeReportOpen] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [loginPromptReason, setLoginPromptReason] = useState<"save" | "report">("report");
   const [vibeBusyness, setVibeBusyness] = useState<ReportedBusyness | null>(null);
   const [vibeCrowdFeel, setVibeCrowdFeel] = useState<CrowdFeel | null>(null);
   const [vibeNote, setVibeNote] = useState("");
@@ -514,7 +515,13 @@ export function VenuePageClient({
   }, [venueId]);
 
   async function toggleSaved() {
-    if (!accessToken || savePending) return;
+    if (savePending) return;
+
+    if (!accessToken) {
+      setLoginPromptReason("save");
+      setLoginPromptOpen(true);
+      return;
+    }
 
     const nextSaved = !saved;
     if (nextSaved) {
@@ -630,6 +637,7 @@ export function VenuePageClient({
     haptic.light();
     trackAnalytics("check_in", { venue_id: venueId });
     if (!accessToken) {
+      setLoginPromptReason("report");
       setLoginPromptOpen(true);
       return;
     }
@@ -1337,7 +1345,11 @@ export function VenuePageClient({
                 <h2 id="vibe-login-title" className="font-display text-lg font-black text-white">
                   Login required
                 </h2>
-                <p className="mt-1 text-sm text-white/50">Sign in to report the vibe at {venue.name}.</p>
+                <p className="mt-1 text-sm text-white/50">
+                  {loginPromptReason === "save"
+                    ? `Sign in to save ${venue.name}.`
+                    : `Sign in to report the vibe at ${venue.name}.`}
+                </p>
               </div>
               <button
                 type="button"
@@ -1362,13 +1374,14 @@ export function VenuePageClient({
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4rem)] left-0 right-0 z-[60] border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
           <div className="mx-auto flex max-w-lg items-center gap-3">
             {authChecked && !accessToken ? (
-              <Link
-                href="/login"
+              <button
+                type="button"
+                onClick={toggleSaved}
                 aria-label="Save venue"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 <Heart size={19} aria-hidden="true" />
-              </Link>
+              </button>
             ) : (
               <button
                 type="button"

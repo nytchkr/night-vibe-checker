@@ -12,7 +12,7 @@ import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from 
 import type { APIResponse } from "@/types";
 
 const BodySchema = z.object({
-  venueId: z.string().uuid(),
+  venueId: z.string().trim().min(1).max(200),
 });
 
 const PRIVATE_GET_CACHE_HEADERS = {
@@ -55,8 +55,8 @@ async function getCookieUserId(): Promise<string | null> {
     },
   );
 
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user.id ?? null;
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
 }
 
 async function getUserId(req: NextRequest): Promise<string | null> {
@@ -100,7 +100,7 @@ async function readVenueId(req: NextRequest, meta: { cached: boolean; generatedA
   if (!parsed.success) {
     return {
       response: NextResponse.json<APIResponse<never>>(
-        { status: "error", error: { code: "VALIDATION_ERROR", message: "venueId must be a venue UUID." }, meta },
+        { status: "error", error: { code: "VALIDATION_ERROR", message: "venueId is required." }, meta },
         { status: 422 }
       ),
     };
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .from("saved_venues")
     .select("venue_id")
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .order("saved_at", { ascending: false });
 
   if (error) {
     console.error("[saved-venues GET] DB error:", error);
