@@ -272,9 +272,12 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
             >
               <span aria-hidden="true">{initialFor(item.displayName)}</span>
               {item.avatarUrl && (
-                <img
+                <Image
                   src={item.avatarUrl}
                   alt={item.displayName}
+                  width={36}
+                  height={36}
+                  sizes="36px"
                   loading="lazy"
                   className="absolute inset-0 h-full w-full object-cover"
                   onError={(event) => {
