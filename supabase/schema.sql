@@ -44,6 +44,7 @@ create table if not exists public.venues (
   price_level     smallint check (price_level between 1 and 4),
   photo_reference text,                          -- Google photo ref (not URL)
   photo_url       text,                          -- Google Place Photo URL only
+  photo_urls      text[] default '{}',           -- Google Place Photo URLs for detail gallery
   category        text,
   zone_id         text references public.zones(id),
   hidden          boolean not null default false,
@@ -68,6 +69,7 @@ create index if not exists venues_zone_id_idx on public.venues(zone_id);
 create index if not exists venues_lat_lng_idx on public.venues(lat, lng);
 
 alter table public.venues add column if not exists photo_url text;
+alter table public.venues add column if not exists photo_urls text[] default '{}';
 alter table public.venues add column if not exists category text;
 alter table public.venues add column if not exists zone_id text references public.zones(id);
 alter table public.venues add column if not exists hidden boolean not null default false;

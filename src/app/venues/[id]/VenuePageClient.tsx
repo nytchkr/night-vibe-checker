@@ -267,6 +267,8 @@ export function VenuePageClient({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  const photoStripRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
@@ -516,6 +518,28 @@ export function VenuePageClient({
     const query = venue.address || `${venue.lat},${venue.lng}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
+  const galleryPhotoUrls = useMemo(() => {
+    const urls = venue?.photoUrls ?? [];
+    return urls.filter((url, index) => url.length > 0 && urls.indexOf(url) === index);
+  }, [venue?.photoUrls]);
+  const hasGallery = galleryPhotoUrls.length > 1;
+  const heroPhotoUrl = hasGallery
+    ? galleryPhotoUrls[Math.min(activePhotoIndex, galleryPhotoUrls.length - 1)]
+    : venue?.photoUrl;
+
+  useEffect(() => {
+    setActivePhotoIndex(0);
+    photoStripRef.current?.scrollTo({ left: 0 });
+  }, [venue?.id, galleryPhotoUrls.length]);
+
+  function handlePhotoStripScroll() {
+    const strip = photoStripRef.current;
+    if (!strip || galleryPhotoUrls.length <= 1) return;
+    const photoWidth = strip.querySelector<HTMLElement>("[data-gallery-photo]")?.offsetWidth ?? 320;
+    const gap = 12;
+    const nextIndex = Math.round(strip.scrollLeft / (photoWidth + gap));
+    setActivePhotoIndex(Math.max(0, Math.min(galleryPhotoUrls.length - 1, nextIndex)));
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] pb-48">
@@ -543,10 +567,10 @@ export function VenuePageClient({
               background: `linear-gradient(155deg, ${getCategoryAccent(venue.category)} 0%, rgba(10,10,15,0.92) 48%, #0A0A0F 100%)`,
             }}
           >
-            {venue.photoUrl ? (
+            {heroPhotoUrl ? (
               <>
                 <Image
-                  src={venue.photoUrl}
+                  src={heroPhotoUrl}
                   alt={venue.name}
                   fill
                   sizes="100vw"
@@ -583,6 +607,50 @@ export function VenuePageClient({
             </Link>
 
             <div className="relative mx-auto max-w-lg">
+              {hasGallery && (
+                <div className="mb-5" aria-label={`${venue.name} photos`}>
+                  <div
+                    ref={photoStripRef}
+                    onScroll={handlePhotoStripScroll}
+                    className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                    {galleryPhotoUrls.map((photoUrl, index) => (
+                      <button
+                        key={photoUrl}
+                        type="button"
+                        data-gallery-photo
+                        onClick={() => setActivePhotoIndex(index)}
+                        className={`h-48 w-80 flex-shrink-0 snap-center overflow-hidden rounded-xl border text-left transition ${
+                          activePhotoIndex === index ? "border-[#00F5D4]/80" : "border-white/10"
+                        }`}
+                        aria-label={`Show photo ${index + 1} of ${galleryPhotoUrls.length}`}
+                        aria-pressed={activePhotoIndex === index}
+                      >
+                        <Image
+                          src={photoUrl}
+                          alt={`${venue.name} photo ${index + 1}`}
+                          width={320}
+                          height={192}
+                          sizes="320px"
+                          placeholder="blur"
+                          blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
+                          className="h-48 w-80 object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-center gap-1.5" aria-hidden="true">
+                    {galleryPhotoUrls.map((photoUrl, index) => (
+                      <span
+                        key={`${photoUrl}-dot`}
+                        className={`h-1.5 w-1.5 rounded-full transition ${
+                          activePhotoIndex === index ? "bg-[#00F5D4]" : "bg-white/25"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <CategoryChip category={venue.category} />
                 <h1 className="mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>

@@ -92,6 +92,7 @@ export interface ConsumerVenue {
   priceLevel?: 1 | 2 | 3 | 4;
   photoReference?: string;
   photoUrl?: string;
+  photoUrls?: string[];
   phone?: string;
   website?: string;
   openingHours?: string[];
