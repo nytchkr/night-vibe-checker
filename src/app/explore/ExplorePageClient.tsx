@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Session } from "@supabase/supabase-js";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
+import { TrendingStrip } from "@/components/TrendingStrip";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
@@ -479,6 +480,8 @@ export function ExplorePageClient() {
       </header>
 
       <section className="mx-auto max-w-lg space-y-3 px-4 pb-32" role="region" aria-label="Venue results">
+        <TrendingStrip />
+
         {error && (
           <div
             role="alert"
