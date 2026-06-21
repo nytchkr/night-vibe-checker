@@ -237,7 +237,7 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
     >
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-sm font-black text-white">Who's here</h2>
+          <h2 className="font-display text-sm font-black text-white">Who's here</h2>
           <p className="mt-1 text-xs font-medium text-white/40">{peopleLabel}</p>
         </div>
         <div className="flex items-center pl-2" aria-label={peopleLabel}>
@@ -821,7 +821,7 @@ export function VenuePageClient({
               )}
               <div>
                 <CategoryChip category={venue.category} />
-                <h1 className="mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
+                <h1 className="font-display mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
                 {venue.address && (
                   <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
                 )}
@@ -945,7 +945,7 @@ export function VenuePageClient({
             <VenueRating venueId={venueId} accessToken={accessToken} />
 
             <section className="space-y-4" role="region" aria-label="Tips from locals">
-              <h2 className="text-lg font-bold text-white">💡 Tips from locals</h2>
+              <h2 className="font-display text-lg font-bold text-white">💡 Tips from locals</h2>
 
               {tipsLoading ? (
                 <div className="space-y-3" role="status" aria-label="Loading tips">
@@ -1057,7 +1057,7 @@ export function VenuePageClient({
           />
           <div className="relative mx-auto w-full max-w-lg rounded-2xl border border-white/10 bg-[#11111A] p-4 shadow-2xl">
             <div className="flex items-center justify-between gap-4">
-              <h2 id="venue-report-title" className="text-lg font-black text-white">
+              <h2 id="venue-report-title" className="font-display text-lg font-black text-white">
                 Report an issue
               </h2>
               <button

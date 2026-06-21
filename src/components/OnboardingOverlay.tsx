@@ -268,7 +268,7 @@ export function OnboardingOverlay() {
                 <SlidePreview preview={slide.preview} />
               </div>
 
-              <h2 id="onboarding-title" className="text-[2.55rem] font-black leading-[1.05] tracking-normal">
+              <h2 id="onboarding-title" className="font-display text-[2.55rem] font-black leading-[1.05] tracking-normal">
                 {slide.title}
               </h2>
               <p id="onboarding-body" className="mx-auto mt-4 max-w-sm text-base font-semibold leading-6 text-white/66">

@@ -37,8 +37,8 @@ export default function AdminLoginPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-lg border border-white/10 bg-white/[0.03] p-6"
       >
-        <p className="text-sm uppercase tracking-[0.2em] text-[#8B6CFF]">NightVibe Admin</p>
-        <h1 className="mt-2 text-2xl font-bold">Admin login</h1>
+        <p className="font-display text-sm uppercase tracking-[0.2em] text-[#8B6CFF]">NightVibe Admin</p>
+        <h1 className="font-display mt-2 text-2xl font-bold">Admin login</h1>
         <label className="mt-6 block text-sm text-white/70" htmlFor="admin-password">
           Password
         </label>

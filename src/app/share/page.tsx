@@ -19,10 +19,10 @@ export default async function SharePage({ searchParams }: SharePageProps) {
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-[#0A0A0E] px-5 py-10 text-white">
       <section className="mx-auto flex min-h-[520px] w-full max-w-md flex-col justify-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#8B6CFF]">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-[#8B6CFF]">
           NightVibe
         </p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-normal text-white">
+        <h1 className="font-display mt-4 text-3xl font-semibold tracking-normal text-white">
           Shared to NightVibe
         </h1>
         <p className="mt-3 text-sm leading-6 text-white/70">

@@ -72,7 +72,7 @@ export function AdminVenueTable({ initialVenues, token }: Props) {
   return (
     <section>
       <div className="mb-3">
-        <h2 className="text-base font-semibold text-white">Venues</h2>
+        <h2 className="font-display text-base font-semibold text-white">Venues</h2>
         <p className="mt-1 text-sm text-white/40">Hide venues from public discovery or refresh one venue signal.</p>
       </div>
 

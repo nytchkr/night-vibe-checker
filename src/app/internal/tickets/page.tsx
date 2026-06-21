@@ -93,7 +93,7 @@ export default async function InternalTicketsPage() {
           </p>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 className="text-3xl font-black tracking-tight">Internal Tickets</h1>
+              <h1 className="font-display text-3xl font-black tracking-tight">Internal Tickets</h1>
               <p className="mt-2 max-w-2xl text-sm text-white/50">
                 Production read-only view of Claude/Codex agent tickets, blockers, and handoffs. This is not a consumer VibeCheck feature.
               </p>
@@ -121,7 +121,7 @@ export default async function InternalTicketsPage() {
             return (
               <div key={status} className="rounded-2xl border border-white/10 bg-white/[0.025] p-3">
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-sm font-black text-white">{status}</h2>
+                  <h2 className="font-display text-sm font-black text-white">{status}</h2>
                   <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/50">
                     {columnTickets.length}
                   </span>

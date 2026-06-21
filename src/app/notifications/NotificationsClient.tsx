@@ -135,7 +135,7 @@ export function NotificationsClient({ initialPrefs, initialAlertVenues }: Notifi
     <div className="space-y-6">
       <section aria-label="Push alerts">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Push Alerts</h2>
+          <h2 className="font-display text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Push Alerts</h2>
           {statusLabel && (
             <p className={`text-xs font-bold ${saveState === "error" ? "text-[#F0568C]" : "text-white/40"}`} role="status">
               {statusLabel}
@@ -186,7 +186,7 @@ export function NotificationsClient({ initialPrefs, initialAlertVenues }: Notifi
       </section>
 
       <section aria-label="Saved venues">
-        <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Saved Venues</h2>
+        <h2 className="font-display mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Saved Venues</h2>
         {alertVenues.length === 0 ? (
           <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5">
             <p className="text-sm font-semibold leading-6 text-white/45">

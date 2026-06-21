@@ -49,9 +49,9 @@ export function ShareNightVibeCard() {
       <div className="rounded-2xl border border-[#8B6CFF]/20 bg-gradient-to-r from-[#8B6CFF]/10 to-[#7B61FF]/10 p-4 text-left">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-white">Know before you go 🌃</h2>
+            <h2 className="font-display text-sm font-bold text-white">Know before you go 🌃</h2>
             <p className="mt-1 text-xs leading-5 text-white/50">
-              Share NightVibe with your crew so you can see who's out tonight.
+              Share <span className="font-display">NightVibe</span> with your crew so you can see who's out tonight.
             </p>
           </div>
           <button

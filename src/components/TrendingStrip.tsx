@@ -58,7 +58,7 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-        <h2 className="line-clamp-2 text-sm font-black leading-snug text-white">{venue.name}</h2>
+        <h2 className="font-display line-clamp-2 text-sm font-black leading-snug text-white">{venue.name}</h2>
         <BusynessBadge value={venue.signal?.busyness0To100} />
       </div>
     </Link>
@@ -115,7 +115,7 @@ export function TrendingStrip() {
 
   return (
     <section className="space-y-3" aria-label="Trending Tonight">
-      <h2 className="text-sm font-black text-white">🔥 Trending Tonight</h2>
+      <h2 className="font-display text-sm font-black text-white">🔥 Trending Tonight</h2>
       <div className="flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {venues.map((venue) => (
           <TrendingCard key={venue.id} venue={venue} />

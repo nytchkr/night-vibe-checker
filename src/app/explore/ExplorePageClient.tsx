@@ -730,7 +730,7 @@ export function ExplorePageClient() {
               )}
             </div>
           </div>
-          <h1 className="text-2xl font-black text-white tracking-tight">
+          <h1 className="font-display text-2xl font-black text-white tracking-tight">
             South End
           </h1>
           <p className="mt-1 text-sm text-white/40">{venuesCount} spots tracked tonight</p>
@@ -865,7 +865,7 @@ export function ExplorePageClient() {
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
             <div className="text-5xl" aria-hidden="true">🔍</div>
-            <h2 className="mt-4 text-lg font-bold text-white/40">No venues match</h2>
+            <h2 className="font-display mt-4 text-lg font-bold text-white/40">No venues match</h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">
               Try a different filter or zoom out on the map
             </p>
@@ -915,7 +915,7 @@ export function ExplorePageClient() {
       >
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" aria-hidden="true" />
-          <h2 className="text-sm font-black uppercase tracking-[0.14em] text-white/55">
+          <h2 className="font-display text-sm font-black uppercase tracking-[0.14em] text-white/55">
             Recent Check-ins
           </h2>
         </div>

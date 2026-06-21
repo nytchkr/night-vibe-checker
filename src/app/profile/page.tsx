@@ -264,7 +264,7 @@ function LoggedOutPitch() {
   return (
     <div className="mx-auto mt-16 max-w-sm">
       <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6" aria-label="Sign up benefits">
-        <h2 className="text-2xl font-black text-white">Your Night Out HQ</h2>
+        <h2 className="font-display text-2xl font-black text-white">Your Night Out HQ</h2>
         <p className="mt-1 text-sm text-white/50">Sign up to unlock everything</p>
         <ul className="mt-6 space-y-3">
           {benefits.map((benefit) => (
@@ -481,7 +481,7 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-[#0A0A0E]">
       <header className="sticky top-0 z-40 bg-[#0A0A0E]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
         <div className="max-w-lg mx-auto py-4">
-          <h1 className="truncate text-2xl font-black tracking-tight text-white">
+          <h1 className="font-display truncate text-2xl font-black tracking-tight text-white">
             {session ? "Profile" : authChecked ? "You" : "Loading profile..."}
           </h1>
           <div className="mt-1 flex items-center justify-between gap-3">
@@ -525,7 +525,7 @@ export default function ProfilePage() {
             >
               <span>
                 <span className="block text-base font-black leading-tight text-white">Notifications</span>
-                <span className="mt-1 block text-xs font-semibold text-white/45">Control your NightVibe alerts</span>
+                <span className="mt-1 block text-xs font-semibold text-white/45">Control <span className="font-display">NightVibe</span> alerts</span>
               </span>
               <span className="text-lg font-black text-white/35" aria-hidden="true">→</span>
             </Link>
@@ -542,7 +542,7 @@ export default function ProfilePage() {
 
         {session && (
           <section aria-label="Saved places">
-            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Saved Places</h2>
+            <h2 className="font-display mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Saved Places</h2>
             {savedVenuesLoading ? (
               <SavedVenuesSkeleton />
             ) : savedVenues.length === 0 ? (
@@ -560,7 +560,7 @@ export default function ProfilePage() {
         {/* Check-in history */}
         {session && (
           <section aria-label="Your vibes">
-            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Your Vibes</h2>
+            <h2 className="font-display mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Your Vibes</h2>
             {checkInsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
@@ -581,7 +581,7 @@ export default function ProfilePage() {
 
         {session && (
           <section aria-label="Preferences">
-            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Preferences</h2>
+            <h2 className="font-display mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Preferences</h2>
             <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4">
               <div className="min-w-0">
                 <h3 className="text-base font-black leading-tight text-white">Haptics</h3>
@@ -615,7 +615,7 @@ export default function ProfilePage() {
 
         {session && (
           <section aria-label="Notifications">
-            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Notifications</h2>
+            <h2 className="font-display mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Notifications</h2>
             <PushOptIn />
           </section>
         )}

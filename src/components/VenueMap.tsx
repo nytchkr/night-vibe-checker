@@ -254,7 +254,7 @@ function CitySelector({
             <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
             <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-between gap-4">
               <div className="min-w-0">
-                <h2 className="text-base font-black text-white">Choose a neighborhood</h2>
+                <h2 className="font-display text-base font-black text-white">Choose a neighborhood</h2>
                 <p className="mt-1 truncate text-xs font-semibold text-white/45">Charlotte, NC</p>
               </div>
               <button
@@ -589,7 +589,7 @@ function VenueFilterSheet({
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
         <div className="mx-auto mt-4 w-full max-w-xl">
           <div className="flex items-center justify-between gap-4">
-            <h2 id="venue-filter-title" className="text-base font-bold text-white">
+            <h2 id="venue-filter-title" className="font-display text-base font-bold text-white">
               Filter Venues
             </h2>
             <button
@@ -922,7 +922,7 @@ export function VenueMap({
       {showEmptyState && (
         <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
-            <h2 className="text-base font-black">No spots found</h2>
+            <h2 className="font-display text-base font-black">No spots found</h2>
             <p className="mt-2 text-sm font-semibold text-white/70">{city.name} venues coming soon</p>
             <button
               type="button"
@@ -939,7 +939,7 @@ export function VenueMap({
       {error && !loading && (
         <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
-            <h2 className="text-base font-black">Couldn&apos;t load spots</h2>
+            <h2 className="font-display text-base font-black">Couldn&apos;t load spots</h2>
             <p className="mt-2 text-sm font-semibold text-white/70">Try again to refresh the {city.name} map.</p>
             <button
               type="button"

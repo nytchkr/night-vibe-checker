@@ -50,7 +50,7 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
         <div className="flex h-full flex-col justify-between">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8B6CFF]">Live crowd</p>
-            <h1 className="mt-2 truncate text-[22px] font-black leading-tight text-white">{venue.name}</h1>
+            <h1 className="font-display mt-2 truncate text-[22px] font-black leading-tight text-white">{venue.name}</h1>
             <p className="mt-1 truncate text-xs text-white/45">{venue.address}</p>
           </div>
 
@@ -75,7 +75,7 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
               <span aria-hidden="true">{feel.icon}</span>
               {feel.label}
             </span>
-            <span className="text-[11px] font-semibold text-white/35">Powered by NightVibe</span>
+            <span className="font-display text-[11px] font-semibold text-white/35">Powered by NightVibe</span>
           </div>
         </div>
       </article>

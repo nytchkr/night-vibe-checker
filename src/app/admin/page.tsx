@@ -166,7 +166,7 @@ function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
       <p className="text-sm text-white/50">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-white">{value.toLocaleString()}</p>
+      <p className="font-display mt-2 text-3xl font-bold text-white">{value.toLocaleString()}</p>
     </div>
   );
 }
@@ -185,8 +185,8 @@ export default async function AdminPage() {
     <main className="min-h-screen bg-[#0A0A0E] px-4 py-8 text-white">
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
-          <p className="text-sm uppercase tracking-[0.2em] text-[#8B6CFF]">NightVibe Admin</p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Venue Operations Dashboard</h1>
+          <p className="font-display text-sm uppercase tracking-[0.2em] text-[#8B6CFF]">NightVibe Admin</p>
+          <h1 className="font-display mt-2 text-3xl font-bold tracking-tight">Venue Operations Dashboard</h1>
           <p className="mt-2 text-sm text-white/50">Live venue, check-in, and dispatch health.</p>
         </header>
 
@@ -200,7 +200,7 @@ export default async function AdminPage() {
         <section className="grid gap-6 lg:grid-cols-[1fr_0.8fr]">
           <div className="rounded-lg border border-white/10 bg-white/[0.03]">
             <div className="border-b border-white/10 px-4 py-3">
-              <h2 className="font-semibold text-white">Top 5 busiest venues</h2>
+              <h2 className="font-display font-semibold text-white">Top 5 busiest venues</h2>
               <p className="text-sm text-white/45">By check-in count in the last 24 hours.</p>
             </div>
             <table className="w-full text-left text-sm">
@@ -231,7 +231,7 @@ export default async function AdminPage() {
 
           <div className="rounded-lg border border-white/10 bg-white/[0.03]">
             <div className="border-b border-white/10 px-4 py-3">
-              <h2 className="font-semibold text-white">Dispatch queue</h2>
+              <h2 className="font-display font-semibold text-white">Dispatch queue</h2>
               <p className="text-sm text-white/45">Current job status counts.</p>
             </div>
             <dl className="grid grid-cols-2 gap-px bg-white/10 text-sm">
@@ -243,7 +243,7 @@ export default async function AdminPage() {
               ].map(([label, value]) => (
                 <div key={label} className="bg-[#0A0A0E] p-4">
                   <dt className="text-white/45">{label}</dt>
-                  <dd className="mt-2 text-2xl font-bold tabular-nums text-white">{Number(value).toLocaleString()}</dd>
+                  <dd className="font-display mt-2 text-2xl font-bold tabular-nums text-white">{Number(value).toLocaleString()}</dd>
                 </div>
               ))}
             </dl>
@@ -252,7 +252,7 @@ export default async function AdminPage() {
 
         <section className="rounded-lg border border-white/10 bg-white/[0.03]">
           <div className="border-b border-white/10 px-4 py-3">
-            <h2 className="font-semibold text-white">Last 10 check-ins</h2>
+            <h2 className="font-display font-semibold text-white">Last 10 check-ins</h2>
             <p className="text-sm text-white/45">User emails are truncated for monitoring.</p>
           </div>
           <div className="overflow-x-auto">

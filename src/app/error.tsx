@@ -9,7 +9,7 @@ export default function Error({
 }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0E] px-4 text-center text-white">
-      <h1 className="text-2xl font-black">Something went wrong</h1>
+      <h1 className="font-display text-2xl font-black">Something went wrong</h1>
       <p className="mt-2 text-sm font-semibold text-white/55">Try refreshing</p>
       <button
         type="button"

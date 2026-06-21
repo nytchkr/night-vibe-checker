@@ -15,8 +15,8 @@ const ogImage = "/og-image.png";
 const themeColor = "#0A0A0E";
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-display" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -65,7 +65,7 @@ const isDev = process.env.NEXT_PUBLIC_ENV === "development";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head>
         <meta name="theme-color" content={themeColor} />
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
@@ -77,7 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://a.tile.openstreetmap.org" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
       </head>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} bg-[#0A0A0E] text-white font-sans antialiased min-h-screen`}>
+      <body className="bg-[#0A0A0E] text-white font-sans antialiased min-h-screen">
         <OfflineBanner />
         <a
           href="#main-content"

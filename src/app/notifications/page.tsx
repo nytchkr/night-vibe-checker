@@ -109,8 +109,8 @@ export default async function NotificationsPage() {
         </Link>
 
         <header className="mt-7 mb-8">
-          <h1 className="text-3xl font-black tracking-tight text-white">Notifications</h1>
-          <p className="mt-2 text-sm font-semibold text-white/45">Control your NightVibe alerts</p>
+          <h1 className="font-display text-3xl font-black tracking-tight text-white">Notifications</h1>
+          <p className="mt-2 text-sm font-semibold text-white/45">Control your <span className="font-display">NightVibe</span> alerts</p>
         </header>
 
         <NotificationsClient initialPrefs={initialPrefs} initialAlertVenues={alertVenues} />

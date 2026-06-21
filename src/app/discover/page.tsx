@@ -37,7 +37,7 @@ function MapPreviewFallback() {
           <p className="text-white/45 text-[11px] font-semibold uppercase tracking-[0.22em]">
             Live area
           </p>
-          <h2 className="mt-2 text-white text-2xl font-extrabold tracking-tight">
+          <h2 className="font-display mt-2 text-white text-2xl font-extrabold tracking-tight">
             Tonight nearby
           </h2>
           <p className="mt-2 max-w-[17rem] text-white/45 text-sm leading-relaxed">
@@ -173,7 +173,7 @@ export default function DiscoverPage() {
           <p className="text-[#F0568C]/60 text-[10px] font-bold uppercase tracking-[0.3em]">
             Explore
           </p>
-          <h1 className="mt-1 text-white font-black text-[1.75rem] leading-none tracking-[-0.02em]">
+          <h1 className="font-display mt-1 text-white font-black text-[1.75rem] leading-none tracking-[-0.02em]">
             Map the night
           </h1>
           <p className="text-white/40 text-xs mt-2 font-medium">
@@ -196,7 +196,7 @@ export default function DiscoverPage() {
               <p className="text-white/35 text-[11px] font-semibold uppercase tracking-[0.2em]">
                 Nearby
               </p>
-              <h2 className="text-white font-semibold text-base">
+              <h2 className="font-display text-white font-semibold text-base">
                 {venues.length ? `${venues.length} spots surfaced` : "Nearby spots"}
               </h2>
             </div>

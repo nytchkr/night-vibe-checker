@@ -31,7 +31,7 @@ export default async function LeaderboardPage() {
             <Link href="/profile" className="text-xs font-bold text-white/35 transition-colors hover:text-white/60">
               Back to You
             </Link>
-            <h1 className="mt-4 text-2xl font-black text-white">Most Active This Week</h1>
+            <h1 className="font-display mt-4 text-2xl font-black text-white">Most Active This Week</h1>
             <p className="mt-1 text-sm text-white/40">Top nightlife explorers in South End Charlotte</p>
           </div>
         </header>

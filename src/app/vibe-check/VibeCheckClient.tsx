@@ -280,7 +280,7 @@ export default function VibeCheckClient({
             <p className="mb-3 truncate text-[17px] font-medium text-white/80">
               {effectiveVenueName || "This venue"}
             </p>
-            <h1 className="text-2xl font-black">Vibe logged 🎯</h1>
+            <h1 className="font-display text-2xl font-black">Vibe logged 🎯</h1>
             <p className="mt-2 text-sm font-semibold text-white/70">Thanks for keeping it real.</p>
 
             <article
@@ -295,7 +295,7 @@ export default function VibeCheckClient({
                   <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8B6CFF]">
                     Tonight's read
                   </p>
-                  <h2 className="mt-3 truncate text-xl font-black text-white">
+                  <h2 className="font-display mt-3 truncate text-xl font-black text-white">
                     {effectiveVenueName || "This venue"}
                   </h2>
                 </div>
@@ -326,7 +326,7 @@ export default function VibeCheckClient({
               </div>
 
               <p className="mt-6 text-xs font-semibold text-white/30">
-                NightVibe · South End Charlotte
+                <span className="font-display">NightVibe</span> · South End Charlotte
               </p>
             </article>
 
@@ -363,7 +363,7 @@ export default function VibeCheckClient({
           <Link href="/explore" className="text-sm font-semibold text-white/55 hover:text-white">
             Back
           </Link>
-          <h1 className="truncate text-base font-bold text-[#F9FAFB]">
+          <h1 className="font-display truncate text-base font-bold text-[#F9FAFB]">
             {venueName || "Report Vibe"}
           </h1>
         </div>
@@ -395,7 +395,7 @@ export default function VibeCheckClient({
 
         {/* ── VENUE ─────────────────────────────────────────────── */}
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
+          <h2 className="font-display mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
             Venue
           </h2>
           {venueId ? (
@@ -488,7 +488,7 @@ export default function VibeCheckClient({
 
         {/* ── BUSYNESS ──────────────────────────────────────────── */}
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
+          <h2 className="font-display mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
             How busy is it?
           </h2>
           <div className="flex flex-col gap-3">
@@ -520,7 +520,7 @@ export default function VibeCheckClient({
 
         {/* ── CROWD FEEL ────────────────────────────────────────── */}
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
+          <h2 className="font-display mb-3 text-xs font-semibold uppercase tracking-widest text-white/40">
             Crowd feel
           </h2>
           <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-3">

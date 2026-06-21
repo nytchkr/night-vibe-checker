@@ -136,7 +136,7 @@ function LoginContent() {
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center justify-center">
         <section className="w-full space-y-8">
           <div className="space-y-2 text-center">
-            <h1 className="text-3xl font-black tracking-tight text-white">
+            <h1 className="font-display text-3xl font-black tracking-tight text-white">
               Night<span className="text-[#8B6CFF]">Vibe</span>
             </h1>
             <p className="text-sm font-semibold text-white/50">Know before you go.</p>

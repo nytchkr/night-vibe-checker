@@ -95,7 +95,7 @@ export function PushOptIn() {
     <Card className="rounded-2xl border-white/[0.09] bg-white/[0.04] text-white shadow-none">
       <CardContent className="flex items-center justify-between gap-4 p-4">
         <div className="min-w-0">
-          <h2 className="text-base font-black leading-tight text-white">Get Friday night picks →</h2>
+          <h2 className="font-display text-base font-black leading-tight text-white">Get Friday night picks →</h2>
           <p className="mt-1 text-xs font-semibold text-white/45">
             Nightly South End picks when the weekend hits.
           </p>

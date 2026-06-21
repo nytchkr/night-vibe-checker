@@ -157,7 +157,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
           <div className="mt-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="truncate text-lg font-bold text-white">{venue.name}</h2>
+                <h2 className="font-display truncate text-lg font-bold text-white">{venue.name}</h2>
                 <p className="mt-1 text-sm leading-snug text-white/50">
                   {venue.category}
                   {venue.address ? ` · ${venue.address}` : ""}
