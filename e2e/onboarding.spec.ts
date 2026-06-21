@@ -30,7 +30,7 @@ test.describe("Onboarding overlay", () => {
 
     await page.goto("/explore");
 
-    const overlay = page.getByRole("dialog", { name: /know before you go/i });
+    const overlay = page.getByRole("dialog", { name: /find the vibe/i });
     await expect(overlay).toBeVisible();
     await expect(page.getByRole("button", { name: "Skip" })).toBeVisible();
 

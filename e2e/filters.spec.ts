@@ -124,7 +124,7 @@ test.describe("Home filters", () => {
     const venueLinks = page.getByRole("link", { name: /^Open / });
     await expect(venueLinks).toHaveCount(venues.length);
 
-    await page.getByRole("searchbox", { name: "Search South End venues" }).fill(venues[0].name.slice(0, 3));
+    await page.getByRole("searchbox", { name: "Search venues" }).fill(venues[0].name.slice(0, 3));
 
     await expect(venueLinks).toHaveCount(1);
     await expect(page.getByText(venues[0].name)).toBeVisible();

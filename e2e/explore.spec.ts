@@ -110,7 +110,7 @@ test.describe("Explore tab", () => {
     await expect(page.getByText("Pulse Room")).toBeVisible();
     await expect(page.getByText("Lowlight Lounge")).toBeVisible();
 
-    await page.getByRole("searchbox", { name: "Search South End venues" }).fill("Pulse");
+    await page.getByRole("searchbox", { name: "Search venues" }).fill("Pulse");
 
     await expect(page.getByText("Pulse Room")).toBeVisible();
     await expect(page.getByText("Lowlight Lounge")).toHaveCount(0);

@@ -141,7 +141,7 @@ test.describe("NV-TEST-004 venue detail", () => {
 
     await page.goto(`/venues/${venue.id}`);
 
-    const saveLink = page.getByRole("link", { name: new RegExp(`Sign in to save ${venue.name}`, "i") });
+    const saveLink = page.getByRole("link", { name: "Save venue" });
     await expect(saveLink).toBeVisible();
     await expect(saveLink).toHaveAttribute("href", /\/login/);
   });

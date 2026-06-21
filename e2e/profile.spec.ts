@@ -100,6 +100,6 @@ test.describe("Profile page", () => {
     await page.goto("/profile");
 
     await expect(page.getByRole("heading", { name: "Your Vibes" })).toBeVisible();
-    await expect(page.getByText("No vibes reported yet")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your first night awaits" })).toBeVisible();
   });
 });

@@ -267,10 +267,12 @@ test.describe("Map tab", () => {
     await expect(page).toHaveURL(/\/profile$/, { timeout: 10000 });
   });
 
-  test("/ redirects to /map", async ({ page }) => {
+  test("/ renders the default map tab", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page).toHaveURL(/\/map$/);
+    await page.waitForSelector(".leaflet-container", { timeout: 25000 });
+    await expect(page.locator(".leaflet-container")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Map" })).toBeVisible();
   });
 });
 
@@ -328,6 +330,6 @@ test.describe("Map bottom sheet", () => {
     await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeGreaterThan(240);
     await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeLessThan(340);
     await expect.poll(() => selectedPinCount(page), { timeout: 10000 }).toBeGreaterThanOrEqual(1);
-    await expect(sheet.getByRole("button", { pressed: true })).toHaveCount(1);
+    await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toHaveAttribute("aria-pressed", "true");
   });
 });
