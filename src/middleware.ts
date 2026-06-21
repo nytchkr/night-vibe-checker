@@ -69,7 +69,12 @@ async function shareRedirect(req: NextRequest): Promise<MiddlewareResponse> {
 }
 
 export async function middleware(req: NextRequest): Promise<MiddlewareResponse> {
-  let response = NextResponse.next({ request: req });
+  const requestHeaders = new Headers(req.headers);
+  let response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 
   if (req.nextUrl.pathname === "/share" && req.method === "POST") {
     return shareRedirect(req);
@@ -85,8 +90,15 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
         return req.cookies.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
-        response = NextResponse.next({ request: req });
+        cookiesToSet.forEach(({ name, value }) => {
+          req.cookies.set(name, value);
+        });
+        requestHeaders.set("cookie", req.cookies.toString());
+        response = NextResponse.next({
+          request: {
+            headers: requestHeaders,
+          },
+        });
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });
