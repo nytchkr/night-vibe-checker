@@ -49,8 +49,31 @@ function unauthorized(sessionResponse: MiddlewareResponse): MiddlewareResponse {
   );
 }
 
+async function shareRedirect(req: NextRequest): Promise<MiddlewareResponse> {
+  const redirectUrl = req.nextUrl.clone();
+  redirectUrl.search = "";
+
+  try {
+    const formData = await req.formData();
+    for (const key of ["title", "text", "url"]) {
+      const value = formData.get(key);
+      if (typeof value === "string" && value) {
+        redirectUrl.searchParams.set(key, value);
+      }
+    }
+  } catch {
+    redirectUrl.search = "";
+  }
+
+  return NextResponse.redirect(redirectUrl, 303);
+}
+
 export async function middleware(req: NextRequest): Promise<MiddlewareResponse> {
   let response = NextResponse.next({ request: req });
+
+  if (req.nextUrl.pathname === "/share" && req.method === "POST") {
+    return shareRedirect(req);
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
