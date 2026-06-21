@@ -7,18 +7,16 @@ export const dynamic = "force-dynamic";
 
 type VenueRow = {
   id: string;
-  place_id: string | null;
+  besttime_venue_id: string | null;
   name: string;
 };
 
 type RefreshError = {
   venueId: string;
-  placeId?: string;
+  bestTimeVenueId?: string;
   name?: string;
   error: string;
 };
-
-type CrowdFeel = "male" | "female" | "balanced";
 
 const BESTTIME_LIVE_URL = "https://besttime.app/api/v1/forecasts/live/raw";
 
@@ -64,49 +62,15 @@ function extractBusynessPct(payload: unknown): number | null {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function extractCrowdFeel(payload: unknown): CrowdFeel {
-  const malePct = firstNumber(payload, [
-    ["analysis", "male_pct"],
-    ["analysis", "male_percentage"],
-    ["analysis", "male"],
-    ["male_pct"],
-    ["male_percentage"],
-    ["male"],
-  ]);
-  const femalePct = firstNumber(payload, [
-    ["analysis", "female_pct"],
-    ["analysis", "female_percentage"],
-    ["analysis", "female"],
-    ["female_pct"],
-    ["female_percentage"],
-    ["female"],
-  ]);
-
-  if (malePct != null && femalePct != null) {
-    if (malePct - femalePct >= 15) return "male";
-    if (femalePct - malePct >= 15) return "female";
-  } else if (malePct != null) {
-    if (malePct >= 58) return "male";
-    if (malePct <= 42) return "female";
-  } else if (femalePct != null) {
-    if (femalePct >= 58) return "female";
-    if (femalePct <= 42) return "male";
-  }
-
-  const rawFeel = readPath(payload, ["analysis", "crowd_feel"]) ?? readPath(payload, ["crowd_feel"]);
-  if (typeof rawFeel === "string") {
-    const normalized = rawFeel.toLowerCase();
-    if (normalized.includes("female")) return "female";
-    if (normalized.includes("male")) return "male";
-  }
-
-  return "balanced";
+function hasLiveBusyness(payload: unknown): boolean {
+  const available = readPath(payload, ["analysis", "venue_live_busyness_available"]);
+  return available === true;
 }
 
-async function fetchBestTimeLive(placeId: string, apiKey: string): Promise<{ busynessPct: number; crowdFeel: CrowdFeel }> {
+async function fetchBestTimeLive(bestTimeVenueId: string, apiKey: string): Promise<{ busynessPct: number }> {
   const url = new URL(BESTTIME_LIVE_URL);
-  url.searchParams.set("api_key", apiKey);
-  url.searchParams.set("venue_id", placeId);
+  url.searchParams.set("api_key_private", apiKey);
+  url.searchParams.set("venue_id", bestTimeVenueId);
 
   const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
@@ -114,15 +78,16 @@ async function fetchBestTimeLive(placeId: string, apiKey: string): Promise<{ bus
   }
 
   const payload = (await response.json()) as unknown;
+  if (!hasLiveBusyness(payload)) {
+    throw new Error("BestTime live busyness is not available for this venue.");
+  }
+
   const busynessPct = extractBusynessPct(payload);
   if (busynessPct == null) {
     throw new Error("BestTime response did not include live busyness.");
   }
 
-  return {
-    busynessPct,
-    crowdFeel: extractCrowdFeel(payload),
-  };
+  return { busynessPct };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -140,7 +105,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await supabaseAdmin
     .from("venues")
-    .select("id, place_id, name")
+    .select("id, besttime_venue_id, name")
+    .not("besttime_venue_id", "is", null)
     .order("name", { ascending: true });
 
   if (error) {
@@ -151,23 +117,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   let updated = 0;
 
   for (const venue of (data ?? []) as VenueRow[]) {
-    if (!venue.place_id) continue;
+    if (!venue.besttime_venue_id) continue;
 
     try {
-      const live = await fetchBestTimeLive(venue.place_id, apiKey);
+      const live = await fetchBestTimeLive(venue.besttime_venue_id, apiKey);
       const { error: updateError } = await supabaseAdmin
         .from("venues")
         .update({
           busyness_pct: live.busynessPct,
-          crowd_feel: live.crowdFeel,
+          last_busyness_refresh: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", venue.id);
 
       if (updateError) {
+        console.warn(`Failed to update busyness for ${venue.name} (${venue.id}): ${updateError.message}`);
         errors.push({
           venueId: venue.id,
-          placeId: venue.place_id,
+          bestTimeVenueId: venue.besttime_venue_id,
           name: venue.name,
           error: updateError.message,
         });
@@ -176,11 +143,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
       updated += 1;
     } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown BestTime error";
+      console.warn(`Failed to refresh BestTime busyness for ${venue.name} (${venue.id}): ${message}`);
       errors.push({
         venueId: venue.id,
-        placeId: venue.place_id,
+        bestTimeVenueId: venue.besttime_venue_id,
         name: venue.name,
-        error: err instanceof Error ? err.message : "Unknown BestTime error",
+        error: message,
       });
     }
   }
