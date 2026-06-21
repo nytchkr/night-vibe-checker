@@ -19,7 +19,7 @@ import type { ConsumerVenue } from "@/types";
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
-type NeighborhoodFilter = "All Areas" | "South End" | "NoDa" | "Uptown";
+type NeighborhoodFilter = "All Areas" | "South End";
 type SortOption = "Nearest" | "Busiest" | "A-Z" | "Open Now";
 type UserLocation = { lat: number; lng: number };
 type ActivityFeedItem = {
@@ -36,9 +36,20 @@ type ActivityFeedItem = {
 };
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
-const NEIGHBORHOOD_FILTERS: NeighborhoodFilter[] = ["All Areas", "South End", "NoDa", "Uptown"];
+const NEIGHBORHOOD_FILTERS: NeighborhoodFilter[] = ["All Areas", "South End"];
 const SORT_OPTIONS: SortOption[] = ["Nearest", "Busiest", "A-Z", "Open Now"];
-const PAGE_SIZE = 20;
+const SORT_LABELS: Record<SortOption, string> = {
+  Nearest: "Nearest",
+  Busiest: "Busiest",
+  "A-Z": "A-z",
+  "Open Now": "Open now",
+};
+const NEIGHBORHOOD_LABELS: Record<NeighborhoodFilter, string> = {
+  "All Areas": "All areas",
+  "South End": "South end",
+};
+const ITEM_HEIGHT = 126;
+const OVERSCAN = 3;
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
@@ -155,7 +166,7 @@ function FilterChip<T extends string>({
         borderColor: active ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/60 transition-colors hover:bg-white/15 hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-white"
+      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-semibold text-white/60 transition-colors hover:bg-white/15 hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-white"
       aria-pressed={active}
       data-active={active}
     >
@@ -190,7 +201,7 @@ function CategoryFilterPill({
         color: active ? "#0A0A0E" : "rgba(255,255,255,0.5)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
       aria-pressed={active}
       data-active={active}
     >
@@ -224,10 +235,10 @@ function NeighborhoodFilterPill({
         color: active ? "#0A0A0E" : "rgba(255,255,255,0.6)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full px-4 text-sm font-black transition-colors hover:bg-white/[0.1] hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+      className="min-h-[38px] shrink-0 rounded-full px-4 text-sm font-semibold transition-colors hover:bg-white/[0.1] hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
       aria-pressed={active}
     >
-      {label}
+      {NEIGHBORHOOD_LABELS[label]}
     </motion.button>
   );
 }
@@ -257,11 +268,11 @@ function SortPill({
         borderColor: active ? "rgba(139,108,255,0.4)" : "rgba(255,255,255,0.1)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="shrink-0 rounded-full border px-3 py-1 text-xs font-bold text-white/50 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-[#8B6CFF]"
+      className="shrink-0 rounded-full border px-3 py-1 text-xs font-semibold text-white/50 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-[#8B6CFF]"
       aria-pressed={active}
       data-active={active}
     >
-      {label}
+      {SORT_LABELS[label]}
     </motion.button>
   );
 }
@@ -303,7 +314,7 @@ function BusynessChip({ level }: { level: BusynessLevel }) {
 
   return (
     <span
-      className="inline-flex min-h-[30px] items-center gap-2 rounded-full border px-3 text-[12px] font-black uppercase tracking-[0.12em]"
+      className="inline-flex min-h-[30px] items-center gap-2 rounded-full border px-3 text-[13px] font-semibold"
       style={{
         borderColor: `${color}55`,
         backgroundColor: `${color}1F`,
@@ -407,7 +418,7 @@ function VenueFeedCard({
 
   return (
     <motion.li
-      className="mb-3 last:mb-0"
+      className="mb-3 h-[114px]"
       role="article"
       initial={prefersReduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -419,10 +430,10 @@ function VenueFeedCard({
     >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="group relative block h-auto w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] transition-colors hover:border-white/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        className="group relative flex h-full w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] transition-colors hover:border-white/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         aria-label={`Open ${venue.name}`}
       >
-        <div className="relative aspect-video w-full overflow-hidden bg-[linear-gradient(135deg,rgba(17,17,24,1),rgba(28,19,36,0.94)_50%,rgba(6,28,32,0.86))]">
+        <div className="relative h-full w-[104px] shrink-0 overflow-hidden bg-[linear-gradient(135deg,rgba(17,17,24,1),rgba(28,19,36,0.94)_50%,rgba(6,28,32,0.86))] sm:w-[118px]">
           {venue.photoUrl ? (
             <Image
               src={venue.photoUrl}
@@ -435,38 +446,38 @@ function VenueFeedCard({
               className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(139,108,255,0.14),transparent_32%),radial-gradient(circle_at_70%_80%,rgba(240,86,140,0.12),transparent_34%)] text-5xl" aria-hidden="true">
+            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(139,108,255,0.14),transparent_32%),radial-gradient(circle_at_70%_80%,rgba(240,86,140,0.12),transparent_34%)] text-4xl" aria-hidden="true">
               {getCategoryIcon(venue.category)}
             </div>
           )}
         </div>
 
-        <div className="px-4 py-4">
+        <div className="flex min-w-0 flex-1 flex-col justify-between px-3.5 py-3">
           <div className="flex min-w-0 items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <h2 className="truncate font-display text-[19px] font-semibold leading-tight text-white">
+              <h2 className="truncate font-display text-[16px] font-semibold leading-tight text-white">
                 <HighlightText text={venue.name} query={searchQuery} />
               </h2>
             </div>
-            <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-1 text-[12px] font-semibold text-[#9CA2AE]">
+            <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.05] px-2 py-0.5 text-[11px] font-semibold text-[#9CA2AE]">
               {categoryLabel}
             </span>
           </div>
 
-          <div className="mt-4 space-y-4 rounded-2xl border border-[rgba(255,255,255,0.08)] bg-black/[0.14] p-3.5">
+          <div className="mt-2 min-h-[32px]">
             {hasCrowdReading ? (
-              <div className="space-y-2">
+              <div className="flex items-center gap-2">
                 {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : null}
                 {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
               </div>
             ) : (
-              <p className="text-[13px] font-medium text-[#646B79]">
+              <p className="line-clamp-1 text-[12px] font-medium text-[#646B79]">
                 No live reads yet — be the first to report
               </p>
             )}
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="mt-2 flex items-center justify-between gap-3">
             <span className="min-w-0 truncate text-[13px] font-medium text-[#9CA2AE]">
               {distance != null ? `${distance.toFixed(1)} mi · ` : ""}
               {venue.address}
@@ -488,21 +499,22 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="relative mb-3 h-auto w-full overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] last:mb-0">
-      <div className="absolute left-0 top-0 z-10 h-full w-1 animate-pulse bg-white/10" />
-      <div className="aspect-video w-full animate-pulse bg-white/[0.06]" />
-      <div className="space-y-3 bg-[#111118] px-4 py-3 pl-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-5 w-44 animate-pulse rounded bg-white/10" />
-            <div className="h-3 w-20 animate-pulse rounded bg-white/[0.08]" />
+    <div className="pulse-fast mb-3 flex h-[114px] w-full overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.04] last:mb-0">
+      <div className="h-full w-[104px] shrink-0 bg-white/[0.06] sm:w-[118px]" />
+      <div className="flex min-w-0 flex-1 flex-col justify-between px-3.5 py-3">
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="h-4 w-36 rounded bg-white/10" />
+              <div className="h-3 w-24 rounded bg-white/[0.08]" />
+            </div>
+            <div className="h-6 w-16 rounded-full bg-white/[0.08]" />
           </div>
-          <div className="h-3 w-12 animate-pulse rounded bg-white/[0.08]" />
+          <div className="h-7 w-24 rounded-full bg-white/[0.08]" />
         </div>
-        <div className="h-7 w-28 animate-pulse rounded-full bg-white/[0.08]" />
         <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3">
-          <div className="h-3 w-28 animate-pulse rounded bg-white/[0.08]" />
-          <div className="h-3 w-12 animate-pulse rounded bg-white/[0.08]" />
+          <div className="h-3 w-28 rounded bg-white/[0.08]" />
+          <div className="h-3 w-12 rounded bg-white/[0.08]" />
         </div>
       </div>
     </div>
@@ -523,10 +535,12 @@ export function ExplorePageClient() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState<NeighborhoodFilter>("All Areas");
   const [sortOption, setSortOption] = useState<SortOption>("Busiest");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [listViewportHeight, setListViewportHeight] = useState(560);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
 
@@ -631,7 +645,8 @@ export function ExplorePageClient() {
   }, [venues]);
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
+    setScrollTop(0);
+    listRef.current?.scrollTo({ top: 0 });
   }, [busynessFilter, categoryFilter, neighborhoodFilter, searchQuery, sortOption]);
 
   useEffect(() => {
@@ -700,9 +715,36 @@ export function ExplorePageClient() {
     );
   }, [userLocation, venues]);
 
+  useEffect(() => {
+    const element = listRef.current;
+    if (!element) return;
+    const currentElement = element;
+
+    function updateViewportHeight() {
+      setListViewportHeight(currentElement.clientHeight || 560);
+    }
+
+    updateViewportHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      globalThis.addEventListener("resize", updateViewportHeight);
+      return () => globalThis.removeEventListener("resize", updateViewportHeight);
+    }
+
+    const observer = new ResizeObserver(updateViewportHeight);
+    observer.observe(currentElement);
+    return () => observer.disconnect();
+  }, [sortedVenues.length]);
+
   const venuesCount = venues?.length ?? 0;
-  const visibleVenues = sortedVenues.slice(0, visibleCount);
-  const hasMoreVenues = sortedVenues.length > visibleVenues.length;
+  const startIdx = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
+  const endIdx = Math.min(
+    sortedVenues.length,
+    Math.ceil((scrollTop + listViewportHeight) / ITEM_HEIGHT) + OVERSCAN,
+  );
+  const visibleVenues = sortedVenues.slice(startIdx, endIdx);
+  const topPadding = startIdx * ITEM_HEIGHT;
+  const bottomPadding = Math.max(0, (sortedVenues.length - endIdx) * ITEM_HEIGHT);
   const searchedLocationCenter = getSearchedLocationCenter(searchQuery);
   const showOutOfZoneSearchBanner = searchedLocationCenter
     ? !inZone(searchedLocationCenter[0], searchedLocationCenter[1])
@@ -736,7 +778,7 @@ export function ExplorePageClient() {
           role={refreshing ? "status" : undefined}
           aria-live="polite"
         >
-          <div className="rounded-full border border-white/10 bg-[#0A0A0E]/90 px-4 py-2 text-xs font-black text-white/50 shadow-2xl backdrop-blur">
+        <div className="rounded-full border border-white/10 bg-[#0A0A0E]/90 px-4 py-2 text-xs font-semibold text-white/50 shadow-2xl backdrop-blur">
             {refreshing ? (
               <span className="flex items-center gap-2">
                 <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#8B6CFF] border-t-transparent" aria-hidden="true" />
@@ -776,14 +818,14 @@ export function ExplorePageClient() {
               {session && (
                 <Link
                   href="/profile"
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 >
                   Profile
                 </Link>
               )}
             </div>
           </div>
-          <h1 className="font-display text-2xl font-black text-white tracking-tight">
+          <h1 className="font-display text-[34px] font-semibold text-white tracking-normal">
             South End
           </h1>
           <p className="mt-1 text-sm text-white/40">{venuesCount} spots tracked tonight</p>
@@ -891,7 +933,9 @@ export function ExplorePageClient() {
             ))}
           </div>
           <p className="mt-2 text-[11px] text-white/35">
-            Showing {visibleVenues.length} of {resultCountLabel}
+            {sortedVenues.length > 0
+              ? `Showing ${startIdx + 1}-${endIdx} of ${resultCountLabel}`
+              : `Showing ${resultCountLabel}`}
           </p>
         </div>
       </div>
@@ -905,6 +949,13 @@ export function ExplorePageClient() {
             className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center"
           >
             <p className="text-sm font-semibold text-white">{error}</p>
+            <button
+              type="button"
+              onClick={() => void refreshVenues()}
+              className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-medium text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -926,9 +977,9 @@ export function ExplorePageClient() {
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
             <div className="text-5xl" aria-hidden="true">🔍</div>
-            <h2 className="font-display mt-4 text-lg font-bold text-white/40">No venues found</h2>
+            <h2 className="font-display mt-4 text-lg font-bold text-white">No spots match your filters</h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">
-              Try a different search or clear the active filters.
+              Try clearing the search or changing the category
             </p>
             <button
               type="button"
@@ -941,30 +992,30 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && sortedVenues.length > 0 && (
-          <>
-            <ul>
+          <div
+            ref={listRef}
+            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            className="overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ maxHeight: "min(66vh, calc(100vh - 250px))" }}
+          >
+            <ul
+              style={{
+                paddingTop: topPadding,
+                paddingBottom: bottomPadding,
+              }}
+            >
               {visibleVenues.map((venue, index) => (
                 <VenueFeedCard
                   key={venue.id}
                   venue={venue}
                   searchQuery={searchQuery}
                   distance={venueDistances.get(venue.id) ?? null}
-                  index={index}
+                  index={startIdx + index}
                   prefersReduced={prefersReduced}
                 />
               ))}
             </ul>
-
-            {hasMoreVenues && (
-              <button
-                type="button"
-                onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                className="mt-2 w-full rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-              >
-                Load more
-              </button>
-            )}
-          </>
+          </div>
         )}
       </section>
 
@@ -976,8 +1027,8 @@ export function ExplorePageClient() {
       >
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" aria-hidden="true" />
-          <h2 className="font-display text-sm font-black uppercase tracking-[0.14em] text-white/55">
-            Recent Check-ins
+          <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
+            Recent check-ins
           </h2>
         </div>
 
