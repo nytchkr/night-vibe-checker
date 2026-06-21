@@ -517,6 +517,16 @@ export default function ProfilePage() {
                 {streak > 0 ? "Keep it up! Check in tonight to extend your streak." : "Start your streak tonight!"}
               </p>
             </div>
+            <Link
+              href="/notifications"
+              className="flex w-full items-center justify-between rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+            >
+              <span>
+                <span className="block text-base font-black leading-tight text-white">Notifications</span>
+                <span className="mt-1 block text-xs font-semibold text-white/45">Control your NightVibe alerts</span>
+              </span>
+              <span className="text-lg font-black text-white/35" aria-hidden="true">→</span>
+            </Link>
             <div className="flex flex-wrap justify-center gap-2">
               <span className="rounded-full bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/65">
                 {checkIns.length} vibe{checkIns.length === 1 ? "" : "s"} reported
