@@ -39,6 +39,21 @@ function clearStoredReturnUrl() {
   }
 }
 
+function getRedirectOrigin(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
+}
+
+function getOAuthRedirectOrigin(): string {
+  const origin = getRedirectOrigin();
+  const { hostname } = new URL(origin);
+
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]") {
+    throw new Error("Google OAuth requires a production redirect origin.");
+  }
+
+  return origin;
+}
+
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -55,6 +70,12 @@ function LoginContent() {
   const [signingIn, setSigningIn] = useState(false);
   const [googleSigningIn, setGoogleSigningIn] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("error") !== "auth_failed") return;
+
+    setError(searchParams.get("message") || "Could not finish sign-in. Please try again.");
+  }, [searchParams]);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -89,7 +110,7 @@ function LoginContent() {
     try {
       const client = createBrowserClient();
       storeReturnUrl(returnUrl);
-      const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
+      const origin = getRedirectOrigin();
       const redirectTo = `${origin}/auth/callback?return=${encodeURIComponent(returnUrl)}`;
       const { error: signInError } = await client.auth.signInWithOtp({
         email: email.trim(),
@@ -119,7 +140,7 @@ function LoginContent() {
     try {
       const client = createBrowserClient();
       storeReturnUrl(returnUrl);
-      const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
+      const origin = getOAuthRedirectOrigin();
       const { error: signInError } = await client.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${origin}/auth/callback?return=${encodeURIComponent(returnUrl)}` },

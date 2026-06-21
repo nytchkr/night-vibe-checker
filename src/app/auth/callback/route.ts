@@ -8,6 +8,13 @@ function safeReturnUrl(value: string | null): string {
   return value;
 }
 
+function authFailedUrl(origin: string, message: string): string {
+  const url = new URL("/login", origin);
+  url.searchParams.set("error", "auth_failed");
+  url.searchParams.set("message", message);
+  return url.toString();
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams, origin } = new URL(req.url);
   const code = searchParams.get("code");
@@ -35,7 +42,11 @@ export async function GET(req: NextRequest) {
       }
     );
 
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      return NextResponse.redirect(authFailedUrl(origin, "Could not finish sign-in. Please try again."));
+    }
+
     return response;
   }
 
