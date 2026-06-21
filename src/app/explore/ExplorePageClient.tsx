@@ -22,6 +22,8 @@ type UserLocation = { lat: number; lng: number };
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
 const SORT_OPTIONS: SortOption[] = ["Nearest", "Busiest", "A-Z", "Open Now"];
 const PAGE_SIZE = 20;
+const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
+const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
   { value: "All", label: "All" },
   { value: "Bar", label: "🍸 Bar" },
@@ -41,6 +43,19 @@ function normalizeCategory(category: string | null | undefined): CategoryFilter 
 
 function normalizeSearchText(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function parseStoredVenueIds(value: string | null): Set<string> {
+  if (!value) return new Set();
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((id): id is string => typeof id === "string" && id.length > 0))
+      : new Set();
+  } catch {
+    return new Set();
+  }
 }
 
 function HighlightText({ text, query }: { text: string; query: string }) {
@@ -333,6 +348,22 @@ export function ExplorePageClient() {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (venues === null) return;
+
+    const venueIds = venues
+      .map((venue) => venue.id)
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
+    const viewedVenueIds = parseStoredVenueIds(localStorage.getItem(VIEWED_VENUES_STORAGE_KEY));
+
+    for (const venueId of venueIds) {
+      viewedVenueIds.add(venueId);
+    }
+
+    localStorage.setItem(VIEWED_VENUES_STORAGE_KEY, JSON.stringify([...viewedVenueIds]));
+    window.dispatchEvent(new CustomEvent<string[]>(EXPLORE_VENUES_EVENT, { detail: venueIds }));
+  }, [venues]);
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);

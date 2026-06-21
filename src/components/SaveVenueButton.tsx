@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bookmark } from "lucide-react";
 
+const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
+
 type SaveVenueButtonProps = {
   venueId: string;
   venueName: string;
@@ -60,9 +62,11 @@ export function SaveVenueButton({
         body: JSON.stringify({ venueId }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
+      window.dispatchEvent(new CustomEvent(SAVED_VENUES_EVENT));
     } catch {
       setSaved(!nextSaved);
       onSavedChange?.(venueId, !nextSaved);
+      window.dispatchEvent(new CustomEvent(SAVED_VENUES_EVENT));
     } finally {
       setPending(false);
     }

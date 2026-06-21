@@ -1,7 +1,40 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
+import { createBrowserClient } from "@/lib/supabase-browser";
+
+const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
+const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
+const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
+const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
+
+function parseStoredVenueIds(value: string | null): Set<string> {
+  if (!value) return new Set();
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((id): id is string => typeof id === "string" && id.length > 0))
+      : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function BadgeDot() {
+  return (
+    <motion.span
+      aria-hidden="true"
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.7 }}
+      className="absolute right-0 top-0 h-2 w-2 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF2D78] shadow-[0_0_10px_rgba(255,45,120,0.65)]"
+    />
+  );
+}
 
 function MapIcon({ filled }: { filled?: boolean }) {
   return (
@@ -67,11 +100,13 @@ function NavItem({
   href,
   label,
   active,
+  showBadge = false,
   children,
 }: {
   href: string;
   label: string;
   active: boolean;
+  showBadge?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -86,7 +121,10 @@ function NavItem({
       }`}
     >
       {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#00F5D4]" />}
-      {children}
+      <span className="relative">
+        {children}
+        {showBadge && <BadgeDot />}
+      </span>
       <span className="text-[11px] font-normal leading-[1.5]">{label}</span>
     </Link>
   );
@@ -94,6 +132,104 @@ function NavItem({
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [showYouBadge, setShowYouBadge] = useState(false);
+  const [showExploreBadge, setShowExploreBadge] = useState(false);
+  const mapActive = pathname.startsWith("/map") || pathname === "/";
+  const exploreActive = pathname.startsWith("/explore");
+  const youActive = pathname.startsWith("/profile");
+
+  useEffect(() => {
+    let cancelled = false;
+    let client: ReturnType<typeof createBrowserClient>;
+
+    try {
+      client = createBrowserClient();
+    } catch {
+      setShowYouBadge(false);
+      return;
+    }
+
+    async function refreshYouBadge() {
+      const { data: sessionData } = await client.auth.getSession();
+      const userId = sessionData.session?.user.id;
+
+      if (!userId) {
+        if (!cancelled) setShowYouBadge(false);
+        return;
+      }
+
+      const { count, error } = await client
+        .from("saved_venues")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      if (!cancelled) setShowYouBadge(!error && (count ?? 0) > 0);
+    }
+
+    void refreshYouBadge();
+
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange(() => {
+      void refreshYouBadge();
+    });
+    const handleSavedVenuesChanged = () => {
+      void refreshYouBadge();
+    };
+    const handleFocus = () => {
+      void refreshYouBadge();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    function refreshExploreBadge() {
+      setShowExploreBadge(localStorage.getItem(EXPLORE_NEW_VENUES_STORAGE_KEY) === "true");
+    }
+
+    function handleExploreVenuesUpdated(event: Event) {
+      const venueIds = (event as CustomEvent<string[]>).detail ?? [];
+      const viewedVenueIds = parseStoredVenueIds(localStorage.getItem(VIEWED_VENUES_STORAGE_KEY));
+      const hasNewVenues = venueIds.some((id) => !viewedVenueIds.has(id));
+
+      if (exploreActive) {
+        localStorage.removeItem(EXPLORE_NEW_VENUES_STORAGE_KEY);
+        setShowExploreBadge(false);
+        return;
+      }
+
+      if (hasNewVenues) {
+        localStorage.setItem(EXPLORE_NEW_VENUES_STORAGE_KEY, "true");
+      }
+
+      refreshExploreBadge();
+    }
+
+    refreshExploreBadge();
+    window.addEventListener("storage", refreshExploreBadge);
+    window.addEventListener(EXPLORE_VENUES_EVENT, handleExploreVenuesUpdated);
+
+    return () => {
+      window.removeEventListener("storage", refreshExploreBadge);
+      window.removeEventListener(EXPLORE_VENUES_EVENT, handleExploreVenuesUpdated);
+    };
+  }, [exploreActive]);
+
+  useEffect(() => {
+    if (!exploreActive) return;
+
+    localStorage.removeItem(EXPLORE_NEW_VENUES_STORAGE_KEY);
+    setShowExploreBadge(false);
+  }, [exploreActive]);
 
   if (
     pathname.startsWith("/internal") ||
@@ -105,10 +241,6 @@ export function BottomNav() {
     return null;
   }
 
-  const mapActive = pathname.startsWith("/map") || pathname === "/";
-  const exploreActive = pathname.startsWith("/explore");
-  const youActive = pathname.startsWith("/profile");
-
   return (
     <nav
       aria-label="Main navigation"
@@ -119,11 +251,11 @@ export function BottomNav() {
           <MapIcon filled={mapActive} />
         </NavItem>
 
-        <NavItem href="/explore" label="Explore" active={exploreActive}>
+        <NavItem href="/explore" label="Explore" active={exploreActive} showBadge={!exploreActive && showExploreBadge}>
           <ExploreIcon filled={exploreActive} />
         </NavItem>
 
-        <NavItem href="/profile" label="You" active={youActive}>
+        <NavItem href="/profile" label="You" active={youActive} showBadge={showYouBadge}>
           <MeIcon filled={youActive} />
         </NavItem>
       </div>

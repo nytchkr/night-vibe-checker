@@ -16,6 +16,8 @@ import type { APIResponse, ConsumerVenue } from "@/types";
 import MapBottomSheet from "@/components/MapBottomSheet";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
 
+const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
+
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
   "28202": [35.2271, -80.8431],
   "28203": [35.2178, -80.8597],
@@ -509,7 +511,11 @@ export function VenueMap({
       const res = await fetch("/api/venues", { signal });
       if (!res.ok) throw new Error(`Venue fetch failed: ${res.status}`);
       const json = (await res.json()) as APIResponse<{ venues: ConsumerVenue[] }>;
-      setVenues(json.data?.venues ?? []);
+      const nextVenues = json.data?.venues ?? [];
+      setVenues(nextVenues);
+      window.dispatchEvent(new CustomEvent<string[]>(EXPLORE_VENUES_EVENT, {
+        detail: nextVenues.map((venue) => venue.id),
+      }));
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setVenues([]);
