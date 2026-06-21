@@ -323,7 +323,7 @@ function MFSplitLine({ malePercent }: { malePercent: number }) {
   return (
     <p className="text-[12px] font-semibold text-white/55" aria-label={`${male}% male, ${female}% female`}>
       <span className="text-[#4F9DFF]">{male}% M</span>
-      <span className="mx-1 text-white/25">/</span>
+      <span className="mx-1 text-white/35">/</span>
       <span className="text-[#F0568C]">{female}% F</span>
     </p>
   );
@@ -353,7 +353,7 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
         {item.user.avatar_url ? (
           <Image
             src={item.user.avatar_url}
-            alt=""
+            alt={`${item.user.name} avatar`}
             width={40}
             height={40}
             sizes="40px"
@@ -890,7 +890,7 @@ export function ExplorePageClient() {
               />
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-white/30">
+          <p className="mt-2 text-[11px] text-white/35">
             Showing {visibleVenues.length} of {resultCountLabel}
           </p>
         </div>

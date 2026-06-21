@@ -90,7 +90,7 @@ export function AdminCheckInRow({ checkIn, token, onUpdated }: Props) {
       </td>
 
       <td className="px-3 py-2.5 text-sm text-white/50 max-w-[200px]">
-        {truncatedNote ?? <span className="text-white/25 italic">—</span>}
+        {truncatedNote ?? <span className="text-white/35 italic">—</span>}
       </td>
 
       <td className="px-3 py-2.5">

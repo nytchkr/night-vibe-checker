@@ -176,7 +176,7 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
         </div>
       </div>
       {hasNoRatings && (
-        <p className="text-[13px] italic text-white/30">Be the first to rate this venue</p>
+        <p className="text-[13px] italic text-white/35">Be the first to rate this venue</p>
       )}
       {error && <p className="text-[12px] text-rose-300">{error}</p>}
     </section>

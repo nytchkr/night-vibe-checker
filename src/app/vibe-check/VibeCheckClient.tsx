@@ -325,7 +325,7 @@ export default function VibeCheckClient({
                 </div>
               </div>
 
-              <p className="mt-6 text-xs font-semibold text-white/30">
+              <p className="mt-6 text-xs font-semibold text-white/35">
                 <span className="font-display">NightVibe</span> · South End Charlotte
               </p>
             </article>
@@ -408,7 +408,7 @@ export default function VibeCheckClient({
                 viewBox="0 0 14 14"
                 fill="none"
                 aria-hidden="true"
-                className="shrink-0 text-white/30"
+                className="shrink-0 text-white/35"
               >
                 <path
                   d="M10.5 6.5V4a3.5 3.5 0 1 0-7 0v2.5M2.5 6.5h9a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V7.5a1 1 0 0 1 1-1Z"
@@ -554,7 +554,7 @@ export default function VibeCheckClient({
               className="text-xs font-semibold uppercase tracking-widest text-white/40"
             >
               Note{" "}
-              <span className="font-normal normal-case tracking-normal text-white/25">
+              <span className="font-normal normal-case tracking-normal text-white/35">
                 (optional)
               </span>
             </label>
@@ -568,7 +568,7 @@ export default function VibeCheckClient({
             placeholder="Add a vibe note (optional)..."
             className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none"
           />
-          <p className="mt-1 text-right text-[11px] text-white/30">{note.length} / {NOTE_MAX_LENGTH}</p>
+          <p className="mt-1 text-right text-[11px] text-white/35">{note.length} / {NOTE_MAX_LENGTH}</p>
         </section>
 
         {/* ── SUBMIT ────────────────────────────────────────────── */}

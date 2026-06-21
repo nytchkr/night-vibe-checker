@@ -950,7 +950,7 @@ export function VenuePageClient({
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Status</span>
-                  <p className={`mt-2 text-sm font-black ${venue.openNow ? "text-[#8B6CFF]" : "text-white/30"}`}>
+                  <p className={`mt-2 text-sm font-black ${venue.openNow ? "text-[#8B6CFF]" : "text-white/35"}`}>
                     {venue.openNow ? "Open Now" : "Closed"}
                   </p>
                 </div>
@@ -988,7 +988,7 @@ export function VenuePageClient({
                         <li
                           key={`${hour.day}-${index}`}
                           className={`grid grid-cols-[6.5rem_1fr] gap-3 text-[13px] ${
-                            isToday ? "text-[#8B6CFF]" : hour.closed ? "text-white/30" : "text-white/55"
+                            isToday ? "text-[#8B6CFF]" : hour.closed ? "text-white/35" : "text-white/55"
                           }`}
                         >
                           <span className="font-bold">{hour.day}</span>
@@ -1028,7 +1028,7 @@ export function VenuePageClient({
                 </div>
 
                 {signalSourceLabel && (
-                  <p className="text-[11px] text-white/30">
+                  <p className="text-[11px] text-white/35">
                     {signalSourceLabel}
                   </p>
                 )}
@@ -1066,7 +1066,7 @@ export function VenuePageClient({
                   ))}
                 </ul>
               ) : (
-                <p className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/30">
+                <p className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/35">
                   Be the first to leave a tip!
                 </p>
               )}
@@ -1093,7 +1093,7 @@ export function VenuePageClient({
                     type="button"
                     onClick={submitTip}
                     disabled={!canSubmitTip}
-                    className="rounded-xl bg-[#8B6CFF] px-4 py-2 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+                    className="rounded-xl bg-[#8B6CFF] px-4 py-2 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
                   >
                     {tipSubmitting ? "Sharing" : "Share"}
                   </button>
@@ -1129,7 +1129,7 @@ export function VenuePageClient({
                   setReportError(null);
                   setReportOpen(true);
                 }}
-                className="text-xs font-medium text-white/30 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="text-xs font-medium text-white/35 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 Report
               </button>
@@ -1223,7 +1223,7 @@ export function VenuePageClient({
               type="button"
               onClick={submitVenueReport}
               disabled={reportSubmitting}
-              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
             >
               {reportSubmitting ? "Submitting" : "Submit Report"}
             </button>
@@ -1354,7 +1354,7 @@ export function VenuePageClient({
               type="button"
               onClick={submitVibeReport}
               disabled={!canSubmitVibe}
-              className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-4 text-sm font-bold text-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+              className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-4 text-sm font-bold text-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
             >
               {vibeSubmitting ? "Submitting" : "Submit vibe"}
             </button>
@@ -1437,7 +1437,7 @@ export function VenuePageClient({
               className={`flex min-h-[54px] min-w-[7.35rem] shrink-0 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-60 ${
                 alerting
                   ? "border-[#8B6CFF]/55 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_20px_rgba(139,108,255,0.18)]"
-                  : "border-white/10 bg-white/[0.04] text-white/30 hover:border-white/20 hover:text-white/70"
+                  : "border-white/10 bg-white/[0.04] text-white/35 hover:border-white/20 hover:text-white/70"
               }`}
             >
               {alerting ? "Alerting 🔔" : "Alert Me"}

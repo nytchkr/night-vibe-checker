@@ -180,7 +180,7 @@ function LoginContent() {
                 {googleSigningIn ? "Connecting..." : "Continue with Google"}
               </button>
 
-              <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-white/30">
+              <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-white/35">
                 <span className="h-px flex-1 bg-white/10" />
                 <span>or</span>
                 <span className="h-px flex-1 bg-white/10" />

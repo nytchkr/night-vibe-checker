@@ -35,7 +35,7 @@ export function MFRatioBar({ malePercent, confidence, sampleSize }: MFRatioBarPr
         <span className="text-[11px] text-white/45">
           {malePercent}% M · {femalePercent}% F
           {confidencePct != null && (
-            <span className="ml-1 text-white/28">({confidencePct}% conf)</span>
+            <span className="ml-1 text-white/35">({confidencePct}% conf)</span>
           )}
         </span>
       </div>

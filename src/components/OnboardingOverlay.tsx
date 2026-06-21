@@ -195,7 +195,7 @@ export function OnboardingOverlay() {
           event.stopPropagation();
           close();
         }}
-        className="absolute right-4 top-4 z-10 rounded-full px-4 py-3 text-sm font-semibold text-white/30 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]"
+        className="absolute right-4 top-4 z-10 rounded-full px-4 py-3 text-sm font-semibold text-white/35 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]"
       >
         Skip
       </button>

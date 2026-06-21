@@ -148,7 +148,7 @@ export default async function InternalTicketsPage() {
                     </article>
                   ))}
                   {columnTickets.length === 0 && (
-                    <p className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-white/30">
+                    <p className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-white/35">
                       Empty
                     </p>
                   )}
