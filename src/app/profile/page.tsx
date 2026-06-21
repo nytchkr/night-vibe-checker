@@ -3,8 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { X } from "lucide-react";
-import { Bookmark, MapPin } from "lucide-react";
+import { Bell, Bookmark, ChevronRight, MapPin, X } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { PageTransition } from "@/components/PageTransition";
@@ -796,6 +795,20 @@ function ProfileContent() {
                 error={savedVenuesError}
               />
               <PushOptIn />
+              <Link
+                href="/notifications"
+                className="flex min-h-[64px] w-full items-center justify-between gap-4 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4 transition-colors hover:border-[#8B6CFF]/35 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[#8B6CFF]">
+                    <Bell size={18} strokeWidth={2.4} aria-hidden="true" />
+                  </span>
+                  <span className="truncate text-base font-black text-white">
+                    Notification preferences
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-white/35" aria-hidden="true" />
+              </Link>
 
               <Button
                 type="button"
