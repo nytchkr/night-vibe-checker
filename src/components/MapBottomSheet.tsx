@@ -6,11 +6,11 @@ import { getBusynessState } from "@/lib/busyness";
 import type { ConsumerVenue } from "@/types";
 
 export type MapSheetSnap = "collapsed" | "mid" | "expanded";
-export type VenueCategoryFilter = "All" | "Bars" | "Clubs" | "Rooftop" | "Lounges";
+export type VenueCategoryFilter = "All" | "Bar" | "Club" | "Lounge" | "Rooftop" | "Live Music" | "Sports Bar";
 
 const COLLAPSED_HEIGHT = 72;
 const MID_RATIO = 0.4;
-const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bars", "Clubs", "Rooftop", "Lounges"];
+export const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
 
 function getBusynessLabel(value: number | null | undefined) {
   if (value == null) return "No signal";
@@ -84,20 +84,16 @@ function VenueRow({
 }
 
 export default function MapBottomSheet({
-  activeCategoryFilter,
   cityName,
   onVenueSelect,
   selectedVenueId,
-  setActiveCategoryFilter,
   setSnap,
   snap,
   venues,
 }: {
-  activeCategoryFilter: VenueCategoryFilter;
   cityName: string;
   onVenueSelect: (venue: ConsumerVenue) => void;
   selectedVenueId: string | null;
-  setActiveCategoryFilter: (filter: VenueCategoryFilter) => void;
   setSnap: (snap: MapSheetSnap) => void;
   snap: MapSheetSnap;
   venues: ConsumerVenue[];
@@ -257,30 +253,6 @@ export default function MapBottomSheet({
       </div>
 
       <div className="h-[calc(100%-72px)] overflow-y-auto px-4 pb-6 [scrollbar-width:none]">
-        <div className="sticky top-0 z-10 -mx-4 bg-[#0A0A0F]/95 px-4 pb-3 pt-1 backdrop-blur-xl">
-          <div className="-mx-4 flex overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {CATEGORY_FILTERS.map((filter) => {
-              const isActive = activeCategoryFilter === filter;
-
-              return (
-                <button
-                  key={filter}
-                  type="button"
-                  aria-current={isActive ? "true" : undefined}
-                  onClick={() => setActiveCategoryFilter(filter)}
-                  className={`mr-2 shrink-0 rounded-full px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
-                    isActive
-                      ? "border border-[#00F5D4]/40 bg-[#00F5D4]/20 text-[#00F5D4]"
-                      : "bg-white/[0.06] text-white/60 hover:bg-white/[0.09] hover:text-white/75"
-                  }`}
-                >
-                  {filter}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
           {venues.length === 0 ? (
             <div className="px-4 py-8 text-center">

@@ -14,7 +14,7 @@ import { CITIES } from "@/lib/cities";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
-import MapBottomSheet from "@/components/MapBottomSheet";
+import MapBottomSheet, { CATEGORY_FILTERS } from "@/components/MapBottomSheet";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
 
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
@@ -64,10 +64,12 @@ function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter
   if (filter === "All") return true;
 
   const category = venue.category.toLowerCase();
-  if (filter === "Bars") return category.includes("bar");
-  if (filter === "Clubs") return category.includes("club") || category.includes("night_club");
+  if (filter === "Bar") return category.includes("bar");
+  if (filter === "Club") return category.includes("club") || category.includes("night_club");
+  if (filter === "Lounge") return category.includes("lounge");
   if (filter === "Rooftop") return category.includes("rooftop");
-  return category.includes("lounge");
+  if (filter === "Live Music") return category.includes("live") || category.includes("music");
+  return category.includes("sports") && category.includes("bar");
 }
 
 function CityMapCenter({ center }: { center: [number, number] }) {
@@ -506,6 +508,147 @@ function VenueSearchControl({
   );
 }
 
+function FilterFab({
+  hasActiveFilters,
+  onClick,
+}: {
+  hasActiveFilters: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Filter venues"
+      onClick={onClick}
+      className="fixed bottom-44 right-4 z-[1050] flex h-12 w-12 items-center justify-center rounded-full border border-[#00F5D4]/30 bg-[#00F5D4]/15 text-[#00F5D4] shadow-[0_0_20px_rgba(0,245,212,0.22)] backdrop-blur transition hover:bg-[#00F5D4]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2">
+        <path d="M4 7h4" />
+        <path d="M14 7h6" />
+        <circle cx="11" cy="7" r="2" />
+        <path d="M4 12h10" />
+        <path d="M20 12h0" />
+        <circle cx="17" cy="12" r="2" />
+        <path d="M4 17h7" />
+        <path d="M17 17h3" />
+        <circle cx="14" cy="17" r="2" />
+      </svg>
+      {hasActiveFilters && (
+        <span
+          aria-hidden="true"
+          className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-[#0A0A0F] bg-[#FF2D78] shadow-[0_0_10px_rgba(255,45,120,0.7)]"
+        />
+      )}
+    </button>
+  );
+}
+
+function VenueFilterSheet({
+  activeCategoryFilter,
+  isOpen,
+  onApply,
+  onClose,
+  openNowFilter,
+}: {
+  activeCategoryFilter: VenueCategoryFilter;
+  isOpen: boolean;
+  onApply: (category: VenueCategoryFilter, openNow: boolean) => void;
+  onClose: () => void;
+  openNowFilter: boolean;
+}) {
+  const [draftCategory, setDraftCategory] = useState<VenueCategoryFilter>(activeCategoryFilter);
+  const [draftOpenNow, setDraftOpenNow] = useState(openNowFilter);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setDraftCategory(activeCategoryFilter);
+    setDraftOpenNow(openNowFilter);
+  }, [activeCategoryFilter, isOpen, openNowFilter]);
+
+  if (!isOpen) return null;
+
+  const openNowActiveClass = draftOpenNow ? "bg-[#00F5D4] text-[#0A0A0F]" : "bg-white/[0.06] text-white/60";
+
+  return (
+    <div className="fixed inset-0 z-[1500]" role="dialog" aria-modal="true" aria-labelledby="venue-filter-title">
+      <button
+        type="button"
+        aria-label="Close filters"
+        onClick={onClose}
+        className="absolute inset-0 h-full w-full cursor-default bg-black/40"
+      />
+      <div className="absolute inset-x-0 bottom-0 max-h-[60vh] overflow-y-auto rounded-t-2xl bg-[#111118] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
+        <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
+        <div className="mx-auto mt-4 w-full max-w-xl">
+          <div className="flex items-center justify-between gap-4">
+            <h2 id="venue-filter-title" className="text-base font-bold text-white">
+              Filter Venues
+            </h2>
+            <button
+              type="button"
+              aria-label="Close filters"
+              onClick={onClose}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </div>
+
+          <section className="mt-6" aria-labelledby="venue-filter-category">
+            <h3 id="venue-filter-category" className="text-xs font-black uppercase tracking-[0.14em] text-white/45">
+              Category
+            </h3>
+            <div className="-mx-4 mt-3 flex overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {CATEGORY_FILTERS.map((filter) => {
+                const isActive = draftCategory === filter;
+
+                return (
+                  <button
+                    key={filter}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => setDraftCategory(filter)}
+                    className={`mr-2 shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                      isActive ? "bg-[#00F5D4] text-[#0A0A0F]" : "bg-white/[0.06] text-white/60 hover:bg-white/[0.09] hover:text-white/75"
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="mt-6" aria-labelledby="venue-filter-status">
+            <h3 id="venue-filter-status" className="text-xs font-black uppercase tracking-[0.14em] text-white/45">
+              Status
+            </h3>
+            <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl bg-white/[0.04] p-3">
+              <span className="text-sm font-bold text-white">Open Now</span>
+              <button
+                type="button"
+                aria-pressed={draftOpenNow}
+                onClick={() => setDraftOpenNow((current) => !current)}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${openNowActiveClass}`}
+              >
+                Open Now
+              </button>
+            </div>
+          </section>
+
+          <button
+            type="button"
+            onClick={() => onApply(draftCategory, draftOpenNow)}
+            className="mt-6 h-12 w-full rounded-full bg-[#00F5D4] text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.32)] transition hover:bg-[#66ffea] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111118]"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function VenueMap({
   city,
   onCityChange,
@@ -518,6 +661,8 @@ export function VenueMap({
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<VenueCategoryFilter>("All");
+  const [openNowFilter, setOpenNowFilter] = useState(false);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mapZoom, setMapZoom] = useState(15);
@@ -567,11 +712,13 @@ export function VenueMap({
   const filteredVenues = useMemo(() => {
     return visibleVenues.filter((venue) => {
       const matchesSearch = !normalizedSearchQuery || venue.name.toLowerCase().includes(normalizedSearchQuery);
-      return matchesSearch && matchesCategoryFilter(venue, activeCategoryFilter);
+      const matchesOpenNow = !openNowFilter || venue.openNow === true;
+      return matchesSearch && matchesOpenNow && matchesCategoryFilter(venue, activeCategoryFilter);
     });
-  }, [activeCategoryFilter, normalizedSearchQuery, visibleVenues]);
+  }, [activeCategoryFilter, normalizedSearchQuery, openNowFilter, visibleVenues]);
   const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < visibleVenues.length;
   const showEmptyState = !loading && !error && visibleVenues.length === 0;
+  const hasActiveFilters = activeCategoryFilter !== "All" || openNowFilter;
 
   useEffect(() => {
     if (!selectedVenueId) return;
@@ -590,6 +737,7 @@ export function VenueMap({
 
   const selectVenueFromSearch = useCallback((venue: ConsumerVenue) => {
     setActiveCategoryFilter("All");
+    setOpenNowFilter(false);
     selectVenueFromList(venue);
   }, [selectVenueFromList]);
 
@@ -691,6 +839,19 @@ export function VenueMap({
       </MapContainer>
 
       <CitySelector city={city} onCityChange={onCityChange} />
+      <FilterFab hasActiveFilters={hasActiveFilters} onClick={() => setIsFilterSheetOpen(true)} />
+
+      <VenueFilterSheet
+        activeCategoryFilter={activeCategoryFilter}
+        isOpen={isFilterSheetOpen}
+        onApply={(category, openNow) => {
+          setActiveCategoryFilter(category);
+          setOpenNowFilter(openNow);
+          setIsFilterSheetOpen(false);
+        }}
+        onClose={() => setIsFilterSheetOpen(false)}
+        openNowFilter={openNowFilter}
+      />
 
       {showSearchCount && (
         <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-full border border-white/10 bg-black/70 px-3 py-1.5 text-xs font-black text-white/75 shadow-2xl backdrop-blur">
@@ -762,11 +923,9 @@ export function VenueMap({
       </Link>
 
       <MapBottomSheet
-        activeCategoryFilter={activeCategoryFilter}
         cityName={city.name}
         onVenueSelect={selectVenueFromList}
         selectedVenueId={selectedVenueId}
-        setActiveCategoryFilter={setActiveCategoryFilter}
         setSnap={setSheetSnap}
         snap={sheetSnap}
         venues={filteredVenues}
