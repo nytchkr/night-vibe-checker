@@ -12,7 +12,7 @@ const title = "nytchkr";
 const description =
   "See which Charlotte bars and clubs are packed right now. Real-time crowd vibes by neighborhood.";
 const ogImage = "/og-image.png";
-const themeColor = "#0A0A0E";
+const themeColor = "#8B6CFF";
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
 const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter" });

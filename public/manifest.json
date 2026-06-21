@@ -1,48 +1,13 @@
 {
-  "name": "NightVibe",
-  "short_name": "NightVibe",
-  "description": "Know before you go. Real-time busyness and crowd intel for South End Charlotte bars.",
+  "name": "nytchkr",
+  "short_name": "nytchkr",
+  "description": "Know the vibe before you go",
   "start_url": "/map",
   "display": "standalone",
-  "background_color": "#0A0A0F",
-  "theme_color": "#00F5D4",
-  "orientation": "portrait",
-  "categories": ["entertainment", "lifestyle", "social"],
+  "background_color": "#0A0A0E",
+  "theme_color": "#8B6CFF",
   "icons": [
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshots/map.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "label": "Find venues near you"
-    },
-    {
-      "src": "/screenshots/venue.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "label": "Live busyness intel"
-    }
-  ],
-  "share_target": {
-    "action": "/share",
-    "method": "GET",
-    "params": {
-      "title": "title",
-      "text": "text",
-      "url": "url"
-    }
-  }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
 }
