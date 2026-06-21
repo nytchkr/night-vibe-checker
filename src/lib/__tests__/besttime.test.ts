@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { busynessLabel, busynessScoreForStorage } from "@/lib/besttime";
+import { busynessLabel, busynessScoreForStorage, isBestTimeForecastUnavailable } from "@/lib/besttime";
 
 describe("BestTime busyness mapping", () => {
   it("keeps raw 0-100 BestTime scores for storage", () => {
@@ -19,5 +19,11 @@ describe("BestTime busyness mapping", () => {
     expect(busynessScoreForStorage(100)).toBe(100);
     expect(busynessScoreForStorage(-10)).toBe(0);
     expect(busynessScoreForStorage(120)).toBe(100);
+  });
+
+  it("recognizes BestTime low-volume forecast failures", () => {
+    expect(isBestTimeForecastUnavailable("BestTime register failed: could not forecast venue")).toBe(true);
+    expect(isBestTimeForecastUnavailable("Venue is too new or not enough visitor volume")).toBe(true);
+    expect(isBestTimeForecastUnavailable("BestTime live HTTP 500")).toBe(false);
   });
 });

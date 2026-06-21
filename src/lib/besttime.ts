@@ -11,6 +11,7 @@ type VenueRow = {
 export type RefreshResult = { venueId: string; ok: boolean; reason?: string };
 type BusynessSource = "live" | "forecast";
 type BestTimeRegistration = { venueId: string; currentForecast: number | null };
+const NO_BESTTIME_FORECAST_REASON = "No BestTime forecast available";
 
 function apiKey(): string {
   const key = process.env.BESTTIME_API_KEY;
@@ -117,6 +118,16 @@ export function busynessScoreForStorage(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+export function isBestTimeForecastUnavailable(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("could not forecast") ||
+    normalized.includes("not enough volume") ||
+    normalized.includes("not enough visitor volume") ||
+    normalized.includes("too new")
+  );
+}
+
 async function writeBusyness(
   venue: VenueRow,
   bestTimeVenueId: string | null,
@@ -140,6 +151,30 @@ async function writeBusyness(
       place_id: venue.place_id,
       busyness_0_100: busyness,
       busyness_source: source,
+      last_busyness_refresh: refreshedAt,
+      computed_at: refreshedAt,
+    },
+    { onConflict: "venue_id" }
+  );
+  if (signalError) throw signalError;
+}
+
+async function writeUnavailableBusyness(venue: VenueRow, refreshedAt: string) {
+  const { error: venueError } = await supabaseAdmin
+    .from("venues")
+    .update({
+      besttime_venue_id: null,
+      last_busyness_refresh: refreshedAt,
+    })
+    .eq("id", venue.id);
+  if (venueError) throw venueError;
+
+  const { error: signalError } = await supabaseAdmin.from("venue_signals").upsert(
+    {
+      venue_id: venue.id,
+      place_id: venue.place_id,
+      busyness_0_100: null,
+      busyness_source: null,
       last_busyness_refresh: refreshedAt,
       computed_at: refreshedAt,
     },
@@ -238,6 +273,16 @@ async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {
       }
 
       if (busynessValue === null) {
+        if (fallbackReason && isBestTimeForecastUnavailable(fallbackReason)) {
+          await writeUnavailableBusyness(venue, new Date().toISOString());
+          results.push({
+            venueId: venue.id,
+            ok: false,
+            reason: NO_BESTTIME_FORECAST_REASON,
+          });
+          continue;
+        }
+
         results.push({
           venueId: venue.id,
           ok: false,
