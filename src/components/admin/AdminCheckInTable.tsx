@@ -24,7 +24,7 @@ export function AdminCheckInTable({ initialCheckIns, token }: Props) {
 
   if (checkIns.length === 0) {
     return (
-      <p className="text-white/40 text-center py-12">No check-ins found.</p>
+      <p className="text-white/55 text-center py-12">No check-ins found.</p>
     );
   }
 
@@ -36,7 +36,7 @@ export function AdminCheckInTable({ initialCheckIns, token }: Props) {
             {["Time", "Venue", "Busyness", "Crowd Feel", "Note", "Actions"].map((h) => (
               <th
                 key={h}
-                className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-white/35"
+                className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-white/55"
               >
                 {h}
               </th>

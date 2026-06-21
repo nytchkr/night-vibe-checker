@@ -55,7 +55,7 @@ export function AdminVenueTable({ initialVenues, token }: Props) {
     <section>
       <div className="mb-3">
         <h2 className="font-display text-base font-semibold text-white">Venues</h2>
-        <p className="mt-1 text-sm text-white/40">Hide venues from public discovery or refresh one venue signal.</p>
+        <p className="mt-1 text-sm text-white/55">Hide venues from public discovery or refresh one venue signal.</p>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-white/[0.02]">
@@ -65,7 +65,7 @@ export function AdminVenueTable({ initialVenues, token }: Props) {
               {["Venue", "Category", "Busyness", "Reads", "Last Refresh", "Actions"].map((h) => (
                 <th
                   key={h}
-                  className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-white/35"
+                  className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-white/55"
                 >
                   {h}
                 </th>
@@ -77,21 +77,21 @@ export function AdminVenueTable({ initialVenues, token }: Props) {
               <tr
                 key={venue.id}
                 className={`border-b border-white/[0.06] transition-colors hover:bg-white/[0.02] ${
-                  venue.hidden ? "bg-white/[0.015] text-white/35" : ""
+                  venue.hidden ? "bg-white/[0.015] text-white/55" : ""
                 }`}
               >
                 <td className="px-3 py-2.5">
-                  <div className={`text-sm font-semibold ${venue.hidden ? "text-white/35 line-through" : "text-white/80"}`}>
+                  <div className={`text-sm font-semibold ${venue.hidden ? "text-white/55 line-through" : "text-white/80"}`}>
                     {venue.name}
                   </div>
-                  <div className="max-w-[240px] truncate text-xs text-white/35">{venue.address}</div>
+                  <div className="max-w-[240px] truncate text-xs text-white/55">{venue.address}</div>
                 </td>
                 <td className="px-3 py-2.5 text-sm text-white/50">{venue.category.replace("_", " ")}</td>
                 <td className="px-3 py-2.5 text-sm text-white/60">
                   {venue.busyness0To100 == null ? "No signal" : `${venue.busyness0To100}/100`}
                 </td>
                 <td className="px-3 py-2.5 text-sm text-white/50">{venue.sampleSize}</td>
-                <td className="px-3 py-2.5 text-sm text-white/40 whitespace-nowrap">
+                <td className="px-3 py-2.5 text-sm text-white/55 whitespace-nowrap">
                   {formatRefreshTime(venue.lastBusynessRefresh)}
                 </td>
                 <td className="px-3 py-2.5">

@@ -180,7 +180,7 @@ function LoggedOutState() {
         <p className="mt-3 text-[15px] font-medium leading-6 text-[#9CA2AE]">
           Check in to venues · see the M/F vibe · save your spots
         </p>
-        <p className="mt-4 text-[13px] font-medium text-[#646B79]">
+        <p className="mt-4 text-[13px] font-medium text-[#9CA2AE]">
           Join Charlotte nightlife scouts
         </p>
 
@@ -198,7 +198,7 @@ function LoggedOutState() {
         </Link>
       </div>
 
-      <p className="px-4 pb-2 text-[12px] font-medium text-[#646B79]/75">
+      <p className="px-4 pb-2 text-[12px] font-medium text-[#9CA2AE]">
         Guest view — sign in to check in and save venues
       </p>
     </section>
@@ -224,12 +224,12 @@ function AccountHeader({
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-semibold text-[#F4F5F8]">{email}</p>
-          <p className="mt-1 text-[13px] font-medium text-[#646B79]">Charlotte nightlife scout</p>
+          <p className="mt-1 text-[13px] font-medium text-[#9CA2AE]">Charlotte nightlife scout</p>
         </div>
         <button
           type="button"
           onClick={onSignOut}
-          className="shrink-0 rounded-full px-2 py-2 text-[13px] font-medium text-[#646B79] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          className="shrink-0 rounded-full px-2 py-2 text-[13px] font-medium text-[#9CA2AE] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         >
           Sign out
         </button>
@@ -266,7 +266,7 @@ function StatsRow({
           <p className="truncate font-display text-[19px] font-semibold leading-tight text-[#F4F5F8]">
             {stat.value}
           </p>
-          <p className="mt-1 truncate text-[11.5px] font-medium text-[#646B79]">{stat.label}</p>
+          <p className="mt-1 truncate text-[11.5px] font-medium text-[#9CA2AE]">{stat.label}</p>
         </div>
       ))}
     </section>
@@ -291,7 +291,7 @@ function CheckInsSection({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Recent check-ins</h2>
-          <p className="mt-1 text-[13px] font-medium text-[#646B79]">
+          <p className="mt-1 text-[13px] font-medium text-[#9CA2AE]">
             {loading ? "Loading..." : `${count.toLocaleString()} total`}
           </p>
         </div>
@@ -319,7 +319,7 @@ function CheckInsSection({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <MapPin size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-[15px] font-semibold text-[#646B79]">No check-ins yet. Head out and check one in!</p>
+          <p className="mt-4 text-[15px] font-semibold text-[#9CA2AE]">No check-ins yet. Head out and check one in!</p>
           <Link
             href="/map"
             className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-[13px] font-semibold text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
@@ -335,7 +335,7 @@ function CheckInsSection({
             <li key={item.id} className="py-3 first:pt-0 last:pb-0">
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 truncate text-[15px] font-semibold text-[#F4F5F8]">{item.venueName}</p>
-                <time className="shrink-0 text-[12px] font-medium text-[#646B79]" dateTime={item.createdAt}>
+                <time className="shrink-0 text-[12px] font-medium text-[#9CA2AE]" dateTime={item.createdAt}>
                   {formatRelativeTime(item.createdAt)}
                 </time>
               </div>
@@ -383,7 +383,7 @@ function SavedVenuesSection({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Saved venues</h2>
-          <p className="mt-1 text-[13px] font-medium text-[#646B79]">
+          <p className="mt-1 text-[13px] font-medium text-[#9CA2AE]">
             {loading ? "Loading..." : `${savedVenueIds.length.toLocaleString()} saved`}
           </p>
         </div>
@@ -409,7 +409,7 @@ function SavedVenuesSection({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <Bookmark size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-[15px] font-semibold text-[#646B79]">No saved spots yet</p>
+          <p className="mt-4 text-[15px] font-semibold text-[#9CA2AE]">No saved spots yet</p>
           <p className="mx-auto mt-2 max-w-[240px] text-[13px] font-medium leading-6 text-[#9CA2AE]">
             Save venues you want to revisit
           </p>
@@ -432,9 +432,9 @@ function SavedVenuesSection({
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>
-                  <span className="mt-1 block truncate text-[12px] font-medium text-[#646B79]">{venue.category}</span>
+                  <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">{venue.category}</span>
                 </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-[#646B79] transition-colors group-hover:text-[#9CA2AE]" aria-hidden="true" />
+                <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE] transition-colors group-hover:text-[#F4F5F8]" aria-hidden="true" />
               </Link>
             </li>
           ))}
@@ -475,7 +475,7 @@ function SettingsSection() {
             </span>
             <span className="truncate text-[15px] font-medium text-[#F4F5F8]">About</span>
           </span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-[#646B79]" aria-hidden="true" />
+          <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE]" aria-hidden="true" />
         </Link>
       </div>
     </section>

@@ -60,7 +60,7 @@ export function BusiestVenueRows({ initialVenues }: { initialVenues: DashboardVe
   if (venues.length === 0) {
     return (
       <tr>
-        <td className="px-4 py-6 text-white/45" colSpan={3}>
+        <td className="px-4 py-6 text-white/55" colSpan={3}>
           No check-ins in the last 24 hours.
         </td>
       </tr>
@@ -114,7 +114,7 @@ export function RecentCheckInRows({ initialCheckIns }: { initialCheckIns: Dashbo
   if (checkIns.length === 0) {
     return (
       <tr>
-        <td className="px-4 py-6 text-white/45" colSpan={4}>
+        <td className="px-4 py-6 text-white/55" colSpan={4}>
           No check-ins recorded yet.
         </td>
       </tr>

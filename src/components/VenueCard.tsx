@@ -89,7 +89,7 @@ function GoogleRating({ rating, totalRatings }: { rating?: number; totalRatings?
   return (
     <span className="text-amber-400/80 text-xs font-semibold" aria-label={label}>
       ★ {ratingLabel}
-      {reviewLabel ? <span className="text-white/35"> · {reviewLabel}</span> : null}
+      {reviewLabel ? <span className="text-white/55"> · {reviewLabel}</span> : null}
     </span>
   );
 }
@@ -97,7 +97,7 @@ function GoogleRating({ rating, totalRatings }: { rating?: number; totalRatings?
 function PriceLevel({ level }: { level?: number }) {
   if (!level) return null;
   return (
-    <span className="text-white/35 text-xs" aria-label={`Price level ${level} of 4`}>
+    <span className="text-white/55 text-xs" aria-label={`Price level ${level} of 4`}>
       {"$".repeat(level)}
       <span className="opacity-30">{"$".repeat(4 - level)}</span>
     </span>

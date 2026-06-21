@@ -63,10 +63,10 @@ export function AdminCheckInRow({ checkIn, token, onUpdated }: Props) {
   return (
     <tr
       className={`border-b border-white/[0.06] transition-colors hover:bg-white/[0.02] ${
-        checkIn.hidden ? "bg-white/[0.015] text-white/35 line-through decoration-white/35" : ""
+        checkIn.hidden ? "bg-white/[0.015] text-white/55 line-through decoration-white/55" : ""
       }`}
     >
-      <td className="px-3 py-2.5 text-sm text-white/40 whitespace-nowrap">
+      <td className="px-3 py-2.5 text-sm text-white/55 whitespace-nowrap">
         {timeAgo(checkIn.createdAt)}
       </td>
 
@@ -90,7 +90,7 @@ export function AdminCheckInRow({ checkIn, token, onUpdated }: Props) {
       </td>
 
       <td className="px-3 py-2.5 text-sm text-white/50 max-w-[200px]">
-        {truncatedNote ?? <span className="text-white/35 italic">—</span>}
+        {truncatedNote ?? <span className="text-white/55 italic">—</span>}
       </td>
 
       <td className="px-3 py-2.5">

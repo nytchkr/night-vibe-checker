@@ -17,7 +17,7 @@ export function AdminPageClient({ checkIns, venues, token }: AdminPageClientProp
         <h1 className="font-display text-xl font-bold text-white tracking-tight">
           Admin Moderation
         </h1>
-        <p className="text-white/40 text-sm mt-1">
+        <p className="text-white/55 text-sm mt-1">
           {checkIns.length} check-in{checkIns.length !== 1 ? "s" : ""} and{" "}
           {venues.length} venue{venues.length !== 1 ? "s" : ""} (including hidden)
         </p>

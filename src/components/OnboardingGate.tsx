@@ -269,7 +269,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                   {googleSigningIn ? "Connecting..." : "Continue with Google"}
                 </button>
 
-                <div className="flex items-center gap-3 text-[11.5px] font-semibold text-[#646B79]">
+                <div className="flex items-center gap-3 text-[11.5px] font-semibold text-[#9CA2AE]">
                   <span className="h-px flex-1 bg-white/10" />
                   <span>or</span>
                   <span className="h-px flex-1 bg-white/10" />

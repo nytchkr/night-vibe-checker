@@ -376,7 +376,7 @@ function BusynessChip({
 }) {
   if (value == null || !Number.isFinite(value)) {
     return (
-      <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-[#646B79]">
+      <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-[#9CA2AE]">
         No crowd data
       </span>
     );
@@ -393,7 +393,7 @@ function BusynessChip({
       aria-label={`${state.label}, ${percent}% busy${badge ? `, ${badge}` : ""}`}
     >
       <span>{state.label}</span>
-      <span className="text-[#646B79]">{percent}%</span>
+      <span className="text-[#9CA2AE]">{percent}%</span>
       {badge ? (
         <span className="inline-flex items-center gap-1 text-[9px] text-[#9CA2AE]">
           <span
@@ -565,7 +565,7 @@ function VenueFeedCard({
               {mfPercents ? (
                 <MiniMFRatioBar malePercent={mfPercents.male} femalePercent={mfPercents.female} />
               ) : (
-                <span className="text-[11px] font-semibold text-[#646B79]">No vibe reads yet</span>
+                <span className="text-[11px] font-semibold text-[#9CA2AE]">No vibe reads yet</span>
               )}
               {hasBusyness ? <SignalFreshnessLabel signal={signal} /> : null}
             </div>
@@ -1036,7 +1036,7 @@ export function ExplorePageClient() {
               />
             ))}
           </div>
-          <p className="mt-2 text-[11.5px] text-[#646B79]">
+          <p className="mt-2 text-[11.5px] text-[#9CA2AE]">
             {sortedVenues.length > 0
               ? `Showing ${startIdx + 1}-${endIdx} of ${resultCountLabel}`
               : `Showing ${resultCountLabel}`}
@@ -1139,7 +1139,7 @@ export function ExplorePageClient() {
         </div>
 
         {activityLoaded && activityItems.length === 0 ? (
-          <p className="mt-3 rounded-[14px] bg-white/[0.035] px-3 py-2.5 text-sm font-semibold text-[#646B79]">
+          <p className="mt-3 rounded-[14px] bg-white/[0.035] px-3 py-2.5 text-sm font-semibold text-[#9CA2AE]">
             No check-ins yet tonight. Be the first!
           </p>
         ) : (

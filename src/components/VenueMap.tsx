@@ -312,7 +312,7 @@ function CitySelector({
             <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-between gap-4">
               <div className="min-w-0">
                 <h2 className="font-display text-base font-semibold text-[#F4F5F8]">Choose a neighborhood</h2>
-                <p className="mt-1 truncate text-xs font-semibold text-[#646B79]">Charlotte, NC</p>
+                <p className="mt-1 truncate text-xs font-semibold text-[#9CA2AE]">Charlotte, NC</p>
               </div>
               <button
                 type="button"
@@ -430,7 +430,7 @@ function ZipRecenterControl() {
           placeholder="Zip"
           type="text"
           value={zip}
-          className={`h-9 min-w-0 flex-1 rounded-[12px] border bg-white/[0.07] px-3 text-sm font-semibold text-[#F4F5F8] shadow-inner placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+          className={`h-9 min-w-0 flex-1 rounded-[12px] border bg-white/[0.07] px-3 text-sm font-semibold text-[#F4F5F8] shadow-inner placeholder:text-[#9CA2AE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
             showInvalid ? "border-[#FF5B6A]" : "border-white/[0.08]"
           }`}
         />
@@ -555,7 +555,7 @@ function VenueSearchControl({
         placeholder="Search venues..."
         type="search"
         value={searchQuery}
-        className="w-full rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3 py-1.5 pr-9 text-sm text-[#F4F5F8] shadow-2xl backdrop-blur placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 [&::-webkit-search-cancel-button]:appearance-none"
+        className="w-full rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3 py-1.5 pr-9 text-sm text-[#F4F5F8] shadow-2xl backdrop-blur placeholder:text-[#9CA2AE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {searchQuery.length > 0 && (
         <button
@@ -780,7 +780,7 @@ function VenueFilterSheet({
           </div>
 
           <section className="mt-6" aria-labelledby="venue-filter-category">
-            <h3 id="venue-filter-category" className="text-[11.5px] font-semibold text-[#646B79]">
+            <h3 id="venue-filter-category" className="text-[11.5px] font-semibold text-[#9CA2AE]">
               Category
             </h3>
             <div className="-mx-4 mt-3 flex overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -808,7 +808,7 @@ function VenueFilterSheet({
           </section>
 
           <section className="mt-6" aria-labelledby="venue-filter-status">
-            <h3 id="venue-filter-status" className="text-[11.5px] font-semibold text-[#646B79]">
+            <h3 id="venue-filter-status" className="text-[11.5px] font-semibold text-[#9CA2AE]">
               Status
             </h3>
             <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl bg-white/[0.04] p-3">
@@ -1093,7 +1093,7 @@ export function VenueMap({
         <div className="pointer-events-none absolute inset-x-0 bottom-44 z-[999] flex justify-center px-4">
           <div className="pointer-events-auto w-full max-w-xs rounded-[18px] border border-white/[0.08] bg-[#0A0A0E]/90 px-5 py-4 text-center text-[#F4F5F8] shadow-2xl backdrop-blur">
             <p className="text-sm font-semibold">{city.name} — coming soon</p>
-            <p className="mt-1 text-xs font-semibold text-[#646B79]">We&apos;re live in South End Charlotte right now.</p>
+            <p className="mt-1 text-xs font-semibold text-[#9CA2AE]">We&apos;re live in South End Charlotte right now.</p>
             <button
               type="button"
               onClick={() => onCityChange("south-end-clt")}

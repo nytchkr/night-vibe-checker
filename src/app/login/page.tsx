@@ -149,7 +149,7 @@ function LoginContent() {
               nyt<span className="text-[#8B6CFF]">chkr</span>
             </h1>
             <p className="text-sm font-semibold text-white/50">Know before you go.</p>
-            <p className="mx-auto max-w-xs text-xs font-bold text-white/45">
+            <p className="mx-auto max-w-xs text-xs font-bold text-white/55">
               Check in at venues · See the M/F vibe · Save your spots
             </p>
           </div>
@@ -157,7 +157,7 @@ function LoginContent() {
           {otpSent ? (
             <div className="space-y-3 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5 text-center">
               <p className="text-sm font-bold text-white">Check your email</p>
-              <p className="text-xs leading-relaxed text-white/45">
+              <p className="text-xs leading-relaxed text-white/55">
                 We sent a magic link to <strong className="text-white/70">{email}</strong>. Click it to sign in.
               </p>
             </div>
@@ -190,7 +190,7 @@ function LoginContent() {
                 {googleSigningIn ? "Connecting..." : "Continue with Google"}
               </button>
 
-              <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-white/35">
+              <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-white/55">
                 <span className="h-px flex-1 bg-white/10" />
                 <span>or</span>
                 <span className="h-px flex-1 bg-white/10" />
@@ -200,7 +200,7 @@ function LoginContent() {
                 <label htmlFor="login-email" className="sr-only">
                   Email address
                 </label>
-                <input aria-label="Email address"
+                <input
                   id="login-email"
                   type="email"
                   value={email}
@@ -210,7 +210,7 @@ function LoginContent() {
                   autoComplete="email"
                   aria-invalid={error ? "true" : "false"}
                   aria-describedby={error ? "login-email-error" : undefined}
-                  className="h-12 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white transition-colors duration-150 placeholder:text-white/25 focus:border-[#8B6CFF]/50 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/20"
+                  className="h-12 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white transition-colors duration-150 placeholder:text-white/55 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 />
                 {error && (
                   <p id="login-email-error" role="alert" className="text-xs text-[#F0568C]">

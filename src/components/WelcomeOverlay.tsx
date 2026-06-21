@@ -77,7 +77,7 @@ export function WelcomeOverlay({ onDismiss }: WelcomeOverlayProps) {
         <button
           type="button"
           onClick={onDismiss}
-          className="mt-4 text-sm font-semibold text-white/45 transition-colors hover:text-white/70 focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-4 focus-visible:ring-offset-[#0A0A0E]"
+          className="mt-4 text-sm font-semibold text-white/55 transition-colors hover:text-white/70 focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-4 focus-visible:ring-offset-[#0A0A0E]"
         >
           Skip
         </button>

@@ -54,8 +54,8 @@ export function ShareButton(props: ShareButtonProps) {
         className={[
           `
           h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
-          text-white/45 hover:border-[#8B6CFF]/35 hover:bg-[#8B6CFF]/10 hover:text-[#F4F5F8]
-          focus-visible:text-white focus-visible:ring-white/30
+          text-white/55 hover:border-[#8B6CFF]/35 hover:bg-[#8B6CFF]/10 hover:text-[#F4F5F8]
+          focus-visible:text-white focus-visible:ring-[#8B6CFF]/60
         `,
           props.className,
         ]

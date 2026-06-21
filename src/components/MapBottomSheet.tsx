@@ -358,7 +358,7 @@ export default function MapBottomSheet({
             </div>
           ) : venues.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-sm font-medium text-[#646B79]">No venues in this area. Try moving the map.</p>
+              <p className="text-sm font-medium text-[#9CA2AE]">No venues in this area. Try moving the map.</p>
             </div>
           ) : (
             visibleVenues.map((venue) => (
