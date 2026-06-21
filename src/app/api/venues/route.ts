@@ -13,7 +13,7 @@ import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
-  slug,
+  slug, neighborhood,
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
   phone, website, opening_hours, open_now,
   venue_signals (
@@ -74,6 +74,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     address: row.address as string,
     lat: Number(row.lat),
     lng: Number(row.lng),
+    neighborhood: (row.neighborhood ?? undefined) as string | undefined,
     category: (row.category ?? row.venue_type ?? "establishment") as string,
     rating: row.rating == null ? undefined : Number(row.rating),
     googleRating: row.google_rating == null ? undefined : Number(row.google_rating),
@@ -95,8 +96,10 @@ function isMissingContactColumn(error: unknown): boolean {
   return (
     message.includes("'phone' column") ||
     message.includes("'website' column") ||
+    message.includes("'neighborhood' column") ||
     message.includes("venues.phone") ||
-    message.includes("venues.website")
+    message.includes("venues.website") ||
+    message.includes("venues.neighborhood")
   );
 }
 

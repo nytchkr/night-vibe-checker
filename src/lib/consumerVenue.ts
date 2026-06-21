@@ -3,7 +3,7 @@ import type { ConsumerVenue, VenueSignal } from "@/types";
 
 export const CONSUMER_VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
-  slug,
+  slug, neighborhood,
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls,
   phone, website, opening_hours, open_now, hidden,
   venue_signals (
@@ -67,6 +67,7 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     address: row.address as string,
     lat: Number(row.lat),
     lng: Number(row.lng),
+    neighborhood: (row.neighborhood ?? undefined) as string | undefined,
     category: (row.category ?? row.venue_type ?? "establishment") as string,
     rating: row.rating == null ? undefined : Number(row.rating),
     googleRating: row.google_rating == null ? undefined : Number(row.google_rating),
@@ -90,9 +91,11 @@ function isMissingContactColumn(error: unknown): boolean {
     message.includes("'phone' column") ||
     message.includes("'website' column") ||
     message.includes("'photo_urls' column") ||
+    message.includes("'neighborhood' column") ||
     message.includes("venues.phone") ||
     message.includes("venues.website") ||
-    message.includes("venues.photo_urls")
+    message.includes("venues.photo_urls") ||
+    message.includes("venues.neighborhood")
   );
 }
 

@@ -18,10 +18,12 @@ import type { ConsumerVenue } from "@/types";
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
+type NeighborhoodFilter = "All Areas" | "South End" | "NoDa" | "Uptown";
 type SortOption = "Nearest" | "Busiest" | "A-Z" | "Open Now";
 type UserLocation = { lat: number; lng: number };
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
+const NEIGHBORHOOD_FILTERS: NeighborhoodFilter[] = ["All Areas", "South End", "NoDa", "Uptown"];
 const SORT_OPTIONS: SortOption[] = ["Nearest", "Busiest", "A-Z", "Open Now"];
 const PAGE_SIZE = 20;
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
@@ -150,6 +152,39 @@ function CategoryFilterPill({
       className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/50 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 data-[active=true]:text-white"
       aria-pressed={active}
       data-active={active}
+    >
+      {label}
+    </motion.button>
+  );
+}
+
+function NeighborhoodFilterPill({
+  label,
+  active,
+  onSelect,
+  prefersReduced,
+}: {
+  label: NeighborhoodFilter;
+  active: boolean;
+  onSelect: (label: NeighborhoodFilter) => void;
+  prefersReduced: boolean;
+}) {
+  const haptic = useHaptic();
+
+  return (
+    <motion.button
+      type="button"
+      onClick={() => {
+        haptic.light();
+        onSelect(label);
+      }}
+      animate={{
+        backgroundColor: active ? "#00F5D4" : "rgba(255,255,255,0.06)",
+        color: active ? "#0A0A0F" : "rgba(255,255,255,0.6)",
+      }}
+      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
+      className="min-h-[38px] shrink-0 rounded-full px-4 text-sm font-black transition-colors hover:bg-white/[0.1] hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+      aria-pressed={active}
     >
       {label}
     </motion.button>
@@ -367,6 +402,7 @@ export function ExplorePageClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [neighborhoodFilter, setNeighborhoodFilter] = useState<NeighborhoodFilter>("All Areas");
   const [sortOption, setSortOption] = useState<SortOption>("Busiest");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -436,7 +472,7 @@ export function ExplorePageClient() {
 
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [busynessFilter, categoryFilter, searchQuery, sortOption]);
+  }, [busynessFilter, categoryFilter, neighborhoodFilter, searchQuery, sortOption]);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -467,13 +503,15 @@ export function ExplorePageClient() {
         venue.name,
         venue.address,
         venue.category,
+        venue.neighborhood,
       ].map(normalizeSearchText).join(" ");
       const matchesSearch = normalizedSearch.length === 0 || searchableText.includes(normalizedSearch);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
+      const matchesNeighborhood = neighborhoodFilter === "All Areas" || venue.neighborhood === neighborhoodFilter;
       const matchesOpenNow = sortOption !== "Open Now" || venue.openNow === true;
 
-      return matchesSearch && matchesBusyness && matchesCategory && matchesOpenNow;
+      return matchesSearch && matchesBusyness && matchesCategory && matchesNeighborhood && matchesOpenNow;
     }).sort((a, b) => {
       if (sortOption === "Nearest" && userLocation) {
         const aDistance = distanceMiles(userLocation.lat, userLocation.lng, a.lat, a.lng);
@@ -489,7 +527,7 @@ export function ExplorePageClient() {
       const bState = getBusynessState(b.signal?.busyness0To100);
       return bState.rank - aState.rank || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, searchQuery, sortOption, userLocation, venues]);
+  }, [busynessFilter, categoryFilter, neighborhoodFilter, searchQuery, sortOption, userLocation, venues]);
 
   const venueDistances = useMemo(() => {
     if (!userLocation || venues === null) return new Map<string, number>();
@@ -505,11 +543,15 @@ export function ExplorePageClient() {
   const venuesCount = venues?.length ?? 0;
   const visibleVenues = sortedVenues.slice(0, visibleCount);
   const hasMoreVenues = sortedVenues.length > visibleVenues.length;
+  const resultVenueNoun = categoryFilter === "All" ? "spot" : categoryFilter.toLowerCase();
+  const resultAreaLabel = neighborhoodFilter === "All Areas" ? "all areas" : neighborhoodFilter;
+  const resultCountLabel = `${sortedVenues.length} ${resultVenueNoun}${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
 
   function clearFilters() {
     setSearchQuery("");
     setBusynessFilter("All");
     setCategoryFilter("All");
+    setNeighborhoodFilter("All Areas");
     setSortOption("Busiest");
   }
 
@@ -653,7 +695,18 @@ export function ExplorePageClient() {
       </header>
 
       <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0F]/95 backdrop-blur" role="region" aria-label="Explore sort controls">
-        <div className="mx-auto max-w-lg px-4 py-2">
+        <div className="mx-auto max-w-lg space-y-2 px-4 py-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {NEIGHBORHOOD_FILTERS.map((filter) => (
+              <NeighborhoodFilterPill
+                key={filter}
+                label={filter}
+                active={neighborhoodFilter === filter}
+                onSelect={setNeighborhoodFilter}
+                prefersReduced={prefersReduced}
+              />
+            ))}
+          </div>
           <div className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {SORT_OPTIONS.map((option) => (
               <SortPill
@@ -666,7 +719,7 @@ export function ExplorePageClient() {
             ))}
           </div>
           <p className="mt-2 text-[11px] text-white/30">
-            Showing {visibleVenues.length} venue{visibleVenues.length === 1 ? "" : "s"}
+            Showing {visibleVenues.length} of {resultCountLabel}
           </p>
         </div>
       </div>

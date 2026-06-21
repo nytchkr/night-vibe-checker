@@ -38,6 +38,7 @@ create table if not exists public.venues (
   address         text not null,
   lat             double precision not null,
   lng             double precision not null,
+  neighborhood    text,
   venue_type      text,                          -- "bar" | "night_club" etc.
   google_rating   numeric(2,1),                  -- 1.0–5.0
   total_ratings   integer,
@@ -67,9 +68,11 @@ create index if not exists venues_place_id_idx on public.venues(place_id);
 create index if not exists venues_zone_id_idx on public.venues(zone_id);
 -- PostGIS-free geo lookup using bounding box math
 create index if not exists venues_lat_lng_idx on public.venues(lat, lng);
+create index if not exists venues_neighborhood_idx on public.venues(neighborhood);
 
 alter table public.venues add column if not exists photo_url text;
 alter table public.venues add column if not exists photo_urls text[] default '{}';
+alter table public.venues add column if not exists neighborhood text;
 alter table public.venues add column if not exists category text;
 alter table public.venues add column if not exists zone_id text references public.zones(id);
 alter table public.venues add column if not exists hidden boolean not null default false;

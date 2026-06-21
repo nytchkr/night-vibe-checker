@@ -85,6 +85,7 @@ export interface ConsumerVenue {
   address: string;
   lat: number;
   lng: number;
+  neighborhood?: string;
   category: string;
   rating?: number;
   googleRating?: number;
