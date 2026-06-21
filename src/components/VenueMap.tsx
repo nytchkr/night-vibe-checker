@@ -18,6 +18,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
+import VenueBottomSheet from "@/components/VenueBottomSheet";
 
 const MapBottomSheet = dynamic(() => import("@/components/MapBottomSheet"), {
   ssr: false,
@@ -724,6 +725,7 @@ export function VenueMap({
   const haptic = useHaptic();
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
+  const [detailVenueId, setDetailVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<VenueCategoryFilter>("All");
@@ -804,11 +806,16 @@ export function VenueMap({
   const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < visibleVenues.length;
   const showEmptyState = !loading && !error && visibleVenues.length === 0;
   const hasActiveFilters = activeCategoryFilter !== "All" || openNowFilter;
+  const detailVenue = useMemo(
+    () => (detailVenueId ? venues.find((venue) => venue.id === detailVenueId) ?? null : null),
+    [detailVenueId, venues],
+  );
 
   useEffect(() => {
     if (!selectedVenueId) return;
     if (filteredVenues.some((venue) => venue.id === selectedVenueId)) return;
     setSelectedVenueId(null);
+    setDetailVenueId(null);
   }, [filteredVenues, selectedVenueId]);
 
   const selectVenueFromList = useCallback((venue: ConsumerVenue) => {
@@ -830,6 +837,7 @@ export function VenueMap({
   const selectVenueFromMap = useCallback((venue: ConsumerVenue) => {
     haptic.light();
     setSelectedVenueId(venue.id);
+    setDetailVenueId(venue.id);
     setSheetSnap("mid");
   }, [haptic]);
 
@@ -923,9 +931,7 @@ export function VenueMap({
                 icon={createBusynessIcon(busyness, isLive)}
                 eventHandlers={{
                   click: () => {
-                    haptic.light();
-                    setSelectedVenueId(venue.id);
-                    setSheetSnap("mid");
+                    selectVenueFromMap(venue);
                   },
                 }}
               >
@@ -1030,6 +1036,8 @@ export function VenueMap({
         snap={sheetSnap}
         venues={filteredVenues}
       />
+
+      <VenueBottomSheet venue={detailVenue} onClose={() => setDetailVenueId(null)} />
 
       <style jsx global>{`
         .venue-pin-packed {

@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Clock } from "lucide-react";
 import { useRef, useState } from "react";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { timeAgo } from "@/lib/timeAgo";
 import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueShare";
-import { BusynessBadge } from "@/components/BusynessBadge";
-import type { ConsumerVenue } from "@/types";
+import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
   venue: ConsumerVenue | null;
@@ -16,30 +16,89 @@ type VenueBottomSheetProps = {
 };
 
 function busynessLabel(value: number | null | undefined) {
-  if (value == null) return "No signal";
-  return getBusynessState(value).label;
+  if (value == null) return "No data yet";
+  return getBusynessState(value).level === "dead" ? "Dead" : getBusynessState(value).label;
+}
+
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function SourceBadge({ source }: { source: BusynessSource | null }) {
+  if (source === "live" || source === "crowd") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black text-emerald-300">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" aria-hidden="true" />
+        LIVE
+      </span>
+    );
+  }
+
+  if (source === "forecast") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black text-white/55">
+        <Clock aria-hidden="true" className="h-3 w-3" />
+        FORECAST
+      </span>
+    );
+  }
+
+  return null;
+}
+
+function BusynessMeter({ value }: { value: number | null | undefined }) {
+  const state = getBusynessState(value);
+  const percent = value == null ? 0 : clampPercent(value);
+  const label = busynessLabel(value);
+
+  return (
+    <section className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.045] p-3" aria-label="Busyness">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">Busyness</p>
+          <p className="mt-1 text-lg font-black text-white">{label}</p>
+        </div>
+        <p className="text-sm font-black" style={{ color: state.level ? state.color : "#9CA2AE" }}>
+          {value == null ? "--" : percent}
+          <span className="text-xs text-white/35">/100</span>
+        </p>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+        <div
+          className="h-full rounded-full transition-[width]"
+          style={{
+            width: `${percent}%`,
+            backgroundColor: state.level ? state.color : "#5C6573",
+          }}
+        />
+      </div>
+    </section>
+  );
 }
 
 function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
   const signal = venue.signal;
-  if (signal?.mfRatio == null || signal.sampleSize < 2) {
+  if (signal?.mfRatio == null || signal.confidence0To1 <= 0.3) {
     return (
-      <p className="mt-3 text-sm text-[#9CA2AE]">
-        No live reads yet — be the first to report
-      </p>
+      <p className="mt-3 text-sm font-semibold text-[#9CA2AE]">No live reads yet</p>
     );
   }
 
-  const malePercent = Math.min(100, Math.max(0, Math.round(signal.mfRatio)));
+  const malePercent = clampPercent(signal.mfRatio);
   const femalePercent = 100 - malePercent;
 
   return (
     <div className="mt-3" aria-label={`${malePercent}% male, ${femalePercent}% female from ${signal.sampleSize} reports`}>
+      <p className="mb-2 text-sm font-black">
+        <span style={{ color: "#4F9DFF" }}>~{malePercent}% M</span>
+        <span className="text-white/35"> / </span>
+        <span style={{ color: "#F0568C" }}>~{femalePercent}% F</span>
+      </p>
       <div className="flex h-1 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
         <div className="h-full bg-[#4F9DFF]" style={{ width: `${malePercent}%` }} />
         <div className="h-full bg-[#F0568C]" style={{ width: `${femalePercent}%` }} />
       </div>
-      <p className="mt-1 text-xs font-semibold text-white/45">👥 {signal.sampleSize} reports</p>
+      <p className="mt-1 text-xs font-semibold text-white/45">{signal.sampleSize} live reads</p>
     </div>
   );
 }
@@ -109,20 +168,20 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
 
   const signal = venue.signal;
   const reportHref = `/vibe-check?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`;
-  const busyness = getBusynessState(signal?.busyness0To100);
-  const busynessSource = signal?.busyness0To100 != null ? signal.busynessSource : null;
+  const busynessSource = signal?.busynessSource ?? null;
+  const photoUrl = venue.photoUrls?.[0] ?? venue.photoUrl;
 
   return (
     <>
       <button
         type="button"
         aria-label="Close venue details"
-        className="fixed inset-0 z-40 cursor-default bg-black/35"
+        className="fixed inset-0 z-[1190] cursor-default bg-black/35"
         onClick={onClose}
       />
 
       <aside
-        className={`fixed bottom-0 left-0 right-0 z-50 max-h-[55vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#111118] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] ${
+        className={`fixed bottom-0 left-0 right-0 z-[1200] max-h-[72vh] overflow-y-auto rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] ${
           dragDelta > 0 ? "" : "transition-transform duration-200"
         }`}
         style={{
@@ -143,10 +202,10 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
             <div className="h-1 w-10 rounded bg-white/20" />
           </div>
 
-          {venue.photoUrl ? (
+          {photoUrl ? (
             <div className="relative h-28 w-full overflow-hidden rounded-xl bg-white/[0.06]">
               <Image
-                src={venue.photoUrl}
+                src={photoUrl}
                 alt={`${venue.name} venue`}
                 fill
                 sizes="(max-width: 640px) 100vw, 400px"
@@ -165,7 +224,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
           <div className="mt-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="font-display truncate text-lg font-bold text-white">{venue.name}</h2>
+                <h2 className="font-display truncate text-xl font-black text-white">{venue.name}</h2>
                 <p className="mt-1 text-sm leading-snug text-white/50">
                   {venue.category}
                   {venue.address ? ` · ${venue.address}` : ""}
@@ -183,13 +242,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                   <span className="sr-only">Share</span>
                 </button>
                 <span className="flex flex-col items-end gap-1">
-                  <span
-                    className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-black text-white/55"
-                    style={busyness.level ? { borderColor: `${busyness.color}59`, backgroundColor: `${busyness.color}26`, color: busyness.color } : undefined}
-                  >
-                    {busynessLabel(signal?.busyness0To100)}
-                  </span>
-                  <BusynessBadge source={busynessSource} />
+                  <SourceBadge source={busynessSource} />
                 </span>
                 {copied ? (
                   <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-white/15 bg-[#0A0A0E] px-2 py-1 text-xs font-bold text-white/70 shadow-lg">
@@ -198,6 +251,8 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                 ) : null}
               </div>
             </div>
+
+            <BusynessMeter value={signal?.busyness0To100} />
 
             <MFRatioBar venue={venue} />
 
@@ -216,7 +271,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                 href={reportHref}
                 className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.35)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
-                ＋ Report Vibe
+                Report the vibe
               </Link>
             </div>
           </div>
