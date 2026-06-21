@@ -27,6 +27,7 @@ const MapBottomSheet = dynamic(() => import("@/components/MapBottomSheet"), {
   loading: () => null,
 });
 const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
+const BUSYNESS_FILTERS = ["All", "Busy", "Live only"] as const;
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
@@ -82,6 +83,8 @@ type VenuePinStyle = {
   fillColor: string;
   radius: number;
 };
+type BusynessMapFilter = (typeof BUSYNESS_FILTERS)[number];
+
 function getBusynessColor(pct: number | null): string {
   if (pct == null) return "#4F5567";
   if (pct <= 33) return "#5C6573";
@@ -128,6 +131,12 @@ function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter
   if (filter === "Rooftop") return category.includes("rooftop");
   if (filter === "Live Music") return category.includes("live") || category.includes("music");
   return category.includes("sports") && category.includes("bar");
+}
+
+function matchesBusynessFilter(venue: ConsumerVenue, filter: BusynessMapFilter) {
+  if (filter === "All") return true;
+  if (filter === "Busy") return (venue.signal?.busyness0To100 ?? -1) >= 50;
+  return venue.signal?.busynessSource === "live";
 }
 
 function CityMapCenter({ center }: { center: [number, number] }) {
@@ -603,6 +612,40 @@ function VenueSearchControl({
   );
 }
 
+function BusynessFilterBar({
+  activeFilter,
+  onFilterChange,
+}: {
+  activeFilter: BusynessMapFilter;
+  onFilterChange: (filter: BusynessMapFilter) => void;
+}) {
+  return (
+    <div
+      aria-label="Map busyness filter"
+      className="absolute right-4 top-16 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 rounded-full border border-white/10 bg-[#1A1A2E]/80 p-1 shadow-2xl backdrop-blur"
+      role="group"
+    >
+      {BUSYNESS_FILTERS.map((filter) => {
+        const isActive = activeFilter === filter;
+
+        return (
+          <button
+            key={filter}
+            type="button"
+            aria-pressed={isActive}
+            onClick={() => onFilterChange(filter)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-black text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+              isActive ? "bg-[#8B6CFF] shadow-[0_0_16px_rgba(139,108,255,0.35)]" : "text-white/70 hover:bg-white/[0.08] hover:text-white"
+            }`}
+          >
+            {filter}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function FilterFab({
   hasActiveFilters,
   onClick,
@@ -772,6 +815,7 @@ export function VenueMap({
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<VenueCategoryFilter>("All");
+  const [activeBusynessFilter, setActiveBusynessFilter] = useState<BusynessMapFilter>("All");
   const [openNowFilter, setOpenNowFilter] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -870,12 +914,12 @@ export function VenueMap({
     return visibleVenues.filter((venue) => {
       const matchesSearch = !normalizedSearchQuery || venue.name.toLowerCase().includes(normalizedSearchQuery);
       const matchesOpenNow = !openNowFilter || venue.openNow === true;
-      return matchesSearch && matchesOpenNow && matchesCategoryFilter(venue, activeCategoryFilter);
+      return matchesSearch && matchesOpenNow && matchesCategoryFilter(venue, activeCategoryFilter) && matchesBusynessFilter(venue, activeBusynessFilter);
     });
-  }, [activeCategoryFilter, normalizedSearchQuery, openNowFilter, visibleVenues]);
+  }, [activeBusynessFilter, activeCategoryFilter, normalizedSearchQuery, openNowFilter, visibleVenues]);
   const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < visibleVenues.length;
   const showEmptyState = !loading && !error && visibleVenues.length === 0;
-  const hasActiveFilters = activeCategoryFilter !== "All" || openNowFilter;
+  const hasActiveFilters = activeCategoryFilter !== "All" || activeBusynessFilter !== "All" || openNowFilter;
   const detailVenue = useMemo(
     () => (detailVenueId ? venues.find((venue) => venue.id === detailVenueId) ?? null : null),
     [detailVenueId, venues],
@@ -900,6 +944,7 @@ export function VenueMap({
 
   const selectVenueFromSearch = useCallback((venue: ConsumerVenue) => {
     setActiveCategoryFilter("All");
+    setActiveBusynessFilter("All");
     setOpenNowFilter(false);
     selectVenueFromList(venue);
   }, [selectVenueFromList]);
@@ -1028,6 +1073,7 @@ export function VenueMap({
       </MapErrorBoundary>
 
       <CitySelector city={city} onCityChange={onCityChange} />
+      <BusynessFilterBar activeFilter={activeBusynessFilter} onFilterChange={setActiveBusynessFilter} />
       <FilterFab hasActiveFilters={hasActiveFilters} onClick={() => setIsFilterSheetOpen(true)} />
 
       <VenueFilterSheet
