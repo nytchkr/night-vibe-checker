@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { CITIES, DEFAULT_CITY } from "@/lib/cities";
+import type { City, CityId } from "@/lib/cities";
 
 const VenueMap = dynamic(() => import("@/components/VenueMap"), { ssr: false });
 const OnboardingOverlay = dynamic(
@@ -10,6 +12,11 @@ const OnboardingOverlay = dynamic(
 );
 
 const ONBOARDING_STORAGE_KEY = "nv_onboarded";
+const CITY_STORAGE_KEY = "nightvibe:selected-city";
+
+function getCityById(cityId: string | null): City {
+  return CITIES.find((city) => city.id === cityId) ?? DEFAULT_CITY;
+}
 
 function OnboardingGate() {
   const [shouldRender, setShouldRender] = useState(false);
@@ -36,9 +43,21 @@ function OnboardingGate() {
 }
 
 export default function VenueMapClient() {
+  const [selectedCity, setSelectedCity] = useState<City>(DEFAULT_CITY);
+
+  useEffect(() => {
+    setSelectedCity(getCityById(window.localStorage.getItem(CITY_STORAGE_KEY)));
+  }, []);
+
+  function handleCityChange(cityId: CityId) {
+    const nextCity = getCityById(cityId);
+    setSelectedCity(nextCity);
+    window.localStorage.setItem(CITY_STORAGE_KEY, nextCity.id);
+  }
+
   return (
     <section role="region" aria-label="Venue map">
-      <VenueMap />
+      <VenueMap city={selectedCity} onCityChange={handleCityChange} />
       <OnboardingGate />
     </section>
   );

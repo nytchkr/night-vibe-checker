@@ -30,7 +30,7 @@ function makeVenue({
   return {
     id,
     placeId: `place-${id}`,
-    zoneId: "south-end",
+    zoneId: "south-end-charlotte",
     name,
     address: `${busyness} Sync Ave`,
     lat,

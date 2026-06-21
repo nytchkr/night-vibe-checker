@@ -85,6 +85,7 @@ function VenueRow({
 
 export default function MapBottomSheet({
   activeCategoryFilter,
+  cityName,
   onVenueSelect,
   selectedVenueId,
   setActiveCategoryFilter,
@@ -93,6 +94,7 @@ export default function MapBottomSheet({
   venues,
 }: {
   activeCategoryFilter: VenueCategoryFilter;
+  cityName: string;
   onVenueSelect: (venue: ConsumerVenue) => void;
   selectedVenueId: string | null;
   setActiveCategoryFilter: (filter: VenueCategoryFilter) => void;
@@ -173,7 +175,7 @@ export default function MapBottomSheet({
   return (
     <section
       ref={sheetRef}
-      aria-label="South End venues"
+      aria-label={`${cityName} venues`}
       className="absolute inset-x-0 bottom-0 z-[1100] h-[85dvh] rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0F]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
       style={{
         paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
@@ -194,7 +196,7 @@ export default function MapBottomSheet({
           onClick={() => setSnap(snap === "expanded" ? "collapsed" : snap === "collapsed" ? "mid" : "expanded")}
           className="mx-auto mt-3 flex max-w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-2 text-sm font-black text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
         >
-          South End · {openCount} spots open
+          {cityName} · {openCount} spots open
         </button>
       </div>
 
@@ -226,7 +228,7 @@ export default function MapBottomSheet({
         <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
           {venues.length === 0 ? (
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-5 text-center">
-              <p className="text-sm font-black text-white">No venues loaded for South End yet.</p>
+              <p className="text-sm font-black text-white">No venues loaded for {cityName} yet.</p>
               <p className="mt-1 text-xs font-semibold text-white/45">Check back tonight.</p>
             </div>
           ) : (

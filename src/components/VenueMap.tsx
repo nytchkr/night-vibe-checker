@@ -4,14 +4,15 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import type { ChangeEvent, KeyboardEvent } from "react";
 import Link from "next/link";
 import type { Map as LeafletMap } from "leaflet";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
+import { CITIES } from "@/lib/cities";
+import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import MapBottomSheet from "@/components/MapBottomSheet";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
 
-const SOUTH_END_CENTER: [number, number] = [35.2178, -80.8597];
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
   "28202": [35.2271, -80.8431],
   "28203": [35.2178, -80.8597],
@@ -55,24 +56,24 @@ function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter
   return category.includes("lounge");
 }
 
-function FitBounds() {
+function CityMapCenter({ center }: { center: [number, number] }) {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(SOUTH_END_CENTER, 15);
-  }, [map]);
+    map.setView(center, 15);
+  }, [center, map]);
 
   return null;
 }
 
-function RecenterButton() {
+function RecenterButton({ center }: { center: [number, number] }) {
   const map = useMap();
 
   return (
     <button
       type="button"
       aria-label="Recenter map"
-      onClick={() => map.flyTo(SOUTH_END_CENTER, 15)}
+      onClick={() => map.flyTo(center, 15)}
       className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-full bg-black/75 px-4 text-xs font-black uppercase tracking-[0.14em] text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -82,6 +83,89 @@ function RecenterButton() {
       </svg>
       Recenter
     </button>
+  );
+}
+
+function CitySelector({
+  city,
+  onCityChange,
+}: {
+  city: City;
+  onCityChange: (cityId: CityId) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  function selectCity(cityId: CityId) {
+    onCityChange(cityId);
+    setOpen(false);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+        className="absolute left-4 top-4 z-[1000] inline-flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3.5 py-2 text-sm font-black text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+      >
+        <span className="truncate">{city.name}</span>
+        <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-white/70" />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[1400]" role="dialog" aria-modal="true" aria-label="Choose map city">
+          <button
+            type="button"
+            aria-label="Close city selector"
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 h-full w-full cursor-default bg-black/55"
+          />
+          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0F] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
+            <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
+            <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-base font-black text-white">Choose a neighborhood</h2>
+                <p className="mt-1 truncate text-xs font-semibold text-white/45">Charlotte, NC</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close city selector"
+                onClick={() => setOpen(false)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              >
+                <X aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mx-auto mt-4 flex w-full max-w-md flex-col gap-2">
+              {CITIES.map((option) => {
+                const isSelected = option.id === city.id;
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-current={isSelected ? "true" : undefined}
+                    onClick={() => selectCity(option.id)}
+                    className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                      isSelected
+                        ? "border-[#00F5D4]/45 bg-[#00F5D4]/15 text-white"
+                        : "border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.07]"
+                    }`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-black">{option.name}</span>
+                      <span className="mt-1 block truncate text-xs font-semibold text-white/45">{option.city}</span>
+                    </span>
+                    {isSelected && <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-[#00F5D4]" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -188,7 +272,13 @@ function VenueSearchControl({
   );
 }
 
-export function VenueMap() {
+export function VenueMap({
+  city,
+  onCityChange,
+}: {
+  city: City;
+  onCityChange: (cityId: CityId) => void;
+}) {
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
@@ -199,6 +289,7 @@ export function VenueMap() {
   const mapRef = useRef<LeafletMap | null>(null);
   const mapHeightClass =
     process.env.NEXT_PUBLIC_ENV === "development" ? "h-[calc(100dvh-100px)]" : "h-[calc(100dvh-80px)]";
+  const cityCenter = useMemo<[number, number]>(() => [city.lat, city.lng], [city.lat, city.lng]);
 
   const fetchVenues = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -230,8 +321,8 @@ export function VenueMap() {
   }, [fetchVenues]);
 
   const visibleVenues = useMemo(
-    () => venues.filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
-    [venues],
+    () => venues.filter((venue) => venue.zoneId === city.zoneId && Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
+    [city.zoneId, venues],
   );
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredVenues = useMemo(() => {
@@ -262,7 +353,7 @@ export function VenueMap() {
     <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
       <MapContainer
         ref={mapRef}
-        center={SOUTH_END_CENTER}
+        center={cityCenter}
         zoom={15}
         scrollWheelZoom={false}
         style={{ height: "100%", width: "100%" }}
@@ -272,10 +363,10 @@ export function VenueMap() {
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
-        <FitBounds />
+        <CityMapCenter center={cityCenter} />
         <ZipRecenterControl />
         <VenueSearchControl searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
-        <RecenterButton />
+        <RecenterButton center={cityCenter} />
 
         {filteredVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
@@ -339,6 +430,8 @@ export function VenueMap() {
         })}
       </MapContainer>
 
+      <CitySelector city={city} onCityChange={onCityChange} />
+
       {showSearchCount && (
         <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-full border border-white/10 bg-black/70 px-3 py-1.5 text-xs font-black text-white/75 shadow-2xl backdrop-blur">
           Showing {filteredVenues.length} of {visibleVenues.length}
@@ -370,7 +463,7 @@ export function VenueMap() {
         <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
             <h2 className="text-base font-black">No spots found</h2>
-            <p className="mt-2 text-sm font-semibold text-white/70">South End Charlotte venues coming soon</p>
+            <p className="mt-2 text-sm font-semibold text-white/70">{city.name} venues coming soon</p>
             <button
               type="button"
               onClick={() => void fetchVenues()}
@@ -387,7 +480,7 @@ export function VenueMap() {
         <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
             <h2 className="text-base font-black">Couldn&apos;t load spots</h2>
-            <p className="mt-2 text-sm font-semibold text-white/70">Try again to refresh the South End map.</p>
+            <p className="mt-2 text-sm font-semibold text-white/70">Try again to refresh the {city.name} map.</p>
             <button
               type="button"
               onClick={() => void fetchVenues()}
@@ -410,6 +503,7 @@ export function VenueMap() {
 
       <MapBottomSheet
         activeCategoryFilter={activeCategoryFilter}
+        cityName={city.name}
         onVenueSelect={selectVenueFromList}
         selectedVenueId={selectedVenueId}
         setActiveCategoryFilter={setActiveCategoryFilter}

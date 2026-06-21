@@ -30,7 +30,7 @@ function makeVenue({
   return {
     id,
     placeId: `place-${id}`,
-    zoneId: "south-end",
+    zoneId: "south-end-charlotte",
     name,
     address: `${busyness} Map Ave`,
     lat,
@@ -224,6 +224,22 @@ test.describe("Map tab", () => {
     await expect(preview.getByText("night_club")).toBeVisible();
     await expect(preview.getByText("Packed")).toBeVisible();
     await expect(preview.getByRole("link", { name: /View Vibe/ })).toHaveAttribute("href", /\/venues\/map-packed-1/);
+  });
+
+  test("city selector switches neighborhoods and persists the selection", async ({ page }) => {
+    const sheet = await openMap(page);
+
+    await page.getByRole("button", { name: "South End", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Choose map city" });
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByRole("button", { name: /NoDa/ }).click();
+
+    await expect(page.getByRole("region", { name: "NoDa venues" })).toBeVisible();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByText("No venues loaded for NoDa yet.")).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("nightvibe:selected-city"))).toBe("noda-clt");
+    await expect.poll(() => page.locator("path.leaflet-interactive").count()).toBe(0);
   });
 
   test("FAB links to /vibe-check", async ({ page }) => {

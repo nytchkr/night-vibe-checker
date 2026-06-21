@@ -6,9 +6,9 @@ import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
-const title = "NightVibe — South End Charlotte";
+const title = "NightVibe — Charlotte Nightlife";
 const description =
-  "See which South End Charlotte bars and clubs are packed right now. Real-time crowd vibes.";
+  "See which Charlotte bars and clubs are packed right now. Real-time crowd vibes by neighborhood.";
 const ogImage = "/og-image.png";
 
 export const metadata: Metadata = {
