@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
+import { supabaseAdmin } from "@/lib/supabase";
 
 function safeReturnUrl(value: string | null): string {
   if (!value || value === "/" || value === "/map" || !value.startsWith("/") || value.startsWith("//")) {
@@ -42,9 +43,21 @@ export async function GET(req: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       return NextResponse.redirect(authFailedUrl(origin, "Could not finish sign-in. Please try again."));
+    }
+
+    const userId = data.session?.user.id;
+    if (userId) {
+      const { count, error: countError } = await supabaseAdmin
+        .from("check_ins")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      if (!countError && count === 0) {
+        response.headers.set("Location", `${origin}/profile?welcome=1`);
+      }
     }
 
     return response;
