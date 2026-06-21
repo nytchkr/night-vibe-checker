@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { Info } from "lucide-react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
+import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -83,28 +84,36 @@ function VenueRow({
   venue: ConsumerVenue;
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={isSelected}
-      onClick={onSelect}
-      className={`block w-full rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-        isSelected
-          ? "border-white/35 bg-white/[0.1] ring-1 ring-[#8B6CFF]/60"
-          : "border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07]"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
-          <p className="mt-1 truncate text-xs font-semibold text-white/45">{venue.category}</p>
+    <div className="relative">
+      <button
+        type="button"
+        aria-pressed={isSelected}
+        onClick={onSelect}
+        className={`block w-full rounded-2xl border px-4 py-3 pr-14 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+          isSelected
+            ? "border-white/35 bg-white/[0.1] ring-1 ring-[#8B6CFF]/60"
+            : "border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07]"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
+            <p className="mt-1 truncate text-xs font-semibold text-white/45">{venue.category}</p>
+          </div>
+          <BusynessBadge venue={venue} />
         </div>
-        <BusynessBadge venue={venue} />
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <OpenNowDot openNow={venue.openNow} />
-        <span className="truncate text-xs font-semibold text-white/35">{venue.address}</span>
-      </div>
-    </button>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <OpenNowDot openNow={venue.openNow} />
+          <span className="truncate text-xs font-semibold text-white/35">{venue.address}</span>
+        </div>
+      </button>
+      <SaveVenueButton
+        venueId={venue.id}
+        venueName={venue.name}
+        includeVenueNameInLabel={false}
+        className="absolute right-3 top-3 h-9 w-9"
+      />
+    </div>
   );
 }
 

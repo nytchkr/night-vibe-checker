@@ -130,6 +130,21 @@ create table if not exists public.saved_spots (
 create index if not exists saved_spots_user_id_idx on public.saved_spots(user_id);
 
 -- ============================================================
+-- TABLE: saved_venues
+-- Consumer saved venue list for the You/Profile tab.
+-- ============================================================
+create table if not exists public.saved_venues (
+  id         uuid primary key default uuid_generate_v4(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  venue_id   text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, venue_id)
+);
+
+create unique index if not exists saved_venues_user_venue_idx on public.saved_venues(user_id, venue_id);
+create index if not exists saved_venues_user_created_at_idx on public.saved_venues(user_id, created_at desc);
+
+-- ============================================================
 -- TABLE: check_ins
 -- Consumer live reports. Authenticated users only write.
 -- ============================================================

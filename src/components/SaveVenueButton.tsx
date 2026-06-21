@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Bookmark } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { useHaptic } from "@/hooks/useHaptic";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -16,6 +16,7 @@ type SaveVenueButtonProps = {
   accessToken?: string | null;
   initialSaved?: boolean;
   className?: string;
+  includeVenueNameInLabel?: boolean;
   onSavedChange?: (venueId: string, saved: boolean) => void;
 };
 
@@ -33,6 +34,7 @@ export function SaveVenueButton({
   accessToken,
   initialSaved = false,
   className,
+  includeVenueNameInLabel = true,
   onSavedChange,
 }: SaveVenueButtonProps) {
   const pathname = usePathname();
@@ -153,7 +155,7 @@ export function SaveVenueButton({
       type="button"
       onClick={handleClick}
       disabled={pending}
-      aria-label={`${saved ? "Unsave" : "Save"} ${venueName}`}
+      aria-label={includeVenueNameInLabel ? `${saved ? "Unsave" : "Save"} ${venueName}` : saved ? "Unsave venue" : "Save venue"}
       aria-pressed={saved}
       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-60 ${
         saved
@@ -161,7 +163,7 @@ export function SaveVenueButton({
           : "border-white/15 bg-[#0A0A0E]/75 text-white/62 hover:border-[#8B6CFF]/45 hover:text-[#8B6CFF]"
       } ${className ?? ""}`}
     >
-      <Bookmark size={18} strokeWidth={2.4} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+      <Heart size={18} strokeWidth={2.4} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
     </button>
   );
 }

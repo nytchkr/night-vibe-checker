@@ -127,7 +127,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .from("saved_venues")
     .select("venue_id")
     .eq("user_id", userId)
-    .order("saved_at", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("[saved-venues GET] DB error:", error);

@@ -63,7 +63,7 @@ describe("/api/saved-venues", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("returns saved venue text IDs ordered by saved_at", async () => {
+  it("returns saved venue text IDs ordered by created_at", async () => {
     mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
     const query = savedVenueSelectQuery({
       data: [{ venue_id: "google-place-text-id" }, { venue_id: "uuid-or-slug-id" }],
@@ -76,7 +76,7 @@ describe("/api/saved-venues", () => {
 
     expect(res.status).toBe(200);
     expect(mockFrom).toHaveBeenCalledWith("saved_venues");
-    expect(query.order).toHaveBeenCalledWith("saved_at", { ascending: false });
+    expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
     await expect(res.json()).resolves.toMatchObject({
       status: "success",
       venueIds: ["google-place-text-id", "uuid-or-slug-id"],
