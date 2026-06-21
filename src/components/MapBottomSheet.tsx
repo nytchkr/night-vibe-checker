@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
+import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
 import { getBusynessState } from "@/lib/busyness";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ConsumerVenue } from "@/types";
@@ -37,14 +38,19 @@ function OpenNowDot({ openNow }: { openNow: boolean | undefined }) {
   );
 }
 
-function BusynessBadge({ value }: { value: number | null | undefined }) {
+function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
+  const value = venue.signal?.busyness0To100;
   const state = getBusynessState(value);
+  const source = value != null ? venue.signal?.busynessSource : null;
   return (
-    <span
-      className="shrink-0 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-black text-white/55"
-      style={state.level ? { borderColor: `${state.color}59`, backgroundColor: `${state.color}26`, color: state.color } : undefined}
-    >
-      {getBusynessLabel(value)}
+    <span className="flex shrink-0 flex-col items-end gap-1">
+      <span
+        className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-black text-white/55"
+        style={state.level ? { borderColor: `${state.color}59`, backgroundColor: `${state.color}26`, color: state.color } : undefined}
+      >
+        {getBusynessLabel(value)}
+      </span>
+      <SourceBadge source={source} />
     </span>
   );
 }
@@ -74,7 +80,7 @@ function VenueRow({
           <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
           <p className="mt-1 truncate text-xs font-semibold text-white/45">{venue.category}</p>
         </div>
-        <BusynessBadge value={venue.signal?.busyness0To100} />
+        <BusynessBadge venue={venue} />
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <OpenNowDot openNow={venue.openNow} />

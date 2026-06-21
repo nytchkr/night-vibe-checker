@@ -7,6 +7,7 @@ import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { timeAgo } from "@/lib/timeAgo";
 import { buildVenueShareData } from "@/lib/venueShare";
+import { BusynessBadge } from "@/components/BusynessBadge";
 import type { ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
@@ -103,6 +104,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
   const signal = venue.signal;
   const reportHref = `/vibe-check?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`;
   const busyness = getBusynessState(signal?.busyness0To100);
+  const busynessSource = signal?.busyness0To100 != null ? signal.busynessSource : null;
 
   return (
     <>
@@ -174,11 +176,14 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                   <ShareIcon />
                   <span className="sr-only">Share</span>
                 </button>
-                <span
-                  className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-black text-white/55"
-                  style={busyness.level ? { borderColor: `${busyness.color}59`, backgroundColor: `${busyness.color}26`, color: busyness.color } : undefined}
-                >
-                  {busynessLabel(signal?.busyness0To100)}
+                <span className="flex flex-col items-end gap-1">
+                  <span
+                    className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs font-black text-white/55"
+                    style={busyness.level ? { borderColor: `${busyness.color}59`, backgroundColor: `${busyness.color}26`, color: busyness.color } : undefined}
+                  >
+                    {busynessLabel(signal?.busyness0To100)}
+                  </span>
+                  <BusynessBadge source={busynessSource} />
                 </span>
                 {copied ? (
                   <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-white/15 bg-[#0A0A0E] px-2 py-1 text-xs font-bold text-white/70 shadow-lg">

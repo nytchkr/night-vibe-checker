@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-
-type BusynessMeterSource = "live" | "forecast" | null;
+import { BusynessBadge } from "@/components/BusynessBadge";
+import type { BusynessSource } from "@/types";
 
 interface BusynessMeterProps {
   value: number | null;
-  source: BusynessMeterSource;
+  source: BusynessSource | null;
   className?: string;
 }
 
@@ -20,30 +20,12 @@ function getBusynessConfig(value: number) {
   return { label: "Packed", color: "#FF5B6A" };
 }
 
-function SourceBadge({ source }: { source: Exclude<BusynessMeterSource, null> }) {
-  const isLive = source === "live";
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-black tracking-[0.12em] ${
-        isLive
-          ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300"
-          : "border-white/10 bg-white/[0.05] text-[#9CA2AE]"
-      }`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-emerald-300" : "bg-[#9CA2AE]"}`} />
-      {isLive ? "LIVE" : "FORECAST"}
-    </span>
-  );
-}
-
 export function BusynessMeter({ value, source, className }: BusynessMeterProps) {
   if (value == null || !Number.isFinite(value)) {
     return (
       <div className={className}>
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-[#646B79]">No busyness data</span>
-          {source && <SourceBadge source={source} />}
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true" />
       </div>
@@ -59,7 +41,7 @@ export function BusynessMeter({ value, source, className }: BusynessMeterProps) 
         <span className="text-sm font-semibold" style={{ color: config.color }}>
           {config.label}
         </span>
-        {source && <SourceBadge source={source} />}
+        <BusynessBadge source={source} />
       </div>
       <div
         className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10"

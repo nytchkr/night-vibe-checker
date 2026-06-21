@@ -16,7 +16,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
-import type { BusynessSource, ConsumerVenue } from "@/types";
+import type { ConsumerVenue } from "@/types";
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
@@ -251,10 +251,6 @@ function getCategoryChipLabel(category: string | null | undefined): string {
   return normalizeCategory(category) ?? "Spot";
 }
 
-function getMeterSource(source: BusynessSource | null | undefined): "live" | "forecast" | null {
-  return source === "live" || source === "forecast" ? source : null;
-}
-
 function getInitials(name: string): string {
   const initials = name
     .trim()
@@ -332,7 +328,7 @@ function VenueFeedCard({
   const busyness = venue.signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
-  const meterSource = getMeterSource(venue.signal?.busynessSource);
+  const meterSource = venue.signal?.busynessSource ?? null;
   const mfSource = venue.signal?.sampleSize ? "live" : null;
   const hasBusyness = busyness !== null && Number.isFinite(busyness);
   const hasMfReading =

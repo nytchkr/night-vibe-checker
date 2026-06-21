@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BusynessBadge } from "@/components/BusynessBadge";
 import { getBusynessState } from "@/lib/busyness";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 import type { ConsumerVenue } from "@/types";
@@ -42,6 +43,7 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
   const busyness = venue.signal?.busyness0To100 ?? null;
   const percent = clampPercent(busyness);
   const busynessState = getBusynessState(busyness);
+  const busynessSource = busyness != null ? venue.signal?.busynessSource : null;
   const feel = crowdFeel(venue);
 
   return (
@@ -49,7 +51,10 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
       <article className="h-[200px] w-[360px] rounded-2xl border border-white/10 bg-[#0A0A0E] p-4 shadow-2xl shadow-black/40">
         <div className="flex h-full flex-col justify-between">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8B6CFF]">Live crowd</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8B6CFF]">Crowd signal</p>
+              <BusynessBadge source={busynessSource} />
+            </div>
             <h1 className="font-display mt-2 truncate text-[22px] font-black leading-tight text-white">{venue.name}</h1>
             <p className="mt-1 truncate text-xs text-white/45">{venue.address}</p>
           </div>

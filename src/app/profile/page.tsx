@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageTransition } from "@/components/PageTransition";
 import { PushOptIn } from "@/components/PushOptIn";
 import { ShareNightVibeCard } from "@/components/ShareNightVibe";
+import { BusynessBadge as BusynessSourceBadge } from "@/components/BusynessBadge";
 import { getBusynessState } from "@/lib/busyness";
 import {
   getHapticsPreference,
@@ -172,6 +173,7 @@ function CheckInRow({ item }: { item: CheckInItem }) {
 function SavedVenueCard({ venue }: { venue: ConsumerVenue }) {
   const state = getBusynessState(venue.signal?.busyness0To100);
   const busynessClass = state.level ? SAVED_BUSYNESS_CLASSES[state.level] : SAVED_BUSYNESS_CLASSES.none;
+  const source = venue.signal?.busyness0To100 != null ? venue.signal.busynessSource : null;
 
   return (
     <li className="shrink-0 snap-start">
@@ -200,8 +202,11 @@ function SavedVenueCard({ venue }: { venue: ConsumerVenue }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-bold leading-snug text-white">{venue.name}</p>
-          <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${busynessClass}`}>
-            {state.level ? state.label : "No signal"}
+          <span className="mt-2 flex flex-wrap items-center gap-1">
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${busynessClass}`}>
+              {state.level ? state.label : "No signal"}
+            </span>
+            <BusynessSourceBadge source={source} />
           </span>
         </div>
       </Link>

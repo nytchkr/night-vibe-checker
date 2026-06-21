@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import type { ConsumerVenue } from "@/types";
@@ -15,19 +16,24 @@ function getCategoryIcon(category: string | null | undefined): string {
   return "📍";
 }
 
-function BusynessBadge({ value }: { value: number | null | undefined }) {
+function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
+  const value = venue.signal?.busyness0To100;
   const state = getBusynessState(value);
+  const source = value != null ? venue.signal?.busynessSource : null;
 
   return (
-    <span
-      className="inline-flex max-w-full items-center rounded-full border px-2 py-1 text-[11px] font-black leading-none"
-      style={
-        state.level
-          ? { borderColor: `${state.color}59`, backgroundColor: `${state.color}24`, color: state.color }
-          : { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }
-      }
-    >
-      {state.level ? state.label : "No data"}
+    <span className="flex flex-wrap items-center gap-1">
+      <span
+        className="inline-flex max-w-full items-center rounded-full border px-2 py-1 text-[11px] font-black leading-none"
+        style={
+          state.level
+            ? { borderColor: `${state.color}59`, backgroundColor: `${state.color}24`, color: state.color }
+            : { borderColor: "rgba(255,255,255,0.12)", backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }
+        }
+      >
+        {state.level ? state.label : "No data"}
+      </span>
+      <SourceBadge source={source} />
     </span>
   );
 }
@@ -59,7 +65,7 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
       </div>
       <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
         <h2 className="font-display line-clamp-2 text-sm font-black leading-snug text-white">{venue.name}</h2>
-        <BusynessBadge value={venue.signal?.busyness0To100} />
+        <BusynessBadge venue={venue} />
       </div>
     </Link>
   );

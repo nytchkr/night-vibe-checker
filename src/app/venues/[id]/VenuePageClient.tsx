@@ -205,8 +205,9 @@ function getBusynessColor(percent: number): string {
   return "#5C6573";
 }
 
-function getMeterSource(source: BusynessSource | null | undefined): "live" | "forecast" | null {
-  return source === "live" || source === "forecast" ? source : null;
+function getMeterSource(source: BusynessSource | null | undefined): BusynessSource | null {
+  if (source === "live" || source === "forecast" || source === "crowd") return source;
+  return null;
 }
 
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
