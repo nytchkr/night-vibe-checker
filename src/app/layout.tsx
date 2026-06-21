@@ -13,7 +13,7 @@ const description = "Real-time busyness and crowd vibe for bars and clubs in Cha
 const themeColor = "#8B6CFF";
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-inter" });
+const inter = Inter({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-display" });
 
 export const metadata: Metadata = {

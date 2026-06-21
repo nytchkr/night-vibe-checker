@@ -778,7 +778,7 @@ export function ExplorePageClient() {
           role={refreshing ? "status" : undefined}
           aria-live="polite"
         >
-        <div className="rounded-full border border-white/10 bg-[#0A0A0E]/90 px-4 py-2 text-xs font-semibold text-white/50 shadow-2xl backdrop-blur">
+          <div className="rounded-full border border-white/10 bg-[#0A0A0E]/90 px-4 py-2 text-xs font-semibold text-white/50 shadow-2xl backdrop-blur">
             {refreshing ? (
               <span className="flex items-center gap-2">
                 <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#8B6CFF] border-t-transparent" aria-hidden="true" />
@@ -952,7 +952,7 @@ export function ExplorePageClient() {
             <button
               type="button"
               onClick={() => void refreshVenues()}
-              className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-medium text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-medium text-[#0A0A0E] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Retry
             </button>
@@ -984,7 +984,7 @@ export function ExplorePageClient() {
             <button
               type="button"
               onClick={clearFilters}
-              className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Clear filters
             </button>

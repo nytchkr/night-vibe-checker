@@ -11,7 +11,7 @@ export function BusynessBadge({ source }: Props) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 text-[11px] font-semibold">
         <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-        LIVE
+        live
       </span>
     );
   }
@@ -19,7 +19,7 @@ export function BusynessBadge({ source }: Props) {
   if (source === "forecast") {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-[#9CA2AE] text-[11px] font-semibold">
-        FORECAST
+        forecast
       </span>
     );
   }

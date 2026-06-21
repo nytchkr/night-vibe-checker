@@ -109,7 +109,7 @@ function ProfileSkeleton() {
 function LoggedOutState() {
   return (
     <section className="mx-auto mt-16 max-w-sm rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.32)]">
-      <p className="font-display text-4xl font-black tracking-tight text-white">
+      <p className="font-display text-[34px] font-semibold tracking-normal text-white">
         nyt<span className="text-[#8B6CFF]">chkr</span>
       </p>
       <p className="mt-3 text-base font-semibold text-white/72">Know the vibe before you go</p>
@@ -118,7 +118,7 @@ function LoggedOutState() {
       </p>
       <Button
         asChild
-        className="mt-7 min-h-[52px] w-full rounded-full bg-[#8B6CFF] text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.32)] hover:bg-[#A896FF]"
+        className="mt-7 min-h-[52px] w-full rounded-full bg-[#8B6CFF] text-base font-semibold text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.32)] hover:bg-[#8B6CFF]"
       >
         <Link href="/login">Sign in</Link>
       </Button>
@@ -134,7 +134,7 @@ function AccountCard({ email }: { email: string }) {
           {getUserInitial(email)}
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/35">Signed in as</p>
+          <p className="text-[13px] font-semibold text-[#9CA2AE]">Signed in as</p>
           <p className="mt-1 truncate text-base font-semibold text-white">{email}</p>
         </div>
       </div>
@@ -417,7 +417,7 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-[#0A0A0E] text-white">
         <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0E]/92 px-4 backdrop-blur-xl">
           <div className="mx-auto max-w-lg py-4">
-            <h1 className="font-display text-3xl font-black tracking-tight text-white">You</h1>
+            <h1 className="font-display text-[34px] font-semibold tracking-normal text-white">You</h1>
           </div>
         </header>
 

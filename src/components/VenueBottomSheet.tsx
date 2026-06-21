@@ -29,18 +29,18 @@ function clampPercent(value: number) {
 function SourceBadge({ source }: { source: BusynessSource | null }) {
   if (source === "live" || source === "crowd") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-black text-emerald-300">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-300">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" aria-hidden="true" />
-        LIVE
+        live
       </span>
     );
   }
 
   if (source === "forecast") {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black text-white/55">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-[#9CA2AE]">
         <Clock aria-hidden="true" className="h-3 w-3" />
-        FORECAST
+        forecast
       </span>
     );
   }
@@ -57,10 +57,10 @@ function BusynessMeter({ value }: { value: number | null | undefined }) {
     <section className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.045] p-3" aria-label="Busyness">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/35">Busyness</p>
-          <p className="mt-1 text-lg font-black text-white">{label}</p>
+          <p className="text-[11.5px] font-semibold text-[#646B79]">Busyness</p>
+          <p className="mt-1 text-[19px] font-semibold text-[#F4F5F8]">{label}</p>
         </div>
-        <p className="text-sm font-black" style={{ color: state.level ? state.color : "#9CA2AE" }}>
+        <p className="text-sm font-semibold" style={{ color: state.level ? state.color : "#9CA2AE" }}>
           {value == null ? "--" : percent}
           <span className="text-xs text-white/35">/100</span>
         </p>
@@ -91,7 +91,7 @@ function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
 
   return (
     <div className="mt-3" aria-label={`${malePercent}% male, ${femalePercent}% female from ${signal.sampleSize} reports`}>
-      <p className="mb-2 text-sm font-black">
+      <p className="mb-2 text-sm font-semibold">
         <span style={{ color: "#4F9DFF" }}>~{malePercent}% M</span>
         <span className="text-white/35"> / </span>
         <span style={{ color: "#F0568C" }}>~{femalePercent}% F</span>
@@ -270,7 +270,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
           <div className="mt-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="font-display truncate text-xl font-black text-white">{venue.name}</h2>
+                <h2 className="font-display truncate text-[19px] font-semibold text-[#F4F5F8]">{venue.name}</h2>
                 <p className="mt-1 text-sm leading-snug text-white/50">
                   {venue.category}
                   {venue.address ? ` · ${venue.address}` : ""}
@@ -308,7 +308,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
             <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.045] px-3 py-2">
               <div className="min-w-0">
-                <p className="text-sm font-black text-white">Save this venue</p>
+                <p className="text-sm font-semibold text-[#F4F5F8]">Save this venue</p>
                 <p className="mt-0.5 text-xs font-semibold text-white/42">Keep it handy on your profile</p>
               </div>
               <SaveVenueButton venueId={venue.id} venueName={venue.name} />
@@ -317,13 +317,13 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             <div className="mt-3 flex gap-2">
               <Link
                 href={`/venues/${encodeURIComponent(venue.id)}`}
-                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-white/15 px-4 text-sm font-black text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full border border-white/15 px-4 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
               >
-                View Details
+                View details
               </Link>
               <Link
                 href={reportHref}
-                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.35)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.35)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 Report the vibe
               </Link>

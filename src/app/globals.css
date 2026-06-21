@@ -23,7 +23,7 @@
     --primary: 251 100% 71%;      /* #8B6CFF */
     --primary-foreground: 240 17% 5%;
     --secondary: 240 8% 18%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary-foreground: 225 22% 96%;
     --muted: 240 8% 18%;
     --muted-foreground: 219 9% 65%; /* #9CA2AE */
     --accent: 251 100% 71%;       /* #8B6CFF */
@@ -32,7 +32,7 @@
     --destructive-foreground: 225 22% 96%;
     --border: 0 0% 100%;
     --input: 240 8% 18%;
-    --ring: 270 70% 55%;
+    --ring: 251 100% 71%;
     --radius: 0.75rem;
 
     /* NightVibe canonical tokens */
@@ -82,7 +82,7 @@
     color: var(--text-primary);
     font-family: var(--font-inter), -apple-system, "SF Pro Text", system-ui, sans-serif;
     font-size: 15px;
-    font-weight: 400;
+    font-weight: 500;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -114,12 +114,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--hairline);
     border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: var(--text-tertiary);
   }
 }
 
@@ -170,12 +170,13 @@
 
   .font-black,
   .font-bold,
-  .font-semibold {
+  .font-semibold,
+  .font-normal {
     font-weight: 500;
   }
 
   .font-light {
-    font-weight: 400;
+    font-weight: 500;
   }
 }
 
@@ -188,9 +189,9 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #ef4444;
+  background: var(--busyness-packed);
   animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 0 2px var(--hairline);
 }
 
 @keyframes ping {
@@ -243,10 +244,11 @@
   /* Primary gradient button */
   .btn-primary {
     @apply px-5 py-2.5 rounded-xl text-[15px] font-medium text-white
-           bg-gradient-to-r from-purple-600 to-pink-600
-           hover:from-purple-500 hover:to-pink-500
            disabled:opacity-50 disabled:cursor-not-allowed
-           focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400
+           focus:outline-none focus-visible:ring-2
            transition-all duration-150;
+    background: var(--violet);
+    color: var(--bg-deep);
+    --tw-ring-color: var(--violet);
   }
 }

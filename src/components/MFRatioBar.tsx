@@ -31,7 +31,7 @@ export function MFRatioBar({ malePercent, confidence, sampleSize }: MFRatioBarPr
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">M/F</span>
+        <span className="text-[11.5px] font-semibold text-[#646B79]">M/F</span>
         <span className="text-[11px] text-white/45">
           {malePercent}% M · {femalePercent}% F
           {confidencePct != null && (

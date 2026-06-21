@@ -5,7 +5,7 @@
 //
 // FullCard: crowd-first layout
 //   1. Full-width crowd color bar at top (40% fill opacity)
-//   2. Venue name 16px bold
+//   2. Venue name 19px, Space Grotesk
 //   3. Vibe score plain text in #8B6CFF, 18px
 //   4. Time ago + report count, white/40, 11px
 //   5. "Report →" pill button, right-aligned, canonical violet
@@ -25,10 +25,10 @@ import { Card, CardContent } from "@/components/ui/card";
 export type CrowdLevel = "quiet" | "moderate" | "packed" | "wild";
 
 const CROWD_CFG: Record<CrowdLevel, { label: string; bg: string; text: string; border: string }> = {
-  quiet:    { label: "QUIET",    bg: "rgba(92,101,115,0.40)", text: "#fff", border: "rgba(92,101,115,0.5)"  },
-  moderate: { label: "MODERATE", bg: "rgba(255,176,32,0.40)", text: "#fff", border: "rgba(255,176,32,0.5)"  },
-  packed:   { label: "PACKED",   bg: "rgba(255,91,106,0.40)", text: "#fff", border: "rgba(255,91,106,0.5)"  },
-  wild:     { label: "WILD",     bg: "rgba(240,86,140,0.40)", text: "#fff", border: "rgba(240,86,140,0.5)"  },
+  quiet: { label: "Dead", bg: "rgba(255,255,255,0.035)", text: "#5C6573", border: "#5C6573" },
+  moderate: { label: "Moderate", bg: "rgba(255,255,255,0.035)", text: "#FFB020", border: "#FFB020" },
+  packed: { label: "Packed", bg: "rgba(255,255,255,0.035)", text: "#FF5B6A", border: "#FF5B6A" },
+  wild: { label: "Packed", bg: "rgba(255,255,255,0.035)", text: "#FF5B6A", border: "#FF5B6A" },
 };
 
 function timeAgo(isoString: string): string {
@@ -101,8 +101,8 @@ function CompactCard({
 }: Omit<VenueCardProps, "variant" | "className">) {
   return (
     <Card
-      className="relative w-56 overflow-hidden rounded-2xl border-white/10 bg-zinc-950/95 text-white shadow-2xl"
-      style={{ background: "linear-gradient(145deg, rgba(24,24,27,0.98), rgba(39,39,42,0.92))", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}
+      className="relative w-56 overflow-hidden rounded-[18px] border-white/[0.08] text-[#F4F5F8] shadow-2xl"
+      style={{ background: "rgba(255,255,255,0.035)" }}
     >
       <CardContent className="p-3">
         {venue.id && (
@@ -117,7 +117,7 @@ function CompactCard({
         )}
         <div className="flex items-center gap-3">
           <div className="min-w-0 pr-10">
-            <p className="text-white font-semibold text-sm leading-tight truncate">{venue.name}</p>
+            <p className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</p>
             <div className="flex items-center gap-2 mt-0.5">
               <StarRating rating={venue.googleRating} />
               <PriceLevel level={venue.priceLevel} />
@@ -137,9 +137,9 @@ function CompactCard({
           type="button"
           onClick={() => onVibeCheck?.(venue)}
           disabled={isChecking}
-          className="mt-3 h-9 w-full rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-xs font-semibold text-white shadow-[0_0_18px_rgba(168,85,247,0.18)] hover:from-purple-500 hover:to-pink-500"
+          className="mt-3 h-9 w-full rounded-full bg-[#8B6CFF] text-[13px] font-semibold text-[#0A0A0E] hover:bg-[#8B6CFF]"
         >
-          {isChecking ? "Checking..." : "Check Vibe"}
+          {isChecking ? "Checking..." : "Check vibe"}
         </Button>
       </CardContent>
     </Card>
@@ -167,8 +167,8 @@ function FullCard({
 
   return (
     <div
-      className={`relative rounded-2xl overflow-hidden border border-white/[0.09] ${className ?? ""}`}
-      style={{ background: "rgba(255,255,255,0.04)" }}
+      className={`relative overflow-hidden rounded-[18px] border border-white/[0.08] ${className ?? ""}`}
+      style={{ background: "rgba(255,255,255,0.035)" }}
     >
       {venue.id && (
         <SaveVenueButton
@@ -187,7 +187,7 @@ function FullCard({
           className="w-full flex items-center px-3 pr-12 min-h-[32px]"
           style={{ background: crowd.bg, borderBottom: `1px solid ${crowd.border}` }}
         >
-          <span className="text-[14px] font-bold" style={{ color: crowd.text }}>
+          <span className="text-[13px] font-semibold" style={{ color: crowd.text }}>
             {crowd.label}
           </span>
         </div>
@@ -199,11 +199,11 @@ function FullCard({
       <div className="flex items-center px-3 py-3 gap-3">
         <div className="flex-1 min-w-0">
           {/* Venue name */}
-          <p className="text-white text-[16px] font-bold leading-snug truncate">{venue.name}</p>
+          <p className="font-display truncate text-[19px] font-semibold leading-snug text-[#F4F5F8]">{venue.name}</p>
           {/* Vibe score + meta */}
           <div className="flex items-baseline gap-1.5 mt-0.5">
             {meta.length > 0 && (
-              <span className="text-white/40 text-[11px]">{meta.join(" · ")}</span>
+              <span className="text-[13px] font-medium text-[#9CA2AE]">{meta.join(" · ")}</span>
             )}
           </div>
         </div>
@@ -214,9 +214,9 @@ function FullCard({
           onClick={() => onVibeCheck?.(venue)}
           disabled={isChecking}
           aria-label={`Report vibe for ${venue.name}`}
-          className="flex-shrink-0 px-3 py-2 rounded-full text-[#8B6CFF] border border-[#8B6CFF]/50 text-xs font-bold min-h-[44px] flex items-center hover:bg-[#8B6CFF]/10 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-40"
+          className="flex min-h-[44px] flex-shrink-0 items-center rounded-full border border-[#8B6CFF]/50 px-3 py-2 text-[13px] font-semibold text-[#8B6CFF] transition-colors duration-150 hover:bg-[#8B6CFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-40"
         >
-          {isChecking ? "…" : "Report →"}
+          {isChecking ? "…" : "Report"}
         </button>
       </div>
     </div>

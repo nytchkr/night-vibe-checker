@@ -117,7 +117,7 @@ function NavItem({
       className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
         active
           ? "text-[#8B6CFF]"
-          : "text-white/35 hover:text-white/65"
+          : "text-[#646B79] hover:text-[#9CA2AE]"
       }`}
     >
       {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF]" />}
