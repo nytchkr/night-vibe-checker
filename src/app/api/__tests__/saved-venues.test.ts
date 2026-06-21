@@ -1,0 +1,115 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+
+const mockCookieGetUser = vi.fn();
+const mockAdminGetUser = vi.fn();
+const mockFrom = vi.fn();
+const mockAssertSupabaseServerEnv = vi.fn();
+
+class MockMissingSupabaseEnvError extends Error {
+  constructor(public readonly variableName: string) {
+    super(`Missing ${variableName} — add to .env.local`);
+    this.name = "MissingSupabaseEnvError";
+  }
+}
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(async () => ({
+    getAll: () => [],
+  })),
+}));
+
+vi.mock("@supabase/auth-helpers-nextjs", () => ({
+  createServerClient: vi.fn(() => ({
+    auth: { getUser: mockCookieGetUser },
+  })),
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
+  MissingSupabaseEnvError: MockMissingSupabaseEnvError,
+  supabaseAdmin: {
+    auth: { getUser: mockAdminGetUser },
+    from: mockFrom,
+  },
+}));
+
+function request(method = "GET", body?: unknown, token?: string) {
+  return new NextRequest("http://localhost/api/saved-venues", {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.resetModules();
+  mockAssertSupabaseServerEnv.mockReturnValue(undefined);
+  mockCookieGetUser.mockResolvedValue({ data: { user: null }, error: { message: "no cookie" } });
+  mockAdminGetUser.mockResolvedValue({ data: { user: null }, error: { message: "invalid" } });
+});
+
+describe("/api/saved-venues", () => {
+  it("returns 401 without an authenticated user", async () => {
+    const { GET } = await import("../saved-venues/route");
+
+    const res = await GET(request());
+
+    expect(res.status).toBe(401);
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it("returns saved venue text IDs ordered by saved_at", async () => {
+    mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+    const query = savedVenueSelectQuery({
+      data: [{ venue_id: "google-place-text-id" }, { venue_id: "uuid-or-slug-id" }],
+      error: null,
+    });
+    mockFrom.mockReturnValue(query);
+
+    const { GET } = await import("../saved-venues/route");
+    const res = await GET(request("GET", undefined, "token"));
+
+    expect(res.status).toBe(200);
+    expect(mockFrom).toHaveBeenCalledWith("saved_venues");
+    expect(query.order).toHaveBeenCalledWith("saved_at", { ascending: false });
+    await expect(res.json()).resolves.toMatchObject({
+      status: "success",
+      venueIds: ["google-place-text-id", "uuid-or-slug-id"],
+      data: { savedVenueIds: ["google-place-text-id", "uuid-or-slug-id"] },
+    });
+  });
+
+  it("saves a non-UUID venue ID for the authenticated user", async () => {
+    mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+    const upsert = vi.fn(async () => ({ error: null }));
+    mockFrom.mockReturnValue({ upsert });
+
+    const { POST } = await import("../saved-venues/route");
+    const res = await POST(request("POST", { venueId: "place_text_123" }, "token"));
+
+    expect(res.status).toBe(200);
+    expect(upsert).toHaveBeenCalledWith(
+      { user_id: "user-123", venue_id: "place_text_123" },
+      { onConflict: "user_id,venue_id" },
+    );
+    await expect(res.json()).resolves.toMatchObject({
+      status: "success",
+      venueId: "place_text_123",
+      saved: true,
+    });
+  });
+});
+
+function savedVenueSelectQuery(result: { data: unknown; error: unknown }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const query: any = {};
+  query.select = vi.fn(() => query);
+  query.eq = vi.fn(() => query);
+  query.order = vi.fn(async () => result);
+  return query;
+}
