@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageTransition } from "@/components/PageTransition";
 import { PushOptIn } from "@/components/PushOptIn";
+import { ShareNightVibeCard } from "@/components/ShareNightVibe";
 import { getBusynessState } from "@/lib/busyness";
 import {
   getHapticsPreference,
@@ -511,6 +512,7 @@ export default function ProfilePage() {
               <p className="mt-3 max-w-full truncate text-sm text-white/50">{userEmail}</p>
               <p className="mt-1 text-xs font-semibold text-white/35">{joinedDate(session.user.created_at)}</p>
             </div>
+            <ShareNightVibeCard />
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 text-left">
               <p className="text-2xl font-black text-[#00F5D4]">🔥 {streak}-night streak</p>
               <p className="mt-1 text-sm font-semibold text-white/45">

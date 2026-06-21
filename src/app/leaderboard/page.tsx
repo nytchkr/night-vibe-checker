@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { LeaderboardRows } from "@/components/LeaderboardRows";
 import { PageTransition } from "@/components/PageTransition";
+import { InviteFriendLink } from "@/components/ShareNightVibe";
 import { getMostActiveLeaderboard, type LeaderboardEntry } from "@/lib/leaderboard";
 
 export const metadata: Metadata = {
@@ -48,6 +49,7 @@ export default async function LeaderboardPage() {
             <LeaderboardRows entries={entries} />
           )}
 
+          <InviteFriendLink />
           <p className="mt-5 text-xs text-white/20">Updated every 5 minutes</p>
         </main>
       </div>
