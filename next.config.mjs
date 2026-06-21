@@ -32,6 +32,22 @@ const nextConfig = {
           },
         ],
       },
+      {
+        source: "/widget/:path*",
+        has: [
+          {
+            type: "query",
+            key: "embed",
+            value: "1",
+          },
+        ],
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "ALLOWALL",
+          },
+        ],
+      },
     ];
   },
 };
