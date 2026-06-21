@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
+import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
@@ -40,6 +41,19 @@ const CROWD_OPTIONS: {
 
 const NOTE_MAX_LENGTH = 140;
 
+const BUSYNESS_SHARE_COPY: Record<ReportedBusyness, { emoji: string; label: string }> = {
+  dead: { emoji: "🟢", label: "It's Easy Tonight" },
+  moderate: { emoji: "🟡", label: "It's Warming Up" },
+  packed: { emoji: "🔴", label: "It's Packed Tonight" },
+};
+
+const CROWD_SHARE_COPY: Record<CrowdFeel, { emoji: string; label: string }> = {
+  mostly_male: { emoji: "👨", label: "More Guys" },
+  balanced: { emoji: "⚖️", label: "Balanced Crowd" },
+  mixed: { emoji: "⚖️", label: "Balanced Crowd" },
+  mostly_female: { emoji: "👩", label: "More Women" },
+};
+
 export default function VibeCheckClient({
   initialVenueId,
   initialVenueName,
@@ -64,6 +78,7 @@ export default function VibeCheckClient({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const [submitError, setSubmitError] = useState<{ type: "duplicate" | "generic"; msg: string } | null>(null);
 
   useEffect(() => {
@@ -115,6 +130,8 @@ export default function VibeCheckClient({
   const selectedBusyness = BUSYNESS_OPTIONS.find((option) => option.value === busyness);
   const venueBackHref = effectiveVenueId ? `/venues/${encodeURIComponent(effectiveVenueId)}` : "/explore";
   const venueBackLabel = effectiveVenueName ? `Back to ${effectiveVenueName}` : "Back to venues";
+  const shareBusyness = BUSYNESS_SHARE_COPY[selectedBusyness?.submitValue ?? "moderate"];
+  const shareCrowd = CROWD_SHARE_COPY[crowdFeel ?? "mixed"];
 
   // Submit is enabled once a real venue and the required busyness signal are present.
   const canSubmit = Boolean(
@@ -196,6 +213,40 @@ export default function VibeCheckClient({
     selectedBusyness,
   ]);
 
+  const handleShareCard = useCallback(async () => {
+    const venueUrl = typeof window !== "undefined"
+      ? new URL(venueBackHref, window.location.origin).toString()
+      : venueBackHref;
+    const venueTitle = effectiveVenueName || "NightVibe";
+    const shareData = {
+      title: `NightVibe: ${venueTitle}`,
+      text: `${shareBusyness.emoji} ${shareBusyness.label} at ${venueTitle}. ${shareCrowd.emoji} ${shareCrowd.label}.`,
+      url: venueUrl,
+    };
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch {
+        // If native share is cancelled or blocked, fall back to copying the venue link.
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(venueUrl);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      setShareCopied(false);
+    }
+  }, [
+    effectiveVenueName,
+    shareBusyness,
+    shareCrowd,
+    venueBackHref,
+  ]);
+
   if (done) {
     return (
       <div className="min-h-screen bg-[#0A0A0F] px-4 py-10 text-white">
@@ -206,13 +257,72 @@ export default function VibeCheckClient({
             </p>
             <h1 className="text-2xl font-black">Vibe logged 🎯</h1>
             <p className="mt-2 text-sm font-semibold text-white/70">Thanks for keeping it real.</p>
+
+            <article
+              aria-describedby="vibe-report-card-description"
+              className="mt-6 overflow-hidden rounded-2xl border border-white/[0.07] bg-[#111118] p-6 text-left shadow-[0_22px_48px_rgba(0,0,0,0.34)]"
+            >
+              <p id="vibe-report-card-description" className="sr-only">
+                Your vibe report card
+              </p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#00F5D4]">
+                    Tonight's read
+                  </p>
+                  <h2 className="mt-3 truncate text-xl font-black text-white">
+                    {effectiveVenueName || "This venue"}
+                  </h2>
+                </div>
+                <div className="rounded-full border border-[#FF2D78]/35 bg-[#FF2D78]/12 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#FF8AB7]">
+                  Live
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-3">
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.045] px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl" aria-hidden="true">{shareBusyness.emoji}</span>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-white/35">Busyness</p>
+                      <p className="mt-0.5 text-base font-black text-white">{shareBusyness.label}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.045] px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl" aria-hidden="true">{shareCrowd.emoji}</span>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-white/35">Crowd feel</p>
+                      <p className="mt-0.5 text-base font-black text-white">{shareCrowd.label}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p className="mt-6 text-xs font-semibold text-white/30">
+                NightVibe · South End Charlotte
+              </p>
+            </article>
+
+            <button
+              type="button"
+              onClick={() => void handleShareCard()}
+              className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-[#0A0A0F] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              <Share2 className="h-4 w-4" aria-hidden="true" />
+              {shareCopied ? "Link copied" : "Share"}
+            </button>
             <Link
               href={venueBackHref}
-              className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[#00F5D4] px-4 py-3 text-sm font-black text-[#0A0A0F] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black text-white transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
             >
               {venueBackLabel}
             </Link>
-            <Link href="/explore" className="mt-3 block text-center text-sm text-white/50 underline">
+            <Link
+              href="/explore"
+              className="mt-3 block text-center text-sm text-white/50 underline"
+            >
               Report another vibe
             </Link>
           </section>
