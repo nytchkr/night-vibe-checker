@@ -218,6 +218,7 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
                 <img
                   src={item.avatarUrl}
                   alt={item.displayName}
+                  loading="lazy"
                   className="absolute inset-0 h-full w-full object-cover"
                   onError={(event) => {
                     event.currentTarget.style.display = "none";

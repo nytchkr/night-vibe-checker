@@ -10,6 +10,7 @@ const title = "NightVibe — Charlotte Nightlife";
 const description =
   "See which Charlotte bars and clubs are packed right now. Real-time crowd vibes by neighborhood.";
 const ogImage = "/og-image.png";
+const themeColor = "#0A0A0F";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
-    apple: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,
@@ -50,9 +51,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#00F5D4",
+  themeColor,
 };
 
 const isDev = process.env.NEXT_PUBLIC_ENV === "development";
@@ -61,10 +61,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <meta name="theme-color" content={themeColor} />
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="preconnect" href="https://a.basemaps.cartocdn.com" />
         <link rel="preconnect" href="https://b.basemaps.cartocdn.com" />
         <link rel="preconnect" href="https://c.basemaps.cartocdn.com" />
+        <link rel="preconnect" href="https://a.tile.openstreetmap.org" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
       </head>
       <body className="bg-[#0A0A0F] text-white font-sans antialiased min-h-screen">
         <a

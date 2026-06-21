@@ -46,6 +46,7 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
             alt={venue.name}
             fill
             sizes="80px"
+            loading="lazy"
             placeholder="blur"
             blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
             className="object-cover"
