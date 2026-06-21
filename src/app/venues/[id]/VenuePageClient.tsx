@@ -16,7 +16,7 @@ import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { buildVenueShareData } from "@/lib/venueShare";
-import type { BusynessSource, ConsumerVenue } from "@/types";
+import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -38,6 +38,18 @@ type VenueTip = {
 
 type VenueReportReason = "wrong_hours" | "wrong_location" | "permanently_closed" | "duplicate" | "other";
 
+type VibeBusynessOption = {
+  value: ReportedBusyness;
+  label: string;
+  selectedBackground: string;
+  selectedBorder: string;
+};
+
+type VibeCrowdOption = {
+  value: CrowdFeel;
+  label: string;
+};
+
 const VENUE_REPORT_REASONS: Array<{ value: VenueReportReason; label: string }> = [
   { value: "wrong_hours", label: "Wrong hours" },
   { value: "wrong_location", label: "Wrong location" },
@@ -45,6 +57,21 @@ const VENUE_REPORT_REASONS: Array<{ value: VenueReportReason; label: string }> =
   { value: "duplicate", label: "Duplicate" },
   { value: "other", label: "Other" },
 ];
+
+const VIBE_BUSYNESS_OPTIONS: VibeBusynessOption[] = [
+  { value: "dead", label: "Dead 💀", selectedBackground: "rgba(92,101,115,0.2)", selectedBorder: "#5C6573" },
+  { value: "moderate", label: "Moderate 🔥", selectedBackground: "rgba(255,176,32,0.2)", selectedBorder: "#FFB020" },
+  { value: "packed", label: "Packed 🎉", selectedBackground: "rgba(255,91,106,0.2)", selectedBorder: "#FF5B6A" },
+];
+
+const VIBE_CROWD_OPTIONS: VibeCrowdOption[] = [
+  { value: "mostly_male", label: "Mostly guys 👨" },
+  { value: "mostly_female", label: "Mostly girls 👩" },
+  { value: "balanced", label: "Balanced ⚖️" },
+  { value: "mixed", label: "Mixed 🎭" },
+];
+
+const VIBE_NOTE_MAX_LENGTH = 120;
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
@@ -205,11 +232,6 @@ function getBusynessColor(percent: number): string {
   return "#5C6573";
 }
 
-function getMeterSource(source: BusynessSource | null | undefined): BusynessSource | null {
-  if (source === "live" || source === "forecast" || source === "crowd") return source;
-  return null;
-}
-
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
   try {
     track(event, properties);
@@ -305,6 +327,13 @@ export function VenuePageClient({
   const [reportNotes, setReportNotes] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [vibeReportOpen, setVibeReportOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [vibeBusyness, setVibeBusyness] = useState<ReportedBusyness | null>(null);
+  const [vibeCrowdFeel, setVibeCrowdFeel] = useState<CrowdFeel | null>(null);
+  const [vibeNote, setVibeNote] = useState("");
+  const [vibeSubmitting, setVibeSubmitting] = useState(false);
+  const [vibeError, setVibeError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const photoStripRef = useRef<HTMLDivElement>(null);
@@ -624,6 +653,75 @@ export function VenuePageClient({
     }
   }
 
+  function openVibeReport() {
+    if (!authChecked) return;
+    haptic.light();
+    trackAnalytics("check_in", { venue_id: venueId });
+    if (!accessToken) {
+      setLoginPromptOpen(true);
+      return;
+    }
+    setVibeError(null);
+    setVibeReportOpen(true);
+  }
+
+  async function submitVibeReport() {
+    if (vibeSubmitting || !vibeBusyness || !vibeCrowdFeel || !accessToken) return;
+
+    setVibeSubmitting(true);
+    setVibeError(null);
+
+    try {
+      const reportVenueId = venue?.id ?? venueId;
+      const res = await fetch(`/api/venues/${encodeURIComponent(reportVenueId)}/check-in`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          busyness: vibeBusyness,
+          crowd_feel: vibeCrowdFeel,
+          note: vibeNote.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setVibeReportOpen(false);
+          setLoginPromptOpen(true);
+          return;
+        }
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error?.message ?? "Could not submit vibe.");
+      }
+
+      setVibeReportOpen(false);
+      setVibeBusyness(null);
+      setVibeCrowdFeel(null);
+      setVibeNote("");
+      setToast("Vibe reported! Thanks 🙌");
+      haptic.success();
+      trackAnalytics("vibe_check_submitted", {
+        venue_id: reportVenueId,
+        busyness_level: vibeBusyness,
+        crowd_feel: vibeCrowdFeel,
+      });
+
+      const venueRes = await fetch(`/api/venues/${encodeURIComponent(reportVenueId)}`);
+      if (venueRes.ok) {
+        const json = await venueRes.json();
+        setVenue(json?.data?.venue ?? venue);
+      }
+    } catch (error) {
+      setVibeError(error instanceof Error ? error.message : "Could not submit vibe.");
+      haptic.error();
+    } finally {
+      setVibeSubmitting(false);
+    }
+  }
+
   async function markTipHelpful(tipId: string) {
     haptic.light();
     const previousTips = tips;
@@ -655,14 +753,8 @@ export function VenuePageClient({
   const femalePercent = malePercent == null ? null : 100 - malePercent;
   const crowdFeel = getCrowdFeel(malePercent);
   const signalSourceLabel = sourceLabel(signal ?? null, updatedAt);
-  const busynessSource = getMeterSource(signal?.busynessSource);
+  const busynessSource = signal?.busynessSource ?? null;
   const mfSource = signal?.sampleSize ? "live" : null;
-  const reportParams = useMemo(() => new URLSearchParams({
-    venue: venueId,
-    venueId,
-    venueName: venue?.name ?? "Venue",
-  }), [venueId, venue?.name]);
-  const reportUrl = `/vibe-check?${reportParams.toString()}`;
   const hoursSummary = useMemo(() => {
     const openingHours = venue?.openingHours ?? [];
     const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -693,6 +785,7 @@ export function VenuePageClient({
   const tipCharactersRemaining = 200 - tipDraft.length;
   const canSubmitTip = tipDraft.trim().length >= 10 && tipDraft.trim().length <= 200 && !tipSubmitting;
   const reportCharactersRemaining = 200 - reportNotes.length;
+  const canSubmitVibe = Boolean(vibeBusyness && vibeCrowdFeel && !vibeSubmitting);
 
   useEffect(() => {
     setActivePhotoIndex(0);
@@ -1134,7 +1227,138 @@ export function VenuePageClient({
         </div>
       )}
 
-      {venue && (
+      {venue && vibeReportOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vibe-report-title"
+        >
+          <button
+            type="button"
+            aria-label="Close vibe report"
+            className="absolute inset-0 cursor-default"
+            onClick={() => {
+              if (!vibeSubmitting) setVibeReportOpen(false);
+            }}
+          />
+          <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#11111A] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 id="vibe-report-title" className="font-display text-lg font-black text-white">
+                  Report the vibe
+                </h2>
+                <p className="mt-1 text-xs font-medium text-white/40">
+                  Help people know what it feels like right now.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close vibe report"
+                onClick={() => {
+                  if (!vibeSubmitting) setVibeReportOpen(false);
+                }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                disabled={vibeSubmitting}
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            </div>
+
+            <fieldset className="mt-5">
+              <legend className="text-sm font-black text-white">Busyness</legend>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {VIBE_BUSYNESS_OPTIONS.map((option) => {
+                  const selected = vibeBusyness === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setVibeBusyness(option.value);
+                        if (vibeError) setVibeError(null);
+                        haptic.light();
+                      }}
+                      aria-pressed={selected}
+                      className="min-h-[72px] rounded-2xl border px-2 text-center text-sm font-black text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                      style={{
+                        backgroundColor: selected ? option.selectedBackground : "rgba(255,255,255,0.03)",
+                        borderColor: selected ? option.selectedBorder : "rgba(255,255,255,0.1)",
+                        borderWidth: selected ? 2 : 1,
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <fieldset className="mt-5">
+              <legend className="text-sm font-black text-white">Crowd</legend>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {VIBE_CROWD_OPTIONS.map((option) => {
+                  const selected = vibeCrowdFeel === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setVibeCrowdFeel(option.value);
+                        if (vibeError) setVibeError(null);
+                        haptic.light();
+                      }}
+                      aria-pressed={selected}
+                      className={`min-h-[58px] rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                        selected
+                          ? "border-2 border-[#8B6CFF] bg-[#8B6CFF]/15 text-white"
+                          : "border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/[0.06] hover:text-white"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <div className="mt-5 space-y-2">
+              <label htmlFor="vibe-note" className="sr-only">
+                Add a note
+              </label>
+              <textarea
+                id="vibe-note"
+                value={vibeNote}
+                onChange={(event) => {
+                  setVibeNote(event.target.value.slice(0, VIBE_NOTE_MAX_LENGTH));
+                  if (vibeError) setVibeError(null);
+                }}
+                maxLength={VIBE_NOTE_MAX_LENGTH}
+                rows={3}
+                placeholder="Add a note (optional)"
+                className="w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-3 py-3 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
+              />
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-white/35">
+                  {VIBE_NOTE_MAX_LENGTH - vibeNote.length} characters remaining
+                </span>
+                {vibeError && <span className="text-right text-xs font-medium text-rose-300">{vibeError}</span>}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={submitVibeReport}
+              disabled={!canSubmitVibe}
+              className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-4 text-sm font-bold text-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+            >
+              {vibeSubmitting ? "Submitting" : "Submit vibe"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {venue && !vibeReportOpen && (
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4rem)] left-0 right-0 z-[60] border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
           <div className="mx-auto flex max-w-lg items-center gap-3">
             {authChecked && !accessToken ? (
@@ -1175,16 +1399,14 @@ export function VenuePageClient({
               {alerting ? "Alerting 🔔" : "Alert Me"}
             </button>
 
-            <Link
-              href={reportUrl}
-              onClick={() => {
-                haptic.success();
-                trackAnalytics("check_in", { venue_id: venueId });
-              }}
+            <button
+              type="button"
+              onClick={openVibeReport}
+              disabled={!authChecked}
               className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-all hover:bg-[#A896FF] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
             >
-              Check In
-            </Link>
+              Report the vibe
+            </button>
           </div>
         </div>
       )}
