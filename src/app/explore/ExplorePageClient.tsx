@@ -251,20 +251,6 @@ function getCategoryChipLabel(category: string | null | undefined): string {
   return normalizeCategory(category) ?? "Spot";
 }
 
-function getBusynessColor(busyness: number | null | undefined): string {
-  if (busyness == null) return "#52525B";
-  if (busyness < 40) return "#5C6573";
-  if (busyness <= 70) return "#FFB020";
-  return "#FF5B6A";
-}
-
-function getBusynessPill(busyness: number | null | undefined): string {
-  if (busyness == null) return "⚫ No data";
-  const rounded = Math.round(busyness);
-  const indicator = busyness < 40 ? "🟢" : busyness <= 70 ? "🟡" : "🔴";
-  return `${indicator} ${rounded}% busy`;
-}
-
 function getMeterSource(source: BusynessSource | null | undefined): "live" | "forecast" | null {
   return source === "live" || source === "forecast" ? source : null;
 }
@@ -344,11 +330,16 @@ function VenueFeedCard({
 }) {
   const categoryLabel = getCategoryChipLabel(venue.category);
   const busyness = venue.signal?.busyness0To100 ?? null;
-  const busynessColor = getBusynessColor(busyness);
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
   const meterSource = getMeterSource(venue.signal?.busynessSource);
   const mfSource = venue.signal?.sampleSize ? "live" : null;
+  const hasBusyness = busyness !== null && Number.isFinite(busyness);
+  const hasMfReading =
+    venue.signal?.mfRatio !== null &&
+    venue.signal?.mfRatio !== undefined &&
+    (venue.signal?.sampleSize ?? 0) > 0;
+  const hasCrowdReading = hasBusyness || hasMfReading;
 
   return (
     <motion.li
@@ -364,15 +355,9 @@ function VenueFeedCard({
     >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="group relative block h-auto w-full overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.04] transition-colors hover:border-white/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        className="group relative block h-auto w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] transition-colors hover:border-white/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         aria-label={`Open ${venue.name}`}
       >
-        <div
-          className="absolute left-0 top-0 z-10 h-full w-1"
-          style={{ backgroundColor: busynessColor }}
-          aria-hidden="true"
-        />
-
         <div className="relative aspect-video w-full overflow-hidden bg-[linear-gradient(135deg,rgba(17,17,24,1),rgba(28,19,36,0.94)_50%,rgba(6,28,32,0.86))]">
           {venue.photoUrl ? (
             <Image
@@ -392,52 +377,56 @@ function VenueFeedCard({
           )}
         </div>
 
-        <div className="bg-[#111118] px-4 py-3 pl-5">
-          <div className="flex min-w-0 items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="truncate text-base font-black leading-tight text-white">
+        <div className="px-4 py-4">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate font-display text-[19px] font-semibold leading-tight text-white">
                 <HighlightText text={venue.name} query={searchQuery} />
               </h2>
-              <p className="mt-1 truncate text-xs font-semibold uppercase tracking-wide text-white/40">
-                {categoryLabel}
-              </p>
             </div>
-            {distance != null ? (
-              <span className="shrink-0 pt-0.5 text-xs font-semibold text-white/30">
-                {distance.toFixed(1)} mi
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex min-h-7 items-center rounded-full bg-white/[0.07] px-2.5 text-xs font-bold text-white/70">
-              {getBusynessPill(busyness)}
+            <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-1 text-[12px] font-semibold text-[#9CA2AE]">
+              {categoryLabel}
             </span>
-            {venue.openNow === true ? (
-              <span className="inline-flex min-h-7 items-center rounded-full bg-white/[0.05] px-2.5 text-xs font-bold text-white/35">
-                Live
-              </span>
-            ) : null}
           </div>
 
-          <div className="mt-3 space-y-3 border-t border-white/[0.06] pt-3">
-            <BusynessMeter
-              value={busyness}
-              source={meterSource}
-            />
-            <MFBar
-              malePercent={venue.signal?.mfRatio ?? null}
-              sampleSize={venue.signal?.sampleSize ?? 0}
-              source={mfSource}
-            />
+          <div className="mt-4 space-y-4 rounded-2xl border border-[rgba(255,255,255,0.08)] bg-black/[0.14] p-3.5">
+            {hasCrowdReading ? (
+              <>
+                {hasBusyness && (
+                  <BusynessMeter
+                    value={busyness}
+                    source={meterSource}
+                  />
+                )}
+                {hasMfReading ? (
+                  <MFBar
+                    malePercent={venue.signal?.mfRatio ?? null}
+                    sampleSize={venue.signal?.sampleSize ?? 0}
+                    source={mfSource}
+                  />
+                ) : (
+                  <p className="text-[13px] font-medium text-[#646B79]">
+                    No live reads yet — be the first to report
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-[13px] font-medium text-[#646B79]">
+                No live reads yet — be the first to report
+              </p>
+            )}
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3">
-            <span className="min-w-0 truncate text-xs font-semibold text-white/45">
-              {venue.signal?.sampleSize ? `${venue.signal.sampleSize} crowd report${venue.signal.sampleSize === 1 ? "" : "s"}` : "No crowd read"}
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate text-[13px] font-medium text-[#9CA2AE]">
+              {distance != null ? `${distance.toFixed(1)} mi · ` : ""}
+              {venue.address}
             </span>
             {ratingLabel ? (
-              <span className="shrink-0 text-xs font-bold text-white/50" aria-label={`${ratingLabel} star rating`}>
+              <span
+                className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-[12px] font-semibold text-[#F4F5F8]"
+                aria-label={`${ratingLabel} star rating`}
+              >
                 ★ {ratingLabel}
               </span>
             ) : null}
