@@ -1,0 +1,79 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { LAUNCH_ZONE } from "@/lib/launchZone";
+import { buildPhotoUrl, discoverZone } from "@/lib/places";
+
+describe("Google Places discovery", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses legacy Nearby Search for the launch zone and dedupes by place_id", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input.toString());
+      const type = url.searchParams.get("type");
+
+      expect(url.toString()).toContain("/nearbysearch/json");
+      expect(url.searchParams.get("location")).toBe("35.218,-80.85");
+      expect(url.searchParams.get("radius")).toBe("2500");
+      expect(url.searchParams.get("key")).toBe("places-test-key");
+
+      return Response.json({
+        status: "OK",
+        results: [
+          {
+            place_id: type === "bar" ? "place-1" : `place-${type}`,
+            name: `${type} venue`,
+            vicinity: "100 Tryon St",
+            geometry: { location: { lat: 35.218, lng: -80.85 } },
+            rating: 4.5,
+            user_ratings_total: 123,
+            price_level: 2,
+            photos: [{ photo_reference: `${type}-photo-reference` }],
+          },
+          {
+            place_id: "place-1",
+            name: "Duplicate venue",
+            vicinity: "Duplicate address",
+            geometry: { location: { lat: 35.219, lng: -80.851 } },
+          },
+        ],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const venues = await discoverZone(LAUNCH_ZONE);
+    const urls = fetchMock.mock.calls.map(([input]) => new URL(input.toString()));
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(urls.map((url) => url.searchParams.get("type"))).toEqual([
+      "bar",
+      "night_club",
+      "restaurant",
+    ]);
+    expect(urls.every((url) => url.hostname === "maps.googleapis.com")).toBe(true);
+    expect(venues.map((venue) => venue.placeId)).toEqual([
+      "place-1",
+      "place-night_club",
+      "place-restaurant",
+    ]);
+    expect(venues[0]).toMatchObject({
+      name: "bar venue",
+      address: "100 Tryon St",
+      lat: 35.218,
+      lng: -80.85,
+      category: "bar",
+      googleRating: 4.5,
+      totalRatings: 123,
+      priceLevel: 2,
+      photoReference: "bar-photo-reference",
+      photoUrl:
+        "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=bar-photo-reference&key=places-test-key",
+    });
+  });
+
+  it("builds real Google Place Photo URLs from photo references", () => {
+    expect(buildPhotoUrl("photo-ref")).toBe(
+      "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=photo-ref&key=places-test-key"
+    );
+  });
+});
