@@ -19,6 +19,13 @@ function request(secret?: string) {
   });
 }
 
+function requestWithCronHeader(secret: string) {
+  return new NextRequest("http://localhost/api/cron/refresh-busyness", {
+    method: "GET",
+    headers: { "x-cron-secret": secret },
+  });
+}
+
 describe("GET /api/cron/refresh-busyness", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -39,6 +46,17 @@ describe("GET /api/cron/refresh-busyness", () => {
     expect(refreshOpenNowMock).not.toHaveBeenCalled();
   });
 
+  it("accepts the explicit x-cron-secret header", async () => {
+    refreshBusynessMock.mockResolvedValue([]);
+    refreshOpenNowMock.mockResolvedValue({ updated: 0 });
+
+    const { GET } = await import("../cron/refresh-busyness/route");
+    const res = await GET(requestWithCronHeader("test-cron-secret"));
+
+    expect(res.status).toBe(200);
+    expect(refreshBusynessMock).toHaveBeenCalledWith(50);
+  });
+
   it("refreshes busyness through the shared BestTime adapter", async () => {
     refreshBusynessMock.mockResolvedValue([
       { venueId: "venue-1", ok: true },
@@ -51,7 +69,7 @@ describe("GET /api/cron/refresh-busyness", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(refreshBusynessMock).toHaveBeenCalledWith(100);
+    expect(refreshBusynessMock).toHaveBeenCalledWith(50);
     expect(refreshOpenNowMock).toHaveBeenCalled();
     expect(json).toEqual({
       updated: 1,

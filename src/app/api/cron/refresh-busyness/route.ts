@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  return Boolean(secret) && req.headers.get("authorization") === `Bearer ${secret}`;
+  return (
+    Boolean(secret) &&
+    (req.headers.get("authorization") === `Bearer ${secret}` || req.headers.get("x-cron-secret") === secret)
+  );
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -17,7 +20,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const results = await refreshBusyness(100);
+    const results = await refreshBusyness(50);
     const openNow = await refreshOpenNow();
     const errors = results
       .filter((result) => !result.ok)

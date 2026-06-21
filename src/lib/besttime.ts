@@ -66,6 +66,20 @@ function currentForecastFromRegistration(data: unknown): number | null {
   return hourIndex >= 0 ? readNumber(dayRaw[hourIndex]) : null;
 }
 
+/*
+One-time seed note for South End venues missing besttime_venue_id:
+do not run from client code, and do not expose BESTTIME_API_KEY.
+
+await fetch("https://besttime.app/api/v1/forecasts?" + new URLSearchParams({
+  api_key_private: process.env.BESTTIME_API_KEY!,
+  venue_name: venue.name,
+  venue_address: venue.address,
+}), { method: "POST", cache: "no-store" });
+
+Save response.venue_info.venue_id to venues.besttime_venue_id, then let the
+protected refresh-busyness cron cache live/forecast values in venue_signals.
+*/
+
 // Register venue with BestTime, returns venue_id and the current-hour forecast when present.
 async function registerVenue(venue: VenueRow, key: string): Promise<BestTimeRegistration> {
   const params = new URLSearchParams({
