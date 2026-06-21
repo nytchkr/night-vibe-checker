@@ -186,15 +186,28 @@ function getCategoryChipLabel(category: string | null | undefined): string {
   return normalizeCategory(category) ?? "Spot";
 }
 
-function getSignalLabel(venue: ConsumerVenue): string {
+function getBusynessColor(busyness: number | null | undefined): string {
+  if (busyness == null) return "#52525B";
+  if (busyness < 40) return "#22C55E";
+  if (busyness <= 70) return "#EAB308";
+  return "#EF4444";
+}
+
+function getBusynessPill(busyness: number | null | undefined): string {
+  if (busyness == null) return "⚫ No data";
+  const rounded = Math.round(busyness);
+  const indicator = busyness < 40 ? "🟢" : busyness <= 70 ? "🟡" : "🔴";
+  return `${indicator} ${rounded}% busy`;
+}
+
+function getCrowdFeelLabel(venue: ConsumerVenue): string {
   const signal = venue.signal;
-  if (!signal || signal.sampleSize < 3 || signal.mfRatio == null) return "No reads yet";
+  if (!signal || signal.sampleSize < 3 || signal.mfRatio == null) return "⚫ No crowd read";
 
-  const busyness = getBusynessState(signal.busyness0To100).label;
   const malePercent = Math.min(100, Math.max(0, Math.round(signal.mfRatio)));
-  const femalePercent = 100 - malePercent;
-
-  return `${busyness} · 👨${malePercent}% 👩${femalePercent}%`;
+  if (malePercent >= 60) return "👨 Mostly guys";
+  if (malePercent <= 40) return "👩 Mostly girls";
+  return "⚖ Balanced";
 }
 
 function VenueFeedCard({
@@ -211,9 +224,11 @@ function VenueFeedCard({
   prefersReduced: boolean;
 }) {
   const categoryLabel = getCategoryChipLabel(venue.category);
-  const priceLabel = "$".repeat(venue.priceLevel ?? 0) || "—";
-  const ratingLabel = venue.rating?.toFixed(1) ?? "—";
-  const signalLabel = getSignalLabel(venue);
+  const busyness = venue.signal?.busyness0To100 ?? null;
+  const busynessColor = getBusynessColor(busyness);
+  const rating = venue.rating ?? venue.googleRating;
+  const ratingLabel = rating?.toFixed(1);
+  const crowdFeelLabel = getCrowdFeelLabel(venue);
 
   return (
     <motion.li
@@ -229,10 +244,16 @@ function VenueFeedCard({
     >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="block overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+        className="group relative block h-auto w-full overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.04] transition-colors hover:border-white/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
         aria-label={`Open ${venue.name}`}
       >
-        <div className="relative aspect-video w-full overflow-hidden bg-white/[0.06]">
+        <div
+          className="absolute left-0 top-0 z-10 h-full w-1"
+          style={{ backgroundColor: busynessColor }}
+          aria-hidden="true"
+        />
+
+        <div className="relative aspect-video w-full overflow-hidden bg-[linear-gradient(135deg,rgba(17,17,24,1),rgba(28,19,36,0.94)_50%,rgba(6,28,32,0.86))]">
           {venue.photoUrl ? (
             <Image
               src={venue.photoUrl}
@@ -242,43 +263,53 @@ function VenueFeedCard({
               loading="lazy"
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-              className="object-cover"
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-5xl" aria-hidden="true">
+            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(0,245,212,0.14),transparent_32%),radial-gradient(circle_at_70%_80%,rgba(255,45,120,0.12),transparent_34%)] text-5xl" aria-hidden="true">
               {getCategoryIcon(venue.category)}
             </div>
           )}
         </div>
 
-        <div className="px-4 py-3">
+        <div className="bg-[#111118] px-4 py-3 pl-5">
           <div className="flex min-w-0 items-start justify-between gap-3">
-            <h2 className="min-w-0 truncate text-[17px] font-medium leading-tight text-white">
-              <HighlightText text={venue.name} query={searchQuery} />
-            </h2>
-            <span className="shrink-0 rounded-full bg-white/10 px-2 py-1 text-[11px] font-medium leading-none text-white/60">
-              {categoryLabel}
-            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-black leading-tight text-white">
+                <HighlightText text={venue.name} query={searchQuery} />
+              </h2>
+              <p className="mt-1 truncate text-xs font-semibold uppercase tracking-wide text-white/40">
+                {categoryLabel}
+              </p>
+            </div>
+            {distance != null ? (
+              <span className="shrink-0 pt-0.5 text-xs font-semibold text-white/30">
+                {distance.toFixed(1)} mi
+              </span>
+            ) : null}
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-medium text-white/50">
-            <span>★ {ratingLabel}</span>
-            <span>{priceLabel}</span>
-            {distance != null ? <span>{distance.toFixed(1)} mi</span> : null}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex min-h-7 items-center rounded-full bg-white/[0.07] px-2.5 text-xs font-bold text-white/70">
+              {getBusynessPill(busyness)}
+            </span>
             {venue.openNow === true ? (
-              <span className="inline-flex items-center gap-1.5" aria-label="Open now">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/40 opacity-60" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-white/55" />
-                </span>
+              <span className="inline-flex min-h-7 items-center rounded-full bg-white/[0.05] px-2.5 text-xs font-bold text-white/35">
                 Live
               </span>
             ) : null}
           </div>
 
-          <p className="mt-2 truncate text-[13px] font-medium text-white/50">
-            {signalLabel}
-          </p>
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3">
+            <span className="min-w-0 truncate text-xs font-semibold text-white/45">
+              {crowdFeelLabel}
+            </span>
+            {ratingLabel ? (
+              <span className="shrink-0 text-xs font-bold text-white/50" aria-label={`${ratingLabel} star rating`}>
+                ★ {ratingLabel}
+              </span>
+            ) : null}
+          </div>
         </div>
       </Link>
     </motion.li>
@@ -287,15 +318,22 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="mb-3 overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] last:mb-0">
+    <div className="relative mb-3 h-auto w-full overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] last:mb-0">
+      <div className="absolute left-0 top-0 z-10 h-full w-1 animate-pulse bg-white/10" />
       <div className="aspect-video w-full animate-pulse bg-white/[0.06]" />
-      <div className="space-y-2 px-4 py-3">
+      <div className="space-y-3 bg-[#111118] px-4 py-3 pl-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="h-5 w-40 animate-pulse rounded bg-white/10" />
-          <div className="h-5 w-16 animate-pulse rounded-full bg-white/10" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="h-5 w-44 animate-pulse rounded bg-white/10" />
+            <div className="h-3 w-20 animate-pulse rounded bg-white/[0.08]" />
+          </div>
+          <div className="h-3 w-12 animate-pulse rounded bg-white/[0.08]" />
         </div>
-        <div className="h-4 w-28 animate-pulse rounded bg-white/[0.08]" />
-        <div className="h-4 w-44 animate-pulse rounded bg-white/[0.06]" />
+        <div className="h-7 w-28 animate-pulse rounded-full bg-white/[0.08]" />
+        <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3">
+          <div className="h-3 w-28 animate-pulse rounded bg-white/[0.08]" />
+          <div className="h-3 w-12 animate-pulse rounded bg-white/[0.08]" />
+        </div>
       </div>
     </div>
   );
