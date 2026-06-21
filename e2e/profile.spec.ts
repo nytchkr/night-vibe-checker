@@ -63,22 +63,16 @@ test.describe("Profile page", () => {
       });
     });
 
-    await page.route("**/api/check-ins/me", (route) => {
-      expect(route.request().headers().authorization).toBe("Bearer valid-e2e-token");
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "success",
-          data: { checkIns: [] },
-          meta: {
-            cached: false,
-            generatedAt: new Date().toISOString(),
-            requestId: "nv-test-016-profile-empty",
-          },
-        }),
-      });
-    });
+    await page.route("**/api/profile/streak", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 }),
+    }));
+    await page.route("**/api/profile/gender", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ gender: null }),
+    }));
 
     await page.route("**/api/saved-venues", (route) => route.fulfill({
       status: 200,
@@ -116,6 +110,61 @@ test.describe("Profile page", () => {
     await expect(page.getByRole("link", { name: "Browse South End venues" })).toBeVisible();
   });
 
+  test("profile renders recent check-ins with busyness and notes", async ({ page }) => {
+    test.skip(
+      (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
+      "uses a mocked Supabase session and is only valid against a local app server",
+    );
+    await addLocalSession(page);
+
+    await page.route("**/api/profile/check-ins", (route) => {
+      expect(route.request().headers().authorization).toBe("Bearer valid-e2e-token");
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: "check-in-1",
+            venue_id: "venue-1",
+            venue_name: "Trio",
+            busyness: "packed",
+            note: "Line is moving",
+            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          },
+        ]),
+      });
+    });
+
+    await page.route("**/api/profile/streak", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ currentStreak: 1, longestStreak: 1, totalCheckIns: 1 }),
+    }));
+    await page.route("**/api/saved-venues", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ status: "success", data: { savedVenueIds: [] } }),
+    }));
+    await page.route("**/api/venues", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ status: "success", data: { venues: [] } }),
+    }));
+    await page.route("**/api/profile/gender", (route) => route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ gender: null }),
+    }));
+
+    await page.goto("/profile");
+
+    const history = page.getByRole("region", { name: "Check-in History" });
+    await expect(history).toContainText("Trio");
+    await expect(history).toContainText("2h ago");
+    await expect(history).toContainText("Packed");
+    await expect(history).toContainText("Line is moving");
+  });
+
   test("sign out clears the session and protects authenticated-only routes", async ({ page }) => {
     test.skip(
       (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
@@ -123,18 +172,10 @@ test.describe("Profile page", () => {
     );
     await addLocalSession(page);
 
-    await page.route("**/api/check-ins/me", (route) => route.fulfill({
+    await page.route("**/api/profile/check-ins", (route) => route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { checkIns: [], totalCheckIns: 0 },
-        meta: {
-          cached: false,
-          generatedAt: new Date().toISOString(),
-          requestId: "nv-signout-check-ins",
-        },
-      }),
+      body: JSON.stringify([]),
     }));
     await page.route("**/api/profile/streak", (route) => route.fulfill({
       status: 200,

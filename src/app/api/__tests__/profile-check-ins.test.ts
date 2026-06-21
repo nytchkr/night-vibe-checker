@@ -42,7 +42,7 @@ describe("GET /api/profile/check-ins", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("returns the current user's last 10 visible check-ins with venue names", async () => {
+  it("returns the current user's last 20 visible check-ins with venue names and notes", async () => {
     mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
     const query = checkInsQuery({
       data: [
@@ -50,6 +50,7 @@ describe("GET /api/profile/check-ins", () => {
           id: "check-in-1",
           venue_id: "venue-1",
           busyness: "packed",
+          note: "Line is moving",
           created_at: "2026-06-21T03:00:00.000Z",
           venues: { name: "Trio" },
         },
@@ -63,17 +64,18 @@ describe("GET /api/profile/check-ins", () => {
 
     expect(res.status).toBe(200);
     expect(mockFrom).toHaveBeenCalledWith("check_ins");
-    expect(query.select).toHaveBeenCalledWith("id,venue_id,busyness,created_at,venues(name)");
+    expect(query.select).toHaveBeenCalledWith("id,venue_id,busyness,note,created_at,venues(name)");
     expect(query.eq).toHaveBeenNthCalledWith(1, "user_id", "user-123");
     expect(query.eq).toHaveBeenNthCalledWith(2, "hidden", false);
     expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(query.limit).toHaveBeenCalledWith(10);
+    expect(query.limit).toHaveBeenCalledWith(20);
     await expect(res.json()).resolves.toEqual([
       {
         id: "check-in-1",
         venue_id: "venue-1",
         venue_name: "Trio",
         busyness: "packed",
+        note: "Line is moving",
         created_at: "2026-06-21T03:00:00.000Z",
       },
     ]);

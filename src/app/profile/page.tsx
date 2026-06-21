@@ -12,7 +12,7 @@ import { WELCOME_SEEN_STORAGE_KEY, WelcomeOverlay } from "@/components/WelcomeOv
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import type { APIResponse, ConsumerVenue } from "@/types";
+import type { APIResponse, ConsumerVenue, ReportedBusyness } from "@/types";
 
 type ProfileGender = "male" | "female" | "undisclosed";
 
@@ -20,22 +20,20 @@ type CheckInItem = {
   id: string;
   venueId: string;
   venueName: string;
-  busyness: string | null;
+  busyness: ReportedBusyness | null;
+  note: string | null;
   createdAt: string;
 };
 
-type CheckInRecord = {
+type ProfileCheckInRecord = {
   id: string;
-  venueId: string;
-  venueName?: string;
-  busyness: string | null;
-  createdAt: string;
+  venue_id: string | null;
+  venue_name: string | null;
+  busyness: ReportedBusyness | null;
+  note: string | null;
+  created_at: string;
 };
 
-type CheckInsMeResponse = APIResponse<{
-  checkIns: CheckInRecord[];
-  totalCheckIns?: number;
-}>;
 type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
   venueIds?: string[];
   savedVenueIds?: string[];
@@ -61,21 +59,36 @@ const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
   { value: "undisclosed", label: "Rather not say" },
 ];
 
-function getVenueName(row: CheckInRecord): string {
-  return row.venueName ?? row.venueId ?? "Unknown venue";
+function getVenueName(row: ProfileCheckInRecord): string {
+  return row.venue_name ?? row.venue_id ?? "Unknown venue";
 }
 
-function formatBusyness(value: string): string {
-  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+function formatBusyness(value: ReportedBusyness): string {
+  if (value === "dead") return "Dead";
+  if (value === "moderate") return "Moderate";
+  return "Packed";
 }
 
-function formatCheckInDate(value: string): string {
+function formatRelativeTime(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recent";
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-  }).format(date);
+
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs < 60 * 1000) return "Just now";
+
+  const diffMinutes = Math.floor(diffMs / (60 * 1000));
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks < 5) return `${diffWeeks}w ago`;
+
+  return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
 }
 
 function getUserEmail(user: User | undefined): string {
@@ -324,7 +337,7 @@ function CheckInsSection({
           </p>
         </div>
         <span className="rounded-full bg-[#F0568C]/15 px-3 py-1 text-xs font-black text-[#F0568C]">
-          Last 10
+          Last 20
         </span>
       </div>
 
@@ -347,7 +360,7 @@ function CheckInsSection({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <MapPin size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-base font-black text-white">No check-ins yet — start exploring!</p>
+          <p className="mt-4 text-base font-black text-white">No check-ins yet. Head out and check one in!</p>
           <Link
             href="/map"
             className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
@@ -364,13 +377,16 @@ function CheckInsSection({
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 truncate text-sm font-black text-white">{item.venueName}</p>
                 <time className="shrink-0 text-xs font-semibold text-white/38" dateTime={item.createdAt}>
-                  {formatCheckInDate(item.createdAt)}
+                  {formatRelativeTime(item.createdAt)}
                 </time>
               </div>
               {item.busyness && (
                 <p className="mt-2 inline-flex rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-xs font-bold text-[#8B6CFF]">
                   {formatBusyness(item.busyness)}
                 </p>
+              )}
+              {item.note && (
+                <p className="mt-2 text-sm font-semibold leading-5 text-white/55">{item.note}</p>
               )}
             </li>
           ))}
@@ -550,7 +566,7 @@ function ProfileContent() {
     setCheckInsError("");
 
     try {
-      const res = await fetch("/api/check-ins/me", {
+      const res = await fetch("/api/profile/check-ins", {
         headers: { Authorization: `Bearer ${activeSession.access_token}` },
       });
 
@@ -561,16 +577,16 @@ function ProfileContent() {
         return;
       }
 
-      const json = (await res.json()) as CheckInsMeResponse;
-      const rows = Array.isArray(json.data?.checkIns) ? json.data.checkIns : [];
-      const totalCheckIns = json.data?.totalCheckIns;
-      setCheckInCount(typeof totalCheckIns === "number" && Number.isFinite(totalCheckIns) ? totalCheckIns : rows.length);
-      setCheckIns(rows.map((row) => ({
+      const rows = (await res.json()) as ProfileCheckInRecord[];
+      const visibleRows = Array.isArray(rows) ? rows.slice(0, 20) : [];
+      setCheckInCount(visibleRows.length);
+      setCheckIns(visibleRows.map((row) => ({
         id: row.id,
-        venueId: row.venueId,
+        venueId: row.venue_id ?? "",
         venueName: getVenueName(row),
         busyness: row.busyness,
-        createdAt: row.createdAt,
+        note: row.note,
+        createdAt: row.created_at,
       })));
     } catch {
       setCheckIns([]);
