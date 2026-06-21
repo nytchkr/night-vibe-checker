@@ -16,7 +16,7 @@
     /* shadcn/ui dark overrides — always dark for this app */
     --background: 240 17% 5%;     /* #0A0A0E */
     --foreground: 225 22% 96%;    /* #F4F5F8 */
-    --card: 0 0% 100%;            /* use with 3.5% alpha for #surface */
+    --card: 240 18% 8%;           /* #101017 */
     --card-foreground: 225 22% 96%;
     --popover: 240 18% 8%;        /* #101017 */
     --popover-foreground: 225 22% 96%;

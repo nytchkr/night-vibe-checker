@@ -452,7 +452,7 @@ export default function VibeCheckClient({
             <button
               type="button"
               onClick={() => void handleShareCard()}
-              className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-[#0A0A0E] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-gray-600 bg-gray-800 px-4 py-3 text-sm font-black text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               <Share2 className="h-4 w-4" aria-hidden="true" />
               {shareCopied ? "Link copied" : "Share"}

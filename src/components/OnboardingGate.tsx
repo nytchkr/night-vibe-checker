@@ -280,7 +280,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={googleSigningIn}
-                  className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-white px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-gray-600 bg-gray-800 px-4 text-sm font-black text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   {googleSigningIn ? "Connecting..." : "Continue with Google"}
                 </button>

@@ -57,7 +57,7 @@ function Toggle({
       }`}
     >
       <span
-        className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow-lg transition-transform ${
+        className={`absolute top-1 h-6 w-6 rounded-full border border-gray-500 bg-gray-800 shadow-lg transition-transform ${
           checked ? "translate-x-6" : "translate-x-1"
         }`}
       />

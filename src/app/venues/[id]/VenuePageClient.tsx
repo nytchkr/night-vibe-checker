@@ -290,7 +290,7 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
             </div>
           ))}
           {extraCount > 0 && (
-            <div className="-ml-2 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-[#0A0A0E] bg-white text-[11px] font-black text-[#0A0A0E] shadow-lg">
+            <div className="-ml-2 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-[#0A0A0E] bg-gray-800 text-[11px] font-black text-white shadow-lg">
               +{extraCount}
             </div>
           )}
