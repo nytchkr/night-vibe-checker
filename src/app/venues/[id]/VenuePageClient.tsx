@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { Check, ChevronDown, ChevronLeft, Heart, MapPin, Share2, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
-import { MFBar } from "@/components/MFBar";
+import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
@@ -764,12 +764,11 @@ export function VenuePageClient({
   const label = busynessState.label;
   const hasBusynessRead = busyness != null;
   const updatedAt = signal?.lastBusynessRefresh ?? signal?.updatedAt ?? signal?.computedAt ?? null;
-  const malePercent = signal?.mfRatio != null ? clampPercent(signal.mfRatio) : null;
-  const femalePercent = malePercent == null ? null : 100 - malePercent;
-  const crowdFeel = getCrowdFeel(malePercent);
   const signalSourceLabel = sourceLabel(signal ?? null, updatedAt);
   const busynessSource = signal?.busynessSource ?? null;
-  const mfSource = signal?.sampleSize ? "live" : null;
+  const mfSampleSize = signal?.sampleSize ?? 0;
+  const mfPercents = getMFRatioPercents(signal?.mfRatio);
+  const crowdFeel = getCrowdFeel(mfSampleSize >= 3 ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
   const googleReviewLabel = formatReviewCount(venue?.totalRatings);
@@ -961,10 +960,9 @@ export function VenuePageClient({
 
                 <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">M/F ratio</span>
-                  <MFBar
-                    malePercent={malePercent}
-                    sampleSize={signal?.sampleSize ?? 0}
-                    source={mfSource}
+                  <MFRatioBar
+                    mfRatio={signal?.mfRatio}
+                    sampleSize={mfSampleSize}
                     className="mt-3"
                   />
                 </div>
@@ -1006,10 +1004,9 @@ export function VenuePageClient({
                       {crowdFeel.label}
                     </span>
                   </div>
-                  <MFBar
-                    malePercent={malePercent}
-                    sampleSize={signal?.sampleSize ?? 0}
-                    source={mfSource}
+                  <MFRatioBar
+                    mfRatio={signal?.mfRatio}
+                    sampleSize={mfSampleSize}
                   />
                 </div>
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
-import { MFBar } from "@/components/MFBar";
+import { MFRatioBar } from "@/components/MFRatioBar";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
 import type { ConsumerVenue } from "@/types";
@@ -155,8 +155,6 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   if (!venue) return null;
 
   const signal = venue.signal;
-  const mfSource = signal?.busynessSource === "live" ? "live" : signal?.busynessSource === "forecast" ? "forecast" : null;
-  const malePercent = signal?.mfRatio != null ? clampPercent(signal.mfRatio) : null;
 
   return (
     <>
@@ -218,16 +216,12 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
           <BusynessMeter value={signal?.busyness0To100} />
 
-          {malePercent !== null && (
-            <div className="mt-3">
-              <MFBar
-                malePercent={malePercent}
-                sampleSize={signal?.sampleSize ?? 0}
-                source={mfSource}
-                showWhenRatioPresent
-              />
-            </div>
-          )}
+          <MFRatioBar
+            compact
+            mfRatio={signal?.mfRatio}
+            sampleSize={signal?.sampleSize ?? 0}
+            className="mt-3"
+          />
         </div>
       </aside>
     </>

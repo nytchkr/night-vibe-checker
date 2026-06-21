@@ -6,49 +6,75 @@
 // Shows the canonical male-blue to female-pink M/F split only when we have enough data.
 // ============================================================
 
+import { cn } from "@/lib/utils";
+
 interface MFRatioBarProps {
-  malePercent: number | null;
-  confidence: number | null;
-  sampleSize: number;
+  mfRatio: number | null | undefined;
+  sampleSize: number | null | undefined;
+  compact?: boolean;
+  className?: string;
 }
 
-const MIN_SAMPLE_SIZE_FOR_RATIO = 2;
+export const MIN_SAMPLE_SIZE_FOR_RATIO = 3;
 
-export function MFRatioBar({ malePercent, confidence, sampleSize }: MFRatioBarProps) {
-  const hasData = malePercent !== null && sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
+function clampPercent(value: number): number {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
 
-  if (!hasData) {
-    return null;
+export function getMFRatioPercents(mfRatio: number | null | undefined): { male: number; female: number } | null {
+  if (mfRatio == null || !Number.isFinite(mfRatio)) return null;
+
+  // Canonical contract: 0 = all M, 0.5 = equal, 1 = all F.
+  // Some older rows still carry 0-100 male percentages; tolerate them until all signals are migrated.
+  if (mfRatio > 1) {
+    const male = clampPercent(mfRatio);
+    return { male, female: 100 - male };
   }
 
-  const femalePercent = 100 - malePercent;
-  const confidencePct = confidence != null ? Math.round(confidence * 100) : null;
+  const female = clampPercent(mfRatio * 100);
+  return { male: 100 - female, female };
+}
+
+export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: MFRatioBarProps) {
+  const percents = getMFRatioPercents(mfRatio);
+  const hasData = percents !== null && (sampleSize ?? 0) >= MIN_SAMPLE_SIZE_FOR_RATIO;
+
+  if (!hasData) {
+    return (
+      <div
+        className={cn("space-y-1.5", className)}
+        role="img"
+        aria-label="Male/female ratio: not enough data yet"
+      >
+        <div className={cn("h-2 w-full rounded-full bg-[#1A1A2E]", compact && "h-1.5")} aria-hidden="true" />
+        <p className={cn("font-semibold text-white/45", compact ? "text-[11px]" : "text-xs")}>
+          Not enough data yet
+        </p>
+      </div>
+    );
+  }
+
+  const { male, female } = percents;
 
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[11.5px] font-semibold text-[#646B79]">M/F</span>
-        <span className="text-[11px] text-white/45">
-          {malePercent}% M · {femalePercent}% F
-          {confidencePct != null && (
-            <span className="ml-1 text-white/35">({confidencePct}% conf)</span>
-          )}
-        </span>
-      </div>
-      {/* Male blue → female pink split */}
-      <div
-        className="relative h-2 w-full overflow-hidden rounded-full bg-white/10"
-        role="img"
-        aria-label={`${malePercent}% male, ${femalePercent}% female`}
-      >
+    <div
+      className={cn("space-y-1.5", className)}
+      role="img"
+      aria-label={`Male/female ratio: ${male}% male, ${female}% female`}
+    >
+      <div className={cn("flex h-2 w-full overflow-hidden rounded-full bg-[#1A1A2E]", compact && "h-1.5")} aria-hidden="true">
         <div
-          className="h-full rounded-full"
-          style={{
-            width: "100%",
-            background: `linear-gradient(to right, #4F9DFF 0%, #4F9DFF ${malePercent}%, #F0568C ${malePercent}%, #F0568C 100%)`,
-          }}
+          className="h-full bg-[#4A90D9]"
+          style={{ width: `${male}%` }}
+        />
+        <div
+          className="h-full bg-[#E8649A]"
+          style={{ width: `${female}%` }}
         />
       </div>
+      <p className={cn("font-semibold text-white/60", compact ? "text-[11px]" : "text-xs")}>
+        {male}% M · {female}% F
+      </p>
     </div>
   );
 }
