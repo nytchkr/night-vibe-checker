@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent } from "react";
+import { Component, Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import L from "leaflet";
@@ -43,6 +43,28 @@ const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
 
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
 const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
+const VENUE_FETCH_TIMEOUT_MS = 10_000;
+const SLOW_LOAD_DELAY_MS = 5_000;
+
+class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex h-full w-full items-center justify-center bg-[#0A0A0E] px-4 text-center text-sm font-semibold text-white/70">
+          Map failed to load. Please reload the page.
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
   try {
@@ -730,6 +752,7 @@ export function VenueMap({
   const [openNowFilter, setOpenNowFilter] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [slowLoad, setSlowLoad] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
@@ -742,21 +765,38 @@ export function VenueMap({
     if (showLoading) setLoading(true);
     setError(null);
 
+    const controller = new AbortController();
+    let didTimeout = false;
+    const timeoutId = setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, VENUE_FETCH_TIMEOUT_MS);
+    const handleAbort = () => controller.abort();
+    signal?.addEventListener("abort", handleAbort, { once: true });
+
     try {
-      const res = await fetch("/api/venues", { signal });
+      const res = await fetch("/api/venues", { signal: controller.signal });
       if (!res.ok) throw new Error(`Venue fetch failed: ${res.status}`);
       const json = (await res.json()) as APIResponse<{ venues: ConsumerVenue[] }>;
       const nextVenues = json.data?.venues ?? [];
+      clearTimeout(timeoutId);
       setVenues(nextVenues);
       window.dispatchEvent(new CustomEvent<string[]>(EXPLORE_VENUES_EVENT, {
         detail: nextVenues.map((venue) => venue.id),
       }));
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (err instanceof DOMException && err.name === "AbortError") {
+        if (!didTimeout) return;
+        setVenues([]);
+        setError("Loading took too long — tap to retry.");
+        return;
+      }
       setVenues([]);
-      setError("Map venues are unavailable.");
+      setError("Couldn't load venues. Check your connection and tap to retry.");
     } finally {
-      if (!signal?.aborted && showLoading) {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener("abort", handleAbort);
+      if ((!signal?.aborted || didTimeout) && showLoading) {
         setLoading(false);
       }
     }
@@ -776,6 +816,16 @@ export function VenueMap({
       controller.abort();
     };
   }, [fetchVenues]);
+
+  useEffect(() => {
+    if (!loading) {
+      setSlowLoad(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => setSlowLoad(true), SLOW_LOAD_DELAY_MS);
+    return () => clearTimeout(timeoutId);
+  }, [loading]);
 
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
@@ -860,87 +910,89 @@ export function VenueMap({
         </div>
       )}
 
-      <MapContainer
-        ref={mapRef}
-        center={cityCenter}
-        zoom={15}
-        scrollWheelZoom={false}
-        style={{ height: "100%", width: "100%" }}
-        className="z-0"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
-        <CityMapCenter center={cityCenter} />
-        <MapZoomTracker onZoomChange={setMapZoom} />
-        <ZipRecenterControl />
-        <VenueSearchControl
-          onVenueSelect={selectVenueFromSearch}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          venues={visibleVenues}
-        />
-        <RecenterButton center={cityCenter} />
+      <MapErrorBoundary>
+        <MapContainer
+          ref={mapRef}
+          center={cityCenter}
+          zoom={15}
+          scrollWheelZoom={false}
+          style={{ height: "100%", width: "100%" }}
+          className="z-0"
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          />
+          <CityMapCenter center={cityCenter} />
+          <MapZoomTracker onZoomChange={setMapZoom} />
+          <ZipRecenterControl />
+          <VenueSearchControl
+            onVenueSelect={selectVenueFromSearch}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            venues={visibleVenues}
+          />
+          <RecenterButton center={cityCenter} />
 
-        {mapZoom < 14 && (
-          <ClusteredVenueMarkers venues={filteredVenues} selectedVenueId={selectedVenueId} onVenueClick={selectVenueFromMap} />
-        )}
+          {mapZoom < 14 && (
+            <ClusteredVenueMarkers venues={filteredVenues} selectedVenueId={selectedVenueId} onVenueClick={selectVenueFromMap} />
+          )}
 
-        {mapZoom >= 14 && filteredVenues.map((venue) => {
-          const pin = getVenuePinStyle(venue);
-          const busyness = venue.signal?.busyness0To100 ?? null;
-          const isLive = isLiveBusynessSource(venue.signal?.busynessSource);
-          const isSelected = selectedVenueId === venue.id;
+          {mapZoom >= 14 && filteredVenues.map((venue) => {
+            const pin = getVenuePinStyle(venue);
+            const busyness = venue.signal?.busyness0To100 ?? null;
+            const isLive = isLiveBusynessSource(venue.signal?.busynessSource);
+            const isSelected = selectedVenueId === venue.id;
 
-          return (
-            <Fragment key={venue.id}>
-              {isSelected && (
-                <CircleMarker
-                  center={[venue.lat, venue.lng]}
-                  radius={pin.radius + 7}
-                  pathOptions={{
-                    color: "#8B6CFF",
-                    fillColor: "#8B6CFF",
-                    fillOpacity: 0.08,
-                    opacity: 0.72,
-                    weight: 2,
+            return (
+              <Fragment key={venue.id}>
+                {isSelected && (
+                  <CircleMarker
+                    center={[venue.lat, venue.lng]}
+                    radius={pin.radius + 7}
+                    pathOptions={{
+                      color: "#8B6CFF",
+                      fillColor: "#8B6CFF",
+                      fillOpacity: 0.08,
+                      opacity: 0.72,
+                      weight: 2,
+                    }}
+                    interactive={false}
+                  />
+                )}
+                {isLive && busyness !== null && busyness > 33 && (
+                  <CircleMarker
+                    center={[venue.lat, venue.lng]}
+                    radius={pin.radius * 1.65}
+                    pathOptions={{
+                      className: "venue-pin-live-pulse",
+                      color: pin.fillColor,
+                      fillColor: pin.fillColor,
+                      fillOpacity: 0.18,
+                      opacity: 0.32,
+                      weight: 1,
+                    }}
+                    interactive={false}
+                  />
+                )}
+                <Marker
+                  position={[venue.lat, venue.lng]}
+                  icon={createBusynessIcon(busyness, isLive)}
+                  eventHandlers={{
+                    click: () => {
+                      selectVenueFromMap(venue);
+                    },
                   }}
-                  interactive={false}
-                />
-              )}
-              {isLive && busyness !== null && busyness > 33 && (
-                <CircleMarker
-                  center={[venue.lat, venue.lng]}
-                  radius={pin.radius * 1.65}
-                  pathOptions={{
-                    className: "venue-pin-live-pulse",
-                    color: pin.fillColor,
-                    fillColor: pin.fillColor,
-                    fillOpacity: 0.18,
-                    opacity: 0.32,
-                    weight: 1,
-                  }}
-                  interactive={false}
-                />
-              )}
-              <Marker
-                position={[venue.lat, venue.lng]}
-                icon={createBusynessIcon(busyness, isLive)}
-                eventHandlers={{
-                  click: () => {
-                    selectVenueFromMap(venue);
-                  },
-                }}
-              >
-                <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
-                </Tooltip>
-              </Marker>
-            </Fragment>
-          );
-        })}
-      </MapContainer>
+                >
+                  <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>{venue.name}</span>
+                  </Tooltip>
+                </Marker>
+              </Fragment>
+            );
+          })}
+        </MapContainer>
+      </MapErrorBoundary>
 
       <CitySelector city={city} onCityChange={onCityChange} />
       <FilterFab hasActiveFilters={hasActiveFilters} onClick={() => setIsFilterSheetOpen(true)} />
@@ -984,6 +1036,11 @@ export function VenueMap({
             <div className="h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
             <div className="mt-3 h-3 w-full animate-pulse rounded bg-white/[0.06]" />
           </div>
+          {slowLoad && (
+            <p className="absolute inset-x-0 bottom-28 text-center text-xs font-semibold text-white/40">
+              Taking longer than usual...
+            </p>
+          )}
         </div>
       )}
 
@@ -1007,7 +1064,7 @@ export function VenueMap({
         <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
           <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
             <h2 className="font-display text-base font-black">Couldn&apos;t load spots</h2>
-            <p className="mt-2 text-sm font-semibold text-white/70">Try again to refresh the {city.name} map.</p>
+            <p className="mt-2 text-sm font-semibold text-white/70">{error}</p>
             <button
               type="button"
               onClick={() => void fetchVenues()}
@@ -1016,8 +1073,14 @@ export function VenueMap({
               <RefreshCw aria-hidden="true" className="h-4 w-4" />
               Retry
             </button>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-3 block w-full text-xs font-semibold text-white/45 underline underline-offset-4 transition hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+            >
+              Reload page
+            </button>
           </div>
-          <p className="sr-only">{error}</p>
         </div>
       )}
 
