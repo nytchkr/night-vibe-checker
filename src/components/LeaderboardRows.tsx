@@ -35,11 +35,11 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
       <button
         type="button"
         onClick={haptic.light}
-        className="flex w-full items-center gap-3 rounded-xl bg-white/[0.04] px-4 py-3 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+        className="flex w-full items-center gap-3 rounded-xl bg-white/[0.04] px-4 py-3 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
       >
         <div
           className={`w-8 text-center text-sm font-black ${
-            entry.rank === 1 ? "text-[#FBBF24]" : "text-white/50"
+            entry.rank === 1 ? "text-[#FFB020]" : "text-white/50"
           }`}
           aria-label={`Rank ${entry.rank}`}
         >
@@ -52,7 +52,7 @@ function LeaderboardRow({ entry }: { entry: LeaderboardEntry }) {
             {entry.topVenue ? `Top spot: ${entry.topVenue}` : "Checking in across South End"}
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-[#00F5D4]/12 px-3 py-1 text-xs font-black text-[#00F5D4]">
+        <span className="shrink-0 rounded-full bg-[#8B6CFF]/12 px-3 py-1 text-xs font-black text-[#8B6CFF]">
           {entry.checkInCount}
         </span>
       </button>

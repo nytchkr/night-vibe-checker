@@ -124,7 +124,7 @@ export function AdminVenueTable({ initialVenues, token }: Props) {
                     <button
                       onClick={() => refreshVenue(venue)}
                       disabled={refreshingId === venue.id}
-                      className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-[#00F5D4]/20 text-[#00F5D4] hover:bg-[#00F5D4]/10 hover:border-[#00F5D4]/40 transition-all disabled:opacity-40"
+                      className="text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-[#8B6CFF]/20 text-[#8B6CFF] hover:bg-[#8B6CFF]/10 hover:border-[#8B6CFF]/40 transition-all disabled:opacity-40"
                     >
                       {refreshingId === venue.id ? "Refreshing" : "Refresh signal"}
                     </button>

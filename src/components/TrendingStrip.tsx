@@ -36,7 +36,7 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
   return (
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
-      className="flex w-[210px] shrink-0 snap-start gap-3 rounded-xl bg-white/[0.04] p-2 transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+      className="flex w-[210px] shrink-0 snap-start gap-3 rounded-xl bg-white/[0.04] p-2 transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
       aria-label={`Open ${venue.name}`}
     >
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-white/[0.06]">

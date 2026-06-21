@@ -182,10 +182,10 @@ export default async function AdminPage() {
   const data = await getDashboardData();
 
   return (
-    <main className="min-h-screen bg-[#0A0A0F] px-4 py-8 text-white">
+    <main className="min-h-screen bg-[#0A0A0E] px-4 py-8 text-white">
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
-          <p className="text-sm uppercase tracking-[0.2em] text-[#00F5D4]">NightVibe Admin</p>
+          <p className="text-sm uppercase tracking-[0.2em] text-[#8B6CFF]">NightVibe Admin</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Venue Operations Dashboard</h1>
           <p className="mt-2 text-sm text-white/50">Live venue, check-in, and dispatch health.</p>
         </header>
@@ -241,7 +241,7 @@ export default async function AdminPage() {
                 ["Running", data.dispatchStatus.running],
                 ["Done", data.dispatchStatus.done],
               ].map(([label, value]) => (
-                <div key={label} className="bg-[#0A0A0F] p-4">
+                <div key={label} className="bg-[#0A0A0E] p-4">
                   <dt className="text-white/45">{label}</dt>
                   <dd className="mt-2 text-2xl font-bold tabular-nums text-white">{Number(value).toLocaleString()}</dd>
                 </div>

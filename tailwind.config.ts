@@ -15,12 +15,25 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Night Vibe brand tokens
-        "neon-cyan": "#00F5D4",
-        "neon-magenta": "#FF2D78",
-        "bg-deep": "#0A0A0F",
-        "bg-card": "#141420",
-        "bg-elevated": "#1E1E2E",
+        // NightVibe canonical design tokens
+        violet: "#8B6CFF",
+        pink: "#F0568C",
+        male: "#4F9DFF",
+        "busyness-packed": "#FF5B6A",
+        "busyness-moderate": "#FFB020",
+        "busyness-dead": "#5C6573",
+        "text-primary": "#F4F5F8",
+        "text-secondary": "#9CA2AE",
+        "text-tertiary": "#646B79",
+        surface: "rgba(255,255,255,0.035)",
+        hairline: "rgba(255,255,255,0.08)",
+        "bg-2": "#101017",
+        // Legacy aliases retained for existing class names.
+        "neon-cyan": "#8B6CFF",
+        "neon-magenta": "#F0568C",
+        "bg-deep": "#0A0A0E",
+        "bg-card": "rgba(255,255,255,0.035)",
+        "bg-elevated": "#101017",
         // shadcn/ui CSS variable tokens
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -63,6 +76,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        display: ["var(--font-space-grotesk)", "var(--font-inter)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {

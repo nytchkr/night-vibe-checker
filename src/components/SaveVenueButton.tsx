@@ -86,10 +86,10 @@ export function SaveVenueButton({
       disabled={pending}
       aria-label={`${saved ? "Unsave" : "Save"} ${venueName}`}
       aria-pressed={saved}
-      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 disabled:opacity-60 ${
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-60 ${
         saved
-          ? "border-[#00F5D4]/65 bg-[#00F5D4]/15 text-[#00F5D4] shadow-[0_0_18px_rgba(0,245,212,0.22)]"
-          : "border-white/15 bg-[#0A0A0F]/75 text-white/62 hover:border-[#00F5D4]/45 hover:text-[#00F5D4]"
+          ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.22)]"
+          : "border-white/15 bg-[#0A0A0E]/75 text-white/62 hover:border-[#8B6CFF]/45 hover:text-[#8B6CFF]"
       } ${className ?? ""}`}
     >
       <Bookmark size={18} strokeWidth={2.4} fill={saved ? "currentColor" : "none"} aria-hidden="true" />

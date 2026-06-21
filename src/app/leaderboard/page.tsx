@@ -25,8 +25,8 @@ export default async function LeaderboardPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-[#0A0A0F]">
-        <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0F]/92 px-4 backdrop-blur-xl">
+      <div className="min-h-screen bg-[#0A0A0E]">
+        <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0E]/92 px-4 backdrop-blur-xl">
           <div className="mx-auto max-w-lg py-4">
             <Link href="/profile" className="text-xs font-bold text-white/35 transition-colors hover:text-white/60">
               Back to You

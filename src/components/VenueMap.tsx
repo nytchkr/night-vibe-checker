@@ -96,7 +96,7 @@ function RecenterButton({ center }: { center: [number, number] }) {
       type="button"
       aria-label="Recenter map"
       onClick={() => map.flyTo(center, 15)}
-      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-full bg-black/75 px-4 text-xs font-black uppercase tracking-[0.14em] text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-full bg-black/75 px-4 text-xs font-black uppercase tracking-[0.14em] text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="7" />
@@ -236,7 +236,7 @@ function CitySelector({
         aria-haspopup="dialog"
         aria-label={`Choose neighborhood, currently ${city.name}`}
         onClick={() => setOpen(true)}
-        className="absolute left-4 top-4 z-[1000] inline-flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3.5 py-2 text-sm font-black text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+        className="absolute left-4 top-4 z-[1000] inline-flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3.5 py-2 text-sm font-black text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         <span className="truncate">{city.name}</span>
         <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-white/70" />
@@ -250,7 +250,7 @@ function CitySelector({
             onClick={() => setOpen(false)}
             className="absolute inset-0 h-full w-full cursor-default bg-black/55"
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0F] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
+          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
             <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
             <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-between gap-4">
               <div className="min-w-0">
@@ -261,7 +261,7 @@ function CitySelector({
                 type="button"
                 aria-label="Close city selector"
                 onClick={() => setOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 <X aria-hidden="true" className="h-4 w-4" />
               </button>
@@ -276,9 +276,9 @@ function CitySelector({
                     type="button"
                     aria-current={isSelected ? "true" : undefined}
                     onClick={() => selectCity(option.id)}
-                    className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                    className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                       isSelected
-                        ? "border-[#00F5D4]/45 bg-[#00F5D4]/15 text-white"
+                        ? "border-[#8B6CFF]/45 bg-[#8B6CFF]/15 text-white"
                         : "border-white/[0.08] bg-white/[0.04] text-white hover:bg-white/[0.07]"
                     }`}
                   >
@@ -286,7 +286,7 @@ function CitySelector({
                       <span className="block truncate text-sm font-black">{option.name}</span>
                       <span className="mt-1 block truncate text-xs font-semibold text-white/45">{option.city}</span>
                     </span>
-                    {isSelected && <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-[#00F5D4]" />}
+                    {isSelected && <Check aria-hidden="true" className="h-5 w-5 shrink-0 text-[#8B6CFF]" />}
                   </button>
                 );
               })}
@@ -357,7 +357,7 @@ function ZipRecenterControl() {
       placeholder="Charlotte zip"
       type="text"
       value={zip}
-      className={`absolute left-1/2 top-4 z-[500] w-36 -translate-x-1/2 rounded-full border bg-black/70 px-3 py-1.5 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+      className={`absolute left-1/2 top-4 z-[500] w-36 -translate-x-1/2 rounded-full border bg-black/70 px-3 py-1.5 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
         showInvalid ? "border-red-500" : "border-white/10"
       }`}
     />
@@ -460,7 +460,7 @@ function VenueSearchControl({
         placeholder="Search venues..."
         type="search"
         value={searchQuery}
-        className="w-full rounded-full border border-white/10 bg-black/70 px-3 py-1.5 pr-9 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 [&::-webkit-search-cancel-button]:appearance-none"
+        className="w-full rounded-full border border-white/10 bg-black/70 px-3 py-1.5 pr-9 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {searchQuery.length > 0 && (
         <button
@@ -472,7 +472,7 @@ function VenueSearchControl({
             setIsDropdownOpen(false);
           }}
           onMouseDown={(event) => event.stopPropagation()}
-          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-lg leading-none text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-lg leading-none text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           ×
         </button>
@@ -527,7 +527,7 @@ function FilterFab({
       type="button"
       aria-label="Filter venues"
       onClick={onClick}
-      className="fixed bottom-44 right-4 z-[1050] flex h-12 w-12 items-center justify-center rounded-full border border-[#00F5D4]/30 bg-[#00F5D4]/15 text-[#00F5D4] shadow-[0_0_20px_rgba(0,245,212,0.22)] backdrop-blur transition hover:bg-[#00F5D4]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+      className="fixed bottom-44 right-4 z-[1050] flex h-12 w-12 items-center justify-center rounded-full border border-[#8B6CFF]/30 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_20px_rgba(139,108,255,0.22)] backdrop-blur transition hover:bg-[#8B6CFF]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2">
         <path d="M4 7h4" />
@@ -543,7 +543,7 @@ function FilterFab({
       {hasActiveFilters && (
         <span
           aria-hidden="true"
-          className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-[#0A0A0F] bg-[#FF2D78] shadow-[0_0_10px_rgba(255,45,120,0.7)]"
+          className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full border border-[#0A0A0E] bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.7)]"
         />
       )}
     </button>
@@ -575,7 +575,7 @@ function VenueFilterSheet({
 
   if (!isOpen) return null;
 
-  const openNowActiveClass = draftOpenNow ? "bg-[#00F5D4] text-[#0A0A0F]" : "bg-white/[0.06] text-white/60";
+  const openNowActiveClass = draftOpenNow ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/60";
 
   return (
     <div className="fixed inset-0 z-[1500]" role="dialog" aria-modal="true" aria-labelledby="venue-filter-title">
@@ -596,7 +596,7 @@ function VenueFilterSheet({
               type="button"
               aria-label="Close filters"
               onClick={onClose}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               <X aria-hidden="true" className="h-4 w-4" />
             </button>
@@ -619,8 +619,8 @@ function VenueFilterSheet({
                       haptic.light();
                       setDraftCategory(filter);
                     }}
-                    className={`mr-2 shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
-                      isActive ? "bg-[#00F5D4] text-[#0A0A0F]" : "bg-white/[0.06] text-white/60 hover:bg-white/[0.09] hover:text-white/75"
+                    className={`mr-2 shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                      isActive ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/60 hover:bg-white/[0.09] hover:text-white/75"
                     }`}
                   >
                     {filter}
@@ -640,7 +640,7 @@ function VenueFilterSheet({
                 type="button"
                 aria-pressed={draftOpenNow}
                 onClick={() => setDraftOpenNow((current) => !current)}
-                className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${openNowActiveClass}`}
+                className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${openNowActiveClass}`}
               >
                 Open Now
               </button>
@@ -650,7 +650,7 @@ function VenueFilterSheet({
           <button
             type="button"
             onClick={() => onApply(draftCategory, draftOpenNow)}
-            className="mt-6 h-12 w-full rounded-full bg-[#00F5D4] text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.32)] transition hover:bg-[#66ffea] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111118]"
+            className="mt-6 h-12 w-full rounded-full bg-[#8B6CFF] text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.32)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111118]"
           >
             Apply
           </button>
@@ -767,7 +767,7 @@ export function VenueMap({
   }, [haptic]);
 
   return (
-    <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
+    <main className={`relative w-full overflow-hidden bg-[#0A0A0E] ${mapHeightClass}`}>
       {(pulling || refreshing) && (
         <div
           className="pointer-events-none fixed left-0 right-0 top-0 z-[1200] flex justify-center px-4 pt-3"
@@ -777,7 +777,7 @@ export function VenueMap({
           <div className="rounded-full border border-white/10 bg-black/75 px-4 py-2 text-xs font-black text-white/55 shadow-2xl backdrop-blur">
             {refreshing ? (
               <span className="flex items-center gap-2">
-                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#00F5D4] border-t-transparent" aria-hidden="true" />
+                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#8B6CFF] border-t-transparent" aria-hidden="true" />
                 <span className="sr-only">Refreshing map venues...</span>
               </span>
             ) : (
@@ -826,8 +826,8 @@ export function VenueMap({
                   center={[venue.lat, venue.lng]}
                   radius={pin.radius + 7}
                   pathOptions={{
-                    color: "#00F5D4",
-                    fillColor: "#00F5D4",
+                    color: "#8B6CFF",
+                    fillColor: "#8B6CFF",
                     fillOpacity: 0.08,
                     opacity: 0.72,
                     weight: 2,
@@ -855,7 +855,7 @@ export function VenueMap({
                 radius={isSelected ? pin.radius + 2 : pin.radius}
                 pathOptions={{
                   className: pin.className,
-                  color: isSelected ? "#00F5D4" : "rgba(255,255,255,0.15)",
+                  color: isSelected ? "#8B6CFF" : "rgba(255,255,255,0.15)",
                   fillColor: pin.fillColor,
                   fillOpacity: pin.fillOpacity,
                   weight: isSelected ? 3 : 1.5,
@@ -913,7 +913,7 @@ export function VenueMap({
       {loading && (
         <div className="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center px-4">
           <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-sm font-black text-white shadow-2xl backdrop-blur">
-            <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin text-[#00F5D4]" />
+            <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin text-[#8B6CFF]" />
             <span>Loading spots...</span>
           </div>
         </div>
@@ -927,7 +927,7 @@ export function VenueMap({
             <button
               type="button"
               onClick={() => void fetchVenues()}
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-black text-[#0A0A0F] shadow-[0_0_18px_rgba(0,245,212,0.32)] transition hover:bg-[#66ffea] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-5 py-2.5 text-sm font-black text-[#0A0A0E] shadow-[0_0_18px_rgba(139,108,255,0.32)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             >
               <RefreshCw aria-hidden="true" className="h-4 w-4" />
               Refresh
@@ -944,7 +944,7 @@ export function VenueMap({
             <button
               type="button"
               onClick={() => void fetchVenues()}
-              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-black text-[#0A0A0F] shadow-[0_0_18px_rgba(0,245,212,0.32)] transition hover:bg-[#66ffea] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-5 py-2.5 text-sm font-black text-[#0A0A0E] shadow-[0_0_18px_rgba(139,108,255,0.32)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             >
               <RefreshCw aria-hidden="true" className="h-4 w-4" />
               Retry
@@ -956,7 +956,7 @@ export function VenueMap({
 
       <Link
         href="/vibe-check"
-        className="fixed bottom-28 right-4 z-[1000] rounded-full bg-[#00F5D4] px-5 py-3 font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+        className="fixed bottom-28 right-4 z-[1000] rounded-full bg-[#8B6CFF] px-5 py-3 font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         ＋ Report Vibe
       </Link>

@@ -39,20 +39,20 @@ export function hasCompletedOnboarding() {
 
 function MapDotsPreview() {
   const dots = [
-    { left: "20%", top: "28%", size: "h-3 w-3", color: "bg-[#00F5D4]", delay: "0s" },
-    { left: "68%", top: "32%", size: "h-2.5 w-2.5", color: "bg-[#FF2D78]", delay: "0.35s" },
+    { left: "20%", top: "28%", size: "h-3 w-3", color: "bg-[#8B6CFF]", delay: "0s" },
+    { left: "68%", top: "32%", size: "h-2.5 w-2.5", color: "bg-[#F0568C]", delay: "0.35s" },
     { left: "44%", top: "58%", size: "h-4 w-4", color: "bg-amber-300", delay: "0.7s" },
-    { left: "76%", top: "72%", size: "h-3 w-3", color: "bg-[#00F5D4]", delay: "1.05s" },
+    { left: "76%", top: "72%", size: "h-3 w-3", color: "bg-[#8B6CFF]", delay: "1.05s" },
   ];
 
   return (
     <div
-      className="relative h-64 overflow-hidden rounded-[28px] border border-white/10 bg-[#07070B] shadow-[0_0_60px_rgba(0,245,212,0.14)]"
+      className="relative h-64 overflow-hidden rounded-[28px] border border-white/10 bg-[#07070B] shadow-[0_0_60px_rgba(139,108,255,0.14)]"
       aria-hidden="true"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(0,245,212,0.16),transparent_32%),linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[length:100%_100%,38px_38px,38px_38px]" />
-      <div className="absolute left-[13%] top-[22%] h-px w-[68%] rotate-12 bg-[#00F5D4]/20" />
-      <div className="absolute left-[25%] top-[62%] h-px w-[55%] -rotate-[18deg] bg-[#FF2D78]/18" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(139,108,255,0.16),transparent_32%),linear-gradient(rgba(255,255,255,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[length:100%_100%,38px_38px,38px_38px]" />
+      <div className="absolute left-[13%] top-[22%] h-px w-[68%] rotate-12 bg-[#8B6CFF]/20" />
+      <div className="absolute left-[25%] top-[62%] h-px w-[55%] -rotate-[18deg] bg-[#F0568C]/18" />
       {dots.map((dot) => (
         <div
           key={`${dot.left}-${dot.top}`}
@@ -69,7 +69,7 @@ function MapDotsPreview() {
       <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/10 bg-black/45 p-3 backdrop-blur-md">
         <div className="flex items-center justify-between text-xs font-semibold text-white/55">
           <span>South End live map</span>
-          <span className="text-[#00F5D4]">4 packed now</span>
+          <span className="text-[#8B6CFF]">4 packed now</span>
         </div>
       </div>
     </div>
@@ -78,19 +78,19 @@ function MapDotsPreview() {
 
 function LeaderboardPreview() {
   const rows = [
-    { rank: "🏆", name: "Maya", detail: "12 check-ins", color: "border-[#00F5D4]/35 bg-[#00F5D4]/12" },
+    { rank: "🏆", name: "Maya", detail: "12 check-ins", color: "border-[#8B6CFF]/35 bg-[#8B6CFF]/12" },
     { rank: "🥈", name: "Jordan", detail: "9 check-ins", color: "border-white/12 bg-white/[0.06]" },
-    { rank: "🥉", name: "Chris", detail: "7 check-ins", color: "border-[#FF2D78]/30 bg-[#FF2D78]/10" },
+    { rank: "🥉", name: "Chris", detail: "7 check-ins", color: "border-[#F0568C]/30 bg-[#F0568C]/10" },
   ];
 
   return (
     <div
-      className="rounded-[28px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_0_54px_rgba(255,45,120,0.12)]"
+      className="rounded-[28px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_0_54px_rgba(240,86,140,0.12)]"
       aria-hidden="true"
     >
       <div className="mb-4 flex items-center justify-between">
         <div className="text-left">
-          <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#00F5D4]">Tonight</div>
+          <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#8B6CFF]">Tonight</div>
           <div className="mt-1 text-lg font-black text-white">Cred board</div>
         </div>
         <div className="rounded-full border border-white/10 bg-black/35 px-3 py-1 text-xs font-bold text-white/60">
@@ -108,7 +108,7 @@ function LeaderboardPreview() {
               <div className="text-xs font-semibold text-white/48">{row.detail}</div>
             </div>
             <div className="h-2 w-14 rounded-full bg-white/10">
-              <div className="h-2 rounded-full bg-[#00F5D4]" style={{ width: `${88 - index * 18}%` }} />
+              <div className="h-2 rounded-full bg-[#8B6CFF]" style={{ width: `${88 - index * 18}%` }} />
             </div>
           </div>
         ))}
@@ -122,16 +122,16 @@ function AlertsPreview() {
 
   return (
     <div
-      className="rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_80%_12%,rgba(0,245,212,0.14),transparent_34%),rgba(255,255,255,0.045)] p-4 text-left shadow-[0_0_54px_rgba(0,245,212,0.1)]"
+      className="rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_80%_12%,rgba(139,108,255,0.14),transparent_34%),rgba(255,255,255,0.045)] p-4 text-left shadow-[0_0_54px_rgba(139,108,255,0.1)]"
       aria-hidden="true"
     >
-      <div className="rounded-3xl border border-[#00F5D4]/25 bg-[#00F5D4]/10 p-4">
+      <div className="rounded-3xl border border-[#8B6CFF]/25 bg-[#8B6CFF]/10 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#00F5D4]">Vibe alert</div>
+            <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#8B6CFF]">Vibe alert</div>
             <div className="mt-2 text-xl font-black text-white">Sycamore just got packed</div>
           </div>
-          <div className="grid h-12 w-12 place-items-center rounded-full bg-[#00F5D4] text-xl text-[#071113]">!</div>
+          <div className="grid h-12 w-12 place-items-center rounded-full bg-[#8B6CFF] text-xl text-[#071113]">!</div>
         </div>
         <div className="mt-4 text-sm font-semibold leading-5 text-white/62">Live check-ins are moving fast. Decide before the line does.</div>
       </div>
@@ -141,7 +141,7 @@ function AlertsPreview() {
             key={filter}
             className={`rounded-2xl border px-2 py-3 text-center text-xs font-black ${
               index === 0
-                ? "border-[#FF2D78]/35 bg-[#FF2D78]/12 text-[#FF9ABD]"
+                ? "border-[#F0568C]/35 bg-[#F0568C]/12 text-[#FF9ABD]"
                 : "border-white/10 bg-black/25 text-white/55"
             }`}
           >
@@ -152,10 +152,10 @@ function AlertsPreview() {
       <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
         <div className="flex items-center justify-between text-xs font-bold text-white/55">
           <span>Crowd signal</span>
-          <span className="text-[#00F5D4]">82%</span>
+          <span className="text-[#8B6CFF]">82%</span>
         </div>
         <div className="mt-3 h-2 rounded-full bg-white/10">
-          <div className="h-2 w-[82%] rounded-full bg-[#00F5D4]" />
+          <div className="h-2 w-[82%] rounded-full bg-[#8B6CFF]" />
         </div>
       </div>
     </div>
@@ -229,7 +229,7 @@ export function OnboardingOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex min-h-screen bg-[#0A0A0F]/95 text-white backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex min-h-screen bg-[#0A0A0E]/95 text-white backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
@@ -242,7 +242,7 @@ export function OnboardingOverlay() {
           event.stopPropagation();
           close();
         }}
-        className="absolute right-4 top-4 z-10 rounded-full px-4 py-3 text-sm font-semibold text-white/30 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]"
+        className="absolute right-4 top-4 z-10 rounded-full px-4 py-3 text-sm font-semibold text-white/30 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]"
       >
         Skip
       </button>
@@ -288,14 +288,14 @@ export function OnboardingOverlay() {
                 }}
                 aria-label={`Show ${item.title}`}
                 aria-current={index === activeSlide ? "step" : undefined}
-                className={`group flex h-6 items-center justify-center rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4] ${
+                className={`group flex h-6 items-center justify-center rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF] ${
                   index === activeSlide ? "w-8" : "w-6"
                 }`}
               >
                 <span
                   aria-hidden="true"
                   className={`rounded-full transition-all ${
-                    index === activeSlide ? "h-2.5 w-8 bg-[#00F5D4]" : "h-2.5 w-2.5 bg-white/24 group-hover:bg-white/40"
+                    index === activeSlide ? "h-2.5 w-8 bg-[#8B6CFF]" : "h-2.5 w-2.5 bg-white/24 group-hover:bg-white/40"
                   }`}
                 />
               </button>
@@ -307,7 +307,7 @@ export function OnboardingOverlay() {
           <button
             type="button"
             onClick={next}
-            className="flex min-h-[54px] w-full items-center justify-center rounded-full bg-[#00F5D4] px-6 text-base font-black text-[#071113] shadow-[0_0_28px_rgba(0,245,212,0.24)] transition-colors hover:bg-[#5CFFE8] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="flex min-h-[54px] w-full items-center justify-center rounded-full bg-[#8B6CFF] px-6 text-base font-black text-[#071113] shadow-[0_0_28px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
           >
             {isLastSlide ? "Let's Go →" : "Next"}
           </button>

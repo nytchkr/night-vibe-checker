@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
+import { Inter, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -11,9 +12,11 @@ const title = "NightVibe — Charlotte Nightlife";
 const description =
   "See which Charlotte bars and clubs are packed right now. Real-time crowd vibes by neighborhood.";
 const ogImage = "/og-image.png";
-const themeColor = "#0A0A0F";
+const themeColor = "#0A0A0E";
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -74,11 +77,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://a.tile.openstreetmap.org" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
       </head>
-      <body className="bg-[#0A0A0F] text-white font-sans antialiased min-h-screen">
+      <body className={`${inter.variable} ${spaceGrotesk.variable} bg-[#0A0A0E] text-white font-sans antialiased min-h-screen`}>
         <OfflineBanner />
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10000] focus:rounded-full focus:bg-[#00F5D4] focus:px-4 focus:py-2 focus:text-[13px] focus:font-medium focus:text-[#0A0A0F] focus:outline-none focus:ring-2 focus:ring-white"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10000] focus:rounded-full focus:bg-[#8B6CFF] focus:px-4 focus:py-2 focus:text-[13px] focus:font-medium focus:text-[#0A0A0E] focus:outline-none focus:ring-2 focus:ring-white"
         >
           Skip to main content
         </a>

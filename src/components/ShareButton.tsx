@@ -93,7 +93,7 @@ export function ShareButton(props: ShareButtonProps) {
         title={copied ? "Link copied!" : "Share"}
         className="
           h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
-          text-white/45 hover:border-cyan-300/35 hover:bg-cyan-300/10 hover:text-cyan-100
+          text-white/45 hover:border-[#8B6CFF]/35 hover:bg-[#8B6CFF]/10 hover:text-[#F4F5F8]
           focus-visible:text-white focus-visible:ring-white/30
         "
       >
@@ -103,7 +103,7 @@ export function ShareButton(props: ShareButtonProps) {
       {copied ? (
         <span
           role="status"
-          className="absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-full border border-cyan-300/25 bg-black/85 px-2.5 py-1 text-xs font-medium text-cyan-100 shadow-lg"
+          className="absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-full border border-[#8B6CFF]/25 bg-black/85 px-2.5 py-1 text-xs font-medium text-[#F4F5F8] shadow-lg"
         >
           Link copied!
         </span>

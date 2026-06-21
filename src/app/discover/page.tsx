@@ -28,7 +28,7 @@ function MapPreviewFallback() {
         px-5 py-6 min-h-[18rem]
       "
     >
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_20%,rgba(0,245,212,0.16),transparent_32%),radial-gradient(circle_at_78%_72%,rgba(255,45,120,0.16),transparent_34%)]" />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_20%,rgba(139,108,255,0.16),transparent_32%),radial-gradient(circle_at_78%_72%,rgba(240,86,140,0.16),transparent_34%)]" />
       <div className="absolute inset-x-0 top-1/2 -z-10 h-px bg-white/10" />
       <div className="absolute inset-y-0 left-1/2 -z-10 w-px bg-white/10" />
 
@@ -44,8 +44,8 @@ function MapPreviewFallback() {
             Venue cards below are live. Add a Google Maps key to switch this preview into an interactive pin map.
           </p>
         </div>
-        <div className="rounded-2xl border border-[#00F5D4]/25 bg-[#00F5D4]/10 px-3 py-2 text-right">
-          <span className="block text-[#00F5D4] text-sm font-bold">Preview</span>
+        <div className="rounded-2xl border border-[#8B6CFF]/25 bg-[#8B6CFF]/10 px-3 py-2 text-right">
+          <span className="block text-[#8B6CFF] text-sm font-bold">Preview</span>
           <span className="text-white/35 text-[11px]">Map layer</span>
         </div>
       </div>
@@ -64,8 +64,8 @@ function MapPreviewFallback() {
         ))}
       </div>
 
-      <span className="absolute left-[18%] top-[58%] h-3 w-3 rounded-full bg-[#00F5D4] shadow-[0_0_18px_rgba(0,245,212,0.8)]" />
-      <span className="absolute right-[24%] top-[42%] h-3 w-3 rounded-full bg-[#FF2D78] shadow-[0_0_18px_rgba(255,45,120,0.75)]" />
+      <span className="absolute left-[18%] top-[58%] h-3 w-3 rounded-full bg-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.8)]" />
+      <span className="absolute right-[24%] top-[42%] h-3 w-3 rounded-full bg-[#F0568C] shadow-[0_0_18px_rgba(240,86,140,0.75)]" />
       <span className="absolute right-[38%] bottom-[18%] h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_16px_rgba(252,211,77,0.7)]" />
     </div>
   );
@@ -156,21 +156,21 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F]">
+    <div className="min-h-screen bg-[#0A0A0E]">
       {/* Toast */}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/10 px-4 relative overflow-hidden">
+      <header className="sticky top-0 z-40 bg-[#0A0A0E]/92 backdrop-blur-xl border-b border-white/10 px-4 relative overflow-hidden">
         <div
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-full"
           style={{
             background:
-              "radial-gradient(ellipse 70% 120% at 90% 0%, rgba(255,45,120,0.10) 0%, transparent 60%), radial-gradient(ellipse 50% 100% at 10% 0%, rgba(0,245,212,0.08) 0%, transparent 60%)",
+              "radial-gradient(ellipse 70% 120% at 90% 0%, rgba(240,86,140,0.10) 0%, transparent 60%), radial-gradient(ellipse 50% 100% at 10% 0%, rgba(139,108,255,0.08) 0%, transparent 60%)",
           }}
         />
         <div className="max-w-lg mx-auto py-4">
-          <p className="text-[#FF2D78]/60 text-[10px] font-bold uppercase tracking-[0.3em]">
+          <p className="text-[#F0568C]/60 text-[10px] font-bold uppercase tracking-[0.3em]">
             Explore
           </p>
           <h1 className="mt-1 text-white font-black text-[1.75rem] leading-none tracking-[-0.02em]">
@@ -205,9 +205,9 @@ export default function DiscoverPage() {
                 onClick={fetchVenues}
                 aria-label="Refresh nearby venues"
                 className="
-                  text-white/40 hover:text-[#00F5D4]
+                  text-white/40 hover:text-[#8B6CFF]
                   transition-colors duration-150
-                  focus:outline-none focus-visible:text-[#00F5D4]
+                  focus:outline-none focus-visible:text-[#8B6CFF]
                 "
               >
                 <svg

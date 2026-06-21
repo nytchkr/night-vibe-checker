@@ -3,7 +3,7 @@
 // ============================================================
 // MFRatioBar — M/F crowd ratio indicator
 //
-// Shows the canonical violet-to-pink M/F gradient when we have enough data.
+// Shows the canonical male-blue to female-pink M/F split when we have enough data.
 // Gray placeholder when sample is too small or data is absent.
 // ============================================================
 
@@ -45,7 +45,7 @@ export function MFRatioBar({ malePercent, confidence, sampleSize }: MFRatioBarPr
           )}
         </span>
       </div>
-      {/* Violet (male) → pink (female) gradient fill */}
+      {/* Male blue → female pink split */}
       <div
         className="relative h-2 w-full overflow-hidden rounded-full bg-white/10"
         role="img"
@@ -55,7 +55,7 @@ export function MFRatioBar({ malePercent, confidence, sampleSize }: MFRatioBarPr
           className="h-full rounded-full"
           style={{
             width: "100%",
-            background: `linear-gradient(to right, #7C3AED 0%, #7C3AED ${malePercent}%, #EC4899 ${malePercent}%, #EC4899 100%)`,
+            background: `linear-gradient(to right, #4F9DFF 0%, #4F9DFF ${malePercent}%, #F0568C ${malePercent}%, #F0568C 100%)`,
           }}
         />
       </div>

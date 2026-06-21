@@ -21,9 +21,9 @@ function clampPercent(value: number | null | undefined): number {
 
 function barColor(value: number | null | undefined): string {
   if (value == null) return "bg-white/25";
-  if (value >= 67) return "bg-[#F87171]";
-  if (value >= 34) return "bg-[#FBBF24]";
-  return "bg-[#4ADE80]";
+  if (value >= 67) return "bg-[#FF5B6A]";
+  if (value >= 34) return "bg-[#FFB020]";
+  return "bg-[#5C6573]";
 }
 
 function crowdFeel(venue: ConsumerVenue): { label: string; icon: string } {
@@ -45,11 +45,11 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
   const feel = crowdFeel(venue);
 
   return (
-    <div className="flex min-h-[100dvh] items-start justify-center bg-[#0A0A0F] p-0 text-white sm:items-center sm:p-4">
-      <article className="h-[200px] w-[360px] rounded-2xl border border-white/10 bg-[#0A0A0F] p-4 shadow-2xl shadow-black/40">
+    <div className="flex min-h-[100dvh] items-start justify-center bg-[#0A0A0E] p-0 text-white sm:items-center sm:p-4">
+      <article className="h-[200px] w-[360px] rounded-2xl border border-white/10 bg-[#0A0A0E] p-4 shadow-2xl shadow-black/40">
         <div className="flex h-full flex-col justify-between">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#00F5D4]">Live crowd</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8B6CFF]">Live crowd</p>
             <h1 className="mt-2 truncate text-[22px] font-black leading-tight text-white">{venue.name}</h1>
             <p className="mt-1 truncate text-xs text-white/45">{venue.address}</p>
           </div>

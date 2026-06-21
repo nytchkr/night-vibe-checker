@@ -26,9 +26,9 @@ type BusynessOption = {
 };
 
 const BUSYNESS_OPTIONS: BusynessOption[] = [
-  { value: "dead", label: "Dead", submitValue: "dead", crowdLevel: "quiet", accent: "#4ADE80", ring: "rgba(74,222,128,0.14)" },
-  { value: "moderate", label: "Moderate", submitValue: "moderate", crowdLevel: "moderate", accent: "#FBBF24", ring: "rgba(251,191,36,0.14)" },
-  { value: "packed", label: "Packed", submitValue: "packed", crowdLevel: "packed", accent: "#F87171", ring: "rgba(248,113,113,0.14)" },
+  { value: "dead", label: "Dead", submitValue: "dead", crowdLevel: "quiet", accent: "#5C6573", ring: "rgba(92,101,115,0.14)" },
+  { value: "moderate", label: "Moderate", submitValue: "moderate", crowdLevel: "moderate", accent: "#FFB020", ring: "rgba(255,176,32,0.14)" },
+  { value: "packed", label: "Packed", submitValue: "packed", crowdLevel: "packed", accent: "#FF5B6A", ring: "rgba(255,91,106,0.14)" },
 ];
 
 const CROWD_OPTIONS: {
@@ -274,9 +274,9 @@ export default function VibeCheckClient({
 
   if (done) {
     return (
-      <div className="min-h-screen bg-[#0A0A0F] px-4 py-10 text-white">
+      <div className="min-h-screen bg-[#0A0A0E] px-4 py-10 text-white">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center">
-          <section className="w-full rounded-2xl border border-[#00F5D4]/35 bg-[#00F5D4]/10 px-6 py-8 text-center shadow-[0_0_32px_rgba(0,245,212,0.16)]">
+          <section className="w-full rounded-2xl border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-6 py-8 text-center shadow-[0_0_32px_rgba(139,108,255,0.16)]">
             <p className="mb-3 truncate text-[17px] font-medium text-white/80">
               {effectiveVenueName || "This venue"}
             </p>
@@ -292,14 +292,14 @@ export default function VibeCheckClient({
               </p>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#00F5D4]">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8B6CFF]">
                     Tonight's read
                   </p>
                   <h2 className="mt-3 truncate text-xl font-black text-white">
                     {effectiveVenueName || "This venue"}
                   </h2>
                 </div>
-                <div className="rounded-full border border-[#FF2D78]/35 bg-[#FF2D78]/12 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#FF8AB7]">
+                <div className="rounded-full border border-[#F0568C]/35 bg-[#F0568C]/12 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-[#FF8AB7]">
                   Live
                 </div>
               </div>
@@ -333,14 +333,14 @@ export default function VibeCheckClient({
             <button
               type="button"
               onClick={() => void handleShareCard()}
-              className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-[#0A0A0F] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-black text-[#0A0A0E] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
               <Share2 className="h-4 w-4" aria-hidden="true" />
               {shareCopied ? "Link copied" : "Share"}
             </button>
             <Link
               href={venueBackHref}
-              className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black text-white transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              className="mt-3 flex min-h-[48px] w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black text-white transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               {venueBackLabel}
             </Link>
@@ -357,8 +357,8 @@ export default function VibeCheckClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F]">
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0F]/90 backdrop-blur-xl">
+    <div className="min-h-screen bg-[#0A0A0E]">
+      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0E]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-sm items-center gap-3 px-4">
           <Link href="/explore" className="text-sm font-semibold text-white/55 hover:text-white">
             Back
@@ -437,7 +437,7 @@ export default function VibeCheckClient({
                 placeholder="Search South End venues"
                 aria-describedby={venuesError ? "venue-search-error" : undefined}
                 aria-invalid={venuesError ? "true" : "false"}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#7C3AED]/60 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/60 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/30"
               />
 
               <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
@@ -463,9 +463,9 @@ export default function VibeCheckClient({
                         setSelectedVenueId(venue.id);
                         setVenueSearch(venue.name);
                       }}
-                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7C3AED]/60 ${
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
                         selected
-                          ? "border-2 border-[#7C3AED] bg-[#7C3AED]/18"
+                          ? "border-2 border-[#8B6CFF] bg-[#8B6CFF]/18"
                           : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
                       }`}
                       aria-pressed={selected}
@@ -500,9 +500,9 @@ export default function VibeCheckClient({
                   type="button"
                   onClick={() => setBusyness(opt.value)}
                   aria-pressed={selected}
-                  className={`min-h-[52px] w-full rounded-xl border px-4 py-3 text-base font-black transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                  className={`min-h-[52px] w-full rounded-xl border px-4 py-3 text-base font-black transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                     selected
-                      ? "border-2 bg-white/[0.04] shadow-[0_0_18px_rgba(0,245,212,0.12)]"
+                      ? "border-2 bg-white/[0.04] shadow-[0_0_18px_rgba(139,108,255,0.12)]"
                       : "border-white/[0.12] bg-white/[0.04] text-white/65 hover:border-white/25 hover:text-white"
                   }`}
                   style={selected ? {
@@ -533,9 +533,9 @@ export default function VibeCheckClient({
                   onClick={() => setCrowdFeel(opt.value)}
                   aria-pressed={selected}
                   aria-label={opt.ariaLabel}
-                  className={`min-h-[52px] rounded-xl border px-3 py-3 text-sm font-black transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                  className={`min-h-[52px] rounded-xl border px-3 py-3 text-sm font-black transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                     selected
-                      ? "border-2 border-[#00F5D4] bg-[#00F5D4]/12 text-white"
+                      ? "border-2 border-[#8B6CFF] bg-[#8B6CFF]/12 text-white"
                       : "border-white/[0.12] bg-white/[0.04] text-white/60 hover:border-white/25 hover:text-white"
                   }`}
                 >
@@ -566,7 +566,7 @@ export default function VibeCheckClient({
             maxLength={NOTE_MAX_LENGTH}
             rows={4}
             placeholder="Add a vibe note (optional)..."
-            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#00F5D4]/70 focus:outline-none"
+            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none"
           />
           <p className="mt-1 text-right text-[11px] text-white/30">{note.length} / {NOTE_MAX_LENGTH}</p>
         </section>
@@ -579,7 +579,7 @@ export default function VibeCheckClient({
           whileTap={prefersReduced ? undefined : { scale: 0.96 }}
           transition={{ duration: prefersReduced ? 0 : 0.12, ease: "easeOut" }}
           aria-describedby={submitError ? "submit-error" : undefined}
-          className="min-h-[56px] w-full rounded-xl bg-[#00F5D4] px-4 py-4 text-base font-black text-[#0A0A0F] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40"
+          className="min-h-[56px] w-full rounded-xl bg-[#8B6CFF] px-4 py-4 text-base font-black text-[#0A0A0E] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Submitting..." : canSubmit ? "✓ Submit Vibe" : "Select a vibe to continue"}
         </motion.button>

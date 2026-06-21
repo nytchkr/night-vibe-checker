@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { ChevronDown, Heart, MapPin, Share2, X } from "lucide-react";
+import { BusynessMeter } from "@/components/BusynessMeter";
+import { MFBar } from "@/components/MFBar";
 import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,7 +16,7 @@ import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { buildVenueShareData } from "@/lib/venueShare";
-import type { ConsumerVenue } from "@/types";
+import type { BusynessSource, ConsumerVenue } from "@/types";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -149,11 +151,11 @@ function formatWeekHours(hoursEntry: string): { day: string; hours: string; clos
 
 function getCategoryAccent(category: string): string {
   const value = category.toLowerCase();
-  if (value.includes("club") || value.includes("night")) return "#FF2D78";
-  if (value.includes("bar") || value.includes("pub")) return "#00F5D4";
-  if (value.includes("lounge")) return "#A855F7";
-  if (value.includes("restaurant")) return "#F59E0B";
-  return "#7C3AED";
+  if (value.includes("club") || value.includes("night")) return "#F0568C";
+  if (value.includes("bar") || value.includes("pub")) return "#8B6CFF";
+  if (value.includes("lounge")) return "#8B6CFF";
+  if (value.includes("restaurant")) return "#FFB020";
+  return "#8B6CFF";
 }
 
 function CategoryChip({ category }: { category: string }) {
@@ -191,16 +193,20 @@ function sourceLabel(signal: ConsumerVenue["signal"], fallbackUpdatedAt: string 
 }
 
 function getCrowdFeel(malePercent: number | null): { emoji: string; label: string } {
-  if (malePercent == null) return { emoji: "⚖️", label: "Balanced" };
+  if (malePercent == null) return { emoji: "⚖️", label: "No read yet" };
   if (malePercent >= 58) return { emoji: "👨", label: "Male-leaning" };
   if (malePercent <= 42) return { emoji: "👩", label: "Female-leaning" };
   return { emoji: "⚖️", label: "Balanced" };
 }
 
 function getBusynessColor(percent: number): string {
-  if (percent >= 70) return "#F87171";
-  if (percent >= 40) return "#FBBF24";
-  return "#4ADE80";
+  if (percent >= 70) return "#FF5B6A";
+  if (percent >= 40) return "#FFB020";
+  return "#5C6573";
+}
+
+function getMeterSource(source: BusynessSource | null | undefined): "live" | "forecast" | null {
+  return source === "live" || source === "forecast" ? source : null;
 }
 
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
@@ -238,7 +244,7 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
           {visibleActivity.map((item, index) => (
             <div
               key={`${item.displayName}-${item.checkedInAt}-${index}`}
-              className={`${index > 0 ? "-ml-2" : ""} relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-[#0A0A0F] bg-[#00F5D4] text-sm font-black text-[#0A0A0F] shadow-lg`}
+              className={`${index > 0 ? "-ml-2" : ""} relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-[#0A0A0E] bg-[#8B6CFF] text-sm font-black text-[#0A0A0E] shadow-lg`}
               title={item.displayName}
             >
               <span aria-hidden="true">{initialFor(item.displayName)}</span>
@@ -256,7 +262,7 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
             </div>
           ))}
           {extraCount > 0 && (
-            <div className="-ml-2 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-[#0A0A0F] bg-white text-[11px] font-black text-[#0A0A0F] shadow-lg">
+            <div className="-ml-2 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-[#0A0A0E] bg-white text-[11px] font-black text-[#0A0A0E] shadow-lg">
               +{extraCount}
             </div>
           )}
@@ -644,10 +650,12 @@ export function VenuePageClient({
   const label = busynessState.label;
   const hasBusynessRead = busyness != null;
   const updatedAt = signal?.lastBusynessRefresh ?? signal?.computedAt ?? null;
-  const malePercent = signal?.mfRatio != null && signal.sampleSize >= 3 ? clampPercent(signal.mfRatio) : null;
+  const malePercent = signal?.mfRatio != null ? clampPercent(signal.mfRatio) : null;
   const femalePercent = malePercent == null ? null : 100 - malePercent;
   const crowdFeel = getCrowdFeel(malePercent);
   const signalSourceLabel = sourceLabel(signal ?? null, updatedAt);
+  const busynessSource = getMeterSource(signal?.busynessSource);
+  const mfSource = signal?.sampleSize ? "live" : null;
   const reportParams = useMemo(() => new URLSearchParams({
     venue: venueId,
     venueId,
@@ -700,7 +708,7 @@ export function VenuePageClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F] pb-48">
+    <div className="min-h-screen bg-[#0A0A0E] pb-48">
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
       {loading && <LoadingSkeleton />}
@@ -724,7 +732,7 @@ export function VenuePageClient({
             role="region"
             aria-label="Venue hero"
             style={{
-              background: `linear-gradient(155deg, ${getCategoryAccent(venue.category)} 0%, rgba(10,10,15,0.92) 48%, #0A0A0F 100%)`,
+              background: `linear-gradient(155deg, ${getCategoryAccent(venue.category)} 0%, rgba(10,10,15,0.92) 48%, #0A0A0E 100%)`,
             }}
           >
             {heroPhotoUrl ? (
@@ -739,7 +747,7 @@ export function VenuePageClient({
                   blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
                   className="object-cover opacity-25 mix-blend-luminosity"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-[#0A0A0F]/35 to-black/25" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0E] via-[#0A0A0E]/35 to-black/25" />
               </>
             ) : (
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_10%,rgba(255,255,255,0.14),transparent_34%)]" />
@@ -748,7 +756,7 @@ export function VenuePageClient({
             <Link
               href="/map"
               aria-label="Go back"
-              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -781,7 +789,7 @@ export function VenuePageClient({
                         data-gallery-photo
                         onClick={() => setActivePhotoIndex(index)}
                         className={`h-48 w-80 flex-shrink-0 snap-center overflow-hidden rounded-xl border text-left transition ${
-                          activePhotoIndex === index ? "border-[#00F5D4]/80" : "border-white/10"
+                          activePhotoIndex === index ? "border-[#8B6CFF]/80" : "border-white/10"
                         }`}
                         aria-label={`Show photo ${index + 1} of ${galleryPhotoUrls.length}`}
                         aria-pressed={activePhotoIndex === index}
@@ -804,7 +812,7 @@ export function VenuePageClient({
                       <span
                         key={`${photoUrl}-dot`}
                         className={`h-1.5 w-1.5 rounded-full transition ${
-                          activePhotoIndex === index ? "bg-[#00F5D4]" : "bg-white/25"
+                          activePhotoIndex === index ? "bg-[#8B6CFF]" : "bg-white/25"
                         }`}
                       />
                     ))}
@@ -829,36 +837,22 @@ export function VenuePageClient({
                     <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Busyness</span>
                     <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
-                  <div
-                    className="mt-3 h-2 overflow-hidden rounded-full bg-white/10"
-                    role="meter"
-                    aria-label={`${label} busyness`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={hasBusynessRead ? busynessPercent : 0}
-                    aria-valuetext={hasBusynessRead ? `${busynessPercent}% busy` : "No busyness read yet"}
-                  >
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: hasBusynessRead ? `${busynessPercent}%` : "0%",
-                        backgroundColor: getBusynessColor(busynessPercent),
-                      }}
-                    />
-                  </div>
+                  <BusynessMeter value={busyness} source={busynessSource} className="mt-3" />
                 </div>
 
-                <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Crowd feel</span>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xl" aria-hidden="true">{crowdFeel.emoji}</span>
-                    <span className="whitespace-nowrap text-sm font-black text-white">{crowdFeel.label}</span>
-                  </div>
+                <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">M/F ratio</span>
+                  <MFBar
+                    malePercent={malePercent}
+                    sampleSize={signal?.sampleSize ?? 0}
+                    source={mfSource}
+                    className="mt-3"
+                  />
                 </div>
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Status</span>
-                  <p className={`mt-2 text-sm font-black ${venue.openNow ? "text-[#00F5D4]" : "text-white/30"}`}>
+                  <p className={`mt-2 text-sm font-black ${venue.openNow ? "text-[#8B6CFF]" : "text-white/30"}`}>
                     {venue.openNow ? "Open Now" : "Closed"}
                   </p>
                 </div>
@@ -874,7 +868,7 @@ export function VenuePageClient({
                 <button
                   type="button"
                   onClick={() => setHoursExpanded((expanded) => !expanded)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                  className="flex w-full items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                   aria-expanded={hoursExpanded}
                   aria-controls="venue-hours-list"
                 >
@@ -896,7 +890,7 @@ export function VenuePageClient({
                         <li
                           key={`${hour.day}-${index}`}
                           className={`grid grid-cols-[6.5rem_1fr] gap-3 text-[13px] ${
-                            isToday ? "text-[#00F5D4]" : hour.closed ? "text-white/30" : "text-white/55"
+                            isToday ? "text-[#8B6CFF]" : hour.closed ? "text-white/30" : "text-white/55"
                           }`}
                         >
                           <span className="font-bold">{hour.day}</span>
@@ -911,53 +905,39 @@ export function VenuePageClient({
 
             <section className="space-y-4" role="region" aria-label="Current venue signal">
               <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Right now</p>
-              {hasBusynessRead ? (
-                <div className="space-y-5">
-                  <div>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <span className="text-[13px] text-white/60">{label}</span>
-                      <span className="text-[13px] text-white/60">{busynessPercent}%</span>
-                    </div>
-                    <div
-                      className="h-2 w-full overflow-hidden rounded-full bg-zinc-800"
-                      role="meter"
-                      aria-label={`${label} busyness`}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={busynessPercent}
-                      aria-valuetext={`${busynessPercent}% busy`}
-                    >
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${busynessPercent}%`, backgroundColor: busynessState.color }}
-                      />
-                    </div>
+              <div className="space-y-5">
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="text-sm font-black text-white">Busyness</span>
+                    <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
-
-                  <div>
-                    <p className="text-[13px] text-white/60">
-                      {malePercent == null || femalePercent == null
-                        ? "No M/F read yet"
-                        : `👨 ${malePercent}% · 👩 ${femalePercent}%`}
-                    </p>
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className={`h-full w-full rounded-full bg-gradient-to-r from-violet-500 to-pink-500 ${
-                          malePercent == null || femalePercent == null ? "opacity-35" : ""
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  {signalSourceLabel && (
-                    <p className="text-[11px] text-white/30">
-                      {signalSourceLabel}
-                    </p>
-                  )}
+                  <BusynessMeter value={busyness} source={busynessSource} />
                 </div>
-              ) : (
-                <p className="py-4 text-[15px] text-white/45">
-                  No reads yet — be the first
+
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <span className="text-sm font-black text-white">M/F ratio</span>
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45">
+                      <span aria-hidden="true">{crowdFeel.emoji}</span>
+                      {crowdFeel.label}
+                    </span>
+                  </div>
+                  <MFBar
+                    malePercent={malePercent}
+                    sampleSize={signal?.sampleSize ?? 0}
+                    source={mfSource}
+                  />
+                </div>
+
+                {signalSourceLabel && (
+                  <p className="text-[11px] text-white/30">
+                    {signalSourceLabel}
+                  </p>
+                )}
+              </div>
+              {!hasBusynessRead && !signal?.sampleSize && (
+                <p className="text-[13px] text-white/35">
+                  No reads yet. Check in to help the next person decide.
                 </p>
               )}
             </section>
@@ -980,7 +960,7 @@ export function VenuePageClient({
                       <button
                         type="button"
                         onClick={() => markTipHelpful(tip.id)}
-                        className="mt-3 text-xs font-bold text-[#00F5D4] transition-colors hover:text-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                        className="mt-3 text-xs font-bold text-[#8B6CFF] transition-colors hover:text-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                       >
                         {tip.helpfulCount} found this helpful
                       </button>
@@ -1005,7 +985,7 @@ export function VenuePageClient({
                   maxLength={200}
                   rows={3}
                   placeholder="Share the best time to go, where to stand, or what to order."
-                  className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#00F5D4]/60"
+                  className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
                 />
                 <div className="flex items-center justify-between gap-3">
                   <span className={`text-xs ${tipCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
@@ -1015,7 +995,7 @@ export function VenuePageClient({
                     type="button"
                     onClick={submitTip}
                     disabled={!canSubmitTip}
-                    className="rounded-xl bg-[#00F5D4] px-4 py-2 text-sm font-black text-[#0A0A0F] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+                    className="rounded-xl bg-[#8B6CFF] px-4 py-2 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
                   >
                     {tipSubmitting ? "Sharing" : "Share"}
                   </button>
@@ -1029,7 +1009,7 @@ export function VenuePageClient({
                 href={mapsHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 <MapPin size={17} aria-hidden="true" />
                 Get Directions
@@ -1037,7 +1017,7 @@ export function VenuePageClient({
               <button
                 type="button"
                 onClick={shareVenue}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 <Share2 size={17} aria-hidden="true" />
                 {copied ? "Copied" : "Share"}
@@ -1051,7 +1031,7 @@ export function VenuePageClient({
                   setReportError(null);
                   setReportOpen(true);
                 }}
-                className="text-xs font-medium text-white/30 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                className="text-xs font-medium text-white/30 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 Report
               </button>
@@ -1086,7 +1066,7 @@ export function VenuePageClient({
                 onClick={() => {
                   if (!reportSubmitting) setReportOpen(false);
                 }}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:opacity-50"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
                 disabled={reportSubmitting}
               >
                 <X size={17} aria-hidden="true" />
@@ -1100,7 +1080,7 @@ export function VenuePageClient({
                   key={reason.value}
                   className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 text-sm font-semibold transition-colors ${
                     reportReason === reason.value
-                      ? "border-[#00F5D4]/65 bg-[#00F5D4]/10 text-white"
+                      ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/10 text-white"
                       : "border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/[0.06]"
                   }`}
                 >
@@ -1110,7 +1090,7 @@ export function VenuePageClient({
                     value={reason.value}
                     checked={reportReason === reason.value}
                     onChange={() => setReportReason(reason.value)}
-                    className="h-4 w-4 accent-[#00F5D4]"
+                    className="h-4 w-4 accent-[#8B6CFF]"
                   />
                   {reason.label}
                 </label>
@@ -1131,7 +1111,7 @@ export function VenuePageClient({
                 maxLength={200}
                 rows={3}
                 placeholder="What should we correct?"
-                className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#00F5D4]/60"
+                className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
               />
               <div className="flex items-center justify-between gap-3">
                 <span className={`text-xs ${reportCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
@@ -1145,7 +1125,7 @@ export function VenuePageClient({
               type="button"
               onClick={submitVenueReport}
               disabled={reportSubmitting}
-              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#00F5D4] px-4 text-sm font-black text-[#0A0A0F] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
+              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/30"
             >
               {reportSubmitting ? "Submitting" : "Submit Report"}
             </button>
@@ -1154,13 +1134,13 @@ export function VenuePageClient({
       )}
 
       {venue && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4rem)] left-0 right-0 z-[60] border-t border-white/[0.08] bg-[#0A0A0F]/95 px-4 py-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4rem)] left-0 right-0 z-[60] border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
           <div className="mx-auto flex max-w-lg items-center gap-3">
             {authChecked && !accessToken ? (
               <Link
                 href="/login"
                 aria-label="Save venue"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 <Heart size={19} aria-hidden="true" />
               </Link>
@@ -1171,7 +1151,7 @@ export function VenuePageClient({
                 disabled={!authChecked || savePending}
                 aria-label={saved ? "Remove from saved" : "Save venue"}
                 aria-pressed={saved}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:opacity-60 ${
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-60 ${
                   saved ? "text-white" : "text-white/55 hover:text-white"
                 }`}
               >
@@ -1185,9 +1165,9 @@ export function VenuePageClient({
               disabled={!authChecked || alertPending}
               aria-label={alerting ? `Disable busy alerts for ${venue.name}` : `Alert me when ${venue.name} gets busy`}
               aria-pressed={alerting}
-              className={`flex min-h-[54px] min-w-[7.35rem] shrink-0 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:opacity-60 ${
+              className={`flex min-h-[54px] min-w-[7.35rem] shrink-0 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-60 ${
                 alerting
-                  ? "border-[#00F5D4]/55 bg-[#00F5D4]/15 text-[#00F5D4] shadow-[0_0_20px_rgba(0,245,212,0.18)]"
+                  ? "border-[#8B6CFF]/55 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_20px_rgba(139,108,255,0.18)]"
                   : "border-white/10 bg-white/[0.04] text-white/30 hover:border-white/20 hover:text-white/70"
               }`}
             >
@@ -1200,7 +1180,7 @@ export function VenuePageClient({
                 haptic.success();
                 trackAnalytics("check_in", { venue_id: venueId });
               }}
-              className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#00F5D4] px-5 text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+              className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-all hover:bg-[#A896FF] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
             >
               Check In
             </Link>

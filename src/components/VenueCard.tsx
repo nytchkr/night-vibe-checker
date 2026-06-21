@@ -6,9 +6,9 @@
 // FullCard: crowd-first layout
 //   1. Full-width crowd color bar at top (40% fill opacity)
 //   2. Venue name 16px bold
-//   3. Vibe score plain text in #00F5D4, 18px
+//   3. Vibe score plain text in #8B6CFF, 18px
 //   4. Time ago + report count, white/40, 11px
-//   5. "Report →" pill button, right-aligned, neon-cyan
+//   5. "Report →" pill button, right-aligned, canonical violet
 //   Max height ~90px. No VibeScoreRing, no star rating, no save button.
 //
 // CompactCard: map popup variant — unchanged from prior version.
@@ -25,10 +25,10 @@ import { Card, CardContent } from "@/components/ui/card";
 export type CrowdLevel = "quiet" | "moderate" | "packed" | "wild";
 
 const CROWD_CFG: Record<CrowdLevel, { label: string; bg: string; text: string; border: string }> = {
-  quiet:    { label: "QUIET",    bg: "rgba(34,197,94,0.40)",  text: "#fff", border: "rgba(34,197,94,0.5)"   },
-  moderate: { label: "MODERATE", bg: "rgba(251,191,36,0.40)", text: "#fff", border: "rgba(251,191,36,0.5)"  },
-  packed:   { label: "PACKED",   bg: "rgba(249,115,22,0.40)", text: "#fff", border: "rgba(249,115,22,0.5)"  },
-  wild:     { label: "WILD",     bg: "rgba(255,45,120,0.40)", text: "#fff", border: "rgba(255,45,120,0.5)"  },
+  quiet:    { label: "QUIET",    bg: "rgba(92,101,115,0.40)", text: "#fff", border: "rgba(92,101,115,0.5)"  },
+  moderate: { label: "MODERATE", bg: "rgba(255,176,32,0.40)", text: "#fff", border: "rgba(255,176,32,0.5)"  },
+  packed:   { label: "PACKED",   bg: "rgba(255,91,106,0.40)", text: "#fff", border: "rgba(255,91,106,0.5)"  },
+  wild:     { label: "WILD",     bg: "rgba(240,86,140,0.40)", text: "#fff", border: "rgba(240,86,140,0.5)"  },
 };
 
 function timeAgo(isoString: string): string {
@@ -214,7 +214,7 @@ function FullCard({
           onClick={() => onVibeCheck?.(venue)}
           disabled={isChecking}
           aria-label={`Report vibe for ${venue.name}`}
-          className="flex-shrink-0 px-3 py-2 rounded-full text-[#00F5D4] border border-[#00F5D4]/50 text-xs font-bold min-h-[44px] flex items-center hover:bg-[#00F5D4]/10 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:opacity-40"
+          className="flex-shrink-0 px-3 py-2 rounded-full text-[#8B6CFF] border border-[#8B6CFF]/50 text-xs font-bold min-h-[44px] flex items-center hover:bg-[#8B6CFF]/10 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-40"
         >
           {isChecking ? "…" : "Report →"}
         </button>

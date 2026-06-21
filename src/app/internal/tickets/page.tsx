@@ -55,7 +55,7 @@ async function boardFetch<T>(path: string): Promise<T[]> {
 function priorityClass(priority: string | null) {
   if (priority === "Critical") return "border-red-400/40 bg-red-500/10 text-red-100";
   if (priority === "High") return "border-orange-400/40 bg-orange-500/10 text-orange-100";
-  if (priority === "Medium") return "border-cyan-400/30 bg-cyan-500/10 text-cyan-100";
+  if (priority === "Medium") return "border-[#8B6CFF]/30 bg-[#8B6CFF]/10 text-[#F4F5F8]";
   return "border-white/10 bg-white/[0.04] text-white/60";
 }
 
@@ -88,7 +88,7 @@ export default async function InternalTicketsPage() {
     <main className="min-h-screen bg-[#08080D] px-4 py-6 text-white">
       <div className="mx-auto max-w-7xl">
         <header className="border-b border-white/10 pb-5">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-cyan-300/70">
+          <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#8B6CFF]/70">
             Internal Agent Work Only
           </p>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -110,7 +110,7 @@ export default async function InternalTicketsPage() {
             <div key={agent.id} className="rounded-2xl border border-white/10 bg-white/[0.035] p-4">
               <p className="truncate text-sm font-bold text-white">{agent.name}</p>
               <p className="mt-1 truncate text-xs text-white/40">{agent.id}</p>
-              <p className="mt-2 text-xs font-semibold text-cyan-200/70">{agent.status ?? "Unknown"}</p>
+              <p className="mt-2 text-xs font-semibold text-[#9CA2AE]">{agent.status ?? "Unknown"}</p>
             </div>
           ))}
         </section>
@@ -130,7 +130,7 @@ export default async function InternalTicketsPage() {
                   {columnTickets.map((ticket) => (
                     <article key={ticket.id} className="rounded-xl border border-white/10 bg-[#11111A] p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <span className="text-[11px] font-bold text-cyan-200/80">{ticket.id}</span>
+                        <span className="text-[11px] font-bold text-[#8B6CFF]/80">{ticket.id}</span>
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${priorityClass(ticket.priority)}`}>
                           {ticket.priority ?? "Priority"}
                         </span>

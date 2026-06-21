@@ -6,6 +6,8 @@ import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
+import { BusynessMeter } from "@/components/BusynessMeter";
+import { MFBar } from "@/components/MFBar";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
@@ -14,7 +16,7 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
-import type { ConsumerVenue } from "@/types";
+import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
@@ -127,7 +129,7 @@ function FilterChip<T extends string>({
         borderColor: active ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/60 transition-colors hover:bg-white/15 hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 data-[active=true]:text-white"
+      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/60 transition-colors hover:bg-white/15 hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-white"
       aria-pressed={active}
       data-active={active}
     >
@@ -161,7 +163,7 @@ function CategoryFilterPill({
         borderColor: active ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.1)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/50 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 data-[active=true]:text-white"
+      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/50 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-white"
       aria-pressed={active}
       data-active={active}
     >
@@ -191,11 +193,11 @@ function NeighborhoodFilterPill({
         onSelect(label);
       }}
       animate={{
-        backgroundColor: active ? "#00F5D4" : "rgba(255,255,255,0.06)",
-        color: active ? "#0A0A0F" : "rgba(255,255,255,0.6)",
+        backgroundColor: active ? "#8B6CFF" : "rgba(255,255,255,0.06)",
+        color: active ? "#0A0A0E" : "rgba(255,255,255,0.6)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full px-4 text-sm font-black transition-colors hover:bg-white/[0.1] hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+      className="min-h-[38px] shrink-0 rounded-full px-4 text-sm font-black transition-colors hover:bg-white/[0.1] hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
       aria-pressed={active}
     >
       {label}
@@ -224,11 +226,11 @@ function SortPill({
         onSelect();
       }}
       animate={{
-        backgroundColor: active ? "rgba(0,245,212,0.2)" : "rgba(255,255,255,0.05)",
-        borderColor: active ? "rgba(0,245,212,0.4)" : "rgba(255,255,255,0.1)",
+        backgroundColor: active ? "rgba(139,108,255,0.2)" : "rgba(255,255,255,0.05)",
+        borderColor: active ? "rgba(139,108,255,0.4)" : "rgba(255,255,255,0.1)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="shrink-0 rounded-full border px-3 py-1 text-xs font-bold text-white/50 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 data-[active=true]:text-[#00F5D4]"
+      className="shrink-0 rounded-full border px-3 py-1 text-xs font-bold text-white/50 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-[#8B6CFF]"
       aria-pressed={active}
       data-active={active}
     >
@@ -251,9 +253,9 @@ function getCategoryChipLabel(category: string | null | undefined): string {
 
 function getBusynessColor(busyness: number | null | undefined): string {
   if (busyness == null) return "#52525B";
-  if (busyness < 40) return "#22C55E";
-  if (busyness <= 70) return "#EAB308";
-  return "#EF4444";
+  if (busyness < 40) return "#5C6573";
+  if (busyness <= 70) return "#FFB020";
+  return "#FF5B6A";
 }
 
 function getBusynessPill(busyness: number | null | undefined): string {
@@ -263,14 +265,8 @@ function getBusynessPill(busyness: number | null | undefined): string {
   return `${indicator} ${rounded}% busy`;
 }
 
-function getCrowdFeelLabel(venue: ConsumerVenue): string {
-  const signal = venue.signal;
-  if (!signal || signal.sampleSize < 3 || signal.mfRatio == null) return "⚫ No crowd read";
-
-  const malePercent = Math.min(100, Math.max(0, Math.round(signal.mfRatio)));
-  if (malePercent >= 60) return "👨 Mostly guys";
-  if (malePercent <= 40) return "👩 Mostly girls";
-  return "⚖ Balanced";
+function getMeterSource(source: BusynessSource | null | undefined): "live" | "forecast" | null {
+  return source === "live" || source === "forecast" ? source : null;
 }
 
 function getInitials(name: string): string {
@@ -351,7 +347,8 @@ function VenueFeedCard({
   const busynessColor = getBusynessColor(busyness);
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
-  const crowdFeelLabel = getCrowdFeelLabel(venue);
+  const meterSource = getMeterSource(venue.signal?.busynessSource);
+  const mfSource = venue.signal?.sampleSize ? "live" : null;
 
   return (
     <motion.li
@@ -367,7 +364,7 @@ function VenueFeedCard({
     >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="group relative block h-auto w-full overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.04] transition-colors hover:border-white/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+        className="group relative block h-auto w-full overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.04] transition-colors hover:border-white/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         aria-label={`Open ${venue.name}`}
       >
         <div
@@ -389,7 +386,7 @@ function VenueFeedCard({
               className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(0,245,212,0.14),transparent_32%),radial-gradient(circle_at_70%_80%,rgba(255,45,120,0.12),transparent_34%)] text-5xl" aria-hidden="true">
+            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(139,108,255,0.14),transparent_32%),radial-gradient(circle_at_70%_80%,rgba(240,86,140,0.12),transparent_34%)] text-5xl" aria-hidden="true">
               {getCategoryIcon(venue.category)}
             </div>
           )}
@@ -423,9 +420,21 @@ function VenueFeedCard({
             ) : null}
           </div>
 
+          <div className="mt-3 space-y-3 border-t border-white/[0.06] pt-3">
+            <BusynessMeter
+              value={busyness}
+              source={meterSource}
+            />
+            <MFBar
+              malePercent={venue.signal?.mfRatio ?? null}
+              sampleSize={venue.signal?.sampleSize ?? 0}
+              source={mfSource}
+            />
+          </div>
+
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3">
             <span className="min-w-0 truncate text-xs font-semibold text-white/45">
-              {crowdFeelLabel}
+              {venue.signal?.sampleSize ? `${venue.signal.sampleSize} crowd report${venue.signal.sampleSize === 1 ? "" : "s"}` : "No crowd read"}
             </span>
             {ratingLabel ? (
               <span className="shrink-0 text-xs font-bold text-white/50" aria-label={`${ratingLabel} star rating`}>
@@ -678,17 +687,17 @@ export function ExplorePageClient() {
   ), [now]);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F]">
+    <div className="min-h-screen bg-[#0A0A0E]">
       {(pulling || refreshing) && (
         <div
           className="fixed left-0 right-0 top-0 z-50 flex justify-center px-4 pt-3"
           role={refreshing ? "status" : undefined}
           aria-live="polite"
         >
-          <div className="rounded-full border border-white/10 bg-[#0A0A0F]/90 px-4 py-2 text-xs font-black text-white/50 shadow-2xl backdrop-blur">
+          <div className="rounded-full border border-white/10 bg-[#0A0A0E]/90 px-4 py-2 text-xs font-black text-white/50 shadow-2xl backdrop-blur">
             {refreshing ? (
               <span className="flex items-center gap-2">
-                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#00F5D4] border-t-transparent" aria-hidden="true" />
+                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#8B6CFF] border-t-transparent" aria-hidden="true" />
                 <span className="sr-only">Refreshing venues...</span>
               </span>
             ) : (
@@ -725,7 +734,7 @@ export function ExplorePageClient() {
               {session && (
                 <Link
                   href="/profile"
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 >
                   Profile
                 </Link>
@@ -748,7 +757,7 @@ export function ExplorePageClient() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search South End..."
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 aria-label="Search venues"
               />
               <svg
@@ -771,7 +780,7 @@ export function ExplorePageClient() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                   aria-label="Clear search"
                 >
                   ×
@@ -807,7 +816,7 @@ export function ExplorePageClient() {
         </div>
       </header>
 
-      <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0F]/95 backdrop-blur" role="region" aria-label="Explore sort controls">
+      <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0E]/95 backdrop-blur" role="region" aria-label="Explore sort controls">
         <div className="mx-auto max-w-lg space-y-2 px-4 py-2">
           <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NEIGHBORHOOD_FILTERS.map((filter) => (
@@ -874,7 +883,7 @@ export function ExplorePageClient() {
             <button
               type="button"
               onClick={clearFilters}
-              className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#00F5D4] px-5 text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.24)] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Clear filters
             </button>
@@ -900,7 +909,7 @@ export function ExplorePageClient() {
               <button
                 type="button"
                 onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
-                className="mt-2 w-full rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                className="mt-2 w-full rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-bold text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 Load more
               </button>

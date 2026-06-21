@@ -42,7 +42,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       <div
         style={{
           alignItems: "center",
-          background: "#0A0A0F",
+          background: "#0A0A0E",
           display: "flex",
           flexDirection: "column",
           height: "100%",
@@ -51,7 +51,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           width: "100%",
         }}
       >
-        <div style={{ color: "#00F5D4", fontSize: 36, fontWeight: 900, marginBottom: 24 }}>
+        <div style={{ color: "#8B6CFF", fontSize: 36, fontWeight: 900, marginBottom: 24 }}>
           NightVibe
         </div>
         <div style={{ color: "white", fontSize: 72, fontWeight: 900, textAlign: "center" }}>

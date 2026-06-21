@@ -101,7 +101,7 @@ export function PushOptIn() {
           </p>
           {message && (
             <p
-              className={`mt-2 text-xs font-bold ${subscribed ? "text-[#00F5D4]" : "text-white/50"}`}
+              className={`mt-2 text-xs font-bold ${subscribed ? "text-[#8B6CFF]" : "text-white/50"}`}
               role={subscribed ? "status" : "alert"}
             >
               {message}
@@ -112,7 +112,7 @@ export function PushOptIn() {
           type="button"
           onClick={handleSubscribe}
           disabled={state === "saving" || subscribed}
-          className="shrink-0 rounded-full bg-[#00F5D4] px-4 text-xs font-black text-[#0A0A0F] hover:bg-[#2fffe2]"
+          className="shrink-0 rounded-full bg-[#8B6CFF] px-4 text-xs font-black text-[#0A0A0E] hover:bg-[#A896FF]"
         >
           {state === "saving" ? "Saving..." : subscribed ? "On" : "Alert Me"}
         </Button>

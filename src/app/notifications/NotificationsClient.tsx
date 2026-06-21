@@ -54,8 +54,8 @@ function Toggle({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 disabled:cursor-not-allowed disabled:opacity-60 ${
-        checked ? "border-[#00F5D4]/60 bg-[#00F5D4]/28" : "border-white/15 bg-white/[0.06]"
+      className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-60 ${
+        checked ? "border-[#8B6CFF]/60 bg-[#8B6CFF]/28" : "border-white/15 bg-white/[0.06]"
       }`}
     >
       <span
@@ -137,7 +137,7 @@ export function NotificationsClient({ initialPrefs, initialAlertVenues }: Notifi
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Push Alerts</h2>
           {statusLabel && (
-            <p className={`text-xs font-bold ${saveState === "error" ? "text-[#FF2D78]" : "text-white/40"}`} role="status">
+            <p className={`text-xs font-bold ${saveState === "error" ? "text-[#F0568C]" : "text-white/40"}`} role="status">
               {statusLabel}
             </p>
           )}
@@ -146,7 +146,7 @@ export function NotificationsClient({ initialPrefs, initialAlertVenues }: Notifi
         <div className="overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.04]">
           <div className="flex items-center justify-between gap-4 p-4">
             <div className="flex min-w-0 gap-3">
-              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[#00F5D4]">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-[#8B6CFF]">
                 {prefs.pushEnabled ? <Bell size={18} /> : <BellOff size={18} />}
               </span>
               <div className="min-w-0">

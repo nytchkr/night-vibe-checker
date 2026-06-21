@@ -8,7 +8,7 @@ import type { City, CityId } from "@/lib/cities";
 
 function MapLoadingSkeleton() {
   return (
-    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#0A0A0F]">
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#0A0A0E]">
       <div
         aria-hidden="true"
         className="absolute inset-0 animate-pulse bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.07)_45%,transparent_75%)]"

@@ -23,7 +23,7 @@ interface VibeTagBadgeProps {
 const NEON_COLORS = [
   "#ff2d78", // hot pink
   "#a855f7", // purple
-  "#22d3ee", // cyan
+  "#8B6CFF", // cyan
   "#f59e0b", // amber
   "#10b981", // emerald
   "#6366f1", // indigo

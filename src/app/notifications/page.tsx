@@ -98,11 +98,11 @@ export default async function NotificationsPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#0A0A0F] text-white">
+    <main className="min-h-screen bg-[#0A0A0E] text-white">
       <div className="mx-auto max-w-lg px-4 pb-36 pt-5">
         <Link
           href="/profile"
-          className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 text-sm font-bold text-white/65 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+          className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 text-sm font-bold text-white/65 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           <ArrowLeft size={16} />
           Back to profile

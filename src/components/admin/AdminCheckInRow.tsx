@@ -77,7 +77,7 @@ export function AdminCheckInRow({ checkIn, token, onUpdated }: Props) {
       <td className="px-3 py-2.5">
         <span className={`
           inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide
-          ${checkIn.busyness === "packed" ? "bg-[#FF2D78]/20 text-[#FF2D78]" :
+          ${checkIn.busyness === "packed" ? "bg-[#F0568C]/20 text-[#F0568C]" :
             checkIn.busyness === "moderate" ? "bg-yellow-500/20 text-yellow-400" :
             "bg-white/10 text-white/50"}
         `}>

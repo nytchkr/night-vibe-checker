@@ -35,9 +35,9 @@ type Busyness = "dead" | "moderate" | "packed";
 type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
 
 const BUSYNESS_CFG: Record<Busyness, { label: string; bg: string; text: string }> = {
-  dead:     { label: "Dead",     bg: "rgba(74,222,128,0.24)", text: "#4ADE80" },
-  moderate: { label: "Moderate", bg: "rgba(251,191,36,0.24)", text: "#FBBF24" },
-  packed:   { label: "Packed",   bg: "rgba(248,113,113,0.24)", text: "#F87171" },
+  dead:     { label: "Dead",     bg: "rgba(92,101,115,0.24)", text: "#5C6573" },
+  moderate: { label: "Moderate", bg: "rgba(255,176,32,0.24)", text: "#FFB020" },
+  packed:   { label: "Packed",   bg: "rgba(255,91,106,0.24)", text: "#FF5B6A" },
 };
 
 const CROWD_FEEL_LABEL: Record<CrowdFeel, string> = {
@@ -48,9 +48,9 @@ const CROWD_FEEL_LABEL: Record<CrowdFeel, string> = {
 };
 
 const SAVED_BUSYNESS_CLASSES = {
-  dead: "bg-[#4ADE80]/20 text-[#4ADE80]",
-  moderate: "bg-[#FBBF24]/20 text-[#FBBF24]",
-  packed: "bg-[#F87171]/20 text-[#F87171]",
+  dead: "bg-[#5C6573]/20 text-[#5C6573]",
+  moderate: "bg-[#FFB020]/20 text-[#FFB020]",
+  packed: "bg-[#FF5B6A]/20 text-[#FF5B6A]",
   none: "bg-white/[0.06] text-white/45",
 };
 
@@ -177,7 +177,7 @@ function SavedVenueCard({ venue }: { venue: ConsumerVenue }) {
     <li className="shrink-0 snap-start">
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
-        className="flex w-[238px] items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-2.5 transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+        className="flex w-[238px] items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-2.5 transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         aria-label={`Open ${venue.name}`}
       >
         <div className="relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-white/[0.06]">
@@ -246,7 +246,7 @@ function CheckInsEmptyState() {
       </p>
       <Link
         href="/map"
-        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#00F5D4] px-5 text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.24)] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         Find venues →
       </Link>
@@ -278,7 +278,7 @@ function LoggedOutPitch() {
         </ul>
         <Button
           asChild
-          className="mt-8 min-h-[52px] w-full rounded-xl bg-[#00F5D4] text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.32)] hover:bg-[#2fffe2]"
+          className="mt-8 min-h-[52px] w-full rounded-xl bg-[#8B6CFF] text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.32)] hover:bg-[#A896FF]"
         >
           <Link href="/login">Sign up free</Link>
         </Button>
@@ -478,8 +478,8 @@ export default function ProfilePage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-[#0A0A0F]">
-      <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
+      <div className="min-h-screen bg-[#0A0A0E]">
+      <header className="sticky top-0 z-40 bg-[#0A0A0E]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
         <div className="max-w-lg mx-auto py-4">
           <h1 className="truncate text-2xl font-black tracking-tight text-white">
             {session ? "Profile" : authChecked ? "You" : "Loading profile..."}
@@ -506,7 +506,7 @@ export default function ProfilePage() {
         {session && (
           <section className="space-y-4 text-center" aria-label="Account summary">
             <div className="flex flex-col items-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00F5D4] text-2xl font-black text-[#0A0A0F]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF] text-2xl font-black text-[#0A0A0E]">
                 {userInitial}
               </div>
               <p className="mt-3 max-w-full truncate text-sm text-white/50">{userEmail}</p>
@@ -514,14 +514,14 @@ export default function ProfilePage() {
             </div>
             <ShareNightVibeCard />
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 text-left">
-              <p className="text-2xl font-black text-[#00F5D4]">🔥 {streak}-night streak</p>
+              <p className="text-2xl font-black text-[#8B6CFF]">🔥 {streak}-night streak</p>
               <p className="mt-1 text-sm font-semibold text-white/45">
                 {streak > 0 ? "Keep it up! Check in tonight to extend your streak." : "Start your streak tonight!"}
               </p>
             </div>
             <Link
               href="/notifications"
-              className="flex w-full items-center justify-between rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              className="flex w-full items-center justify-between rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               <span>
                 <span className="block text-base font-black leading-tight text-white">Notifications</span>
@@ -594,9 +594,9 @@ export default function ProfilePage() {
                 role="switch"
                 aria-checked={hapticsEnabled}
                 onClick={toggleHapticsPreference}
-                className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                   hapticsEnabled
-                    ? "border-[#00F5D4]/60 bg-[#00F5D4]/28"
+                    ? "border-[#8B6CFF]/60 bg-[#8B6CFF]/28"
                     : "border-white/15 bg-white/[0.06]"
                 }`}
               >
@@ -624,8 +624,8 @@ export default function ProfilePage() {
         {session && (
           <Link
             href="/vibe-check"
-            className="flex items-center justify-center w-full min-h-[52px] rounded-2xl text-[#0A0A0F] font-black text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80 transition-all duration-150 active:scale-[0.98]"
-            style={{ background: "linear-gradient(135deg, #00F5D4 0%, #00dfc0 100%)", boxShadow: "0 0 24px rgba(0,245,212,0.35)" }}
+            className="flex items-center justify-center w-full min-h-[52px] rounded-2xl text-[#0A0A0E] font-black text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/80 transition-all duration-150 active:scale-[0.98]"
+            style={{ background: "linear-gradient(135deg, #8B6CFF 0%, #8B6CFF 100%)", boxShadow: "0 0 24px rgba(139,108,255,0.35)" }}
           >
             Report another spot
           </Link>

@@ -46,7 +46,7 @@ export function ShareNightVibeCard() {
 
   return (
     <>
-      <div className="rounded-2xl border border-[#00F5D4]/20 bg-gradient-to-r from-[#00F5D4]/10 to-[#7B61FF]/10 p-4 text-left">
+      <div className="rounded-2xl border border-[#8B6CFF]/20 bg-gradient-to-r from-[#8B6CFF]/10 to-[#7B61FF]/10 p-4 text-left">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-white">Know before you go 🌃</h2>
@@ -57,7 +57,7 @@ export function ShareNightVibeCard() {
           <button
             type="button"
             onClick={() => void shareNightVibe(() => setToast(true))}
-            className="shrink-0 rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-bold text-[#0A0A0F] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0F]"
+            className="shrink-0 rounded-full bg-[#8B6CFF] px-5 py-2.5 text-sm font-bold text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
           >
             Share App
           </button>
@@ -76,7 +76,7 @@ export function InviteFriendLink() {
       <button
         type="button"
         onClick={() => void shareNightVibe(() => setToast(true))}
-        className="mx-auto mt-6 block text-center text-sm font-bold text-[#00F5D4] transition-colors hover:text-[#22FFE1] focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0F]"
+        className="mx-auto mt-6 block text-center text-sm font-bold text-[#8B6CFF] transition-colors hover:text-[#A896FF] focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
       >
         Invite a Friend
       </button>

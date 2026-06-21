@@ -32,12 +32,12 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0A0A0F] px-4 text-white">
+    <main className="flex min-h-screen items-center justify-center bg-[#0A0A0E] px-4 text-white">
       <form
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-lg border border-white/10 bg-white/[0.03] p-6"
       >
-        <p className="text-sm uppercase tracking-[0.2em] text-[#00F5D4]">NightVibe Admin</p>
+        <p className="text-sm uppercase tracking-[0.2em] text-[#8B6CFF]">NightVibe Admin</p>
         <h1 className="mt-2 text-2xl font-bold">Admin login</h1>
         <label className="mt-6 block text-sm text-white/70" htmlFor="admin-password">
           Password
@@ -47,15 +47,15 @@ export default function AdminLoginPage() {
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-white outline-none transition focus:border-[#00F5D4]"
+          className="mt-2 w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-white outline-none transition focus:border-[#8B6CFF]"
           autoComplete="current-password"
           required
         />
-        {error ? <p className="mt-3 text-sm text-[#FF2D78]">{error}</p> : null}
+        {error ? <p className="mt-3 text-sm text-[#F0568C]">{error}</p> : null}
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-6 w-full rounded-md bg-[#7C3AED] px-4 py-2 font-semibold text-white transition hover:bg-[#6D28D9] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 w-full rounded-md bg-[#8B6CFF] px-4 py-2 font-semibold text-white transition hover:bg-[#765AF0] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? "Checking..." : "Enter dashboard"}
         </button>

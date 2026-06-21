@@ -31,7 +31,7 @@ function BadgeDot() {
       initial={{ scale: 0 }}
       animate={{ scale: 1 }}
       transition={{ type: "spring", stiffness: 520, damping: 28, mass: 0.7 }}
-      className="absolute right-0 top-0 h-2 w-2 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#FF2D78] shadow-[0_0_10px_rgba(255,45,120,0.65)]"
+      className="absolute right-0 top-0 h-2 w-2 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.65)]"
     />
   );
 }
@@ -51,7 +51,7 @@ function MapIcon({ filled }: { filled?: boolean }) {
       aria-hidden="true"
     >
       <path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11z" />
-      <circle cx={12} cy={10} r={2.5} fill={filled ? "#0A0A0F" : "none"} stroke={filled ? "#0A0A0F" : "currentColor"} />
+      <circle cx={12} cy={10} r={2.5} fill={filled ? "#0A0A0E" : "none"} stroke={filled ? "#0A0A0E" : "currentColor"} />
     </svg>
   );
 }
@@ -114,13 +114,13 @@ function NavItem({
       href={href}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
+      className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
         active
-          ? "text-[#00F5D4]"
+          ? "text-[#8B6CFF]"
           : "text-white/35 hover:text-white/65"
       }`}
     >
-      {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#00F5D4]" />}
+      {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF]" />}
       <span className="relative">
         {children}
         {showBadge && <BadgeDot />}
@@ -244,7 +244,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0F]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
     >
       <div className="mx-auto flex h-16 w-full max-w-lg items-stretch px-3">
         <NavItem href="/map" label="Map" active={mapActive}>

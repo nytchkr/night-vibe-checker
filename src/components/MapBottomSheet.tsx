@@ -63,9 +63,9 @@ function VenueRow({
       type="button"
       aria-pressed={isSelected}
       onClick={onSelect}
-      className={`block w-full rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+      className={`block w-full rounded-2xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
         isSelected
-          ? "border-white/35 bg-white/[0.1] ring-1 ring-[#00F5D4]/60"
+          ? "border-white/35 bg-white/[0.1] ring-1 ring-[#8B6CFF]/60"
           : "border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07]"
       }`}
     >
@@ -239,7 +239,7 @@ export default function MapBottomSheet({
     <section
       ref={sheetRef}
       aria-label={`${cityName} venues`}
-      className="absolute inset-x-0 bottom-0 z-[1100] h-[85dvh] rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0F]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
+      className="absolute inset-x-0 bottom-0 z-[1100] h-[85dvh] rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0E]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -259,7 +259,7 @@ export default function MapBottomSheet({
           type="button"
           onClick={() => snapTo(snap === "expanded" ? "collapsed" : snap === "collapsed" ? "mid" : "expanded")}
           aria-label={`${snap === "expanded" ? "Collapse" : "Expand"} ${cityName} venue list`}
-          className="mx-auto mt-3 flex max-w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-2 text-sm font-black text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+          className="mx-auto mt-3 flex max-w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-2 text-sm font-black text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           {cityName} · {openCount} spots open
         </button>

@@ -29,8 +29,8 @@ function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
   return (
     <div className="mt-3" aria-label={`${malePercent}% male, ${femalePercent}% female from ${signal.sampleSize} reports`}>
       <div className="flex h-1 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-        <div className="h-full bg-[#7C3AED]" style={{ width: `${malePercent}%` }} />
-        <div className="h-full bg-[#EC4899]" style={{ width: `${femalePercent}%` }} />
+        <div className="h-full bg-[#4F9DFF]" style={{ width: `${malePercent}%` }} />
+        <div className="h-full bg-[#F0568C]" style={{ width: `${femalePercent}%` }} />
       </div>
       <p className="mt-1 text-xs font-semibold text-white/45">👥 {signal.sampleSize} reports</p>
     </div>
@@ -167,7 +167,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                 <button
                   type="button"
                   onClick={handleShare}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/55"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/55"
                   aria-label={`Share ${venue.name}`}
                   title={copied ? "Link copied!" : "Share"}
                 >
@@ -181,7 +181,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                   {busynessLabel(signal?.busyness0To100)}
                 </span>
                 {copied ? (
-                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-white/15 bg-[#0A0A0F] px-2 py-1 text-xs font-bold text-white/70 shadow-lg">
+                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-white/15 bg-[#0A0A0E] px-2 py-1 text-xs font-bold text-white/70 shadow-lg">
                     Link copied!
                   </span>
                 ) : null}
@@ -203,7 +203,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
               </Link>
               <Link
                 href={reportHref}
-                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#00F5D4] px-4 text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.35)] transition-colors hover:bg-[#2fffe2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.35)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 ＋ Report Vibe
               </Link>
