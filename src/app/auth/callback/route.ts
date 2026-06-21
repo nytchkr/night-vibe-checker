@@ -43,10 +43,12 @@ export async function GET(req: NextRequest) {
 
     const cookieNames = req.cookies.getAll().map((c) => c.name);
     console.error("[auth/callback] cookies present:", cookieNames);
+    const hasVerifier = cookieNames.some((n) => n.includes("code-verifier"));
+    console.error("[auth/callback] has code-verifier cookie:", hasVerifier);
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
-      console.error("[auth/callback] exchangeCodeForSession error:", error.message, error.status);
-      return NextResponse.redirect(authFailedUrl(origin, "Could not finish sign-in. Please try again."));
+      console.error("[auth/callback] exchangeCodeForSession error:", error.message, error.status, error.code);
+      return NextResponse.redirect(authFailedUrl(origin, `${error.message} (cookies:${cookieNames.length},verifier:${hasVerifier})`));
     }
 
     const userId = data.session?.user.id;
