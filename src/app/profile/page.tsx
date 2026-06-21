@@ -8,6 +8,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import type { APIResponse, ConsumerVenue } from "@/types";
 
 type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
 
@@ -26,6 +27,15 @@ type CheckInRecord = {
   created_at: string | null;
   venues?: { name?: string | null } | { name?: string | null }[] | null;
 };
+
+type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
+  venueIds?: string[];
+  savedVenueIds?: string[];
+};
+
+type VenuesResponse = APIResponse<{ venues: ConsumerVenue[] }>;
+
+const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
 
 const CROWD_FEEL_LABELS: Record<CrowdFeel, string> = {
   mostly_male: "Mostly male",
@@ -198,21 +208,67 @@ function CheckInsSection({
   );
 }
 
-function SavedComingSoon() {
+function SavedVenuesSection({
+  savedVenueIds,
+  venues,
+  loading,
+  error,
+}: {
+  savedVenueIds: string[];
+  venues: ConsumerVenue[];
+  loading: boolean;
+  error: string;
+}) {
+  const venuesById = new Map(venues.map((venue) => [venue.id, venue]));
+  const savedVenues = savedVenueIds.map((id) => venuesById.get(id) ?? { id, name: id, category: "Saved venue" });
+
   return (
-    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Saved">
+    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Saved venues">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-black text-white">Saved</h2>
-          <p className="mt-1 text-sm font-semibold text-white/45">Coming soon</p>
+          <h2 className="font-display text-xl font-black text-white">Saved venues</h2>
+          <p className="mt-1 text-sm font-semibold text-white/45">
+            {loading ? "Loading..." : `${savedVenueIds.length} saved`}
+          </p>
         </div>
-        <span className="rounded-full bg-white/[0.07] px-3 py-1 text-xs font-black text-white/45">
-          Future
+        <span className="rounded-full bg-[#8B6CFF]/14 px-3 py-1 text-xs font-black text-[#8B6CFF]">
+          Saves
         </span>
       </div>
-      <p className="mt-4 text-sm leading-6 text-white/52">
-        Saved venues are not part of this MVP yet. For now, use check-ins to keep track of places you have reported.
-      </p>
+
+      {loading && (
+        <div className="mt-5 space-y-3">
+          <Skeleton className="h-16 rounded-xl bg-white/10" />
+        </div>
+      )}
+
+      {!loading && error && (
+        <p className="mt-5 rounded-xl border border-[#F0568C]/25 bg-[#F0568C]/10 p-4 text-sm font-semibold text-[#F0568C]">
+          {error}
+        </p>
+      )}
+
+      {!loading && !error && savedVenueIds.length === 0 && (
+        <p className="mt-5 rounded-xl border border-white/[0.08] bg-white/[0.035] p-4 text-sm font-semibold leading-6 text-white/55">
+          No saved venues yet — tap the bookmark on any venue to save it.
+        </p>
+      )}
+
+      {!loading && !error && savedVenueIds.length > 0 && (
+        <ul className="mt-5 space-y-3">
+          {savedVenues.map((venue) => (
+            <li key={venue.id}>
+              <Link
+                href={`/venues/${encodeURIComponent(venue.id)}`}
+                className="block rounded-xl border border-white/[0.08] bg-[#0A0A0E]/60 p-3 transition-colors hover:border-[#8B6CFF]/35 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              >
+                <p className="truncate text-sm font-black text-white">{venue.name}</p>
+                <p className="mt-1 truncate text-xs font-semibold text-white/42">{venue.category}</p>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -225,6 +281,10 @@ export default function ProfilePage() {
   const [checkInCount, setCheckInCount] = useState(0);
   const [checkInsLoading, setCheckInsLoading] = useState(false);
   const [checkInsError, setCheckInsError] = useState("");
+  const [savedVenueIds, setSavedVenueIds] = useState<string[]>([]);
+  const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
+  const [savedVenuesError, setSavedVenuesError] = useState("");
+  const [venues, setVenues] = useState<ConsumerVenue[]>([]);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -236,10 +296,14 @@ export default function ProfilePage() {
 
       if (activeSession?.user.id) {
         void fetchCheckIns(activeSession.user.id);
+        void fetchSavedVenues(activeSession);
       } else {
         setCheckIns([]);
         setCheckInCount(0);
         setCheckInsError("");
+        setSavedVenueIds([]);
+        setSavedVenuesError("");
+        setVenues([]);
       }
     }
 
@@ -251,6 +315,21 @@ export default function ProfilePage() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    const activeSession: Session = session;
+
+    function handleSavedVenuesChanged() {
+      void fetchSavedVenues(activeSession);
+    }
+
+    window.addEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
+
+    return () => {
+      window.removeEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
+    };
+  }, [session]);
 
   async function fetchCheckIns(userId: string) {
     setCheckInsLoading(true);
@@ -291,6 +370,40 @@ export default function ProfilePage() {
     }
   }
 
+  async function fetchSavedVenues(activeSession: Session) {
+    setSavedVenuesLoading(true);
+    setSavedVenuesError("");
+
+    try {
+      const [savedRes, venuesRes] = await Promise.all([
+        fetch("/api/saved-venues", {
+          headers: { Authorization: `Bearer ${activeSession.access_token}` },
+        }),
+        fetch("/api/venues"),
+      ]);
+
+      if (!savedRes.ok || !venuesRes.ok) {
+        setSavedVenueIds([]);
+        setVenues([]);
+        setSavedVenuesError("Could not load your saved venues right now.");
+        return;
+      }
+
+      const savedJson = (await savedRes.json()) as SavedVenueIdsResponse;
+      const venuesJson = (await venuesRes.json()) as VenuesResponse;
+      const ids = savedJson.venueIds ?? savedJson.savedVenueIds ?? savedJson.data?.savedVenueIds ?? [];
+
+      setSavedVenueIds(Array.isArray(ids) ? ids : []);
+      setVenues(Array.isArray(venuesJson.data?.venues) ? venuesJson.data.venues : []);
+    } catch {
+      setSavedVenueIds([]);
+      setVenues([]);
+      setSavedVenuesError("Could not load your saved venues right now.");
+    } finally {
+      setSavedVenuesLoading(false);
+    }
+  }
+
   async function handleSignOut() {
     const client = createBrowserClient();
     await client.auth.signOut();
@@ -321,7 +434,12 @@ export default function ProfilePage() {
                 loading={checkInsLoading}
                 error={checkInsError}
               />
-              <SavedComingSoon />
+              <SavedVenuesSection
+                savedVenueIds={savedVenueIds}
+                venues={venues}
+                loading={savedVenuesLoading}
+                error={savedVenuesError}
+              />
 
               <Button
                 type="button"

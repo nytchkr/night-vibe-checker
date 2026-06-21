@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { timeAgo } from "@/lib/timeAgo";
@@ -304,6 +305,14 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             {signal?.computedAt ? (
               <p className="mt-2 text-xs font-semibold text-white/40">{timeAgo(signal.computedAt)}</p>
             ) : null}
+
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.045] px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-sm font-black text-white">Save this venue</p>
+                <p className="mt-0.5 text-xs font-semibold text-white/42">Keep it handy on your profile</p>
+              </div>
+              <SaveVenueButton venueId={venue.id} venueName={venue.name} />
+            </div>
 
             <div className="mt-3 flex gap-2">
               <Link

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bookmark } from "lucide-react";
 import { useHaptic } from "@/hooks/useHaptic";
+import { createBrowserClient } from "@/lib/supabase-browser";
 
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
 
@@ -30,10 +31,50 @@ export function SaveVenueButton({
   const haptic = useHaptic();
   const [saved, setSaved] = useState(initialSaved);
   const [pending, setPending] = useState(false);
+  const [sessionAccessToken, setSessionAccessToken] = useState<string | null>(accessToken ?? null);
+
+  const activeAccessToken = accessToken ?? sessionAccessToken;
 
   useEffect(() => {
     setSaved(initialSaved);
   }, [initialSaved]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshSavedState() {
+      try {
+        const client = createBrowserClient();
+        const { data } = await client.auth.getSession();
+        const token = accessToken ?? data.session?.access_token ?? null;
+
+        if (!cancelled) setSessionAccessToken(token);
+        if (!token) {
+          if (!cancelled) setSaved(false);
+          return;
+        }
+
+        const res = await fetch("/api/saved-venues", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+
+        const json = await res.json();
+        const ids = json?.venueIds ?? json?.savedVenueIds ?? json?.data?.savedVenueIds ?? [];
+        if (!cancelled && Array.isArray(ids)) {
+          setSaved(ids.includes(venueId));
+        }
+      } catch {
+        if (!cancelled) setSessionAccessToken(accessToken ?? null);
+      }
+    }
+
+    void refreshSavedState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, venueId]);
 
   function currentPath() {
     const query = searchParams.toString();
@@ -44,7 +85,7 @@ export function SaveVenueButton({
     event.preventDefault();
     event.stopPropagation();
 
-    if (!accessToken) {
+    if (!activeAccessToken) {
       router.push(`/login?return=${encodeURIComponent(currentPath())}`);
       return;
     }
@@ -63,7 +104,7 @@ export function SaveVenueButton({
       const res = await fetch("/api/saved-venues", {
         method: nextSaved ? "POST" : "DELETE",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${activeAccessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ venueId }),
