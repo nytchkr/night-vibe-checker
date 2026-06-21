@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { PageTransition } from "@/components/PageTransition";
+import { PushOptIn } from "@/components/PushOptIn";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -452,6 +453,7 @@ export default function ProfilePage() {
                 loading={savedVenuesLoading}
                 error={savedVenuesError}
               />
+              <PushOptIn />
 
               <Button
                 type="button"
