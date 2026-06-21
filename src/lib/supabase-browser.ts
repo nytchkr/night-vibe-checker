@@ -1,8 +1,11 @@
 // Browser-only Supabase client — safe to import from "use client" components.
-// Does NOT import supabaseAdmin to avoid the SUPABASE_SERVICE_ROLE_KEY
-// module-level throw that crashes client bundles.
+// Uses @supabase/ssr createBrowserClient so auth cookies (including the PKCE
+// code_verifier) are stored in cookies, not localStorage. This lets the
+// server-side /auth/callback route read the code_verifier and exchange the
+// OAuth code — without this, PKCE exchange silently fails every time.
 
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient as ssrCreateBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -13,9 +16,7 @@ export function createBrowserClient(): SupabaseClient {
     throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.");
   }
 
-  browserClient ??= createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: true, autoRefreshToken: true, flowType: "pkce" },
-  });
+  browserClient ??= ssrCreateBrowserClient(supabaseUrl, supabaseAnonKey);
 
   return browserClient;
 }
