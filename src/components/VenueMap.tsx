@@ -12,7 +12,7 @@ import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
-import { triggerHapticFeedback } from "@/lib/haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
@@ -561,6 +561,7 @@ function VenueFilterSheet({
   onClose: () => void;
   openNowFilter: boolean;
 }) {
+  const haptic = useHaptic();
   const [draftCategory, setDraftCategory] = useState<VenueCategoryFilter>(activeCategoryFilter);
   const [draftOpenNow, setDraftOpenNow] = useState(openNowFilter);
 
@@ -612,7 +613,10 @@ function VenueFilterSheet({
                     key={filter}
                     type="button"
                     aria-pressed={isActive}
-                    onClick={() => setDraftCategory(filter)}
+                    onClick={() => {
+                      haptic.light();
+                      setDraftCategory(filter);
+                    }}
                     className={`mr-2 shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
                       isActive ? "bg-[#00F5D4] text-[#0A0A0F]" : "bg-white/[0.06] text-white/60 hover:bg-white/[0.09] hover:text-white/75"
                     }`}
@@ -661,6 +665,7 @@ export function VenueMap({
   city: City;
   onCityChange: (cityId: CityId) => void;
 }) {
+  const haptic = useHaptic();
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
@@ -732,13 +737,14 @@ export function VenueMap({
   }, [filteredVenues, selectedVenueId]);
 
   const selectVenueFromList = useCallback((venue: ConsumerVenue) => {
+    haptic.light();
     setSelectedVenueId(venue.id);
     setSheetSnap("mid");
     mapRef.current?.flyTo([venue.lat, venue.lng], Math.max(mapRef.current.getZoom(), 16), {
       animate: true,
       duration: 0.5,
     });
-  }, []);
+  }, [haptic]);
 
   const selectVenueFromSearch = useCallback((venue: ConsumerVenue) => {
     setActiveCategoryFilter("All");
@@ -747,9 +753,10 @@ export function VenueMap({
   }, [selectVenueFromList]);
 
   const selectVenueFromMap = useCallback((venue: ConsumerVenue) => {
+    haptic.light();
     setSelectedVenueId(venue.id);
     setSheetSnap("mid");
-  }, []);
+  }, [haptic]);
 
   return (
     <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
@@ -828,7 +835,7 @@ export function VenueMap({
                 }}
                 eventHandlers={{
                   click: () => {
-                    triggerHapticFeedback(15);
+                    haptic.light();
                     setSelectedVenueId(venue.id);
                     setSheetSnap("mid");
                   },

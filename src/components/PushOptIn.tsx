@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { triggerHapticFeedback } from "@/lib/haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 
 type PushState = "idle" | "saving" | "success" | "error" | "unsupported" | "denied";
 
@@ -23,10 +23,12 @@ function base64UrlToArrayBuffer(value: string): ArrayBuffer {
 }
 
 export function PushOptIn() {
+  const haptic = useHaptic();
   const [state, setState] = useState<PushState>("idle");
   const [message, setMessage] = useState<string | null>(null);
 
   async function handleSubscribe() {
+    haptic.medium();
     setMessage(null);
 
     if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
@@ -81,7 +83,6 @@ export function PushOptIn() {
 
       setState("success");
       setMessage("You're in 🎯");
-      triggerHapticFeedback(20);
     } catch {
       setState("error");
       setMessage("Could not enable push notifications.");

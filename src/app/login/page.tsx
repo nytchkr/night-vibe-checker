@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { useHaptic } from "@/hooks/useHaptic";
 
 const POST_AUTH_RETURN_KEY = "nightvibe.postAuthReturnUrl";
 
@@ -41,6 +42,7 @@ function clearStoredReturnUrl() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const haptic = useHaptic();
   const hasReturnParam = searchParams.has("return");
   const redirectedRef = useRef(false);
   const returnUrl = useMemo(
@@ -80,6 +82,7 @@ function LoginContent() {
   async function handleSignIn() {
     if (!email.trim() || signingIn) return;
 
+    haptic.medium();
     setSigningIn(true);
     setError("");
 
@@ -108,6 +111,7 @@ function LoginContent() {
   async function handleGoogleSignIn() {
     if (googleSigningIn) return;
 
+    haptic.medium();
     setGoogleSigningIn(true);
     setError("");
 

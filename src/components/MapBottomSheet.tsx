@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { getBusynessState } from "@/lib/busyness";
+import { useHaptic } from "@/hooks/useHaptic";
 import type { ConsumerVenue } from "@/types";
 
 export type MapSheetSnap = "collapsed" | "mid" | "expanded";
@@ -98,6 +99,7 @@ export default function MapBottomSheet({
   snap: MapSheetSnap;
   venues: ConsumerVenue[];
 }) {
+  const haptic = useHaptic();
   const prefersReduced =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -176,7 +178,17 @@ export default function MapBottomSheet({
 
     dragRef.current.pointerId = -1;
     setDragTranslate(null);
+    if (nearestSnap !== snap) {
+      haptic.light();
+    }
     setSnap(nearestSnap);
+  }
+
+  function snapTo(nextSnap: MapSheetSnap) {
+    if (nextSnap !== snap) {
+      haptic.light();
+    }
+    setSnap(nextSnap);
   }
 
   function handleMouseDown(event: ReactMouseEvent<HTMLElement>) {
@@ -245,7 +257,7 @@ export default function MapBottomSheet({
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
         <button
           type="button"
-          onClick={() => setSnap(snap === "expanded" ? "collapsed" : snap === "collapsed" ? "mid" : "expanded")}
+          onClick={() => snapTo(snap === "expanded" ? "collapsed" : snap === "collapsed" ? "mid" : "expanded")}
           className="mx-auto mt-3 flex max-w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-4 py-2 text-sm font-black text-white shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
         >
           {cityName} · {openCount} spots open
@@ -267,7 +279,14 @@ export default function MapBottomSheet({
                   else itemRefs.current.delete(venue.id);
                 }}
               >
-                <VenueRow isSelected={selectedVenueId === venue.id} onSelect={() => onVenueSelect(venue)} venue={venue} />
+                <VenueRow
+                  isSelected={selectedVenueId === venue.id}
+                  onSelect={() => {
+                    haptic.light();
+                    onVenueSelect(venue);
+                  }}
+                  venue={venue}
+                />
               </div>
             ))
           )}

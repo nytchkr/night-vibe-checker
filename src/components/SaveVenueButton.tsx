@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bookmark } from "lucide-react";
+import { useHaptic } from "@/hooks/useHaptic";
 
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
 
@@ -26,6 +27,7 @@ export function SaveVenueButton({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const haptic = useHaptic();
   const [saved, setSaved] = useState(initialSaved);
   const [pending, setPending] = useState(false);
 
@@ -48,6 +50,11 @@ export function SaveVenueButton({
     }
 
     const nextSaved = !saved;
+    if (nextSaved) {
+      haptic.light();
+    } else {
+      haptic.error();
+    }
     setSaved(nextSaved);
     setPending(true);
     onSavedChange?.(venueId, nextSaved);

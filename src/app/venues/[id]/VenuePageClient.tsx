@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { triggerHapticFeedback } from "@/lib/haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
 
@@ -263,6 +263,7 @@ export function VenuePageClient({
   initialVenue: ConsumerVenue | null;
 }) {
   const router = useRouter();
+  const haptic = useHaptic();
   const trackedVenueView = useRef(false);
   const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
   const [loading, setLoading] = useState(!initialVenue);
@@ -439,6 +440,11 @@ export function VenuePageClient({
     if (!accessToken || savePending) return;
 
     const nextSaved = !saved;
+    if (nextSaved) {
+      haptic.light();
+    } else {
+      haptic.error();
+    }
     setSaved(nextSaved);
     setSavePending(true);
 
@@ -461,6 +467,7 @@ export function VenuePageClient({
 
   async function toggleVenueAlert() {
     if (alertPending) return;
+    haptic.medium();
 
     if (!accessToken) {
       router.push(`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`);
@@ -564,6 +571,7 @@ export function VenuePageClient({
   }
 
   async function markTipHelpful(tipId: string) {
+    haptic.light();
     const previousTips = tips;
     setTips((current) =>
       current.map((tip) => tip.id === tipId ? { ...tip, helpfulCount: tip.helpfulCount + 1 } : tip),
@@ -1033,7 +1041,7 @@ export function VenuePageClient({
             <Link
               href={reportUrl}
               onClick={() => {
-                triggerHapticFeedback([40, 20, 40]);
+                haptic.success();
                 trackAnalytics("check_in", { venue_id: venueId });
               }}
               className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#00F5D4] px-5 text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"

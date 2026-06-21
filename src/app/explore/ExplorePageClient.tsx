@@ -9,6 +9,7 @@ import type { Session } from "@supabase/supabase-js";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
+import { useHaptic } from "@/hooks/useHaptic";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
@@ -97,10 +98,15 @@ function FilterChip<T extends string>({
   onSelect: (label: T) => void;
   prefersReduced: boolean;
 }) {
+  const haptic = useHaptic();
+
   return (
     <motion.button
       type="button"
-      onClick={() => onSelect(label)}
+      onClick={() => {
+        haptic.light();
+        onSelect(label);
+      }}
       animate={{
         backgroundColor: active ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.1)",
         borderColor: active ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0)",
@@ -126,10 +132,15 @@ function CategoryFilterPill({
   onSelect: () => void;
   prefersReduced: boolean;
 }) {
+  const haptic = useHaptic();
+
   return (
     <motion.button
       type="button"
-      onClick={onSelect}
+      onClick={() => {
+        haptic.light();
+        onSelect();
+      }}
       animate={{
         backgroundColor: active ? "rgba(255,255,255,0.14)" : "rgba(10,10,15,0.8)",
         borderColor: active ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.1)",
@@ -155,10 +166,15 @@ function SortPill({
   onSelect: () => void;
   prefersReduced: boolean;
 }) {
+  const haptic = useHaptic();
+
   return (
     <motion.button
       type="button"
-      onClick={onSelect}
+      onClick={() => {
+        haptic.light();
+        onSelect();
+      }}
       animate={{
         backgroundColor: active ? "rgba(0,245,212,0.2)" : "rgba(255,255,255,0.05)",
         borderColor: active ? "rgba(0,245,212,0.4)" : "rgba(255,255,255,0.1)",

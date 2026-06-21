@@ -7,7 +7,7 @@ import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { triggerHapticFeedback } from "@/lib/haptics";
+import { useHaptic } from "@/hooks/useHaptic";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 type VibeCheckClientProps = {
@@ -70,6 +70,7 @@ export default function VibeCheckClient({
   returnPath,
 }: VibeCheckClientProps) {
   const router = useRouter();
+  const haptic = useHaptic();
   const prefersReduced =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -204,7 +205,7 @@ export default function VibeCheckClient({
         return;
       }
 
-      triggerHapticFeedback([50, 30, 50]);
+      haptic.success();
       setDone(true);
       trackAnalytics("vibe_check_submitted", {
         venue_id: effectiveVenueId,
@@ -225,6 +226,7 @@ export default function VibeCheckClient({
     returnPath,
     router,
     selectedBusyness,
+    haptic,
   ]);
 
   const handleShareCard = useCallback(async () => {
