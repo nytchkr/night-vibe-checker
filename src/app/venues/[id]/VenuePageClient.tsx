@@ -13,7 +13,6 @@ import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
-import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -178,15 +177,6 @@ function formatWeekHours(hoursEntry: string): { day: string; hours: string; clos
   };
 }
 
-function getCategoryAccent(category: string): string {
-  const value = category.toLowerCase();
-  if (value.includes("club") || value.includes("night")) return "#F0568C";
-  if (value.includes("bar") || value.includes("pub")) return "#8B6CFF";
-  if (value.includes("lounge")) return "#8B6CFF";
-  if (value.includes("restaurant")) return "#FFB020";
-  return "#8B6CFF";
-}
-
 function CategoryChip({ category }: { category: string }) {
   return (
     <span className="inline-flex rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white/85 backdrop-blur">
@@ -346,8 +336,6 @@ export function VenuePageClient({
   const [vibeError, setVibeError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
-  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  const photoStripRef = useRef<HTMLDivElement>(null);
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
   const vibeDialogRef = useRef<HTMLDivElement | null>(null);
   const loginDialogRef = useRef<HTMLDivElement | null>(null);
@@ -794,29 +782,15 @@ export function VenuePageClient({
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
   const galleryPhotoUrls = useMemo(() => {
-    const urls = [venue?.photoUrl, ...(venue?.photoUrls ?? [])].filter((url): url is string => Boolean(url));
-    return urls.filter((url, index) => url.length > 0 && urls.indexOf(url) === index);
-  }, [venue?.photoUrl, venue?.photoUrls]);
-  const hasGallery = galleryPhotoUrls.length > 1;
-  const heroPhotoUrl = galleryPhotoUrls[Math.min(activePhotoIndex, galleryPhotoUrls.length - 1)];
+    const urls = venue?.photoUrls ?? [];
+    return urls
+      .filter((url, index): url is string => typeof url === "string" && url.length > 0 && urls.indexOf(url) === index)
+      .slice(0, 3);
+  }, [venue?.photoUrls]);
   const reportCharactersRemaining = 200 - reportNotes.length;
   const selectedVibeBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
   const canSubmitVibe = Boolean(selectedVibeBusynessOption && !vibeSubmitting);
   const hoursPanelId = "venue-hours-list";
-
-  useEffect(() => {
-    setActivePhotoIndex(0);
-    photoStripRef.current?.scrollTo({ left: 0 });
-  }, [venue?.id, galleryPhotoUrls.length]);
-
-  function handlePhotoStripScroll() {
-    const strip = photoStripRef.current;
-    if (!strip || galleryPhotoUrls.length <= 1) return;
-    const photoWidth = strip.querySelector<HTMLElement>("[data-gallery-photo]")?.offsetWidth ?? 320;
-    const gap = 12;
-    const nextIndex = Math.round(strip.scrollLeft / (photoWidth + gap));
-    setActivePhotoIndex(Math.max(0, Math.min(galleryPhotoUrls.length - 1, nextIndex)));
-  }
 
   function goBackToMap() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -870,77 +844,28 @@ export function VenuePageClient({
             </button>
 
             <div className="relative mx-auto max-w-lg">
-              <div className="relative h-[240px] max-h-[240px] w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04]">
-                {heroPhotoUrl ? (
-                  <Image
-                    src={heroPhotoUrl}
-                    alt={venue.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 512px"
-                    priority
-                    placeholder="blur"
-                    blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-                    className="object-cover"
-                  />
-                ) : (
+              <div className="pt-5">
+                {galleryPhotoUrls.length > 0 && (
                   <div
-                    className="flex h-full w-full items-center justify-center px-6 text-center"
-                    style={{
-                      background: `linear-gradient(155deg, ${getCategoryAccent(venue.category)}33 0%, rgba(255,255,255,0.05) 48%, rgba(0,0,0,0.25) 100%)`,
-                    }}
+                    className="-mx-4 mb-5 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    aria-label={`${venue.name} photos`}
                   >
-                    <span className="text-sm font-black uppercase tracking-[0.16em] text-white/55">
-                      {venue.category.replaceAll("_", " ")}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {hasGallery && (
-                <div className="mt-3" aria-label={`${venue.name} photos`}>
-                  <div
-                    ref={photoStripRef}
-                    onScroll={handlePhotoStripScroll}
-                    className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  >
-                    {galleryPhotoUrls.map((photoUrl, index) => (
-                      <button
-                        key={photoUrl}
-                        type="button"
-                        data-gallery-photo
-                        onClick={() => setActivePhotoIndex(index)}
-                        className={`h-16 w-24 flex-shrink-0 snap-start overflow-hidden rounded-xl border text-left transition ${
-                          activePhotoIndex === index ? "border-[#8B6CFF]/80" : "border-white/10"
-                        }`}
-                        aria-label={`Show photo ${index + 1} of ${galleryPhotoUrls.length}`}
-                        aria-pressed={activePhotoIndex === index}
-                      >
+                    <div className="flex w-max gap-3">
+                      {galleryPhotoUrls.map((photoUrl, index) => (
                         <Image
+                          key={photoUrl}
                           src={photoUrl}
                           alt={`${venue.name} photo ${index + 1}`}
-                          width={96}
-                          height={64}
-                          sizes="96px"
-                          placeholder="blur"
-                          blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-                          className="h-16 w-24 object-cover"
+                          width={300}
+                          height={200}
+                          sizes="300px"
+                          priority={index === 0}
+                          className="h-[200px] w-[300px] flex-shrink-0 rounded-2xl border border-white/[0.08] object-cover"
                         />
-                      </button>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex justify-center gap-1.5" aria-hidden="true">
-                    {galleryPhotoUrls.map((photoUrl, index) => (
-                      <span
-                        key={`${photoUrl}-dot`}
-                        className={`h-1.5 w-1.5 rounded-full transition ${
-                          activePhotoIndex === index ? "bg-[#8B6CFF]" : "bg-white/25"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="pt-5">
+                )}
                 <CategoryChip category={venue.category} />
                 <h1 className="font-display mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
                 {venue.address && (

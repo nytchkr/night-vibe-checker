@@ -11,6 +11,7 @@ if (typeof window !== "undefined") {
 
 const PLACES_BASE = "https://maps.googleapis.com/maps/api/place";
 const DISCOVERY_TYPES = ["bar", "night_club", "restaurant"] as const;
+const MAX_VENUE_PHOTOS = 3;
 
 export class PlacesApiError extends Error {
   constructor(
@@ -61,6 +62,7 @@ type PlaceDetailsResponse = {
       weekday_text?: string[];
       open_now?: boolean;
     };
+    photos?: { photo_reference?: string }[];
   };
 };
 
@@ -76,6 +78,7 @@ export type DiscoveredVenue = {
   totalRatings?: number;
   priceLevel?: 1 | 2 | 3 | 4;
   photoReference?: string;
+  photoReferences?: string[];
   photoUrl?: string;
   photoUrls?: string[];
   openingHours?: string[];
@@ -89,7 +92,11 @@ function toDiscoveredVenue(
 ): DiscoveredVenue | null {
   if (!result.place_id || !result.name || !result.geometry?.location) return null;
 
-  const photoReference = result.photos?.find((photo) => photo.photo_reference)?.photo_reference;
+  const photoReferences = (result.photos ?? [])
+    .map((photo) => photo.photo_reference)
+    .filter((reference): reference is string => Boolean(reference))
+    .slice(0, MAX_VENUE_PHOTOS);
+  const photoReference = photoReferences[0];
   return {
     placeId: result.place_id,
     zoneId: zone.id,
@@ -102,15 +109,19 @@ function toDiscoveredVenue(
     totalRatings: result.user_ratings_total,
     priceLevel: result.price_level,
     photoReference,
-    // photoUrl resolved asynchronously in discoverZone after dedup
+    photoReferences,
+    // Photo URLs resolved asynchronously in discoverZone after dedup.
     photoUrl: undefined,
+    photoUrls: undefined,
   };
 }
 
-async function fetchPlaceHours(placeId: string): Promise<{ openingHours?: string[]; openNow?: boolean }> {
+async function fetchPlaceDetails(
+  placeId: string
+): Promise<{ openingHours?: string[]; openNow?: boolean; photoReferences?: string[] }> {
   const params = new URLSearchParams({
     place_id: placeId,
-    fields: "opening_hours",
+    fields: "opening_hours,photos",
     key: apiKey(),
   });
 
@@ -134,10 +145,15 @@ async function fetchPlaceHours(placeId: string): Promise<{ openingHours?: string
   const openingHours = Array.isArray(weekdayText)
     ? weekdayText.filter((entry): entry is string => typeof entry === "string" && entry.length > 0)
     : undefined;
+  const photoReferences = (json.result?.photos ?? [])
+    .map((photo) => photo.photo_reference)
+    .filter((reference): reference is string => Boolean(reference))
+    .slice(0, MAX_VENUE_PHOTOS);
 
   return {
     openingHours: openingHours?.length ? openingHours : undefined,
     openNow: json.result?.opening_hours?.open_now,
+    photoReferences: photoReferences.length ? photoReferences : undefined,
   };
 }
 
@@ -191,21 +207,28 @@ export async function discoverZone(zone: LaunchZone): Promise<DiscoveredVenue[]>
 
   const venues = Array.from(byPlaceId.values());
 
-  // Store one real Google Place Photo URL per venue.
-  // We do this after dedup so we only make one photo request per unique venue.
+  // Store real Google Place Photo URLs after dedup so we only hydrate each unique venue once.
   await Promise.all(
     venues.map(async (venue) => {
-      if (venue.photoReference) {
-        venue.photoUrl = await resolvePhotoUrl(venue.photoReference);
-      }
+      let photoReferences = (venue.photoReferences?.length ? venue.photoReferences : [venue.photoReference])
+        .filter((reference): reference is string => Boolean(reference))
+        .slice(0, MAX_VENUE_PHOTOS);
       try {
-        const hours = await fetchPlaceHours(venue.placeId);
-        venue.openingHours = hours.openingHours;
-        venue.openNow = hours.openNow;
+        const details = await fetchPlaceDetails(venue.placeId);
+        venue.openingHours = details.openingHours;
+        venue.openNow = details.openNow;
+        if (details.photoReferences?.length) {
+          photoReferences = details.photoReferences;
+          venue.photoReference = details.photoReferences[0];
+        }
       } catch {
         venue.openingHours = undefined;
         venue.openNow = undefined;
       }
+      if (venue.photoReference) {
+        venue.photoUrl = await resolvePhotoUrl(venue.photoReference);
+      }
+      venue.photoUrls = photoReferences.map((reference) => buildPhotoUrl(reference));
     })
   );
 

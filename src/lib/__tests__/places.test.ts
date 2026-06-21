@@ -11,8 +11,9 @@ describe("Google Places discovery", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = new URL(input.toString());
       if (url.pathname.endsWith("/details/json")) {
-        expect(url.searchParams.get("fields")).toBe("opening_hours");
+        expect(url.searchParams.get("fields")).toBe("opening_hours,photos");
         expect(url.searchParams.get("key")).toBe("places-test-key");
+        const placeId = url.searchParams.get("place_id");
 
         return Response.json({
           status: "OK",
@@ -29,6 +30,12 @@ describe("Google Places discovery", () => {
                 "Sunday: Closed",
               ],
             },
+            photos: [
+              { photo_reference: `${placeId}-details-photo-reference` },
+              { photo_reference: `${placeId}-details-photo-reference-2` },
+              { photo_reference: `${placeId}-details-photo-reference-3` },
+              { photo_reference: `${placeId}-details-photo-reference-4` },
+            ],
           },
         });
       }
@@ -51,7 +58,12 @@ describe("Google Places discovery", () => {
             rating: 4.5,
             user_ratings_total: 123,
             price_level: 2,
-            photos: [{ photo_reference: `${type}-photo-reference` }],
+            photos: [
+              { photo_reference: `${type}-photo-reference` },
+              { photo_reference: `${type}-photo-reference-2` },
+              { photo_reference: `${type}-photo-reference-3` },
+              { photo_reference: `${type}-photo-reference-4` },
+            ],
           },
           {
             place_id: "place-1",
@@ -95,9 +107,14 @@ describe("Google Places discovery", () => {
       googleRating: 4.5,
       totalRatings: 123,
       priceLevel: 2,
-      photoReference: "bar-photo-reference",
+      photoReference: "place-1-details-photo-reference",
       photoUrl:
-        "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=bar-photo-reference&key=places-test-key",
+        "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=place-1-details-photo-reference&key=places-test-key",
+      photoUrls: [
+        "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=place-1-details-photo-reference&key=places-test-key",
+        "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=place-1-details-photo-reference-2&key=places-test-key",
+        "https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=place-1-details-photo-reference-3&key=places-test-key",
+      ],
       openingHours: [
         "Monday: 5:00 PM – 2:00 AM",
         "Tuesday: 5:00 PM – 2:00 AM",

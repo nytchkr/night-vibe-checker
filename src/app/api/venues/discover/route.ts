@@ -69,6 +69,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     price_level: venue.priceLevel ?? null,
     photo_reference: venue.photoReference ?? null,
     photo_url: venue.photoUrl ?? null,
+    photo_urls: venue.photoUrls ?? [],
     opening_hours: venue.openingHours ?? null,
     open_now: venue.openNow ?? null,
     updated_at: now,
@@ -93,7 +94,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Return the venues we just upserted from the DB to confirm persisted state
   const { data: venueRows, error: fetchError } = await supabaseAdmin
     .from("venues")
-    .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, opening_hours, open_now, hidden")
+    .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, hidden")
     .eq("zone_id", LAUNCH_ZONE.id)
     .eq("hidden", false)
     .order("name", { ascending: true });
@@ -123,6 +124,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
+    photoUrls: Array.isArray(row.photo_urls)
+      ? row.photo_urls.filter((item): item is string => typeof item === "string" && item.length > 0)
+      : undefined,
     openingHours: Array.isArray(row.opening_hours)
       ? row.opening_hours.filter((item): item is string => typeof item === "string" && item.length > 0)
       : undefined,

@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
       price_level: venue.priceLevel ?? null,
       photo_reference: venue.photoReference ?? null,
       photo_url: venue.photoUrl ?? null,
+      photo_urls: venue.photoUrls ?? [],
       updated_at: now,
     })),
     { onConflict: "place_id" }

@@ -15,7 +15,7 @@ import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug, neighborhood,
-  rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
+  rating, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, hidden,
   phone, website, opening_hours, open_now,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
@@ -60,6 +60,12 @@ function mapOpeningHours(value: unknown): string[] | undefined {
   return hours.length ? hours : undefined;
 }
 
+function mapPhotoUrls(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const urls = value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  return urls.length ? urls : undefined;
+}
+
 function mapVenue(row: Record<string, unknown>): ConsumerVenue {
   const sig = row.venue_signals;
   const signalRow: Record<string, unknown> | undefined = Array.isArray(sig)
@@ -84,6 +90,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
+    photoUrls: mapPhotoUrls(row.photo_urls),
     phone: (row.phone ?? undefined) as string | undefined,
     website: (row.website ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
@@ -98,9 +105,11 @@ function isMissingContactColumn(error: unknown): boolean {
   return (
     message.includes("'phone' column") ||
     message.includes("'website' column") ||
+    message.includes("'photo_urls' column") ||
     message.includes("'neighborhood' column") ||
     message.includes("venues.phone") ||
     message.includes("venues.website") ||
+    message.includes("venues.photo_urls") ||
     message.includes("venues.neighborhood")
   );
 }
