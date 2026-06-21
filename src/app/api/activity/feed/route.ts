@@ -1,9 +1,24 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const ACTIVITY_FEED_LIMIT = 20;
+export const revalidate = 60;
+
+const ACTIVITY_LIMIT = 20;
 const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, max-age=60",
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+};
+
+export type ActivityFeedItem = {
+  id: string;
+  user: {
+    name: string;
+    avatar_url: string | null;
+  };
+  venue: {
+    id: string;
+    name: string;
+  };
+  checked_in_at: string;
 };
 
 type CheckInFeedRow = {
@@ -11,7 +26,7 @@ type CheckInFeedRow = {
   user_id: string | null;
   venue_id: string | null;
   created_at: string;
-  venues?: { id?: string | null; name?: string | null } | { id?: string | null; name?: string | null }[] | null;
+  venues?: { id?: string | null; name?: string | null; hidden?: boolean | null } | { id?: string | null; name?: string | null; hidden?: boolean | null }[] | null;
 };
 
 type ProfileRow = {
@@ -19,100 +34,119 @@ type ProfileRow = {
   user_id?: string | null;
   display_name?: string | null;
   avatar_url?: string | null;
+  is_private?: boolean | null;
+  private?: boolean | null;
+  visibility?: string | null;
+  profile_visibility?: string | null;
 };
 
-type ActivityFeedItem = {
-  id: string;
-  user: {
-    name: string;
-    avatar_url: string | null;
-  };
-  venue: {
-    id: string | null;
-    name: string;
-  };
-  checked_in_at: string;
+type ProfileSelectAttempt = {
+  key: "id" | "user_id";
+  columns: string;
+  privacyColumn?: keyof Pick<ProfileRow, "is_private" | "private" | "visibility" | "profile_visibility">;
 };
 
-function readVenue(row: CheckInFeedRow): ActivityFeedItem["venue"] {
+const PROFILE_SELECT_ATTEMPTS: ProfileSelectAttempt[] = [
+  { key: "id", columns: "id, display_name, avatar_url, is_private", privacyColumn: "is_private" },
+  { key: "user_id", columns: "user_id, display_name, avatar_url, is_private", privacyColumn: "is_private" },
+  { key: "id", columns: "id, display_name, avatar_url, private", privacyColumn: "private" },
+  { key: "user_id", columns: "user_id, display_name, avatar_url, private", privacyColumn: "private" },
+  { key: "id", columns: "id, display_name, avatar_url, visibility", privacyColumn: "visibility" },
+  { key: "user_id", columns: "user_id, display_name, avatar_url, visibility", privacyColumn: "visibility" },
+  { key: "id", columns: "id, display_name, avatar_url, profile_visibility", privacyColumn: "profile_visibility" },
+  { key: "user_id", columns: "user_id, display_name, avatar_url, profile_visibility", privacyColumn: "profile_visibility" },
+  { key: "id", columns: "id, display_name, avatar_url" },
+  { key: "user_id", columns: "user_id, display_name, avatar_url" },
+];
+
+function readVenue(row: CheckInFeedRow): { id: string; name: string; hidden: boolean } | null {
   const venue = Array.isArray(row.venues) ? row.venues[0] : row.venues;
-  return {
-    id: venue?.id ?? row.venue_id,
-    name: venue?.name?.trim() || "a venue",
-  };
+  const id = venue?.id?.trim() || row.venue_id?.trim();
+  const name = venue?.name?.trim();
+  if (!id || !name) return null;
+  return { id, name, hidden: Boolean(venue?.hidden) };
 }
 
 function fallbackName(userId: string): string {
   return `Explorer ${userId.slice(0, 6)}`;
 }
 
-function mapProfiles(rows: ProfileRow[] | null | undefined): Map<string, ProfileRow> {
-  const profiles = new Map<string, ProfileRow>();
-  for (const row of rows ?? []) {
-    const key = row.user_id ?? row.id;
-    if (key) profiles.set(key, row);
-  }
-  return profiles;
+function isPublicProfile(row: ProfileRow, privacyColumn?: ProfileSelectAttempt["privacyColumn"]): boolean {
+  if (!privacyColumn) return true;
+  const value = row[privacyColumn];
+  if (typeof value === "boolean") return !value;
+  if (typeof value === "string") return !["private", "hidden"].includes(value.toLowerCase());
+  return true;
 }
 
-async function loadProfiles(userIds: string[]): Promise<Map<string, ProfileRow>> {
+async function loadPublicProfiles(userIds: string[]): Promise<Map<string, ProfileRow>> {
   if (userIds.length === 0) return new Map();
 
-  const byId = await supabaseAdmin
-    .from("profiles")
-    .select("id, display_name, avatar_url")
-    .in("id", userIds);
+  for (const attempt of PROFILE_SELECT_ATTEMPTS) {
+    const { data, error } = await supabaseAdmin
+      .from("profiles")
+      .select(attempt.columns)
+      .in(attempt.key, userIds);
 
-  if (!byId.error && byId.data && byId.data.length > 0) {
-    return mapProfiles(byId.data as ProfileRow[] | null);
+    if (error) continue;
+
+    const rows = (data ?? []) as ProfileRow[];
+    if (rows.length === 0) continue;
+
+    const profiles = new Map<string, ProfileRow>();
+    for (const row of rows) {
+      if (!isPublicProfile(row, attempt.privacyColumn)) continue;
+      const key = attempt.key === "id" ? row.id : row.user_id;
+      if (key) profiles.set(key, row);
+    }
+    return profiles;
   }
 
-  const byUserId = await supabaseAdmin
-    .from("profiles")
-    .select("user_id, display_name, avatar_url")
-    .in("user_id", userIds);
-
-  if (byUserId.error) return new Map();
-  return mapProfiles(byUserId.data as ProfileRow[] | null);
+  return new Map();
 }
 
-export async function GET(): Promise<NextResponse> {
-  try {
-    const { data, error } = await supabaseAdmin
-      .from("check_ins")
-      .select("id, user_id, venue_id, created_at, venues(id, name)")
-      .eq("hidden", false)
-      .not("user_id", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(ACTIVITY_FEED_LIMIT);
+export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } | { error: string }>> {
+  const { data, error } = await supabaseAdmin
+    .from("check_ins")
+    .select("id, user_id, venue_id, created_at, venues(id, name, hidden)")
+    .eq("hidden", false)
+    .not("user_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(ACTIVITY_LIMIT);
 
-    if (error) throw error;
-
-    const rows = ((data ?? []) as CheckInFeedRow[]).filter((row) => row.user_id);
-    const userIds = Array.from(new Set(rows.map((row) => row.user_id as string)));
-    const profiles = await loadProfiles(userIds);
-
-    const items: ActivityFeedItem[] = rows.map((row) => {
-      const userId = row.user_id as string;
-      const profile = profiles.get(userId);
-
-      return {
-        id: row.id,
-        user: {
-          name: profile?.display_name?.trim() || fallbackName(userId),
-          avatar_url: profile?.avatar_url?.trim() || null,
-        },
-        venue: readVenue(row),
-        checked_in_at: row.created_at,
-      };
-    });
-
-    return NextResponse.json({ items }, { headers: PUBLIC_CACHE_HEADERS });
-  } catch (error) {
+  if (error) {
     console.error("[activity/feed GET] DB error:", error);
     return NextResponse.json(
-      { error: { code: "DB_ERROR", message: "Could not load activity feed." } },
+      { error: "Could not fetch activity feed." },
       { status: 500, headers: PUBLIC_CACHE_HEADERS }
     );
   }
+
+  const rows = ((data ?? []) as CheckInFeedRow[]).filter((row) => row.id && row.user_id && readVenue(row));
+  const userIds = Array.from(new Set(rows.map((row) => row.user_id as string)));
+  const profiles = await loadPublicProfiles(userIds);
+
+  const items = rows.flatMap((row): ActivityFeedItem[] => {
+    const userId = row.user_id as string;
+    const profile = profiles.get(userId);
+    if (!profile) return [];
+
+    const venue = readVenue(row);
+    if (!venue || venue.hidden) return [];
+
+    return [{
+      id: row.id,
+      user: {
+        name: profile.display_name?.trim() || fallbackName(userId),
+        avatar_url: profile.avatar_url?.trim() || null,
+      },
+      venue: {
+        id: venue.id,
+        name: venue.name,
+      },
+      checked_in_at: row.created_at,
+    }];
+  });
+
+  return NextResponse.json({ items }, { headers: PUBLIC_CACHE_HEADERS });
 }

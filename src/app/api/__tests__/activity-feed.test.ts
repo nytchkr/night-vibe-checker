@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockFrom = vi.fn();
 
 vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: { from: mockFrom },
+  supabaseAdmin: {
+    from: mockFrom,
+  },
 }));
 
 function chain(resolved: { data?: unknown; error?: unknown }) {
@@ -17,7 +19,7 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
     not: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnValue(promise),
     then: promise.then.bind(promise),
     catch: promise.catch.bind(promise),
   };
@@ -30,7 +32,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/activity/feed", () => {
-  it("returns recent public check-ins with profile and venue metadata", async () => {
+  it("returns the latest public check-ins with profile and venue data", async () => {
     mockFrom
       .mockReturnValueOnce(chain({
         data: [
@@ -39,21 +41,21 @@ describe("GET /api/activity/feed", () => {
             user_id: "user-a",
             venue_id: "venue-1",
             created_at: "2026-06-21T03:10:00.000Z",
-            venues: { id: "venue-1", name: "Canopy" },
+            venues: { id: "venue-1", name: "The Neon Room", hidden: false },
           },
           {
             id: "check-in-2",
             user_id: "user-b",
             venue_id: "venue-2",
-            created_at: "2026-06-21T02:50:00.000Z",
-            venues: { id: "venue-2", name: "Vinyl" },
+            created_at: "2026-06-21T03:05:00.000Z",
+            venues: { id: "venue-2", name: "Vault", hidden: false },
           },
         ],
       }))
       .mockReturnValueOnce(chain({
         data: [
-          { id: "user-a", display_name: "Avery", avatar_url: "https://example.com/a.jpg" },
-          { id: "user-b", display_name: "Blake", avatar_url: null },
+          { id: "user-a", display_name: "Avery", avatar_url: "https://example.com/a.jpg", is_private: false },
+          { id: "user-b", display_name: "Blake", avatar_url: null, is_private: true },
         ],
       }));
 
@@ -62,20 +64,14 @@ describe("GET /api/activity/feed", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
     expect(json).toEqual({
       items: [
         {
           id: "check-in-1",
           user: { name: "Avery", avatar_url: "https://example.com/a.jpg" },
-          venue: { id: "venue-1", name: "Canopy" },
+          venue: { id: "venue-1", name: "The Neon Room" },
           checked_in_at: "2026-06-21T03:10:00.000Z",
-        },
-        {
-          id: "check-in-2",
-          user: { name: "Blake", avatar_url: null },
-          venue: { id: "venue-2", name: "Vinyl" },
-          checked_in_at: "2026-06-21T02:50:00.000Z",
         },
       ],
     });
@@ -83,14 +79,38 @@ describe("GET /api/activity/feed", () => {
     expect(mockFrom).toHaveBeenNthCalledWith(2, "profiles");
   });
 
-  it("returns DB_ERROR when check-ins cannot be loaded", async () => {
-    mockFrom.mockReturnValueOnce(chain({ error: { message: "check_ins unavailable" } }));
+  it("falls back to user_id profiles when profiles.id is unavailable", async () => {
+    mockFrom
+      .mockReturnValueOnce(chain({
+        data: [
+          {
+            id: "check-in-1",
+            user_id: "user-a",
+            venue_id: "venue-1",
+            created_at: "2026-06-21T03:10:00.000Z",
+            venues: { id: "venue-1", name: "The Neon Room", hidden: false },
+          },
+        ],
+      }))
+      .mockReturnValueOnce(chain({ error: { message: "column profiles.id does not exist" } }))
+      .mockReturnValueOnce(chain({
+        data: [
+          { user_id: "user-a", display_name: "Avery", avatar_url: null, is_private: false },
+        ],
+      }));
 
     const { GET } = await import("../activity/feed/route");
     const res = await GET();
     const json = await res.json();
 
-    expect(res.status).toBe(500);
-    expect(json.error.code).toBe("DB_ERROR");
+    expect(res.status).toBe(200);
+    expect(json.items).toEqual([
+      {
+        id: "check-in-1",
+        user: { name: "Avery", avatar_url: null },
+        venue: { id: "venue-1", name: "The Neon Room" },
+        checked_in_at: "2026-06-21T03:10:00.000Z",
+      },
+    ]);
   });
 });

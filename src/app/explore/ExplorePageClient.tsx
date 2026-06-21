@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
@@ -21,6 +21,18 @@ type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
 type NeighborhoodFilter = "All Areas" | "South End" | "NoDa" | "Uptown";
 type SortOption = "Nearest" | "Busiest" | "A-Z" | "Open Now";
 type UserLocation = { lat: number; lng: number };
+type ActivityFeedItem = {
+  id: string;
+  user: {
+    name: string;
+    avatar_url: string | null;
+  };
+  venue: {
+    id: string;
+    name: string;
+  };
+  checked_in_at: string;
+};
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
 const NEIGHBORHOOD_FILTERS: NeighborhoodFilter[] = ["All Areas", "South End", "NoDa", "Uptown"];
@@ -261,6 +273,66 @@ function getCrowdFeelLabel(venue: ConsumerVenue): string {
   return "⚖ Balanced";
 }
 
+function getInitials(name: string): string {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+  return initials || "NV";
+}
+
+function getRelativeTimeLabel(value: string): string {
+  const checkedInMs = new Date(value).getTime();
+  if (!Number.isFinite(checkedInMs)) return "now";
+
+  const seconds = Math.max(0, Math.floor((Date.now() - checkedInMs) / 1000));
+  if (seconds < 60) return "now";
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function ActivityCard({ item }: { item: ActivityFeedItem }) {
+  return (
+    <article className="w-48 flex-shrink-0 rounded-xl bg-white/[0.04] px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        {item.user.avatar_url ? (
+          <Image
+            src={item.user.avatar_url}
+            alt=""
+            width={40}
+            height={40}
+            sizes="40px"
+            className="h-10 w-10 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-xs font-black text-white/75">
+            {getInitials(item.user.name)}
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-xs font-semibold leading-4 text-white/75">
+            <span className="font-black text-white">{item.user.name}</span>{" "}
+            checked into <span className="font-black text-white">{item.venue.name}</span>
+          </p>
+          <time dateTime={item.checked_in_at} className="mt-1 block text-[11px] font-semibold text-white/35">
+            {getRelativeTimeLabel(item.checked_in_at)}
+          </time>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function VenueFeedCard({
   venue,
   searchQuery,
@@ -406,6 +478,10 @@ export function ExplorePageClient() {
   const [sortOption, setSortOption] = useState<SortOption>("Busiest");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
+  const [activityLoaded, setActivityLoaded] = useState(false);
+  const activitySectionRef = useRef<HTMLElement | null>(null);
+  const activityViewedRef = useRef(false);
 
   const fetchVenues = useCallback(async ({ reset = false }: { reset?: boolean } = {}) => {
     if (reset) setVenues(null);
@@ -424,11 +500,30 @@ export function ExplorePageClient() {
     await fetchVenues();
   }, [fetchVenues]);
 
+  const fetchActivity = useCallback(async () => {
+    try {
+      const res = await fetch("/api/activity/feed");
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = (await res.json()) as { items?: ActivityFeedItem[] };
+      setActivityItems(Array.isArray(json.items) ? json.items.slice(0, 8) : []);
+    } catch {
+      setActivityItems([]);
+    } finally {
+      setActivityLoaded(true);
+    }
+  }, []);
+
   const { pulling, refreshing } = usePullToRefresh(refreshVenues);
 
   useEffect(() => {
     fetchVenues({ reset: true });
   }, [fetchVenues]);
+
+  useEffect(() => {
+    void fetchActivity();
+    const id = window.setInterval(() => void fetchActivity(), 60_000);
+    return () => window.clearInterval(id);
+  }, [fetchActivity]);
 
   useEffect(() => {
     void trackPageView("page_view", { meta: { page: "explore" } });
@@ -452,6 +547,24 @@ export function ExplorePageClient() {
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const element = activitySectionRef.current;
+    if (!element || activityViewedRef.current || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || activityViewedRef.current) return;
+        activityViewedRef.current = true;
+        trackAnalytics("activity_feed_viewed", { source: "explore" });
+        observer.disconnect();
+      },
+      { threshold: 0.4 }
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -724,7 +837,7 @@ export function ExplorePageClient() {
         </div>
       </div>
 
-      <section className="mx-auto max-w-lg space-y-3 px-4 pb-32" role="region" aria-label="Venue results">
+      <section className="mx-auto max-w-lg space-y-3 px-4 pb-6" role="region" aria-label="Venue results">
         <TrendingStrip />
 
         {error && (
@@ -793,6 +906,35 @@ export function ExplorePageClient() {
               </button>
             )}
           </>
+        )}
+      </section>
+
+      <section
+        ref={activitySectionRef}
+        className="mx-auto max-w-lg px-4 pb-32"
+        role="region"
+        aria-label="Recent check-ins"
+      >
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" aria-hidden="true" />
+          <h2 className="text-sm font-black uppercase tracking-[0.14em] text-white/55">
+            Recent Check-ins
+          </h2>
+        </div>
+
+        {activityLoaded && activityItems.length === 0 ? (
+          <p className="mt-3 rounded-xl bg-white/[0.04] px-3 py-2.5 text-sm font-semibold text-white/45">
+            No check-ins yet tonight. Be the first!
+          </p>
+        ) : (
+          <div
+            className="mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            aria-live="polite"
+          >
+            {activityItems.map((item) => (
+              <ActivityCard key={item.id} item={item} />
+            ))}
+          </div>
         )}
       </section>
     </div>
