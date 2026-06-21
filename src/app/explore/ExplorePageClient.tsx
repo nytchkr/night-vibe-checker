@@ -5,12 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
-import { Info } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
+import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
-import { BUSYNESS_COLORS, getBusynessState, type BusynessLevel } from "@/lib/busyness";
+import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { inZone } from "@/lib/zone";
@@ -282,14 +282,6 @@ function SortPill({
   );
 }
 
-function getCategoryIcon(category: string | null | undefined): string {
-  const value = (category ?? "").toLowerCase();
-  if (value.includes("night_club") || value.includes("nightclub") || value.includes("club")) return "🎵";
-  if (value.includes("restaurant") || value.includes("food")) return "🍽";
-  if (value.includes("bar")) return "🍺";
-  return "📍";
-}
-
 function getInitials(name: string): string {
   const initials = name
     .trim()
@@ -299,6 +291,10 @@ function getInitials(name: string): string {
     .join("")
     .toUpperCase();
   return initials || "NV";
+}
+
+function getVenueInitial(name: string): string {
+  return name.trim()[0]?.toUpperCase() ?? "N";
 }
 
 function clampPercent(value: number): number {
@@ -326,51 +322,6 @@ function getHottestBusynessColor(label: HottestBusynessLabel): string {
     case "Dead":
       return "#5C6573";
   }
-}
-
-function busynessChipLabel(level: BusynessLevel): string {
-  if (level === "dead") return "Dead";
-  return level[0].toUpperCase() + level.slice(1);
-}
-
-function BusynessChip({ level }: { level: BusynessLevel }) {
-  const color = BUSYNESS_COLORS[level];
-
-  return (
-    <span
-      className="inline-flex min-h-[30px] items-center gap-2 rounded-full border px-3 text-[13px] font-semibold"
-      style={{
-        borderColor: `${color}55`,
-        backgroundColor: `${color}1F`,
-        color,
-      }}
-    >
-      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
-      {busynessChipLabel(level)}
-    </span>
-  );
-}
-
-function NoDataChip() {
-  return (
-    <span className="inline-flex min-h-[30px] items-center gap-2 rounded-full border border-white/[0.08] bg-[#0A0A0E] px-3 text-[13px] font-semibold text-white/40">
-      <Info className="h-3.5 w-3.5" aria-hidden="true" />
-      No data
-    </span>
-  );
-}
-
-function MFSplitLine({ malePercent }: { malePercent: number }) {
-  const male = clampPercent(malePercent);
-  const female = 100 - male;
-
-  return (
-    <p className="text-[12px] font-semibold text-white/55" aria-label={`${male}% male, ${female}% female`}>
-      <span className="text-[#4F9DFF]">{male}% M</span>
-      <span className="mx-1 text-white/35">/</span>
-      <span className="text-[#F0568C]">{female}% F</span>
-    </p>
-  );
 }
 
 function getRelativeTimeLabel(value: string): string {
@@ -419,6 +370,40 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
         </div>
       </div>
     </article>
+  );
+}
+
+function BusynessBar({ value }: { value: number }) {
+  const percent = clampPercent(value);
+  const state = getBusynessState(percent);
+
+  return (
+    <div className="space-y-1" aria-label={`${state.label}, ${percent}% busy`}>
+      <div className="flex items-center justify-between gap-3 text-[11px] font-bold">
+        <span style={{ color: state.color }}>{state.label}</span>
+        <span className="text-white/35">{percent}%</span>
+      </div>
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]"
+        role="meter"
+        aria-label={`${state.label} busyness`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+      >
+        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: state.color }} />
+      </div>
+    </div>
+  );
+}
+
+function CompactMFSplit({ malePercent, femalePercent }: { malePercent: number; femalePercent: number }) {
+  return (
+    <p className="text-[11px] font-bold text-white/50" aria-label={`${malePercent}% male, ${femalePercent}% female`}>
+      <span className="text-[#4F9DFF]">{malePercent}M</span>
+      <span className="mx-1 text-white/30">·</span>
+      <span className="text-[#F0568C]">{femalePercent}F</span>
+    </p>
   );
 }
 
@@ -482,6 +467,7 @@ function VenueFeedCard({
 }) {
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
+  const busynessState = getBusynessState(busyness);
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
   const reviewCount = venue.totalRatings;
@@ -490,14 +476,12 @@ function VenueFeedCard({
     : `${Math.round(reviewCount).toLocaleString()} review${Math.round(reviewCount) === 1 ? "" : "s"}`;
   const googleRatingLabel = ratingLabel ? `★ ${ratingLabel}${reviewLabel ? ` · ${reviewLabel}` : ""}` : null;
   const hasBusyness = busyness !== null && Number.isFinite(busyness);
-  const busynessState = getBusynessState(busyness);
   const signalConfidenceLabel = hasBusyness ? formatSignalConfidenceLabel(signal) : null;
   const hasMfReading =
     signal?.mfRatio !== null &&
     signal?.mfRatio !== undefined &&
     signal.confidence0To1 > 0.3;
-  const mfRatio = hasMfReading ? signal.mfRatio : null;
-  const hasCrowdReading = hasBusyness || hasMfReading;
+  const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
 
   return (
     <motion.li
@@ -514,71 +498,63 @@ function VenueFeedCard({
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="group relative flex h-full w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] transition-colors hover:border-white/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        className="group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] p-3 transition-colors hover:border-white/[0.16] hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         aria-label={`Open ${venue.name}`}
       >
-        <div className="relative h-full w-[104px] shrink-0 overflow-hidden bg-[linear-gradient(135deg,rgba(17,17,24,1),rgba(28,19,36,0.94)_50%,rgba(6,28,32,0.86))] sm:w-[118px]">
+        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-[#8B6CFF]/20">
           {venue.photoUrl ? (
             <Image
               src={venue.photoUrl}
               alt={venue.name}
-              width={118}
-              height={114}
-              sizes="(max-width: 640px) 104px, 118px"
+              width={56}
+              height={56}
+              sizes="56px"
               loading={index === 0 ? "eager" : "lazy"}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(139,108,255,0.14),transparent_32%),radial-gradient(circle_at_70%_80%,rgba(240,86,140,0.12),transparent_34%)] text-4xl" aria-hidden="true">
-              {getCategoryIcon(venue.category)}
+            <div className="flex h-full w-full items-center justify-center text-xl font-black text-[#8B6CFF]" aria-hidden="true">
+              {getVenueInitial(venue.name)}
             </div>
           )}
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col justify-between px-3.5 py-3">
-          <div className="flex min-w-0 items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate font-display text-[16px] font-semibold leading-tight text-white">
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+          <div className="min-w-0 space-y-1">
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <h2 className="min-w-0 flex-1 truncate text-[16px] font-bold leading-tight text-white">
                 <HighlightText text={venue.name} query={searchQuery} />
               </h2>
+              {googleRatingLabel ? (
+                <span
+                  className="max-w-[6rem] shrink-0 truncate rounded-full border border-white/[0.08] bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[#F4F5F8]"
+                  aria-label={reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`}
+                >
+                  {googleRatingLabel}
+                </span>
+              ) : null}
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <CategoryBadge category={venue.category} />
-              <PriceLevelDisplay priceLevel={venue.priceLevel} />
+            <div className="flex min-w-0 items-center gap-2">
+              <CategoryBadge category={venue.category} className="max-w-[8.5rem] shrink truncate" />
+              <PriceLevelDisplay priceLevel={venue.priceLevel} className="shrink-0" />
             </div>
           </div>
 
-          <div className="mt-2 min-h-[32px]">
-            {hasCrowdReading ? (
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : <NoDataChip />}
-                  <SignalFreshnessLabel signal={signal} />
-                  {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
-                </div>
-                {signalConfidenceLabel ? <p className="text-xs text-gray-400">{signalConfidenceLabel}</p> : null}
-              </div>
-            ) : (
-              <NoDataChip />
-            )}
-          </div>
+          {hasBusyness ? <BusynessBar value={busyness} /> : null}
 
-          <div className="mt-2 flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
             <span className="min-w-0 truncate text-[13px] font-medium text-[#9CA2AE]">
               {distance != null ? `${distance.toFixed(1)} mi · ` : ""}
               {venue.address}
             </span>
-            {googleRatingLabel ? (
-              <span
-                className="max-w-[9.5rem] shrink-0 truncate rounded-full border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-[12px] font-semibold text-[#F4F5F8]"
-                aria-label={reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`}
-              >
-                {googleRatingLabel}
-              </span>
-            ) : null}
+            <div className="flex shrink-0 items-center gap-2">
+              {mfPercents ? <CompactMFSplit malePercent={mfPercents.male} femalePercent={mfPercents.female} /> : null}
+              {busynessState.level ? <SignalFreshnessLabel signal={signal} /> : signalConfidenceLabel ? null : null}
+            </div>
           </div>
+          {signalConfidenceLabel ? <p className="sr-only">{signalConfidenceLabel}</p> : null}
         </div>
       </Link>
     </motion.li>
@@ -587,22 +563,22 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="mb-3 flex h-[114px] w-full animate-pulse overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] last:mb-0">
-      <div className="h-full w-[104px] shrink-0 bg-white/10 sm:w-[118px]" />
-      <div className="flex min-w-0 flex-1 flex-col justify-between px-3.5 py-3">
+    <div className="mb-3 flex h-[114px] w-full animate-pulse items-center gap-3 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] p-3 last:mb-0">
+      <div className="h-14 w-14 shrink-0 rounded-2xl bg-white/10" />
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1 space-y-2">
               <div className="h-4 w-36 rounded bg-white/10" />
-              <div className="h-3 w-24 rounded bg-white/[0.08]" />
+              <div className="h-4 w-24 rounded-full bg-white/[0.08]" />
             </div>
-            <div className="h-6 w-16 rounded-full bg-white/[0.08]" />
+            <div className="h-5 w-14 rounded-full bg-white/[0.08]" />
           </div>
-          <div className="h-7 w-24 rounded-full bg-white/[0.08]" />
+          <div className="h-1.5 w-full rounded-full bg-white/[0.08]" />
         </div>
-        <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3">
+        <div className="flex items-center justify-between gap-3">
           <div className="h-3 w-28 rounded bg-white/[0.08]" />
-          <div className="h-3 w-12 rounded bg-white/[0.08]" />
+          <div className="h-3 w-16 rounded bg-white/[0.08]" />
         </div>
       </div>
     </div>
