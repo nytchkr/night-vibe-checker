@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart } from "lucide-react";
+import { ChevronDown, Heart } from "lucide-react";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
@@ -12,6 +12,8 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
@@ -36,6 +38,84 @@ function formatHoursText(hours: string): string {
 
 function getHoursDay(hours: string): string | null {
   return hours.match(/^([^:]+):/)?.[1]?.trim() ?? null;
+}
+
+function isClosedHours(hoursText: string): boolean {
+  return /\bclosed\b/i.test(hoursText);
+}
+
+function formatShortTime(time: string): string {
+  return time
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/:00\s*/i, " ")
+    .replace(/\b(am|pm)\b/i, (period) => period.toUpperCase());
+}
+
+function parseTimeToMinutes(time: string): number | null {
+  const match = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (!match) return null;
+
+  const hour = Number(match[1]);
+  const minutes = Number(match[2] ?? "0");
+  const period = match[3].toUpperCase();
+  if (hour < 1 || hour > 12 || minutes < 0 || minutes > 59) return null;
+
+  const hour24 = period === "AM"
+    ? hour === 12 ? 0 : hour
+    : hour === 12 ? 12 : hour + 12;
+  return hour24 * 60 + minutes;
+}
+
+function parseHoursRange(hoursText: string): { open: string; close: string; openMinutes: number; closeMinutes: number } | null {
+  if (isClosedHours(hoursText)) return null;
+
+  const [open, close] = hoursText.split(/\s*[–-]\s*/);
+  if (!open || !close) return null;
+
+  const openMinutes = parseTimeToMinutes(open);
+  const closeMinutes = parseTimeToMinutes(close);
+  if (openMinutes == null || closeMinutes == null) return null;
+
+  return { open, close, openMinutes, closeMinutes };
+}
+
+function formatTodayHoursStatus(hoursEntry: string | undefined, previousHoursEntry: string | undefined): string {
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (previousHoursEntry) {
+    const previousRange = parseHoursRange(formatHoursText(previousHoursEntry));
+    if (previousRange && previousRange.closeMinutes <= previousRange.openMinutes && nowMinutes <= previousRange.closeMinutes) {
+      return `Open until ${formatShortTime(previousRange.close)}`;
+    }
+  }
+
+  if (!hoursEntry) return "Closed";
+
+  const hoursText = formatHoursText(hoursEntry);
+  if (isClosedHours(hoursText)) return "Closed";
+
+  const range = parseHoursRange(hoursText);
+  if (!range) return hoursText;
+
+  const closeMinutes = range.closeMinutes <= range.openMinutes
+    ? range.closeMinutes + 24 * 60
+    : range.closeMinutes;
+
+  if (nowMinutes < range.openMinutes) return `Opens at ${formatShortTime(range.open)}`;
+  if (nowMinutes <= closeMinutes) return `Open until ${formatShortTime(range.close)}`;
+  return "Closed";
+}
+
+function formatWeekHours(hoursEntry: string): { day: string; hours: string; closed: boolean } {
+  const day = getHoursDay(hoursEntry) ?? "";
+  const hours = formatHoursText(hoursEntry);
+  return {
+    day: day.slice(0, 3),
+    hours: isClosedHours(hours) ? "Closed" : hours.split(/\s*[–-]\s*/).map(formatShortTime).join(" – "),
+    closed: isClosedHours(hours),
+  };
 }
 
 function CategoryChip({ category }: { category: string }) {
@@ -248,13 +328,14 @@ export function VenuePageClient({
   const hoursSummary = useMemo(() => {
     const openingHours = venue?.openingHours ?? [];
     const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+    const previousDay = WEEKDAYS[(WEEKDAYS.indexOf(today) + WEEKDAYS.length - 1) % WEEKDAYS.length];
     const todayHours = openingHours.find((hours) => getHoursDay(hours) === today);
-    const restOfWeek = openingHours.filter((hours) => getHoursDay(hours) !== today);
+    const previousHours = openingHours.find((hours) => getHoursDay(hours) === previousDay);
 
     return {
       hasHours: openingHours.length > 0,
-      restOfWeek,
-      todayHours: todayHours ? formatHoursText(todayHours) : "Hours not available",
+      todayStatus: formatTodayHoursStatus(todayHours, previousHours),
+      weekHours: openingHours.map(formatWeekHours),
     };
   }, [venue?.openingHours]);
   const mapsHref = useMemo(() => {
@@ -354,6 +435,46 @@ export function VenuePageClient({
           </div>
 
           <div className="mx-auto max-w-lg space-y-6 px-4 py-5">
+            {hoursSummary.hasHours && (
+              <section className="space-y-3" role="region" aria-label="Venue hours">
+                <div>
+                  <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Hours</p>
+                  <p className="mt-1 text-[15px] font-semibold text-white">{hoursSummary.todayStatus}</p>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setHoursExpanded((expanded) => !expanded)}
+                    className="inline-flex items-center gap-1 text-[13px] font-medium text-white/45 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+                    aria-expanded={hoursExpanded}
+                    aria-controls="venue-hours-list"
+                  >
+                    See all hours
+                    <ChevronDown
+                      size={15}
+                      className={`transition-transform ${hoursExpanded ? "rotate-180" : ""}`}
+                      aria-hidden="true"
+                    />
+                  </button>
+                  {hoursExpanded && (
+                    <ul id="venue-hours-list" className="mt-2 space-y-1.5">
+                      {hoursSummary.weekHours.map((hour, index) => (
+                        <li
+                          key={`${hour.day}-${index}`}
+                          className={`grid grid-cols-[2.5rem_1fr] gap-3 text-[13px] ${
+                            hour.closed ? "text-white/30" : "text-white/55"
+                          }`}
+                        >
+                          <span className="font-medium">{hour.day}</span>
+                          <span>{hour.hours}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </section>
+            )}
+
             <section className="space-y-4" role="region" aria-label="Current venue signal">
               <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Right now</p>
               {hasBusynessRead ? (
@@ -408,33 +529,6 @@ export function VenuePageClient({
             </section>
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
-
-            <section className="space-y-3 border-t border-white/[0.06] pt-5" role="region" aria-label="Venue hours">
-              <p className="text-[15px] font-medium text-white">
-                Today · {hoursSummary.todayHours}
-              </p>
-              {hoursSummary.hasHours && hoursSummary.restOfWeek.length > 0 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setHoursExpanded((expanded) => !expanded)}
-                    className="text-[13px] font-medium text-white/45 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
-                    aria-expanded={hoursExpanded}
-                  >
-                    {hoursExpanded ? "Hide hours" : "See all hours"}
-                  </button>
-                  {hoursExpanded && (
-                    <ul className="space-y-1">
-                      {hoursSummary.restOfWeek.map((hour, index) => (
-                        <li key={`${hour}-${index}`} className="text-[13px] text-white/50">
-                          {hour.replace(/\s+-\s+/, " – ")}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </>
-              )}
-            </section>
 
             <a
               href={mapsHref}
