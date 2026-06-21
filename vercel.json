@@ -8,7 +8,7 @@
     },
     {
       "path": "/api/cron/refresh-busyness",
-      "schedule": "0 22 * * *"
+      "schedule": "0 */2 * * *"
     },
     {
       "path": "/api/jobs/discover-zone",

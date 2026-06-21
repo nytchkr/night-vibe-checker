@@ -31,7 +31,8 @@ function getVenueJsonLd(venue: ConsumerVenue) {
 
   return {
     "@context": "https://schema.org",
-    "@type": "NightClub",
+    "@type": "LocalBusiness",
+    additionalType: "https://schema.org/NightClub",
     "@id": url,
     name: venue.name,
     url,
