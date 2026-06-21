@@ -7,10 +7,10 @@ export default function NotFound() {
       <h1 className="font-display mt-4 text-2xl font-black text-white">Page not found</h1>
       <p className="mt-2 text-sm text-white/45">This <span className="font-display">NightVibe</span> page may have moved.</p>
       <Link
-        href="/"
+        href="/map"
         className="mt-8 rounded-full bg-[#8B6CFF] px-6 py-3 text-sm font-black text-[#0A0A0E]"
       >
-        Back home
+        Go to Map
       </Link>
     </main>
   );
