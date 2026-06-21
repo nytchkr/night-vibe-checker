@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
@@ -14,9 +15,13 @@ import { CITIES } from "@/lib/cities";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
-import MapBottomSheet, { CATEGORY_FILTERS } from "@/components/MapBottomSheet";
 import type { MapSheetSnap, VenueCategoryFilter } from "@/components/MapBottomSheet";
 
+const MapBottomSheet = dynamic(() => import("@/components/MapBottomSheet"), {
+  ssr: false,
+  loading: () => null,
+});
+const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {

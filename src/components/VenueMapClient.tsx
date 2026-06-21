@@ -6,7 +6,22 @@ import { hasCompletedOnboarding } from "@/components/OnboardingOverlay";
 import { CITIES, DEFAULT_CITY } from "@/lib/cities";
 import type { City, CityId } from "@/lib/cities";
 
-const VenueMap = dynamic(() => import("@/components/VenueMap"), { ssr: false });
+function MapLoadingSkeleton() {
+  return (
+    <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#0A0A0F]">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 animate-pulse bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.07)_45%,transparent_75%)]"
+      />
+      <p className="relative text-sm font-semibold text-white/30">Loading map...</p>
+    </div>
+  );
+}
+
+const VenueMap = dynamic(() => import("@/components/VenueMap"), {
+  ssr: false,
+  loading: () => <MapLoadingSkeleton />,
+});
 const OnboardingOverlay = dynamic(
   () => import("@/components/OnboardingOverlay").then((mod) => mod.OnboardingOverlay),
   { ssr: false },
