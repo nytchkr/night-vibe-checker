@@ -77,6 +77,7 @@ export type DiscoveredVenue = {
   priceLevel?: 1 | 2 | 3 | 4;
   photoReference?: string;
   photoUrl?: string;
+  photoUrls?: string[];
   openingHours?: string[];
   openNow?: boolean;
 };
