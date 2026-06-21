@@ -78,7 +78,7 @@ function ExploreIcon({ filled }: { filled?: boolean }) {
   );
 }
 
-function MeIcon({ filled }: { filled?: boolean }) {
+function YouIcon({ filled }: { filled?: boolean }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -258,7 +258,7 @@ export function BottomNav() {
         </NavItem>
 
         <NavItem href="/profile" label="You" active={youActive} showBadge={showYouBadge}>
-          <MeIcon filled={youActive} />
+          <YouIcon filled={youActive} />
         </NavItem>
       </div>
     </nav>
