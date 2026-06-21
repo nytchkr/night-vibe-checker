@@ -23,13 +23,7 @@ export function MFBar({ malePercent, sampleSize, source, className }: MFBarProps
   const hasData = malePercent !== null && sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
 
   if (!hasData) {
-    return (
-      <div className={className}>
-        <p className="text-sm text-[#9CA2AE]">
-          No live reads yet — be the first to report
-        </p>
-      </div>
-    );
+    return null;
   }
 
   const male = clampPercent(malePercent);

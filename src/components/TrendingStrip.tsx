@@ -20,6 +20,7 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
   const value = venue.signal?.busyness0To100;
   const state = getBusynessState(value);
   const source = value != null ? venue.signal?.busynessSource : null;
+  const computedAt = value != null ? venue.signal?.computedAt : null;
 
   return (
     <span className="flex flex-wrap items-center gap-1">
@@ -33,7 +34,7 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
       >
         {state.level ? state.label : "No data"}
       </span>
-      <SourceBadge source={source} />
+      <SourceBadge source={source} computedAt={computedAt} />
     </span>
   );
 }

@@ -7,6 +7,7 @@ import type { BusynessSource } from "@/types";
 interface BusynessMeterProps {
   value: number | null;
   source: BusynessSource | null;
+  computedAt?: string | null;
   className?: string;
 }
 
@@ -20,7 +21,7 @@ function getBusynessConfig(value: number) {
   return { label: "Packed", color: "#FF5B6A" };
 }
 
-export function BusynessMeter({ value, source, className }: BusynessMeterProps) {
+export function BusynessMeter({ value, source, computedAt = null, className }: BusynessMeterProps) {
   if (value == null || !Number.isFinite(value)) {
     return (
       <div className={className}>
@@ -41,7 +42,7 @@ export function BusynessMeter({ value, source, className }: BusynessMeterProps) 
         <span className="text-sm font-semibold" style={{ color: config.color }}>
           {config.label}
         </span>
-        <BusynessBadge source={source} />
+        <BusynessBadge source={source} computedAt={computedAt} />
       </div>
       <div
         className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10"

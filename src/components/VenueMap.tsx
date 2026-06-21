@@ -12,6 +12,7 @@ import { Check, ChevronDown, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
+import { getSignalLabel } from "@/lib/signalFreshness";
 import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -80,17 +81,11 @@ type VenuePinStyle = {
   fillColor: string;
   radius: number;
 };
-type VenueBusynessSource = NonNullable<ConsumerVenue["signal"]>["busynessSource"];
-
 function getBusynessColor(pct: number | null): string {
   if (pct == null) return "#4F5567";
   if (pct <= 33) return "#5C6573";
   if (pct <= 66) return "#FFB020";
   return "#FF5B6A";
-}
-
-function isLiveBusynessSource(source: VenueBusynessSource | undefined) {
-  return source === "live" || source === "crowd";
 }
 
 const createBusynessIcon = (pct: number | null, isLive: boolean) => {
@@ -197,7 +192,7 @@ function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | n
   const busyness = venue.signal?.busyness0To100 ?? null;
   const color = getBusynessColor(busyness);
   const size = isSelected ? 18 : 14;
-  const pulse = isLiveBusynessSource(venue.signal?.busynessSource) && busyness !== null && busyness > 33;
+  const pulse = getSignalLabel(venue.signal) === "live" && busyness !== null && busyness > 33;
 
   return L.divIcon({
     html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="background:${color};${pulse ? `box-shadow:0 0 0 4px ${color}33;` : ""}"></span>`,
@@ -941,7 +936,7 @@ export function VenueMap({
           {mapZoom >= 14 && filteredVenues.map((venue) => {
             const pin = getVenuePinStyle(venue);
             const busyness = venue.signal?.busyness0To100 ?? null;
-            const isLive = isLiveBusynessSource(venue.signal?.busynessSource);
+            const isLive = getSignalLabel(venue.signal) === "live";
             const isSelected = selectedVenueId === venue.id;
 
             return (

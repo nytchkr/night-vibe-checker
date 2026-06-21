@@ -18,11 +18,7 @@ export function MFRatioBar({ malePercent, confidence, sampleSize }: MFRatioBarPr
   const hasData = malePercent !== null && sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
 
   if (!hasData) {
-    return (
-      <p className="text-sm text-[#9CA2AE]">
-        No live reads yet — be the first to report
-      </p>
-    );
+    return null;
   }
 
   const femalePercent = 100 - malePercent;

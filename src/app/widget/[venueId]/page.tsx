@@ -54,7 +54,7 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8B6CFF]">Crowd signal</p>
-              <BusynessBadge source={busynessSource} />
+              <BusynessBadge source={busynessSource} computedAt={venue.signal?.computedAt ?? null} />
             </div>
             <h1 className="font-display mt-2 truncate text-[22px] font-black leading-tight text-white">{venue.name}</h1>
             <p className="mt-1 truncate text-xs text-white/45">{venue.address}</p>
