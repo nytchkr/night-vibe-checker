@@ -190,7 +190,7 @@ function LoginContent() {
                 <label htmlFor="login-email" className="sr-only">
                   Email address
                 </label>
-                <input
+                <input aria-label="Email address"
                   id="login-email"
                   type="email"
                   value={email}

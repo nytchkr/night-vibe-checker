@@ -793,14 +793,13 @@ export function ExplorePageClient() {
               <label htmlFor="venue-search" className="sr-only">
                 Search South End venues
               </label>
-              <input
+              <input aria-label="Search venues"
                 id="venue-search"
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search South End..."
                 className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-                aria-label="Search venues"
               />
               <svg
                 xmlns="http://www.w3.org/2000/svg"

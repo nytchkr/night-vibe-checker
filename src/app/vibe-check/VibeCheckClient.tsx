@@ -426,7 +426,7 @@ export default function VibeCheckClient({
               >
                 Search South End venues
               </label>
-              <input
+              <input aria-label="Search South End venues"
                 id="venue-search"
                 type="search"
                 value={venueSearch}

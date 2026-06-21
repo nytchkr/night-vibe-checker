@@ -391,8 +391,7 @@ function ZipRecenterControl() {
 
   return (
     <>
-      <input
-        aria-label="Charlotte zip"
+      <input aria-label="Charlotte zip"
         inputMode="numeric"
         maxLength={5}
         onChange={handleChange}
@@ -500,8 +499,7 @@ function VenueSearchControl({
 
   return (
     <div ref={containerRef} className="absolute left-1/2 top-14 z-[500] w-52 -translate-x-1/2">
-      <input
-        aria-label="Search venues"
+      <input aria-label="Search venues"
         aria-expanded={showDropdown}
         aria-haspopup="listbox"
         onChange={(event) => {

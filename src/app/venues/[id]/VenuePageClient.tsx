@@ -1182,7 +1182,7 @@ export function VenuePageClient({
                       : "border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/[0.06]"
                   }`}
                 >
-                  <input
+                  <input aria-label={reason.label}
                     type="radio"
                     name="venue-report-reason"
                     value={reason.value}

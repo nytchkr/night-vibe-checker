@@ -42,7 +42,7 @@ export default function AdminLoginPage() {
         <label className="mt-6 block text-sm text-white/70" htmlFor="admin-password">
           Password
         </label>
-        <input
+        <input aria-label="Admin password"
           id="admin-password"
           type="password"
           value={password}
