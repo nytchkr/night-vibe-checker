@@ -6,10 +6,8 @@ import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
-import { BusynessMeter } from "@/components/BusynessMeter";
-import { MFBar } from "@/components/MFBar";
 import { TrendingStrip } from "@/components/TrendingStrip";
-import { getBusynessState } from "@/lib/busyness";
+import { BUSYNESS_COLORS, getBusynessState, type BusynessLevel } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -187,11 +185,12 @@ function CategoryFilterPill({
         onSelect();
       }}
       animate={{
-        backgroundColor: active ? "rgba(255,255,255,0.14)" : "rgba(10,10,15,0.8)",
-        borderColor: active ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.1)",
+        backgroundColor: active ? "#8B6CFF" : "rgba(10,10,15,0.8)",
+        borderColor: active ? "#8B6CFF" : "rgba(255,255,255,0.1)",
+        color: active ? "#0A0A0E" : "rgba(255,255,255,0.5)",
       }}
       transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/50 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-white"
+      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
       aria-pressed={active}
       data-active={active}
     >
@@ -290,6 +289,46 @@ function getInitials(name: string): string {
   return initials || "NV";
 }
 
+function clampPercent(value: number): number {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function busynessChipLabel(level: BusynessLevel): string {
+  if (level === "dead") return "Dead";
+  return level[0].toUpperCase() + level.slice(1);
+}
+
+function BusynessChip({ level }: { level: BusynessLevel }) {
+  const color = BUSYNESS_COLORS[level];
+
+  return (
+    <span
+      className="inline-flex min-h-[30px] items-center gap-2 rounded-full border px-3 text-[12px] font-black uppercase tracking-[0.12em]"
+      style={{
+        borderColor: `${color}55`,
+        backgroundColor: `${color}1F`,
+        color,
+      }}
+    >
+      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+      {busynessChipLabel(level)}
+    </span>
+  );
+}
+
+function MFSplitLine({ malePercent }: { malePercent: number }) {
+  const male = clampPercent(malePercent);
+  const female = 100 - male;
+
+  return (
+    <p className="text-[12px] font-semibold text-white/55" aria-label={`${male}% male, ${female}% female`}>
+      <span className="text-[#4F9DFF]">{male}% M</span>
+      <span className="mx-1 text-white/25">/</span>
+      <span className="text-[#F0568C]">{female}% F</span>
+    </p>
+  );
+}
+
 function getRelativeTimeLabel(value: string): string {
   const checkedInMs = new Date(value).getTime();
   if (!Number.isFinite(checkedInMs)) return "now";
@@ -353,16 +392,17 @@ function VenueFeedCard({
   prefersReduced: boolean;
 }) {
   const categoryLabel = getCategoryChipLabel(venue.category);
-  const busyness = venue.signal?.busyness0To100 ?? null;
+  const signal = venue.signal;
+  const busyness = signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
-  const meterSource = venue.signal?.busynessSource ?? null;
-  const mfSource = venue.signal?.sampleSize ? "live" : null;
   const hasBusyness = busyness !== null && Number.isFinite(busyness);
+  const busynessState = getBusynessState(busyness);
   const hasMfReading =
-    venue.signal?.mfRatio !== null &&
-    venue.signal?.mfRatio !== undefined &&
-    (venue.signal?.sampleSize ?? 0) >= 2;
+    signal?.mfRatio !== null &&
+    signal?.mfRatio !== undefined &&
+    signal.confidence0To1 > 0.3;
+  const mfRatio = hasMfReading ? signal.mfRatio : null;
   const hasCrowdReading = hasBusyness || hasMfReading;
 
   return (
@@ -415,25 +455,10 @@ function VenueFeedCard({
 
           <div className="mt-4 space-y-4 rounded-2xl border border-[rgba(255,255,255,0.08)] bg-black/[0.14] p-3.5">
             {hasCrowdReading ? (
-              <>
-                {hasBusyness && (
-                  <BusynessMeter
-                    value={busyness}
-                    source={meterSource}
-                  />
-                )}
-                {hasMfReading ? (
-                  <MFBar
-                    malePercent={venue.signal?.mfRatio ?? null}
-                    sampleSize={venue.signal?.sampleSize ?? 0}
-                    source={mfSource}
-                  />
-                ) : (
-                  <p className="text-[13px] font-medium text-[#646B79]">
-                    No live reads yet — be the first to report
-                  </p>
-                )}
-              </>
+              <div className="space-y-2">
+                {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : null}
+                {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
+              </div>
             ) : (
               <p className="text-[13px] font-medium text-[#646B79]">
                 No live reads yet — be the first to report
@@ -902,9 +927,9 @@ export function ExplorePageClient() {
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
             <div className="text-5xl" aria-hidden="true">🔍</div>
-            <h2 className="font-display mt-4 text-lg font-bold text-white/40">No venues match</h2>
+            <h2 className="font-display mt-4 text-lg font-bold text-white/40">No venues found</h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">
-              Try a different filter or zoom out on the map
+              Try a different search or clear the active filters.
             </p>
             <button
               type="button"
