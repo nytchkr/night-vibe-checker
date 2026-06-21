@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { ChevronDown, Heart, MapPin, Share2, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, Heart, MapPin, Share2, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { MFBar } from "@/components/MFBar";
 import { Toast } from "@/components/Toast";
@@ -779,13 +779,11 @@ export function VenuePageClient({
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
   const galleryPhotoUrls = useMemo(() => {
-    const urls = venue?.photoUrls ?? [];
+    const urls = [venue?.photoUrl, ...(venue?.photoUrls ?? [])].filter((url): url is string => Boolean(url));
     return urls.filter((url, index) => url.length > 0 && urls.indexOf(url) === index);
-  }, [venue?.photoUrls]);
+  }, [venue?.photoUrl, venue?.photoUrls]);
   const hasGallery = galleryPhotoUrls.length > 1;
-  const heroPhotoUrl = hasGallery
-    ? galleryPhotoUrls[Math.min(activePhotoIndex, galleryPhotoUrls.length - 1)]
-    : venue?.photoUrl;
+  const heroPhotoUrl = galleryPhotoUrls[Math.min(activePhotoIndex, galleryPhotoUrls.length - 1)];
   const tipCharactersRemaining = 200 - tipDraft.length;
   const canSubmitTip = tipDraft.trim().length >= 10 && tipDraft.trim().length <= 200 && !tipSubmitting;
   const reportCharactersRemaining = 200 - reportNotes.length;
@@ -803,6 +801,15 @@ export function VenuePageClient({
     const gap = 12;
     const nextIndex = Math.round(strip.scrollLeft / (photoWidth + gap));
     setActivePhotoIndex(Math.max(0, Math.min(galleryPhotoUrls.length - 1, nextIndex)));
+  }
+
+  function goBackToMap() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push("/map");
   }
 
   return (
@@ -826,59 +833,53 @@ export function VenuePageClient({
       {!loading && !error && venue && (
         <>
           <section
-            className="relative w-full overflow-hidden px-4 pb-8 pt-24"
+            className="w-full border-b border-white/[0.06] bg-[#0A0A0E] px-4 pb-6 pt-4"
             role="region"
             aria-label="Venue hero"
-            style={{
-              background: `linear-gradient(155deg, ${getCategoryAccent(venue.category)} 0%, rgba(10,10,15,0.92) 48%, #0A0A0E 100%)`,
-            }}
           >
-            {heroPhotoUrl ? (
-              <>
-                <Image
-                  src={heroPhotoUrl}
-                  alt={venue.name}
-                  fill
-                  sizes="100vw"
-                  priority
-                  placeholder="blur"
-                  blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-                  className="object-cover opacity-25 mix-blend-luminosity"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0E] via-[#0A0A0E]/35 to-black/25" />
-              </>
-            ) : (
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_10%,rgba(255,255,255,0.14),transparent_34%)]" />
-            )}
-
-            <Link
-              href="/map"
-              aria-label="Go back"
-              className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white/80 shadow-lg backdrop-blur transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            <button
+              type="button"
+              onClick={goBackToMap}
+              aria-label="Back to map"
+              className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#0A0A0E]/80 px-3 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={17}
-                height={17}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </Link>
+              <ChevronLeft size={17} strokeWidth={2.5} aria-hidden="true" />
+              Map
+            </button>
 
             <div className="relative mx-auto max-w-lg">
+              <div className="relative h-[240px] max-h-[240px] w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04]">
+                {heroPhotoUrl ? (
+                  <Image
+                    src={heroPhotoUrl}
+                    alt={venue.name}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 512px"
+                    priority
+                    placeholder="blur"
+                    blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
+                    className="object-cover"
+                  />
+                ) : (
+                  <div
+                    className="flex h-full w-full items-center justify-center px-6 text-center"
+                    style={{
+                      background: `linear-gradient(155deg, ${getCategoryAccent(venue.category)}33 0%, rgba(255,255,255,0.05) 48%, rgba(0,0,0,0.25) 100%)`,
+                    }}
+                  >
+                    <span className="text-sm font-black uppercase tracking-[0.16em] text-white/55">
+                      {venue.category.replaceAll("_", " ")}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {hasGallery && (
-                <div className="mb-5" aria-label={`${venue.name} photos`}>
+                <div className="mt-3" aria-label={`${venue.name} photos`}>
                   <div
                     ref={photoStripRef}
                     onScroll={handlePhotoStripScroll}
-                    className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                   >
                     {galleryPhotoUrls.map((photoUrl, index) => (
                       <button
@@ -886,7 +887,7 @@ export function VenuePageClient({
                         type="button"
                         data-gallery-photo
                         onClick={() => setActivePhotoIndex(index)}
-                        className={`h-48 w-80 flex-shrink-0 snap-center overflow-hidden rounded-xl border text-left transition ${
+                        className={`h-16 w-24 flex-shrink-0 snap-start overflow-hidden rounded-xl border text-left transition ${
                           activePhotoIndex === index ? "border-[#8B6CFF]/80" : "border-white/10"
                         }`}
                         aria-label={`Show photo ${index + 1} of ${galleryPhotoUrls.length}`}
@@ -895,12 +896,12 @@ export function VenuePageClient({
                         <Image
                           src={photoUrl}
                           alt={`${venue.name} photo ${index + 1}`}
-                          width={320}
-                          height={192}
-                          sizes="320px"
+                          width={96}
+                          height={64}
+                          sizes="96px"
                           placeholder="blur"
                           blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-                          className="h-48 w-80 object-cover"
+                          className="h-16 w-24 object-cover"
                         />
                       </button>
                     ))}
@@ -917,7 +918,7 @@ export function VenuePageClient({
                   </div>
                 </div>
               )}
-              <div>
+              <div className="pt-5">
                 <CategoryChip category={venue.category} />
                 <h1 className="font-display mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
                 {venue.address && (
