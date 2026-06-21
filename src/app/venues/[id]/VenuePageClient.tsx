@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, ChevronLeft, Clock, Heart, MapPin, Share2, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Heart, MapPin, Share2, Users, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
@@ -916,12 +916,10 @@ export function VenuePageClient({
     const query = venue.address || `${venue.lat},${venue.lng}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
-  const galleryPhotoUrls = useMemo(() => {
-    const urls = venue?.photoUrls ?? [];
-    return urls
-      .filter((url, index): url is string => typeof url === "string" && url.length > 0 && urls.indexOf(url) === index)
-      .slice(0, 3);
-  }, [venue?.photoUrls]);
+  const heroPhotoUrl = useMemo(() => {
+    if (!venue) return null;
+    return venue.photoUrl ?? venue.photoUrls?.find((url): url is string => typeof url === "string" && url.length > 0) ?? null;
+  }, [venue]);
   const reportCharactersRemaining = 200 - reportNotes.length;
   const selectedVibeBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
   const canSubmitVibe = Boolean(selectedVibeBusynessOption && !vibeSubmitting);
@@ -963,44 +961,34 @@ export function VenuePageClient({
 
       {!loading && !error && venue && (
         <>
-          <section
-            className="w-full border-b border-white/[0.06] bg-[#0A0A0E] px-4 pb-6 pt-4"
-            role="region"
-            aria-label="Venue hero"
-          >
-            <button
-              type="button"
-              onClick={goBackToMap}
-              aria-label="Back to map"
-              className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#0A0A0E]/80 px-3 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur-md transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-            >
-              <ChevronLeft size={17} strokeWidth={2.5} aria-hidden="true" />
-              Map
-            </button>
+          <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
+            <div className="sticky top-0 z-30 h-48 max-h-48 w-full overflow-hidden bg-gradient-to-b from-[#1A1A2E] to-[#0A0A0E]">
+              {heroPhotoUrl ? (
+                <Image
+                  src={heroPhotoUrl}
+                  alt={`${venue.name} photo`}
+                  fill
+                  sizes="100vw"
+                  priority
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center" aria-hidden="true">
+                  <span className="font-display text-6xl font-black text-white/35">{initialFor(venue.name)}</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={goBackToMap}
+                aria-label="Go back"
+                className="absolute left-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/40 text-2xl font-black leading-none text-white shadow-lg backdrop-blur transition-colors hover:bg-black/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              >
+                <span aria-hidden="true">&lt;</span>
+              </button>
+            </div>
 
-            <div className="relative mx-auto max-w-lg">
-              <div className="pt-5">
-                {galleryPhotoUrls.length > 0 && (
-                  <div
-                    className="-mx-4 mb-5 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                    aria-label={`${venue.name} photos`}
-                  >
-                    <div className="flex w-max gap-3">
-                      {galleryPhotoUrls.map((photoUrl, index) => (
-                        <Image
-                          key={photoUrl}
-                          src={photoUrl}
-                          alt={`${venue.name} photo ${index + 1}`}
-                          width={300}
-                          height={200}
-                          sizes="300px"
-                          priority={index === 0}
-                          className="h-[200px] w-[300px] flex-shrink-0 rounded-2xl border border-white/[0.08] object-cover"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+            <div className="relative mx-auto max-w-lg px-4 pb-6 pt-5">
+              <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <CategoryBadge category={venue.category} />
                   <PriceLevelDisplay priceLevel={venue.priceLevel} />
