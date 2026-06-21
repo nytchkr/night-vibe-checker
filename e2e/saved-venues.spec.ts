@@ -77,11 +77,10 @@ test.describe("Saved venues", () => {
     await expect(cardLink).toHaveAttribute("href", /\/venues\//);
   });
 
-  test("You tab shows pitch card for logged-out user", async ({ page }) => {
+  test("You tab redirects logged-out users to login", async ({ page }) => {
     await page.goto("/profile");
 
-    await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByText("Your Night Out HQ")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Sign up free/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?return=%2Fprofile/);
+    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
   });
 });

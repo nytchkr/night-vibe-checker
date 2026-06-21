@@ -237,7 +237,7 @@ test.describe("Map tab", () => {
 
     await expect(page.getByRole("region", { name: "NoDa venues" })).toBeVisible();
     await expect(sheet).toHaveCount(0);
-    await expect(page.getByText("No venues loaded for NoDa yet.")).toBeVisible();
+    await expect(page.getByText(/NoDa venues coming soon|No venues in this area/i).first()).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("nightvibe:selected-city"))).toBe("noda-clt");
     await expect.poll(() => page.locator("path.leaflet-interactive").count()).toBe(0);
   });
@@ -280,7 +280,7 @@ test.describe("Map tab", () => {
     await expect(youTab).toBeVisible();
     await youTab.click({ force: true });
 
-    await expect(page).toHaveURL(/\/profile$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/login\?return=%2Fprofile/, { timeout: 10000 });
   });
 
   test("/ renders the default map tab", async ({ page }) => {

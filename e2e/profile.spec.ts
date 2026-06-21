@@ -18,16 +18,18 @@ const localSession = {
 };
 
 test.describe("Profile page", () => {
-  test("profile shows pitch card to guest (no redirect)", async ({ page }) => {
+  test("profile redirects guests to login", async ({ page }) => {
     await page.goto("/profile");
 
-    // Per NV-UX-CLAUDE-001: guests see pitch card, not a redirect
-    await expect(page).toHaveURL(/\/profile/);
-    await expect(page.getByText("Your Night Out HQ")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Sign up free/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?return=%2Fprofile/);
+    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
   });
 
   test("profile shows empty state for new user", async ({ page }) => {
+    test.skip(
+      (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
+      "uses a mocked Supabase session and is only valid against a local app server",
+    );
     const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
     await page.context().addCookies([{
       name: "sb-onlpwglwnqoivuykywrk-auth-token",

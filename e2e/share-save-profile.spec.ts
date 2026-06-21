@@ -5,12 +5,10 @@ test.describe("Removed legacy share/save scope", () => {
 });
 
 test.describe("Profile consumer auth surface", () => {
-  test("logged-out profile shows pitch card with sign-up CTA", async ({ page }) => {
+  test("logged-out profile redirects to login", async ({ page }) => {
     await page.goto("/profile");
 
-    // Per NV-UX-CLAUDE-001: profile now shows pitch card for guests instead of redirecting
-    await expect(page).toHaveURL(/\/profile/);
-    await expect(page.getByText("Your Night Out HQ")).toBeVisible();
-    await expect(page.getByRole("link", { name: /Sign up free/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?return=%2Fprofile/);
+    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
   });
 });

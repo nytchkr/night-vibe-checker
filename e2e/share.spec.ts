@@ -63,7 +63,7 @@ test.describe("Venue detail share", () => {
     await page.goto(`/venues/${venue.id}`);
 
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
-    const shareButton = page.getByRole("button", { name: "Share venue" });
+    const shareButton = page.getByRole("button", { name: "Share" });
     await expect(shareButton).toBeVisible();
 
     await shareButton.dispatchEvent("click");

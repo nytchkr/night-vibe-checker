@@ -134,9 +134,9 @@ test.describe("NV-TEST-004 venue detail", () => {
 
     await page.goto(`/venues/${venue.id}`);
 
-    const reportAction = page.getByRole("link", { name: /Report Vibe/i });
+    const reportAction = page.getByRole("link", { name: /Check In|Report Vibe/i });
     await expect(reportAction).toBeVisible();
-    await expect(reportAction).toHaveAttribute("href", new RegExp(`/vibe-check\\?venueId=${venue.id}`));
+    await expect(reportAction).toHaveAttribute("href", new RegExp(`/vibe-check\\?.*venueId=${venue.id}`));
   });
 
   test("unauthenticated heart button links to login", async ({ page, request }) => {

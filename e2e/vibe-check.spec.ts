@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+function isProductionBaseUrl() {
+  return (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app");
+}
+
 async function addLocalSession(page: Page) {
   const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
   const session = {
@@ -41,6 +45,7 @@ test.describe("Removed legacy AI vibe-check scope", () => {
 
 test.describe("Consumer report form", () => {
   test("renders the current busyness and crowd-feel controls", async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await addLocalSession(page);
     await page.goto("/vibe-check?venueId=place-e2e&venueName=The%20Midnight%20Lounge");
 
@@ -65,6 +70,7 @@ test.describe("Consumer report form", () => {
   });
 
   test("authenticated /vibe-check without venueId shows venue selector", async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await addLocalSession(page);
     await page.goto("/vibe-check");
 

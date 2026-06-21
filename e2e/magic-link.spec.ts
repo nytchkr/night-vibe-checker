@@ -1,5 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
+function isProductionBaseUrl() {
+  return (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app");
+}
+
 async function addLocalSession(page: Page) {
   const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
   const session = {
@@ -68,6 +72,7 @@ test.describe("Magic-link login flow", () => {
   });
 
   test("redirects authenticated users from login to the return URL", async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await addLocalSession(page);
 
     await page.goto("/login?return=/profile");
@@ -76,6 +81,7 @@ test.describe("Magic-link login flow", () => {
   });
 
   test("uses the stored return URL when the callback return parameter is missing", async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await page.goto("/");
     await page.evaluate(() => {
       window.sessionStorage.setItem("nightvibe.postAuthReturnUrl", "/vibe-check?venueId=venue-123");

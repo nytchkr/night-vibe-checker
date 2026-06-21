@@ -6,6 +6,10 @@ const meta = {
   requestId: "e2e-check-ins",
 };
 
+function isProductionBaseUrl() {
+  return (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app");
+}
+
 const feedVenue = {
   id: "venue-feed-1",
   name: "Feed Test Club",
@@ -110,6 +114,7 @@ test.describe("VibeCheck consumer check-in flow", () => {
   });
 
   test("submits a logged-in report to /api/check-ins with busyness and crowd feel", async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await addLocalSession(page);
 
     let checkInPayload: Record<string, unknown> | null = null;
@@ -158,6 +163,7 @@ test.describe("VibeCheck consumer check-in flow", () => {
   });
 
   test("shows an error state when check-in submission fails", async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await addLocalSession(page);
     await page.route("**/api/check-ins", (route) =>
       route.fulfill({
@@ -187,6 +193,7 @@ test.describe("VibeCheck consumer check-in flow", () => {
   });
 
   test("renders authenticated profile report history from /api/check-ins/me", async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await addLocalSession(page);
 
     await page.route("**/api/check-ins/me", (route) => {
