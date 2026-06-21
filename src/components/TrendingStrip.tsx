@@ -64,6 +64,19 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
+function TrendingSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-x-hidden" aria-hidden="true">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="h-[100px] w-[80px] shrink-0 rounded-xl bg-white/[0.04] animate-pulse"
+        />
+      ))}
+    </div>
+  );
+}
+
 export function TrendingStrip() {
   const [venues, setVenues] = useState<ConsumerVenue[] | null>(null);
 
@@ -87,32 +100,26 @@ export function TrendingStrip() {
     };
   }, []);
 
+  if (venues !== null && venues.length === 0) {
+    return null;
+  }
+
+  if (venues === null) {
+    return (
+      <section className="space-y-3" aria-label="Trending Tonight loading">
+        <TrendingSkeleton />
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-3" aria-label="Trending Tonight">
       <h2 className="text-sm font-black text-white">🔥 Trending Tonight</h2>
-      {venues === null ? (
-        <div className="flex gap-3 overflow-x-hidden">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="flex h-24 w-[210px] shrink-0 rounded-xl bg-white/[0.04] p-2">
-              <div className="h-20 w-20 animate-pulse rounded-lg bg-white/[0.06]" />
-              <div className="ml-3 flex flex-1 flex-col justify-between py-1">
-                <div className="h-4 w-24 animate-pulse rounded bg-white/10" />
-                <div className="h-5 w-16 animate-pulse rounded-full bg-white/[0.08]" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : venues.length === 0 ? (
-        <div className="rounded-xl bg-white/[0.04] p-4 text-sm font-semibold text-white/55">
-          No trending data yet
-        </div>
-      ) : (
-        <div className="flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {venues.map((venue) => (
-            <TrendingCard key={venue.id} venue={venue} />
-          ))}
-        </div>
-      )}
+      <div className="flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {venues.map((venue) => (
+          <TrendingCard key={venue.id} venue={venue} />
+        ))}
+      </div>
     </section>
   );
 }

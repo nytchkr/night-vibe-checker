@@ -181,6 +181,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const venues = (venuesData ?? [])
     .map((row) => ({ venue: mapVenue(row), checkinCount: checkinCounts.get(row.id as string) ?? 0 }))
+    .filter(({ checkinCount }) => checkinCount > 0)
     .sort((a, b) => b.checkinCount - a.checkinCount || a.venue.name.localeCompare(b.venue.name))
     .slice(0, TRENDING_LIMIT)
     .map(({ venue }) => venue);

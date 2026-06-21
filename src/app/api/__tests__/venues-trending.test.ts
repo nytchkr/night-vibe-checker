@@ -75,9 +75,23 @@ describe("GET /api/venues/trending", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=120, stale-while-revalidate=300");
     expect(json.status).toBe("success");
-    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-b", "venue-a", "venue-c"]);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-b", "venue-a"]);
     expect(mockFrom).toHaveBeenNthCalledWith(1, "venues");
     expect(mockFrom).toHaveBeenNthCalledWith(2, "check_ins");
+  });
+
+  it("returns an empty list when there are no recent check-ins", async () => {
+    mockFrom
+      .mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha"), venue("venue-b", "Beta")] }))
+      .mockReturnValueOnce(chain({ data: [] }));
+
+    const { GET } = await import("../venues/trending/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.status).toBe("success");
+    expect(json.data.venues).toEqual([]);
   });
 
   it("returns DB_ERROR when recent check-ins cannot be loaded", async () => {
