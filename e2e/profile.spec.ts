@@ -27,7 +27,7 @@ test.describe("Profile page", () => {
     await expect(page.getByRole("link", { name: /Sign up free/i })).toBeVisible();
   });
 
-  test("profile shows Your Vibes section empty state for new user", async ({ page }) => {
+  test("profile shows empty state for new user", async ({ page }) => {
     const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
     await page.context().addCookies([{
       name: "sb-onlpwglwnqoivuykywrk-auth-token",
@@ -99,7 +99,7 @@ test.describe("Profile page", () => {
 
     await page.goto("/profile");
 
-    await expect(page.getByRole("heading", { name: "Your Vibes" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Your first night awaits" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Nothing here yet" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Explore Now" })).toBeVisible();
   });
 });
