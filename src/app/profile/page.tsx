@@ -15,6 +15,7 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
+type ProfileGender = "male" | "female" | "undisclosed";
 
 type CheckInItem = {
   id: string;
@@ -38,6 +39,7 @@ type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
 };
 
 type VenuesResponse = APIResponse<{ venues: ConsumerVenue[] }>;
+type ProfileGenderResponse = { gender: ProfileGender | null };
 
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
 const WELCOME_DISMISSED_KEY = "nightvibe.welcomeDismissed";
@@ -48,6 +50,12 @@ const CROWD_FEEL_LABELS: Record<CrowdFeel, string> = {
   balanced: "Balanced",
   mixed: "Mixed",
 };
+
+const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
+  { value: "male", label: "Man" },
+  { value: "female", label: "Woman" },
+  { value: "undisclosed", label: "Rather not say" },
+];
 
 function getVenueName(row: CheckInRecord): string {
   const venue = Array.isArray(row.venues) ? row.venues[0] : row.venues;
@@ -227,6 +235,63 @@ function WelcomeCard({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+function VibeIdentitySection({
+  gender,
+  loading,
+  saving,
+  error,
+  onSelect,
+}: {
+  gender: ProfileGender | null;
+  loading: boolean;
+  saving: ProfileGender | null;
+  error: string;
+  onSelect: (gender: ProfileGender) => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Your vibe identity">
+      <div>
+        <h2 className="font-display text-xl font-black text-white">Your vibe identity</h2>
+        {!loading && !gender && (
+          <p className="mt-1 text-sm font-semibold leading-6 text-white/45">
+            Tell us so vibe ratios reflect real people.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {GENDER_OPTIONS.map((option) => {
+          const selected = gender === option.value;
+          const isSaving = saving === option.value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => onSelect(option.value)}
+              disabled={loading || Boolean(saving)}
+              className={`min-h-[44px] rounded-full border px-2 text-sm font-black transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                selected
+                  ? "border-[#8B6CFF] bg-[#8B6CFF] text-white"
+                  : "border-white/15 bg-transparent text-white/55 hover:border-white/25 hover:text-white/75"
+              }`}
+              aria-pressed={selected}
+            >
+              {isSaving ? "Saving" : option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {error && (
+        <p className="mt-3 rounded-xl border border-[#F0568C]/25 bg-[#F0568C]/10 p-3 text-sm font-semibold text-[#F0568C]">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function CheckInsSection({
   checkIns,
   count,
@@ -396,6 +461,10 @@ function ProfileContent() {
   const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
   const [savedVenuesError, setSavedVenuesError] = useState("");
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
+  const [gender, setGender] = useState<ProfileGender | null>(null);
+  const [genderLoading, setGenderLoading] = useState(false);
+  const [genderSaving, setGenderSaving] = useState<ProfileGender | null>(null);
+  const [genderError, setGenderError] = useState("");
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -408,6 +477,7 @@ function ProfileContent() {
       if (activeSession?.user.id) {
         void fetchCheckIns(activeSession.user.id);
         void fetchSavedVenues(activeSession);
+        void fetchGender(activeSession);
       } else {
         setCheckIns([]);
         setCheckInCount(0);
@@ -415,6 +485,8 @@ function ProfileContent() {
         setSavedVenueIds([]);
         setSavedVenuesError("");
         setVenues([]);
+        setGender(null);
+        setGenderError("");
       }
     }
 
@@ -528,6 +600,60 @@ function ProfileContent() {
     }
   }
 
+  async function fetchGender(activeSession: Session) {
+    setGenderLoading(true);
+    setGenderError("");
+
+    try {
+      const res = await fetch("/api/profile/gender", {
+        headers: { Authorization: `Bearer ${activeSession.access_token}` },
+      });
+
+      if (!res.ok) {
+        setGender(null);
+        setGenderError("Could not load your vibe identity right now.");
+        return;
+      }
+
+      const json = (await res.json()) as ProfileGenderResponse;
+      setGender(json.gender ?? null);
+    } catch {
+      setGender(null);
+      setGenderError("Could not load your vibe identity right now.");
+    } finally {
+      setGenderLoading(false);
+    }
+  }
+
+  async function handleGenderSelect(nextGender: ProfileGender) {
+    if (!session) return;
+
+    setGenderSaving(nextGender);
+    setGenderError("");
+
+    try {
+      const res = await fetch("/api/profile/gender", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gender: nextGender }),
+      });
+
+      if (!res.ok) {
+        setGenderError("Could not save your vibe identity right now.");
+        return;
+      }
+
+      setGender(nextGender);
+    } catch {
+      setGenderError("Could not save your vibe identity right now.");
+    } finally {
+      setGenderSaving(null);
+    }
+  }
+
   async function handleSignOut() {
     const client = createBrowserClient();
     await client.auth.signOut();
@@ -562,6 +688,13 @@ function ProfileContent() {
             <div className="space-y-5">
               {showWelcome && <WelcomeCard onDismiss={handleDismissWelcome} />}
               <AccountCard email={userEmail} />
+              <VibeIdentitySection
+                gender={gender}
+                loading={genderLoading}
+                saving={genderSaving}
+                error={genderError}
+                onSelect={(nextGender) => void handleGenderSelect(nextGender)}
+              />
               <CheckInsSection
                 checkIns={checkIns}
                 count={checkInCount}
