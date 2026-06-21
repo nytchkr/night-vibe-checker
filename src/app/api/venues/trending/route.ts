@@ -1,15 +1,15 @@
 // ============================================================
 // GET /api/venues/trending
-// Top visible venues by check-ins over the last 3 hours.
+// Top visible launch-zone venues by current busyness signal.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { v4 as uuidv4 } from "uuid";
+import { LAUNCH_ZONE } from "@/lib/launchZone";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
-const TRENDING_WINDOW_HOURS = 3;
 const TRENDING_LIMIT = 5;
 
 const VENUE_SELECT = `
@@ -128,12 +128,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const cutoff = new Date(Date.now() - TRENDING_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-
   const primaryResult = await supabaseAdmin
     .from("venues")
     .select(VENUE_SELECT)
-    .eq("hidden", false);
+    .eq("hidden", false)
+    .eq("zone_id", LAUNCH_ZONE.id);
   let venuesData = primaryResult.data as Record<string, unknown>[] | null;
   let venuesError = primaryResult.error;
 
@@ -141,7 +140,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const legacyResult = await supabaseAdmin
       .from("venues")
       .select(VENUE_SELECT_LEGACY)
-      .eq("hidden", false);
+      .eq("hidden", false)
+      .eq("zone_id", LAUNCH_ZONE.id);
     venuesData = legacyResult.data as Record<string, unknown>[] | null;
     venuesError = legacyResult.error;
   }
@@ -157,35 +157,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { data: checkInsData, error: checkInsError } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, venue_id")
-    .gte("created_at", cutoff);
-
-  if (checkInsError) {
-    return NextResponse.json<APIResponse<never>>(
-      {
-        status: "error",
-        error: { code: "DB_ERROR", message: "Could not load trending check-ins." },
-        meta: { cached: true, generatedAt, requestId },
-      },
-      { status: 500, headers }
-    );
-  }
-
-  const checkinCounts = new Map<string, number>();
-  for (const checkIn of (checkInsData ?? []) as Record<string, unknown>[]) {
-    const venueId = checkIn.venue_id as string | undefined;
-    if (!venueId) continue;
-    checkinCounts.set(venueId, (checkinCounts.get(venueId) ?? 0) + 1);
-  }
-
   const venues = (venuesData ?? [])
-    .map((row) => ({ venue: mapVenue(row), checkinCount: checkinCounts.get(row.id as string) ?? 0 }))
-    .filter(({ checkinCount }) => checkinCount > 0)
-    .sort((a, b) => b.checkinCount - a.checkinCount || a.venue.name.localeCompare(b.venue.name))
+    .map(mapVenue)
+    .filter((venue) => venue.signal?.busyness0To100 != null)
+    .sort((a, b) => {
+      const aBusyness = a.signal?.busyness0To100 ?? -1;
+      const bBusyness = b.signal?.busyness0To100 ?? -1;
+      return bBusyness - aBusyness || a.name.localeCompare(b.name);
+    })
     .slice(0, TRENDING_LIMIT)
-    .map(({ venue }) => venue);
 
   return NextResponse.json<APIResponse<{ venues: ConsumerVenue[] }>>(
     {

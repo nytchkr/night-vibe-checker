@@ -847,6 +847,10 @@ export function ExplorePageClient() {
           </h1>
           <p className="mt-1 text-sm text-white/40">{venuesCount} spots tracked tonight</p>
 
+          <div className="mt-5">
+            <TrendingStrip />
+          </div>
+
           <div className="mt-5 space-y-3">
             <div className="relative">
               <label htmlFor="venue-search" className="sr-only">
@@ -958,8 +962,6 @@ export function ExplorePageClient() {
       </div>
 
       <section className="mx-auto max-w-lg space-y-3 px-4 pb-6" role="region" aria-label="Venue results">
-        <TrendingStrip />
-
         {error && (
           <div
             role="alert"

@@ -59,6 +59,34 @@ const venues = [
   },
 ];
 
+const trendingVenues = [
+  {
+    id: "trending-hot-1",
+    placeId: "place-trending-hot-1",
+    zoneId: "south-end",
+    name: "Neon Social",
+    address: "303 Trend Ave",
+    lat: 35.213,
+    lng: -80.862,
+    category: "bar",
+    photoUrl: null,
+    openNow: true,
+    hidden: false,
+    signal: {
+      venueId: "trending-hot-1",
+      placeId: "place-trending-hot-1",
+      busyness0To100: 88,
+      busynessSource: "live",
+      mfRatio: null,
+      confidence0To1: 0.82,
+      sampleSize: 16,
+      computedAt: generatedAt,
+      updatedAt: generatedAt,
+      lastBusynessRefresh: generatedAt,
+    },
+  },
+];
+
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("nv_onboarded", "1");
@@ -70,7 +98,23 @@ async function mockVenues(page: Page) {
     const request = route.request();
     const url = new URL(request.url());
 
-    if (request.method() !== "GET" || url.pathname !== "/api/venues") {
+    if (request.method() !== "GET") {
+      return route.continue();
+    }
+
+    if (url.pathname === "/api/venues/trending") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "success",
+          data: { venues: trendingVenues },
+          meta,
+        }),
+      });
+    }
+
+    if (url.pathname !== "/api/venues") {
       return route.continue();
     }
 
@@ -102,6 +146,24 @@ test.describe("Explore tab", () => {
     await page.waitForLoadState("domcontentloaded");
     await expect(page.getByRole("heading", { name: "South End" })).toBeVisible({ timeout: 10000 });
     await expect(page.getByPlaceholder(/Search South End/)).toBeVisible({ timeout: 10000 });
+  });
+
+  test("shows Trending Now above search and links to venue detail", async ({ page }) => {
+    await page.goto("/explore");
+
+    const trending = page.getByRole("region", { name: "Trending Now" });
+    await expect(trending).toBeVisible();
+    await expect.poll(async () => {
+      const trendingBox = await trending.boundingBox();
+      const searchBox = await page.locator("#venue-search").boundingBox();
+      return trendingBox != null && searchBox != null && trendingBox.y < searchBox.y;
+    }).toBe(true);
+    await expect(trending.getByText("Neon Social")).toBeVisible();
+    await expect(trending.getByText("88%")).toBeVisible();
+
+    await trending.getByRole("link", { name: "Open Neon Social" }).click();
+
+    await expect(page).toHaveURL(/\/venues\/trending-hot-1$/);
   });
 
   test("search bar filters venue list", async ({ page }) => {

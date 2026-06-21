@@ -15,7 +15,6 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
   const builder = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
     then: promise.then.bind(promise),
     catch: promise.catch.bind(promise),
   };
@@ -57,16 +56,19 @@ beforeEach(() => {
 });
 
 describe("GET /api/venues/trending", () => {
-  it("returns visible venues sorted by recent check-in count with public cache headers", async () => {
-    mockFrom
-      .mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha", 20), venue("venue-b", "Beta", 80), venue("venue-c", "Charlie", 50)] }))
-      .mockReturnValueOnce(chain({
-        data: [
-          { id: "check-1", venue_id: "venue-a" },
-          { id: "check-2", venue_id: "venue-b" },
-          { id: "check-3", venue_id: "venue-b" },
-        ],
-      }));
+  it("returns the top 5 visible launch-zone venues sorted by busyness descending with public cache headers", async () => {
+    const query = chain({
+      data: [
+        venue("venue-a", "Alpha", 20),
+        venue("venue-b", "Beta", 80),
+        venue("venue-c", "Charlie", 50),
+        venue("venue-d", "Delta", 96),
+        venue("venue-e", "Echo", null),
+        venue("venue-f", "Foxtrot", 70),
+        venue("venue-g", "Gamma", 88),
+      ],
+    });
+    mockFrom.mockReturnValueOnce(query);
 
     const { GET } = await import("../venues/trending/route");
     const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
@@ -75,15 +77,20 @@ describe("GET /api/venues/trending", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=120, stale-while-revalidate=300");
     expect(json.status).toBe("success");
-    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-b", "venue-a"]);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
+      "venue-d",
+      "venue-g",
+      "venue-b",
+      "venue-f",
+      "venue-c",
+    ]);
     expect(mockFrom).toHaveBeenNthCalledWith(1, "venues");
-    expect(mockFrom).toHaveBeenNthCalledWith(2, "check_ins");
+    expect(query.eq).toHaveBeenCalledWith("hidden", false);
+    expect(query.eq).toHaveBeenCalledWith("zone_id", "south-end-charlotte");
   });
 
-  it("returns an empty list when there are no recent check-ins", async () => {
-    mockFrom
-      .mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha"), venue("venue-b", "Beta")] }))
-      .mockReturnValueOnce(chain({ data: [] }));
+  it("returns an empty list when there are no busyness signals", async () => {
+    mockFrom.mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha"), venue("venue-b", "Beta")] }));
 
     const { GET } = await import("../venues/trending/route");
     const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
@@ -94,10 +101,8 @@ describe("GET /api/venues/trending", () => {
     expect(json.data.venues).toEqual([]);
   });
 
-  it("returns DB_ERROR when recent check-ins cannot be loaded", async () => {
-    mockFrom
-      .mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha")] }))
-      .mockReturnValueOnce(chain({ error: { message: "check_ins unavailable" } }));
+  it("returns DB_ERROR when venues cannot be loaded", async () => {
+    mockFrom.mockReturnValueOnce(chain({ error: { message: "venues unavailable" } }));
 
     const { GET } = await import("../venues/trending/route");
     const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
