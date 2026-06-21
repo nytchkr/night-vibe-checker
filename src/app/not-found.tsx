@@ -2,15 +2,16 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0E] px-4 text-center">
-      <p className="text-6xl font-black text-[#8B6CFF]">404</p>
-      <h1 className="font-display mt-4 text-2xl font-black text-white">Page not found</h1>
-      <p className="mt-2 text-sm text-white/45">This <span className="font-display">NightVibe</span> page may have moved.</p>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0E] px-6 text-center font-sans text-white">
+      <p className="font-display text-7xl font-black tracking-normal text-[#8B6CFF]">404</p>
+      <p className="mt-5 max-w-sm text-base font-medium leading-7 text-white/70">
+        This venue doesn't exist (yet).
+      </p>
       <Link
         href="/map"
-        className="mt-8 rounded-full bg-[#8B6CFF] px-6 py-3 text-sm font-black text-[#0A0A0E]"
+        className="mt-8 rounded-full border border-[#8B6CFF]/40 bg-[#8B6CFF] px-6 py-3 font-display text-sm font-black text-[#0A0A0E] shadow-[0_0_28px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#F0568C] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
-        Go to Map
+        Back to the map →
       </Link>
     </main>
   );
