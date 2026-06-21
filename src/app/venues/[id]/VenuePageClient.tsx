@@ -49,6 +49,8 @@ type VibeBusynessOption = {
   selectedBorder: string;
 };
 
+type GenderSelfReport = "m" | "f" | null;
+
 const VENUE_REPORT_REASONS: Array<{ value: VenueReportReason; label: string }> = [
   { value: "wrong_hours", label: "Wrong hours" },
   { value: "wrong_location", label: "Wrong location" },
@@ -66,6 +68,12 @@ const VIBE_BUSYNESS_OPTIONS: VibeBusynessOption[] = [
 
 const VIBE_NOTE_MAX_LENGTH = 140;
 const DEFAULT_VIBE_CROWD_FEEL = "mixed";
+
+const GENDER_SELF_REPORT_OPTIONS: Array<{ value: GenderSelfReport; label: string }> = [
+  { value: "m", label: "Man" },
+  { value: "f", label: "Woman" },
+  { value: null, label: "Skip" },
+];
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
@@ -330,9 +338,10 @@ export function VenuePageClient({
   const [vibeReportOpen, setVibeReportOpen] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [loginPromptReason, setLoginPromptReason] = useState<"save" | "report">("report");
-  const [vibeStep, setVibeStep] = useState<1 | 2>(1);
+  const [vibeStep, setVibeStep] = useState<1 | 2 | 3>(1);
   const [vibeBusynessOptionId, setVibeBusynessOptionId] = useState<VibeBusynessOption["id"] | null>(null);
   const [vibeNote, setVibeNote] = useState("");
+  const [vibeGenderSelfReport, setVibeGenderSelfReport] = useState<GenderSelfReport>(null);
   const [vibeSubmitting, setVibeSubmitting] = useState(false);
   const [vibeError, setVibeError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -651,6 +660,7 @@ export function VenuePageClient({
     setVibeStep(1);
     setVibeBusynessOptionId(null);
     setVibeNote("");
+    setVibeGenderSelfReport(null);
     setVibeError(null);
   }
 
@@ -661,7 +671,15 @@ export function VenuePageClient({
     haptic.light();
   }
 
-  async function submitVibeReport(skipNote = false) {
+  function continueFromVibeNote(skipNote = false) {
+    if (vibeSubmitting || !selectedVibeBusynessOption) return;
+    if (skipNote) setVibeNote("");
+    setVibeError(null);
+    setVibeStep(3);
+    haptic.light();
+  }
+
+  async function submitVibeReport(genderSelfReport: GenderSelfReport) {
     const selectedBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
     if (vibeSubmitting || !selectedBusynessOption || !accessToken) return;
 
@@ -670,7 +688,7 @@ export function VenuePageClient({
 
     try {
       const reportVenueId = venue?.id ?? venueId;
-      const trimmedNote = skipNote ? "" : vibeNote.trim();
+      const trimmedNote = vibeNote.trim();
       const res = await fetch("/api/check-ins", {
         method: "POST",
         credentials: "include",
@@ -683,6 +701,7 @@ export function VenuePageClient({
           busyness: selectedBusynessOption.value,
           crowdFeel: DEFAULT_VIBE_CROWD_FEEL,
           note: trimmedNote || undefined,
+          genderSelfReport,
         }),
       });
 
@@ -715,6 +734,7 @@ export function VenuePageClient({
       setVibeStep(1);
       setVibeBusynessOptionId(null);
       setVibeNote("");
+      setVibeGenderSelfReport(null);
       setToast("Check-in recorded! Thanks for the vibe.");
       setCheckInConfirmed(true);
       haptic.success();
@@ -1253,14 +1273,18 @@ export function VenuePageClient({
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 id="vibe-report-title" className="font-display text-lg font-black text-white">
-                  {vibeStep === 1 ? "How busy is it?" : "Add a note"}
+                  {vibeStep === 1
+                    ? "How busy is it?"
+                    : vibeStep === 2
+                      ? "Add a note"
+                      : "Optional crowd mix"}
                 </h2>
                 <p className="mt-1 text-xs font-medium text-white/40">
                   {vibeStep === 1
                     ? "Tap the crowd level you see right now."
-                    : selectedVibeBusynessOption
+                    : vibeStep === 2 && selectedVibeBusynessOption
                       ? `${selectedVibeBusynessOption.label} · ${selectedVibeBusynessOption.score}/100`
-                      : "Optional context for people nearby."}
+                      : "Help us keep the M/F signal grounded in real check-ins."}
                 </p>
               </div>
               <button
@@ -1301,7 +1325,7 @@ export function VenuePageClient({
                 </div>
                 {vibeError && <p className="mt-3 text-sm font-medium text-rose-300">{vibeError}</p>}
               </fieldset>
-            ) : (
+            ) : vibeStep === 2 ? (
               <div className="mt-5 space-y-4">
                 <div className="space-y-2">
                   <label htmlFor="vibe-note" className="text-sm font-black text-white">
@@ -1330,25 +1354,73 @@ export function VenuePageClient({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => submitVibeReport(true)}
+                    onClick={() => continueFromVibeNote(true)}
                     disabled={!canSubmitVibe}
                     className="flex min-h-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {vibeSubmitting ? "Submitting" : "Skip"}
+                    Skip note
                   </button>
                   <button
                     type="button"
-                    onClick={() => submitVibeReport(false)}
+                    onClick={() => continueFromVibeNote(false)}
                     disabled={!canSubmitVibe}
                     className="flex min-h-12 items-center justify-center rounded-2xl bg-[#8B6CFF] px-4 text-sm font-bold text-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
                   >
-                    {vibeSubmitting ? "Submitting" : "Submit"}
+                    Continue
                   </button>
                 </div>
                 <button
                   type="button"
                   onClick={() => {
                     setVibeStep(1);
+                    setVibeError(null);
+                  }}
+                  disabled={vibeSubmitting}
+                  className="w-full rounded-xl py-2 text-xs font-bold text-white/40 transition-colors hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                >
+                  Back
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
+                  <p className="text-sm font-black text-white">
+                    Help us track the crowd mix — what best describes you tonight?
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-white/40">
+                    Optional. Choose Man, Woman, or Skip.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  {GENDER_SELF_REPORT_OPTIONS.map((option) => {
+                    const selected = vibeGenderSelfReport === option.value;
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        onClick={() => {
+                          setVibeGenderSelfReport(option.value);
+                          void submitVibeReport(option.value);
+                        }}
+                        disabled={vibeSubmitting}
+                        aria-pressed={selected}
+                        className={`flex min-h-12 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:opacity-50 ${
+                          selected
+                            ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-white"
+                            : "border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white"
+                        }`}
+                      >
+                        {vibeSubmitting && selected ? "Saving" : option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {vibeError && <p className="text-sm font-medium text-rose-300">{vibeError}</p>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVibeStep(2);
                     setVibeError(null);
                   }}
                   disabled={vibeSubmitting}

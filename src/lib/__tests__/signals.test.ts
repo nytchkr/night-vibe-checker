@@ -7,6 +7,7 @@ function row(
   crowdFeel: "mostly_male" | "mostly_female" | "balanced" | "mixed",
   ageMinutes: number,
   reporterGender: "male" | "female" | null = null,
+  genderSelfReport: "m" | "f" | null = null,
 ) {
   return {
     id: `${crowdFeel}-${ageMinutes}`,
@@ -15,6 +16,7 @@ function row(
     busyness: "moderate" as const,
     crowd_feel: crowdFeel,
     reporter_gender: reporterGender,
+    gender_self_report: genderSelfReport,
     created_at: new Date(NOW - ageMinutes * 60_000).toISOString(),
   };
 }
@@ -55,5 +57,18 @@ describe("computeSignalFromCheckIns", () => {
 
     expect(signal.mfRatio).toBe(50);
     expect(signal.sampleSize).toBe(3);
+  });
+
+  it("uses gender self-report before profile gender for the M/F ratio", () => {
+    const signal = computeSignalFromCheckIns(
+      [
+        row("balanced", 0, "female", "m"),
+        row("balanced", 0, "female", "m"),
+      ],
+      NOW
+    );
+
+    expect(signal.mfRatio).toBe(100);
+    expect(signal.sampleSize).toBe(2);
   });
 });

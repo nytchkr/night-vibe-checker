@@ -14,6 +14,7 @@ type SignalCheckInRow = {
   busyness: ReportedBusyness;
   crowd_feel: CrowdFeel;
   reporter_gender: "male" | "female" | null;
+  gender_self_report?: "m" | "f" | null;
   created_at: string;
 };
 
@@ -25,7 +26,12 @@ function busynessToScore(busyness: ReportedBusyness): number {
   return 50; // moderate
 }
 
-function reporterGenderToMaleValue(reporterGender: SignalCheckInRow["reporter_gender"]): number | null {
+function reporterGenderToMaleValue(
+  reporterGender: SignalCheckInRow["reporter_gender"],
+  genderSelfReport: SignalCheckInRow["gender_self_report"] = null,
+): number | null {
+  if (genderSelfReport === "m") return 100;
+  if (genderSelfReport === "f") return 0;
   if (reporterGender === "male") return 100;
   if (reporterGender === "female") return 0;
   return null;
@@ -52,7 +58,7 @@ export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date
     nEff += w;
     weightedBusyness += busynessToScore(row.busyness) * w;
 
-    const maleValue = reporterGenderToMaleValue(row.reporter_gender);
+    const maleValue = reporterGenderToMaleValue(row.reporter_gender, row.gender_self_report);
     if (maleValue != null) {
       genderNEff += w;
       weightedMaleValue += maleValue * w;
@@ -92,7 +98,7 @@ export async function recomputeVenueSignal(venueId: string) {
   const [{ data: rows, error }, { data: existingSignal, error: signalError }] = await Promise.all([
     supabaseAdmin
       .from("check_ins")
-      .select("id, venue_id, place_id, busyness, crowd_feel, reporter_gender, created_at")
+      .select("id, venue_id, place_id, busyness, crowd_feel, reporter_gender, gender_self_report, created_at")
       .eq("venue_id", venueId)
       .eq("hidden", false)
       .gte("created_at", cutoff)
