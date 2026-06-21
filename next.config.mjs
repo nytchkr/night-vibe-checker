@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // react-leaflet is incompatible with React 18 StrictMode's double-invoke in dev
@@ -34,4 +36,8 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: "nightvibe",
+  project: "nightvibe-web",
+});
