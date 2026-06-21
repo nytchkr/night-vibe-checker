@@ -1,10 +1,11 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { PageTransition } from "@/components/PageTransition";
 import { getMostActiveLeaderboard, type LeaderboardEntry } from "@/lib/leaderboard";
 
-export const metadata = {
-  title: "Leaderboard - NightVibe",
-  description: "Most active nightlife explorers in South End Charlotte",
+export const metadata: Metadata = {
+  title: "Most Active This Week — NightVibe",
+  description: "See who's checking in the most at South End Charlotte bars and clubs.",
 };
 
 export const revalidate = 300;

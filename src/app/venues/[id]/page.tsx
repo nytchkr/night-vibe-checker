@@ -6,9 +6,6 @@ import type { ConsumerVenue } from "@/types";
 import { VenuePageClient } from "./VenuePageClient";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
-const fallbackTitle = "NightVibe — South End Charlotte";
-const fallbackDescription = "See how busy South End bars and clubs are right now. Real-time crowd vibes.";
-const fallbackImage = "/og-image.png";
 
 export const dynamic = "force-dynamic";
 
@@ -17,43 +14,42 @@ type VenuePageProps = {
 };
 
 function getVenueDescription(venue: ConsumerVenue): string {
-  const busyness = venue.signal?.busyness0To100;
-  if (typeof busyness === "number") {
-    return `${venue.name} is currently ${Math.round(busyness)}/100 busy in South End Charlotte. See who's out tonight on NightVibe.`;
-  }
+  const busynessText = getBusynessText(venue);
+  return `${busynessText}. ${venue.address ?? "South End Charlotte"}. Check the vibe before you go.`;
+}
 
-  return `See the live crowd vibe at ${venue.name} in South End Charlotte.`;
+function getBusynessText(venue: ConsumerVenue): string {
+  const busyness = venue.signal?.busyness0To100;
+  return typeof busyness === "number"
+    ? `${Math.round(busyness)}% busy right now`
+    : "Live busyness data";
 }
 
 export async function generateMetadata({ params }: VenuePageProps): Promise<Metadata> {
   const { id } = await params;
   const venue = await getConsumerVenueById(id);
-  const title = venue ? `${venue.name} — NightVibe` : fallbackTitle;
-  const description = venue ? getVenueDescription(venue) : fallbackDescription;
-  const image = venue?.photoUrl ?? fallbackImage;
-  const url = `${siteUrl}/venues/${encodeURIComponent(venue?.id ?? id)}`;
+
+  if (!venue) return { title: "NightVibe" };
+
+  const busynessText = getBusynessText(venue);
+  const title = `${venue.name} — NightVibe`;
 
   return {
     title,
-    description,
+    description: getVenueDescription(venue),
     openGraph: {
-      title,
-      description,
-      url,
-      siteName: "NightVibe",
-      images: [
-        {
-          url: image,
-          alt: title,
-        },
-      ],
+      title: `${venue.name} — Live Vibe Check`,
+      description: busynessText,
+      url: `${siteUrl}/venues/${encodeURIComponent(venue.id)}`,
+      images: venue.photoUrl
+        ? [{ url: venue.photoUrl, width: 1200, height: 630 }]
+        : [],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description,
-      images: [image],
+      description: busynessText,
     },
   };
 }
