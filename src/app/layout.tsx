@@ -7,7 +7,8 @@ import "./globals.css";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
 const title = "NightVibe — South End Charlotte";
-const description = "See how busy South End bars and clubs are right now. Real-time crowd vibes.";
+const description =
+  "See which South End Charlotte bars and clubs are packed right now. Real-time crowd vibes.";
 const ogImage = "/og-image.png";
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
   description,
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
+    icon: "/favicon.ico",
     apple: "/icon-192.png",
   },
   appleWebApp: {
@@ -49,8 +50,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#0a0a0a",
+  themeColor: "#00F5D4",
 };
 
 const isDev = process.env.NEXT_PUBLIC_ENV === "development";
@@ -59,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
         <link rel="preconnect" href="https://a.basemaps.cartocdn.com" />
         <link rel="preconnect" href="https://b.basemaps.cartocdn.com" />
         <link rel="preconnect" href="https://c.basemaps.cartocdn.com" />
