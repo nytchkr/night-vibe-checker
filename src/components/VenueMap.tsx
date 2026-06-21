@@ -94,9 +94,8 @@ function getBusynessColor(pct: number | null): string {
   return "#FF5B6A";
 }
 
-function hasLiveBusynessSource(venue: ConsumerVenue): boolean {
-  const source = venue.signal?.busynessSource;
-  return source === "live" || source === "crowd";
+function hasLivePinPulse(venue: ConsumerVenue): boolean {
+  return venue.signal?.busynessSource === "live";
 }
 
 function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter) {
@@ -161,7 +160,7 @@ function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | n
   const busyness = venue.signal?.busyness0To100 ?? null;
   const color = getBusynessColor(busyness);
   const size = isSelected ? 18 : 14;
-  const pulse = hasLiveBusynessSource(venue);
+  const pulse = hasLivePinPulse(venue);
 
   return L.divIcon({
     html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="background:${color};"></span>`,
@@ -1097,35 +1096,35 @@ export function VenueMap({
         }
 
         .venue-pin-live-dot {
-          box-shadow: 0 0 0 4px rgba(255, 91, 106, 0.24), 0 0 18px rgba(255, 176, 32, 0.34);
+          box-shadow: 0 0 0 3px rgba(255, 91, 106, 0.22), 0 0 14px rgba(255, 176, 32, 0.3);
           display: block;
           position: relative;
         }
 
         .venue-pin-live-dot::after {
           animation: venue-pin-live-source-pulse 1.65s ease-out infinite;
-          border: 2px solid rgba(255, 91, 106, 0.72);
+          border: 2px solid rgba(255, 91, 106, 0.62);
           border-radius: inherit;
-          box-shadow: 0 0 20px rgba(255, 176, 32, 0.42);
+          box-shadow: 0 0 16px rgba(255, 176, 32, 0.34);
           content: "";
-          inset: -7px;
+          inset: -6px;
           position: absolute;
         }
 
         @keyframes venue-pin-live-source-pulse {
           0% {
-            opacity: 0.85;
+            opacity: 0.72;
             transform: scale(0.82);
           }
 
           70% {
             opacity: 0;
-            transform: scale(1.65);
+            transform: scale(1.55);
           }
 
           100% {
             opacity: 0;
-            transform: scale(1.65);
+            transform: scale(1.55);
           }
         }
 

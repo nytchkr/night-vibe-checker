@@ -243,6 +243,13 @@ test.describe("Map tab", () => {
     await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
   });
 
+  test("only live source pins render the pulse ring class", async ({ page }) => {
+    await openMap(page);
+
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
+    await expect(page.locator(".venue-pin-live-dot")).toHaveCount(1);
+  });
+
   test("city selector shows coming-soon neighborhoods without switching away from launch city", async ({ page }) => {
     const sheet = await openMap(page);
 
