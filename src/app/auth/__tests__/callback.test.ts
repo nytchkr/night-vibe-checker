@@ -6,7 +6,7 @@ const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
 
-vi.mock("@supabase/auth-helpers-nextjs", () => ({
+vi.mock("@supabase/ssr", () => ({
   createServerClient: vi.fn(() => ({
     auth: { exchangeCodeForSession: mockExchangeCodeForSession },
   })),
