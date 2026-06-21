@@ -29,7 +29,7 @@ type VenueActivityItem = {
   minutesAgo: number;
 };
 
-type VenueTip = {
+type VenueCrowdNote = {
   id: string;
   venueId: string;
   userId: string | null;
@@ -322,11 +322,8 @@ export function VenuePageClient({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
-  const [tips, setTips] = useState<VenueTip[]>([]);
-  const [tipsLoading, setTipsLoading] = useState(false);
-  const [tipDraft, setTipDraft] = useState("");
-  const [tipSubmitting, setTipSubmitting] = useState(false);
-  const [tipError, setTipError] = useState<string | null>(null);
+  const [crowdNotes, setCrowdNotes] = useState<VenueCrowdNote[]>([]);
+  const [crowdNotesLoading, setCrowdNotesLoading] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<VenueReportReason>("wrong_hours");
   const [reportNotes, setReportNotes] = useState("");
@@ -426,27 +423,27 @@ export function VenuePageClient({
   }, [venue?.id, venueId]);
 
   useEffect(() => {
-    const tipsVenueId = venue?.id ?? venueId;
-    if (!tipsVenueId) return;
+    const notesVenueId = venue?.id ?? venueId;
+    if (!notesVenueId) return;
 
     let cancelled = false;
-    setTipsLoading(true);
+    setCrowdNotesLoading(true);
 
-    async function fetchTips() {
+    async function fetchCrowdNotes() {
       try {
-        const res = await fetch(`/api/venues/${encodeURIComponent(tipsVenueId)}/tips`);
+        const res = await fetch(`/api/venues/${encodeURIComponent(notesVenueId)}/tips`);
         if (!res.ok) throw new Error(`${res.status}`);
         const json = await res.json();
-        const nextTips = json?.data?.tips;
-        if (!cancelled) setTips(Array.isArray(nextTips) ? nextTips : []);
+        const nextNotes = json?.data?.tips;
+        if (!cancelled) setCrowdNotes(Array.isArray(nextNotes) ? nextNotes.slice(0, 3) : []);
       } catch {
-        if (!cancelled) setTips([]);
+        if (!cancelled) setCrowdNotes([]);
       } finally {
-        if (!cancelled) setTipsLoading(false);
+        if (!cancelled) setCrowdNotesLoading(false);
       }
     }
 
-    void fetchTips();
+    void fetchCrowdNotes();
     return () => {
       cancelled = true;
     };
@@ -598,46 +595,6 @@ export function VenuePageClient({
     }
   }
 
-  async function submitTip() {
-    if (tipSubmitting) return;
-
-    if (!accessToken) {
-      router.push(`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`);
-      return;
-    }
-
-    const tip = tipDraft.trim();
-    if (tip.length < 10 || tip.length > 200) {
-      setTipError("Tips must be 10 to 200 characters.");
-      return;
-    }
-
-    setTipSubmitting(true);
-    setTipError(null);
-
-    try {
-      const res = await fetch(`/api/venues/${encodeURIComponent(venue?.id ?? venueId)}/tips`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ tip }),
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const json = await res.json();
-      const savedTip = json?.data?.tip;
-      if (savedTip) {
-        setTips((current) => [savedTip as VenueTip, ...current].slice(0, 10));
-        setTipDraft("");
-      }
-    } catch {
-      setTipError("Could not share that tip. Try again.");
-    } finally {
-      setTipSubmitting(false);
-    }
-  }
-
   async function submitVenueReport() {
     if (reportSubmitting) return;
 
@@ -711,6 +668,21 @@ export function VenuePageClient({
         const json = await res.json().catch(() => ({}));
         throw new Error(json?.error?.message ?? "Could not submit vibe.");
       }
+      const json = await res.json();
+      const savedCheckIn = json?.data?.checkIn;
+      if (savedCheckIn?.note && savedCheckIn?.createdAt && savedCheckIn?.id) {
+        setCrowdNotes((current) => [
+          {
+            id: savedCheckIn.id,
+            venueId: savedCheckIn.venueId,
+            userId: null,
+            tip: savedCheckIn.note,
+            helpfulCount: 0,
+            createdAt: savedCheckIn.createdAt,
+          },
+          ...current,
+        ].slice(0, 3));
+      }
 
       setVibeReportOpen(false);
       setVibeBusyness(null);
@@ -735,26 +707,6 @@ export function VenuePageClient({
       haptic.error();
     } finally {
       setVibeSubmitting(false);
-    }
-  }
-
-  async function markTipHelpful(tipId: string) {
-    haptic.light();
-    const previousTips = tips;
-    setTips((current) =>
-      current.map((tip) => tip.id === tipId ? { ...tip, helpfulCount: tip.helpfulCount + 1 } : tip),
-    );
-
-    try {
-      const res = await fetch(`/api/tips/${encodeURIComponent(tipId)}/helpful`, { method: "POST" });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const json = await res.json();
-      const helpfulCount = json?.data?.tip?.helpfulCount;
-      if (typeof helpfulCount === "number") {
-        setTips((current) => current.map((tip) => tip.id === tipId ? { ...tip, helpfulCount } : tip));
-      }
-    } catch {
-      setTips(previousTips);
     }
   }
 
@@ -805,8 +757,6 @@ export function VenuePageClient({
   }, [venue?.photoUrl, venue?.photoUrls]);
   const hasGallery = galleryPhotoUrls.length > 1;
   const heroPhotoUrl = galleryPhotoUrls[Math.min(activePhotoIndex, galleryPhotoUrls.length - 1)];
-  const tipCharactersRemaining = 200 - tipDraft.length;
-  const canSubmitTip = tipDraft.trim().length >= 10 && tipDraft.trim().length <= 200 && !tipSubmitting;
   const reportCharactersRemaining = 200 - reportNotes.length;
   const canSubmitVibe = Boolean(vibeBusyness && vibeCrowdFeel && !vibeSubmitting);
 
@@ -1072,65 +1022,29 @@ export function VenuePageClient({
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
 
-            <section className="space-y-4" role="region" aria-label="Tips from locals">
-              <h2 className="font-display text-lg font-bold text-white">💡 Tips from locals</h2>
+            {(crowdNotesLoading || crowdNotes.length > 0) && (
+              <section className="space-y-4" role="region" aria-label="Recent crowd notes">
+                <h2 className="font-display text-lg font-bold text-white">Recent crowd notes</h2>
 
-              {tipsLoading ? (
-                <div className="space-y-3" role="status" aria-label="Loading tips">
-                  <Skeleton className="h-16 rounded-2xl bg-white/10" />
-                  <Skeleton className="h-16 rounded-2xl bg-white/10" />
-                </div>
-              ) : tips.length > 0 ? (
-                <ul className="space-y-3">
-                  {tips.map((tip) => (
-                    <li key={tip.id} className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
-                      <p className="text-sm leading-relaxed text-white/75">{tip.tip}</p>
-                      <button
-                        type="button"
-                        onClick={() => markTipHelpful(tip.id)}
-                        className="mt-3 text-xs font-bold text-[#8B6CFF] transition-colors hover:text-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-                      >
-                        {tip.helpfulCount} found this helpful
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm text-white/35">
-                  Be the first to leave a tip!
-                </p>
-              )}
-
-              <div className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
-                <label htmlFor="venue-tip" className="text-sm font-black text-white">Add a tip</label>
-                <textarea
-                  id="venue-tip"
-                  value={tipDraft}
-                  onChange={(event) => {
-                    setTipDraft(event.target.value.slice(0, 200));
-                    if (tipError) setTipError(null);
-                  }}
-                  maxLength={200}
-                  rows={3}
-                  placeholder="Share the best time to go, where to stand, or what to order."
-                  className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
-                />
-                <div className="flex items-center justify-between gap-3">
-                  <span className={`text-xs ${tipCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
-                    {tipCharactersRemaining} characters remaining
-                  </span>
-                  <button
-                    type="button"
-                    onClick={submitTip}
-                    disabled={!canSubmitTip}
-                    className="rounded-xl bg-[#8B6CFF] px-4 py-2 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
-                  >
-                    {tipSubmitting ? "Sharing" : "Share"}
-                  </button>
-                </div>
-                {tipError && <p className="text-xs font-medium text-rose-300">{tipError}</p>}
-              </div>
-            </section>
+                {crowdNotesLoading ? (
+                  <div className="space-y-3" role="status" aria-label="Loading crowd notes">
+                    <Skeleton className="h-20 rounded-2xl bg-white/10" />
+                    <Skeleton className="h-20 rounded-2xl bg-white/10" />
+                  </div>
+                ) : (
+                  <ul className="space-y-3">
+                    {crowdNotes.map((note) => (
+                      <li key={note.id} className="rounded-2xl border border-white/[0.08] bg-[#12121A] p-4 shadow-lg shadow-black/20">
+                        <blockquote className="text-sm leading-relaxed text-white">
+                          &ldquo;{note.tip}&rdquo;
+                        </blockquote>
+                        <p className="mt-3 text-xs font-semibold text-white/40">{timeAgo(note.createdAt)}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
 
             <div
               className={`grid gap-3 ${canNativeShare ? "grid-cols-2" : "grid-cols-1"}`}

@@ -55,6 +55,8 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
     select: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
@@ -73,16 +75,15 @@ beforeEach(() => {
 });
 
 describe("GET /api/venues/[id]/tips", () => {
-  it("returns the last 10 tips ordered by helpful count then recency", async () => {
+  it("returns the 3 most recent visible check-in notes", async () => {
     const venueChain = chain({ data: { id: "venue-uuid", hidden: false } });
     const tipsChain = chain({
       data: [
         {
-          id: "tip-1",
+          id: "check-in-1",
           venue_id: "venue-uuid",
           user_id: "user-1",
-          tip: "Sit near the back patio after 10.",
-          helpful_count: 4,
+          note: "Sit near the back patio after 10.",
           created_at: "2026-06-21T00:00:00.000Z",
         },
       ],
@@ -93,17 +94,19 @@ describe("GET /api/venues/[id]/tips", () => {
     const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
 
     expect(res.status).toBe(200);
-    expect(tipsChain.order).toHaveBeenNthCalledWith(1, "helpful_count", { ascending: false });
-    expect(tipsChain.order).toHaveBeenNthCalledWith(2, "created_at", { ascending: false });
-    expect(tipsChain.limit).toHaveBeenCalledWith(10);
+    expect(tipsChain.eq).toHaveBeenCalledWith("hidden", false);
+    expect(tipsChain.not).toHaveBeenCalledWith("note", "is", null);
+    expect(tipsChain.neq).toHaveBeenCalledWith("note", "");
+    expect(tipsChain.order).toHaveBeenCalledWith("created_at", { ascending: false });
+    expect(tipsChain.limit).toHaveBeenCalledWith(3);
     const json = await res.json();
     expect(json.data.tips).toEqual([
       {
-        id: "tip-1",
+        id: "check-in-1",
         venueId: "venue-uuid",
         userId: "user-1",
         tip: "Sit near the back patio after 10.",
-        helpfulCount: 4,
+        helpfulCount: 0,
         createdAt: "2026-06-21T00:00:00.000Z",
       },
     ]);
