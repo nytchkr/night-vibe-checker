@@ -9,21 +9,19 @@ test.describe("NV-TEST-001 admin gate", () => {
 
     const location = response.headers().location ?? "";
     if (response.status() >= 300 && response.status() < 400) {
-      expect(location).toContain("/login");
-      expect(decodeURIComponent(location)).toContain("/admin");
+      expect(location).toContain("/admin/login");
       return;
     }
 
     expect(response.status()).toBe(200);
     expect(body).toContain("NEXT_REDIRECT");
-    expect(body).toContain("/login?return=%2Fadmin");
+    expect(body).toContain("/admin/login");
   });
 
-  test("admin route sends guests through the login gate with admin return context", async ({ page }) => {
+  test("admin route sends guests through the password login gate", async ({ page }) => {
     await page.goto("/admin");
 
-    await expect(page).toHaveURL(/\/login\?return=/);
-    expect(new URL(page.url()).searchParams.get("return")).toBe("/admin");
-    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/login/);
+    await expect(page.getByRole("heading", { name: "Admin login" })).toBeVisible();
   });
 });
