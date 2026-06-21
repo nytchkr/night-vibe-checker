@@ -45,6 +45,16 @@ function getVenuePinStyle(venue: ConsumerVenue): VenuePinStyle {
   return { className: "venue-pin-quiet", fillColor: state.color, fillOpacity: 0.95, radius: 7 };
 }
 
+function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter) {
+  if (filter === "All") return true;
+
+  const category = venue.category.toLowerCase();
+  if (filter === "Bars") return category.includes("bar");
+  if (filter === "Clubs") return category.includes("club") || category.includes("night_club");
+  if (filter === "Rooftop") return category.includes("rooftop");
+  return category.includes("lounge");
+}
+
 function FitBounds() {
   const map = useMap();
 
@@ -225,9 +235,11 @@ export function VenueMap() {
   );
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredVenues = useMemo(() => {
-    if (!normalizedSearchQuery) return visibleVenues;
-    return visibleVenues.filter((venue) => venue.name.toLowerCase().includes(normalizedSearchQuery));
-  }, [normalizedSearchQuery, visibleVenues]);
+    return visibleVenues.filter((venue) => {
+      const matchesSearch = !normalizedSearchQuery || venue.name.toLowerCase().includes(normalizedSearchQuery);
+      return matchesSearch && matchesCategoryFilter(venue, activeCategoryFilter);
+    });
+  }, [activeCategoryFilter, normalizedSearchQuery, visibleVenues]);
   const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < visibleVenues.length;
   const showEmptyState = !loading && !error && visibleVenues.length === 0;
 
