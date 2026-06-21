@@ -8,6 +8,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
@@ -17,13 +18,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PushOptIn } from "@/components/PushOptIn";
 import { getBusynessState } from "@/lib/busyness";
-import type { ConsumerVenue, VenueSignal } from "@/types";
+import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
+import type { ConsumerVenue } from "@/types";
 
 // --------------- Crowd badge --------------------------------
 
 type Busyness = "dead" | "moderate" | "packed";
 type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
-type SignalBusyness = "No signal" | "Quiet" | "Moderate" | "Packed";
 
 const BUSYNESS_CFG: Record<Busyness, { label: string; bg: string; text: string }> = {
   dead:     { label: "Dead",     bg: "rgba(74,222,128,0.24)", text: "#4ADE80" },
@@ -38,10 +39,11 @@ const CROWD_FEEL_LABEL: Record<CrowdFeel, string> = {
   mixed: "Mixed / unsure",
 };
 
-const SOURCE_LABEL: Record<NonNullable<VenueSignal["busynessSource"]>, string> = {
-  live: "Source: live check-in",
-  forecast: "Source: BestTime forecast",
-  crowd: "Source: crowd report",
+const SAVED_BUSYNESS_CLASSES = {
+  dead: "bg-[#4ADE80]/20 text-[#4ADE80]",
+  moderate: "bg-[#FBBF24]/20 text-[#FBBF24]",
+  packed: "bg-[#F87171]/20 text-[#F87171]",
+  none: "bg-white/[0.06] text-white/45",
 };
 
 function BusynessBadge({ level }: { level: string }) {
@@ -57,29 +59,12 @@ function BusynessBadge({ level }: { level: string }) {
   );
 }
 
-function getSignalBusyness(value: number | null | undefined): SignalBusyness {
-  if (value == null) return "No signal";
-  // value is non-null here so getBusynessState returns "Quiet" | "Moderate" | "Packed"
-  return getBusynessState(value).label as SignalBusyness;
-}
-
-function SignalBusynessPill({ venue }: { venue: ConsumerVenue }) {
-  if (venue.signal?.busyness0To100 == null) return null;
-
-  const state = getBusynessState(venue.signal.busyness0To100);
-
-  return (
-    <span
-      className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-      style={{ borderColor: `${state.color}59`, backgroundColor: `${state.color}26`, color: state.color }}
-    >
-      {getSignalBusyness(venue.signal.busyness0To100)}
-    </span>
-  );
-}
-
-function sourceLabel(source: VenueSignal["busynessSource"] | null | undefined): string {
-  return source ? SOURCE_LABEL[source] : "Source: no current signal";
+function getCategoryIcon(category: string | null | undefined): string {
+  const value = (category ?? "").toLowerCase();
+  if (value.includes("night_club") || value.includes("nightclub") || value.includes("club")) return "♪";
+  if (value.includes("restaurant") || value.includes("food")) return "R";
+  if (value.includes("bar")) return "B";
+  return "P";
 }
 
 // --------------- Time ago -----------------------------------
@@ -172,20 +157,59 @@ function CheckInRow({ item }: { item: CheckInItem }) {
   );
 }
 
-function SavedVenueRow({ venue }: { venue: ConsumerVenue }) {
+function SavedVenueCard({ venue }: { venue: ConsumerVenue }) {
+  const state = getBusynessState(venue.signal?.busyness0To100);
+  const busynessClass = state.level ? SAVED_BUSYNESS_CLASSES[state.level] : SAVED_BUSYNESS_CLASSES.none;
+
   return (
-    <li className="rounded-2xl border border-white/[0.09] px-3 py-3" style={{ background: "rgba(255,255,255,0.04)" }}>
-      <Link href={`/venues/${encodeURIComponent(venue.id)}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-bold leading-snug text-white">{venue.name}</p>
-            <p className="mt-1 truncate text-xs font-semibold text-white/42">{venue.category || "Venue"}</p>
-          </div>
-          <SignalBusynessPill venue={venue} />
+    <li className="shrink-0 snap-start">
+      <Link
+        href={`/venues/${encodeURIComponent(venue.id)}`}
+        className="flex w-[238px] items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-2.5 transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
+        aria-label={`Open ${venue.name}`}
+      >
+        <div className="relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-lg bg-white/[0.06]">
+          {venue.photoUrl ? (
+            <Image
+              src={venue.photoUrl}
+              alt={venue.name}
+              fill
+              sizes="60px"
+              placeholder="blur"
+              blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
+              className="object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-sm font-black text-white/45" aria-hidden="true">
+              {getCategoryIcon(venue.category)}
+            </div>
+          )}
         </div>
-        <p className="mt-2 text-[11px] font-semibold text-white/35">{sourceLabel(venue.signal?.busynessSource)}</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[15px] font-bold leading-snug text-white">{venue.name}</p>
+          <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${busynessClass}`}>
+            {state.level ? state.label : "No signal"}
+          </span>
+        </div>
       </Link>
     </li>
+  );
+}
+
+function SavedVenuesSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-hidden" aria-label="Loading saved places">
+      <p className="sr-only">Loading...</p>
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div key={index} className="flex w-[238px] shrink-0 items-center gap-3 rounded-2xl bg-white/[0.04] p-2.5">
+          <Skeleton className="h-[60px] w-[60px] shrink-0 rounded-lg bg-white/10" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-28 bg-white/10" />
+            <Skeleton className="h-5 w-16 rounded-full bg-white/10" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -420,21 +444,21 @@ export default function ProfilePage() {
         )}
 
         {session && (
-          <section aria-label="Saved spots">
-            <h2 className="mb-2 text-[10px] font-black uppercase tracking-widest text-white/30">Saved Spots</h2>
+          <section aria-label="Saved places">
+            <h2 className="mb-2 text-[10px] font-black uppercase tracking-widest text-white/30">Saved Places</h2>
             {savedVenuesLoading ? (
-              <div className="space-y-3">
-                {Array.from({ length: 2 }).map((_, i) => <CheckInSkeleton key={i} />)}
-              </div>
+              <SavedVenuesSkeleton />
             ) : savedVenues.length === 0 ? (
-              <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center">
-                <p className="text-4xl mb-3">🤍</p>
-                <h3 className="text-white font-bold text-lg">No saved spots yet</h3>
-                <p className="text-white/50 text-sm mt-1">Heart a venue to save it for quick access</p>
+              <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5">
+                <h3 className="text-white font-bold text-lg">No saved places yet</h3>
+                <p className="mt-1 text-sm text-white/50">Bookmark venues to keep your next-night shortlist close.</p>
+                <Link href="/explore" className="mt-4 inline-flex items-center justify-center rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-bold text-[#0A0A0F]">
+                  Explore venues
+                </Link>
               </div>
             ) : (
-              <ul className="space-y-3 list-none">
-                {savedVenues.map((venue) => <SavedVenueRow key={venue.id} venue={venue} />)}
+              <ul className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 list-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {savedVenues.map((venue) => <SavedVenueCard key={venue.id} venue={venue} />)}
               </ul>
             )}
           </section>
