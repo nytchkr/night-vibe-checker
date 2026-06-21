@@ -3,7 +3,9 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, KeyboardEvent } from "react";
 import Link from "next/link";
+import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
+import "leaflet.markercluster";
 import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
@@ -85,6 +87,99 @@ function RecenterButton({ center }: { center: [number, number] }) {
       Recenter
     </button>
   );
+}
+
+function MapZoomTracker({ onZoomChange }: { onZoomChange: (zoom: number) => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    onZoomChange(map.getZoom());
+
+    function handleZoomEnd() {
+      onZoomChange(map.getZoom());
+    }
+
+    map.on("zoomend", handleZoomEnd);
+    return () => {
+      map.off("zoomend", handleZoomEnd);
+    };
+  }, [map, onZoomChange]);
+
+  return null;
+}
+
+function createVenueClusterIcon(cluster: L.MarkerCluster) {
+  return L.divIcon({
+    html: `<span>${cluster.getChildCount()}</span>`,
+    className: "venue-cluster-icon",
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | null) {
+  const pin = getVenuePinStyle(venue);
+  const isSelected = selectedVenueId === venue.id;
+  const size = (isSelected ? pin.radius + 2 : pin.radius) * 2;
+
+  return L.divIcon({
+    html: `<span style="background:${pin.fillColor};opacity:${pin.fillOpacity};"></span>`,
+    className: `venue-cluster-pin ${pin.className}${isSelected ? " venue-cluster-pin-selected" : ""}`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    tooltipAnchor: [0, -(size / 2 + 8)],
+  });
+}
+
+function createVenueTooltip(name: string) {
+  const tooltip = document.createElement("span");
+  tooltip.textContent = name;
+  tooltip.style.fontSize = "12px";
+  tooltip.style.fontWeight = "700";
+  return tooltip;
+}
+
+function ClusteredVenueMarkers({
+  venues,
+  selectedVenueId,
+  onVenueClick,
+}: {
+  venues: ConsumerVenue[];
+  selectedVenueId: string | null;
+  onVenueClick: (venue: ConsumerVenue) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const clusterGroup = L.markerClusterGroup({
+      chunkedLoading: true,
+      iconCreateFunction: createVenueClusterIcon,
+      maxClusterRadius: 60,
+      spiderfyOnMaxZoom: true,
+    });
+
+    venues.forEach((venue) => {
+      const marker = L.marker([venue.lat, venue.lng], {
+        icon: createVenueClusterPin(venue, selectedVenueId),
+        title: venue.name,
+      });
+
+      marker.bindTooltip(createVenueTooltip(venue.name), {
+        direction: "top",
+        offset: [0, -10],
+        opacity: 0.95,
+      });
+      marker.on("click", () => onVenueClick(venue));
+      clusterGroup.addLayer(marker);
+    });
+
+    map.addLayer(clusterGroup);
+    return () => {
+      map.removeLayer(clusterGroup);
+    };
+  }, [map, onVenueClick, selectedVenueId, venues]);
+
+  return null;
 }
 
 function CitySelector({
@@ -287,6 +382,7 @@ export function VenueMap({
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<VenueCategoryFilter>("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mapZoom, setMapZoom] = useState(15);
   const mapRef = useRef<LeafletMap | null>(null);
   const mapHeightClass =
     process.env.NEXT_PUBLIC_ENV === "development" ? "h-[calc(100dvh-100px)]" : "h-[calc(100dvh-80px)]";
@@ -350,6 +446,11 @@ export function VenueMap({
     });
   }, []);
 
+  const selectVenueFromMap = useCallback((venue: ConsumerVenue) => {
+    setSelectedVenueId(venue.id);
+    setSheetSnap("mid");
+  }, []);
+
   return (
     <main className={`relative w-full overflow-hidden bg-[#0A0A0F] ${mapHeightClass}`}>
       <MapContainer
@@ -365,11 +466,16 @@ export function VenueMap({
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
         <CityMapCenter center={cityCenter} />
+        <MapZoomTracker onZoomChange={setMapZoom} />
         <ZipRecenterControl />
         <VenueSearchControl searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
         <RecenterButton center={cityCenter} />
 
-        {filteredVenues.map((venue) => {
+        {mapZoom < 14 && (
+          <ClusteredVenueMarkers venues={filteredVenues} selectedVenueId={selectedVenueId} onVenueClick={selectVenueFromMap} />
+        )}
+
+        {mapZoom >= 14 && filteredVenues.map((venue) => {
           const pin = getVenuePinStyle(venue);
           const isLive = venue.signal?.busynessSource === "live";
           const isSelected = selectedVenueId === venue.id;
@@ -525,6 +631,40 @@ export function VenueMap({
 
         .venue-pin-quiet {
           filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.34));
+        }
+
+        .venue-cluster-icon {
+          align-items: center;
+          background: #1a1a2e;
+          border: 2px solid #00f5d4;
+          border-radius: 9999px;
+          box-shadow: 0 0 24px rgba(0, 245, 212, 0.34), 0 10px 30px rgba(0, 0, 0, 0.42);
+          color: #00f5d4;
+          display: flex;
+          font-size: 14px;
+          font-weight: 900;
+          justify-content: center;
+          line-height: 1;
+        }
+
+        .venue-cluster-pin {
+          align-items: center;
+          border: 1.5px solid rgba(255, 255, 255, 0.15);
+          border-radius: 9999px;
+          display: flex;
+          justify-content: center;
+        }
+
+        .venue-cluster-pin > span {
+          border-radius: 9999px;
+          display: block;
+          height: 100%;
+          width: 100%;
+        }
+
+        .venue-cluster-pin-selected {
+          border-color: #00f5d4;
+          border-width: 3px;
         }
       `}</style>
     </main>
