@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://night-vibe-checker.vercel.app";
@@ -105,6 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </OnboardingGateProvider>
         <Analytics />
         <SpeedInsights />
+        <PwaInstallPrompt />
         <BottomNav />
         <Script id="service-worker-registration" strategy="afterInteractive">
           {`if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`}
