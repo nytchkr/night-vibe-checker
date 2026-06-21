@@ -16,6 +16,7 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageTransition } from "@/components/PageTransition";
 import { PushOptIn } from "@/components/PushOptIn";
 import { getBusynessState } from "@/lib/busyness";
 import {
@@ -426,7 +427,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0F]">
+    <PageTransition>
+      <div className="min-h-screen bg-[#0A0A0F]">
       <header className="sticky top-0 z-40 bg-[#0A0A0F]/92 backdrop-blur-xl border-b border-white/[0.08] px-4">
         <div className="max-w-lg mx-auto py-4">
           <h1 className="truncate text-2xl font-black tracking-tight text-white">
@@ -600,6 +602,7 @@ export default function ProfilePage() {
           </button>
         )}
       </div>
-    </div>
+      </div>
+    </PageTransition>
   );
 }

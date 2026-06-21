@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
+import { PageTransition } from "@/components/PageTransition";
 import type { ConsumerVenue } from "@/types";
 import { VenuePageClient } from "./VenuePageClient";
 
@@ -65,7 +66,9 @@ export default async function VenuePage({ params }: VenuePageProps) {
   return (
     <>
       <link rel="canonical" href={`${siteUrl}/venues/${venue.id}`} />
-      <VenuePageClient venueId={id} initialVenue={venue} />
+      <PageTransition>
+        <VenuePageClient venueId={id} initialVenue={venue} />
+      </PageTransition>
     </>
   );
 }

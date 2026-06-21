@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { getBusynessState } from "@/lib/busyness";
 import type { ConsumerVenue } from "@/types";
 
@@ -102,9 +102,12 @@ export default function MapBottomSheet({
   snap: MapSheetSnap;
   venues: ConsumerVenue[];
 }) {
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [dragTranslate, setDragTranslate] = useState<number | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef({ pointerId: -1, startY: 0, startTranslate: 0 });
+  const dragRef = useRef({ pointerId: -1, startY: 0, startTranslate: 0, currentTranslate: 0 });
   const itemRefs = useRef(new Map<string, HTMLDivElement>());
 
   const sortedVenues = useMemo(
@@ -134,28 +137,40 @@ export default function MapBottomSheet({
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     const sheet = sheetRef.current;
     if (!sheet) return;
+    const sheetTop = sheet.getBoundingClientRect().top;
+    if (event.clientY - sheetTop > COLLAPSED_HEIGHT) return;
 
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
       pointerId: event.pointerId,
       startY: event.clientY,
       startTranslate: getTranslateForSnap(snap),
+      currentTranslate: getTranslateForSnap(snap),
     };
     setDragTranslate(getTranslateForSnap(snap));
   }
 
-  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (dragRef.current.pointerId !== event.pointerId) return;
+  function beginMouseDrag(clientY: number) {
+    const startTranslate = getTranslateForSnap(snap);
+    dragRef.current = {
+      pointerId: -1,
+      startY: clientY,
+      startTranslate,
+      currentTranslate: startTranslate,
+    };
+    setDragTranslate(startTranslate);
+  }
+
+  function updateMouseDrag(clientY: number) {
     const sheetHeight = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight * 0.85;
     const maxTranslate = Math.max(0, sheetHeight - COLLAPSED_HEIGHT);
-    const nextTranslate = Math.min(maxTranslate, Math.max(0, dragRef.current.startTranslate + event.clientY - dragRef.current.startY));
+    const nextTranslate = Math.min(maxTranslate, Math.max(0, dragRef.current.startTranslate + clientY - dragRef.current.startY));
+    dragRef.current.currentTranslate = nextTranslate;
     setDragTranslate(nextTranslate);
   }
 
-  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
-    if (dragRef.current.pointerId !== event.pointerId) return;
-
-    const currentTranslate = dragTranslate ?? getTranslateForSnap(snap);
+  function finishDrag() {
+    const currentTranslate = dragRef.current.currentTranslate;
     const snapPoints: MapSheetSnap[] = ["expanded", "mid", "collapsed"];
     const nearestSnap = snapPoints.reduce((nearest, candidate) => {
       const nearestDistance = Math.abs(currentTranslate - getTranslateForSnap(nearest));
@@ -168,6 +183,46 @@ export default function MapBottomSheet({
     setSnap(nearestSnap);
   }
 
+  function handleMouseDown(event: ReactMouseEvent<HTMLElement>) {
+    const sheet = sheetRef.current;
+    if (!sheet) return;
+    const sheetTop = sheet.getBoundingClientRect().top;
+    if (event.clientY - sheetTop > COLLAPSED_HEIGHT) return;
+
+    event.preventDefault();
+    beginMouseDrag(event.clientY);
+
+    function handleMouseMove(moveEvent: MouseEvent) {
+      updateMouseDrag(moveEvent.clientY);
+    }
+
+    function handleMouseUp(upEvent: MouseEvent) {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      updateMouseDrag(upEvent.clientY);
+      finishDrag();
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp, { once: true });
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (dragRef.current.pointerId !== event.pointerId) return;
+    const sheetHeight = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight * 0.85;
+    const maxTranslate = Math.max(0, sheetHeight - COLLAPSED_HEIGHT);
+    const nextTranslate = Math.min(maxTranslate, Math.max(0, dragRef.current.startTranslate + event.clientY - dragRef.current.startY));
+    dragRef.current.currentTranslate = nextTranslate;
+    setDragTranslate(nextTranslate);
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
+    if (dragRef.current.pointerId !== event.pointerId) return;
+
+    updateMouseDrag(event.clientY);
+    finishDrag();
+  }
+
   const transform =
     dragTranslate == null ? `translateY(calc(100% - ${snap === "collapsed" ? "72px" : snap === "mid" ? "40dvh" : "85dvh"}))` : `translateY(${dragTranslate}px)`;
   const visibleVenues = snap === "collapsed" ? topVenues : sortedVenues;
@@ -177,18 +232,19 @@ export default function MapBottomSheet({
       ref={sheetRef}
       aria-label={`${cityName} venues`}
       className="absolute inset-x-0 bottom-0 z-[1100] h-[85dvh] rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0F]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
+      onPointerCancel={handlePointerUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onMouseDown={handleMouseDown}
       style={{
         paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
         transform,
-        transition: dragTranslate == null ? "transform 300ms ease-out" : "none",
+        transition: dragTranslate == null && !prefersReduced ? "transform 180ms cubic-bezier(0.22, 1, 0.36, 1)" : "none",
       }}
     >
       <div
         className="cursor-grab touch-none px-4 pb-3 pt-3 active:cursor-grabbing"
-        onPointerCancel={handlePointerUp}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
       >
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
         <button

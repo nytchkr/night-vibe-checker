@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
+import { motion } from "framer-motion";
 import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { triggerHapticFeedback } from "@/lib/haptics";
@@ -61,6 +62,9 @@ export default function VibeCheckClient({
   returnPath,
 }: VibeCheckClientProps) {
   const router = useRouter();
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const venueId = initialVenueId;
   const venueName = initialVenueName;
@@ -549,15 +553,17 @@ export default function VibeCheckClient({
         </section>
 
         {/* ── SUBMIT ────────────────────────────────────────────── */}
-        <button
+        <motion.button
           type="button"
           disabled={!canSubmit}
           onClick={handleSubmit}
+          whileTap={prefersReduced ? undefined : { scale: 0.96 }}
+          transition={{ duration: prefersReduced ? 0 : 0.12, ease: "easeOut" }}
           aria-describedby={submitError ? "submit-error" : undefined}
           className="min-h-[56px] w-full rounded-xl bg-[#00F5D4] px-4 py-4 text-base font-black text-[#0A0A0F] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Submitting..." : canSubmit ? "✓ Submit Vibe" : "Select a vibe to continue"}
-        </button>
+        </motion.button>
 
         {/* Inline errors */}
         {submitError && (

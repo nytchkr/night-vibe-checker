@@ -1,3 +1,4 @@
+import { PageTransition } from "@/components/PageTransition";
 import { ExplorePageClient } from "./ExplorePageClient";
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function ExplorePage() {
-  return <ExplorePageClient />;
+  return (
+    <PageTransition>
+      <ExplorePageClient />
+    </PageTransition>
+  );
 }

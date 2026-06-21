@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { TrendingStrip } from "@/components/TrendingStrip";
@@ -66,22 +67,28 @@ function FilterChip<T extends string>({
   label,
   active,
   onSelect,
+  prefersReduced,
 }: {
   label: T;
   active: boolean;
   onSelect: (label: T) => void;
+  prefersReduced: boolean;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={() => onSelect(label)}
-      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
-        active ? "border-white/40 bg-white/[0.16] text-white" : "border-transparent bg-white/10 text-white/60 hover:bg-white/15 hover:text-white/80"
-      }`}
+      animate={{
+        backgroundColor: active ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.1)",
+        borderColor: active ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0)",
+      }}
+      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
+      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/60 transition-colors hover:bg-white/15 hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 data-[active=true]:text-white"
       aria-pressed={active}
+      data-active={active}
     >
       {label}
-    </button>
+    </motion.button>
   );
 }
 
@@ -89,24 +96,28 @@ function CategoryFilterPill({
   label,
   active,
   onSelect,
+  prefersReduced,
 }: {
   label: string;
   active: boolean;
   onSelect: () => void;
+  prefersReduced: boolean;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onSelect}
-      className={`min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
-        active
-          ? "border-white/35 bg-white/[0.14] text-white"
-          : "border-white/10 bg-[#0A0A0F]/80 text-white/50 hover:border-white/20 hover:bg-white/10 hover:text-white/75"
-      }`}
+      animate={{
+        backgroundColor: active ? "rgba(255,255,255,0.14)" : "rgba(10,10,15,0.8)",
+        borderColor: active ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.1)",
+      }}
+      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
+      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-black text-white/50 transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 data-[active=true]:text-white"
       aria-pressed={active}
+      data-active={active}
     >
       {label}
-    </button>
+    </motion.button>
   );
 }
 
@@ -114,24 +125,28 @@ function SortPill({
   label,
   active,
   onSelect,
+  prefersReduced,
 }: {
   label: SortOption;
   active: boolean;
   onSelect: () => void;
+  prefersReduced: boolean;
 }) {
   return (
-    <button
+    <motion.button
       type="button"
       onClick={onSelect}
-      className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 ${
-        active
-          ? "border-[#00F5D4]/40 bg-[#00F5D4]/20 text-[#00F5D4]"
-          : "border-white/10 bg-white/[0.05] text-white/50 hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70"
-      }`}
+      animate={{
+        backgroundColor: active ? "rgba(0,245,212,0.2)" : "rgba(255,255,255,0.05)",
+        borderColor: active ? "rgba(0,245,212,0.4)" : "rgba(255,255,255,0.1)",
+      }}
+      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
+      className="shrink-0 rounded-full border px-3 py-1 text-xs font-bold text-white/50 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 data-[active=true]:text-[#00F5D4]"
       aria-pressed={active}
+      data-active={active}
     >
       {label}
-    </button>
+    </motion.button>
   );
 }
 
@@ -162,10 +177,14 @@ function VenueFeedCard({
   venue,
   searchQuery,
   distance,
+  index,
+  prefersReduced,
 }: {
   venue: ConsumerVenue;
   searchQuery: string;
   distance: number | null;
+  index: number;
+  prefersReduced: boolean;
 }) {
   const categoryLabel = getCategoryChipLabel(venue.category);
   const priceLabel = "$".repeat(venue.priceLevel ?? 0) || "—";
@@ -173,7 +192,17 @@ function VenueFeedCard({
   const signalLabel = getSignalLabel(venue);
 
   return (
-    <li className="mb-3 last:mb-0" role="article">
+    <motion.li
+      className="mb-3 last:mb-0"
+      role="article"
+      initial={prefersReduced ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: prefersReduced ? 0 : 0.18,
+        delay: prefersReduced || index >= 8 ? 0 : index * 0.04,
+        ease: "easeOut",
+      }}
+    >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         className="block overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.04] transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
@@ -227,7 +256,7 @@ function VenueFeedCard({
           </p>
         </div>
       </Link>
-    </li>
+    </motion.li>
   );
 }
 
@@ -249,6 +278,9 @@ function CardSkeleton() {
 
 export function ExplorePageClient() {
   const track = useTrack();
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -469,6 +501,7 @@ export function ExplorePageClient() {
                   label={filter}
                   active={busynessFilter === filter}
                   onSelect={setBusynessFilter}
+                  prefersReduced={prefersReduced}
                 />
               ))}
             </div>
@@ -480,6 +513,7 @@ export function ExplorePageClient() {
                   label={filter.label}
                   active={categoryFilter === filter.value}
                   onSelect={() => setCategoryFilter(filter.value)}
+                  prefersReduced={prefersReduced}
                 />
               ))}
             </div>
@@ -497,6 +531,7 @@ export function ExplorePageClient() {
                 label={option}
                 active={sortOption === option}
                 onSelect={() => setSortOption(option)}
+                prefersReduced={prefersReduced}
               />
             ))}
           </div>
@@ -548,12 +583,14 @@ export function ExplorePageClient() {
         {venues !== null && !error && sortedVenues.length > 0 && (
           <>
             <ul>
-              {visibleVenues.map((venue) => (
+              {visibleVenues.map((venue, index) => (
                 <VenueFeedCard
                   key={venue.id}
                   venue={venue}
                   searchQuery={searchQuery}
                   distance={venueDistances.get(venue.id) ?? null}
+                  index={index}
+                  prefersReduced={prefersReduced}
                 />
               ))}
             </ul>
