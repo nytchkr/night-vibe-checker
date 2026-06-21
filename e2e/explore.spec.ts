@@ -110,10 +110,16 @@ test.describe("Explore tab", () => {
     await expect(page.getByText("Pulse Room")).toBeVisible();
     await expect(page.getByText("Lowlight Lounge")).toBeVisible();
 
-    await page.getByRole("searchbox", { name: "Search venues" }).fill("Pulse");
+    const searchBox = page.getByRole("searchbox", { name: "Search venues" });
+    await searchBox.fill("Pulse");
 
     await expect(page.getByText("Pulse Room")).toBeVisible();
     await expect(page.getByText("Lowlight Lounge")).toHaveCount(0);
+
+    await searchBox.fill("Explore Ave");
+
+    await expect(page.getByText('No venues match "Explore Ave"')).toBeVisible();
+    await expect(page.getByText("Pulse Room")).toHaveCount(0);
   });
 
   test("Packed filter shows only packed venues", async ({ page }) => {

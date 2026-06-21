@@ -539,6 +539,7 @@ export function ExplorePageClient() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState<NeighborhoodFilter>("All Areas");
@@ -619,6 +620,11 @@ export function ExplorePageClient() {
   }, []);
 
   useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 200);
+    return () => window.clearTimeout(id);
+  }, [searchQuery]);
+
+  useEffect(() => {
     const element = activitySectionRef.current;
     if (!element || activityViewedRef.current || !("IntersectionObserver" in window)) return;
 
@@ -655,7 +661,7 @@ export function ExplorePageClient() {
   useEffect(() => {
     setScrollTop(0);
     listRef.current?.scrollTo({ top: 0 });
-  }, [busynessFilter, categoryFilter, neighborhoodFilter, searchQuery, sortOption]);
+  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption]);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -675,19 +681,14 @@ export function ExplorePageClient() {
 
   const sortedVenues = useMemo(() => {
     if (venues === null) return [];
-    const normalizedSearch = normalizeSearchText(searchQuery.trim());
+    const normalizedSearch = normalizeSearchText(debouncedSearchQuery.trim());
 
     return venues.filter((venue) => {
       if (venue.hidden) return false;
 
       const busyness = getBusynessState(venue.signal?.busyness0To100).label;
       const category = normalizeCategory(venue.category);
-      const searchableText = [
-        venue.name,
-        venue.address,
-        venue.category,
-        venue.neighborhood,
-      ].map(normalizeSearchText).join(" ");
+      const searchableText = normalizeSearchText(venue.name);
       const matchesSearch = normalizedSearch.length === 0 || searchableText.includes(normalizedSearch);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
@@ -710,7 +711,7 @@ export function ExplorePageClient() {
       const bState = getBusynessState(b.signal?.busyness0To100);
       return bState.rank - aState.rank || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, neighborhoodFilter, searchQuery, sortOption, userLocation, venues]);
+  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption, userLocation, venues]);
 
   const venueDistances = useMemo(() => {
     if (!userLocation || venues === null) return new Map<string, number>();
@@ -760,9 +761,11 @@ export function ExplorePageClient() {
   const resultVenueNoun = categoryFilter === "All" ? "spot" : categoryFilter.toLowerCase();
   const resultAreaLabel = neighborhoodFilter === "All Areas" ? "all areas" : neighborhoodFilter;
   const resultCountLabel = `${sortedVenues.length} ${resultVenueNoun}${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
+  const trimmedVenueSearchQuery = debouncedSearchQuery.trim();
 
   function clearFilters() {
     setSearchQuery("");
+    setDebouncedSearchQuery("");
     setBusynessFilter("All");
     setCategoryFilter("All");
     setNeighborhoodFilter("All Areas");
@@ -989,7 +992,11 @@ export function ExplorePageClient() {
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
             <div className="text-5xl" aria-hidden="true">🔍</div>
-            <h2 className="font-display mt-4 text-lg font-bold text-white">No venues match your filters</h2>
+            <h2 className="font-display mt-4 text-lg font-bold text-white">
+              {trimmedVenueSearchQuery
+                ? `No venues match "${trimmedVenueSearchQuery}"`
+                : "No venues match your filters"}
+            </h2>
             <button
               type="button"
               onClick={clearFilters}
@@ -1017,7 +1024,7 @@ export function ExplorePageClient() {
                 <VenueFeedCard
                   key={venue.id}
                   venue={venue}
-                  searchQuery={searchQuery}
+                  searchQuery={debouncedSearchQuery}
                   distance={venueDistances.get(venue.id) ?? null}
                   index={startIdx + index}
                   prefersReduced={prefersReduced}
