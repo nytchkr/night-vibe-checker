@@ -12,21 +12,33 @@ import type { APIResponse, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const VIBE_NOTE_MAX_LENGTH = 120;
 
+const CrowdFeelSchema = z.enum([
+  "chill",
+  "hyped",
+  "mixed",
+  "dead",
+  "packed",
+  "mostly_male",
+  "mostly_female",
+  "balanced",
+]);
+
 const CheckInBodySchema = z.object({
   busyness: z.enum(["dead", "moderate", "packed"]),
-  crowd_feel: z.enum(["mostly_male", "mostly_female", "balanced", "mixed"]),
+  crowd_feel: CrowdFeelSchema,
   note: z.string().trim().max(VIBE_NOTE_MAX_LENGTH).optional(),
-  gender: z.enum(["man", "woman"]).nullable().optional(),
-  gender_self_report: z.enum(["m", "f"]).nullable().optional(),
+  gender: z.enum(["m", "f", "nb", "man", "woman"]).nullable().optional(),
+  gender_self_report: z.enum(["m", "f", "nb"]).nullable().optional(),
 });
 
-function genderToSelfReport(gender: "man" | "woman" | null | undefined): "m" | "f" | null {
+function genderToSelfReport(gender: "m" | "f" | "nb" | "man" | "woman" | null | undefined): "m" | "f" | "nb" | null {
+  if (gender === "m" || gender === "f" || gender === "nb") return gender;
   if (gender === "man") return "m";
   if (gender === "woman") return "f";
   return null;
 }
 
-function selectedGenderSelfReport(data: z.infer<typeof CheckInBodySchema>): "m" | "f" | null {
+function selectedGenderSelfReport(data: z.infer<typeof CheckInBodySchema>): "m" | "f" | "nb" | null {
   if ("gender" in data) return genderToSelfReport(data.gender);
   return data.gender_self_report ?? null;
 }
@@ -245,6 +257,6 @@ export async function POST(
 
   return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
     { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta: responseMeta },
-    { status: 201 },
+    { status: 200 },
   );
 }

@@ -23,13 +23,56 @@ const PRIVATE_GET_CACHE_HEADERS = {
   "Cache-Control": "private, no-cache",
 };
 
+const BusynessSchema = z.union([
+  z.enum(["dead", "moderate", "packed"]),
+  z.number().min(0).max(100),
+]);
+
+const CrowdFeelSchema = z.enum([
+  "chill",
+  "hyped",
+  "mixed",
+  "dead",
+  "packed",
+  "mostly_male",
+  "mostly_female",
+  "balanced",
+]);
+
+const GenderSelfReportSchema = z.enum(["m", "f", "nb"]);
+
 const PostBodySchema = z.object({
-  venueId: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH),
-  busyness: z.enum(["dead", "moderate", "packed"]),
-  crowdFeel: z.enum(["mostly_male", "mostly_female", "balanced", "mixed"]),
+  place_id: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH).optional(),
+  venueId: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH).optional(),
+  busyness: BusynessSchema,
+  crowd_feel: CrowdFeelSchema.optional(),
+  crowdFeel: CrowdFeelSchema.optional(),
   note: z.string().trim().max(200).optional(),
-  genderSelfReport: z.enum(["m", "f"]).nullable().optional(),
+  gender: GenderSelfReportSchema.optional(),
+  gender_self_report: GenderSelfReportSchema.nullable().optional(),
+  genderSelfReport: GenderSelfReportSchema.nullable().optional(),
+}).refine((data) => data.place_id || data.venueId, {
+  message: "place_id is required.",
+  path: ["place_id"],
+}).refine((data) => data.crowd_feel || data.crowdFeel, {
+  message: "crowd_feel is required.",
+  path: ["crowd_feel"],
 });
+
+function normalizeBusyness(busyness: z.infer<typeof BusynessSchema>): "dead" | "moderate" | "packed" {
+  if (typeof busyness === "string") return busyness;
+  if (busyness <= 33) return "dead";
+  if (busyness >= 67) return "packed";
+  return "moderate";
+}
+
+function selectedCrowdFeel(data: z.infer<typeof PostBodySchema>) {
+  return data.crowd_feel ?? data.crowdFeel ?? "mixed";
+}
+
+function selectedGenderSelfReport(data: z.infer<typeof PostBodySchema>): "m" | "f" | "nb" | null {
+  return data.gender ?? data.gender_self_report ?? data.genderSelfReport ?? null;
+}
 
 function normalizeReporterGender(gender: unknown): "male" | "female" | null {
   if (gender === "male" || gender === "female") return gender;
@@ -213,7 +256,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const venue = await resolveVenue(parsed.data.venueId);
+  const venue = await resolveVenue(parsed.data.place_id ?? parsed.data.venueId ?? "");
   if (!venue) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },
@@ -249,10 +292,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     venue_id: venue.id,
     place_id: venue.place_id,
     user_id: userId,
-    busyness: parsed.data.busyness,
-    crowd_feel: parsed.data.crowdFeel,
+    busyness: normalizeBusyness(parsed.data.busyness),
+    crowd_feel: selectedCrowdFeel(parsed.data),
     reporter_gender: reporterGender,
-    gender_self_report: parsed.data.genderSelfReport ?? null,
+    gender_self_report: selectedGenderSelfReport(parsed.data),
     note: parsed.data.note ?? null,
   };
 
@@ -296,7 +339,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
     { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta },
-    { status: 201, headers }
+    { status: 200, headers }
   );
 }
 

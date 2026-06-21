@@ -19,7 +19,7 @@ import { buildVenueShareData } from "@/lib/venueShare";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import type { ConsumerVenue, ReportedBusyness } from "@/types";
+import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -58,7 +58,12 @@ type VibeBusynessOption = {
   selectedBorder: string;
 };
 
-type GenderSelfReport = "man" | "woman" | null;
+type VibeCrowdFeelOption = {
+  value: Extract<CrowdFeel, "chill" | "hyped" | "mixed" | "dead" | "packed">;
+  label: string;
+};
+
+type GenderSelfReport = "m" | "f" | "nb" | null;
 
 const VENUE_REPORT_REASONS: Array<{ value: VenueReportReason; label: string }> = [
   { value: "wrong_hours", label: "Wrong hours" },
@@ -75,12 +80,18 @@ const VIBE_BUSYNESS_OPTIONS: VibeBusynessOption[] = [
   { id: "packed", value: "packed", label: "Packed", score: 95, selectedBackground: "rgba(255,91,106,0.2)", selectedBorder: "#FF5B6A" },
 ];
 
-const DEFAULT_VIBE_CROWD_FEEL = "mixed";
+const VIBE_CROWD_FEEL_OPTIONS: VibeCrowdFeelOption[] = [
+  { value: "chill", label: "Chill" },
+  { value: "hyped", label: "Hyped" },
+  { value: "mixed", label: "Mixed" },
+  { value: "dead", label: "Dead" },
+  { value: "packed", label: "Packed" },
+];
 
-const GENDER_SELF_REPORT_OPTIONS: Array<{ value: GenderSelfReport; label: string }> = [
-  { value: "man", label: "Man" },
-  { value: "woman", label: "Woman" },
-  { value: null, label: "Skip" },
+const GENDER_SELF_REPORT_OPTIONS: Array<{ value: Exclude<GenderSelfReport, null>; label: string }> = [
+  { value: "m", label: "M" },
+  { value: "f", label: "F" },
+  { value: "nb", label: "Non-binary" },
 ];
 
 function timeAgo(iso: string | null | undefined): string {
@@ -430,8 +441,9 @@ export function VenuePageClient({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [vibeReportOpen, setVibeReportOpen] = useState(false);
-  const [vibeStep, setVibeStep] = useState<1 | 2>(1);
+  const [vibeStep, setVibeStep] = useState<1 | 2 | 3>(1);
   const [vibeBusynessOptionId, setVibeBusynessOptionId] = useState<VibeBusynessOption["id"] | null>(null);
+  const [vibeCrowdFeel, setVibeCrowdFeel] = useState<VibeCrowdFeelOption["value"] | null>(null);
   const [vibeGenderSelfReport, setVibeGenderSelfReport] = useState<GenderSelfReport>(null);
   const [vibeSubmitting, setVibeSubmitting] = useState(false);
   const [vibeError, setVibeError] = useState<string | null>(null);
@@ -673,6 +685,7 @@ export function VenuePageClient({
     setVibeReportOpen(false);
     setVibeStep(1);
     setVibeBusynessOptionId(null);
+    setVibeCrowdFeel(null);
     setVibeGenderSelfReport(null);
     setVibeError(null);
   }
@@ -684,9 +697,16 @@ export function VenuePageClient({
     haptic.light();
   }
 
-  async function submitVibeReport(genderSelfReport: GenderSelfReport) {
+  function chooseVibeCrowdFeel(option: VibeCrowdFeelOption) {
+    setVibeCrowdFeel(option.value);
+    setVibeStep(3);
+    if (vibeError) setVibeError(null);
+    haptic.light();
+  }
+
+  async function submitVibeReport(genderSelfReport: Exclude<GenderSelfReport, null>) {
     const selectedBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
-    if (vibeSubmitting || !selectedBusynessOption || !accessToken) return;
+    if (vibeSubmitting || !selectedBusynessOption || !vibeCrowdFeel || !accessToken) return;
 
     setVibeSubmitting(true);
     setVibeError(null);
@@ -702,7 +722,7 @@ export function VenuePageClient({
         },
         body: JSON.stringify({
           busyness: selectedBusynessOption.value,
-          crowd_feel: DEFAULT_VIBE_CROWD_FEEL,
+          crowd_feel: vibeCrowdFeel,
           gender: genderSelfReport,
         }),
       });
@@ -735,6 +755,7 @@ export function VenuePageClient({
       setVibeReportOpen(false);
       setVibeStep(1);
       setVibeBusynessOptionId(null);
+      setVibeCrowdFeel(null);
       setVibeGenderSelfReport(null);
       setToast("Check-in recorded! Thanks for the vibe.");
       setCheckInConfirmed(true);
@@ -743,7 +764,8 @@ export function VenuePageClient({
         venue_id: reportVenueId,
         busyness_level: selectedBusynessOption.value,
         busyness_score: selectedBusynessOption.score,
-        crowd_feel: DEFAULT_VIBE_CROWD_FEEL,
+        crowd_feel: vibeCrowdFeel,
+        gender: genderSelfReport,
       });
 
       const venueRes = await fetch(`/api/venues/${encodeURIComponent(reportVenueId)}`);
@@ -1253,12 +1275,16 @@ export function VenuePageClient({
                 <h2 id="vibe-report-title" className="font-display text-lg font-black text-white">
                   {vibeStep === 1
                     ? "How busy is it?"
-                    : "How do you identify tonight?"}
+                    : vibeStep === 2
+                      ? "What is the crowd feel?"
+                      : "How are you presenting tonight?"}
                 </h2>
                 <p className="mt-1 text-xs font-medium text-white/40">
                   {vibeStep === 1
                     ? "Tap the crowd level you see right now."
-                    : "Optional. Choose Man, Woman, or Skip."}
+                    : vibeStep === 2
+                      ? "Choose the closest read from the room."
+                      : "Required for the M/F signal."}
                 </p>
               </div>
               <button
@@ -1299,14 +1325,52 @@ export function VenuePageClient({
                 </div>
                 {vibeError && <p className="mt-3 text-sm font-medium text-[#FF5B6A]">{vibeError}</p>}
               </fieldset>
+            ) : vibeStep === 2 ? (
+              <div className="mt-5 space-y-4">
+                <fieldset>
+                  <legend className="sr-only">Crowd feel</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {VIBE_CROWD_FEEL_OPTIONS.map((option) => {
+                      const selected = vibeCrowdFeel === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => chooseVibeCrowdFeel(option)}
+                          aria-pressed={selected}
+                          className={`min-h-11 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                            selected
+                              ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-white"
+                              : "border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+                {vibeError && <p className="text-sm font-medium text-[#FF5B6A]">{vibeError}</p>}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVibeStep(1);
+                    setVibeError(null);
+                  }}
+                  disabled={vibeSubmitting}
+                  className="w-full rounded-xl py-2 text-xs font-bold text-white/40 transition-colors hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                >
+                  Back
+                </button>
+              </div>
             ) : (
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <p className="text-sm font-black text-white">
-                    How do you identify tonight?
+                    How are you presenting tonight?
                   </p>
                   <p className="mt-1 text-xs font-semibold text-white/40">
-                    Optional. This helps keep the M/F signal grounded in real check-ins.
+                    This is required and only used to update the venue signal.
                   </p>
                 </div>
 
@@ -1338,7 +1402,7 @@ export function VenuePageClient({
                 <button
                   type="button"
                   onClick={() => {
-                    setVibeStep(1);
+                    setVibeStep(2);
                     setVibeError(null);
                   }}
                   disabled={vibeSubmitting}

@@ -149,7 +149,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data.checkIn.busyness).toBe("packed");
     expect(json.data.checkIn.crowdFeel).toBe("mostly_male");
@@ -160,6 +160,39 @@ describe("POST /api/check-ins", () => {
         user_id: "user-123",
         reporter_gender: "female",
         gender_self_report: "f",
+      })
+    );
+    expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
+  });
+
+  it("accepts the canonical place_id, numeric busyness, crowd_feel, and nb gender payload", async () => {
+    const venueChain = chain({ data: VENUE });
+    const duplicateChain = chain({ data: [] });
+    const profileChain = chain({ data: { gender: "male" } });
+    const insertChain = chain({ data: { ...CHECK_IN, busyness: "packed", crowd_feel: "hyped", gender_self_report: "nb" } });
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        place_id: "place-123",
+        busyness: 82,
+        crowd_feel: "hyped",
+        gender: "nb",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(venueChain.or).toHaveBeenCalledWith("id.eq.place-123,place_id.eq.place-123");
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        busyness: "packed",
+        crowd_feel: "hyped",
+        gender_self_report: "nb",
       })
     );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
@@ -185,7 +218,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         reporter_gender: null,
@@ -214,7 +247,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         gender_self_report: null,
@@ -250,7 +283,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith("ensure_check_ins_gender_self_report_column");
     expect(retryInsertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -275,12 +308,39 @@ describe("POST /api/check-ins", () => {
       { params: Promise.resolve({ id: VENUE.id }) }
     );
 
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: "user-123",
         reporter_gender: "male",
         gender_self_report: "m",
+      })
+    );
+    expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
+  });
+
+  it("accepts new crowd feel pills and nb on venue-scoped check-ins", async () => {
+    const venueChain = chain({ data: VENUE });
+    const profileChain = chain({ data: { gender: "female" } });
+    const insertChain = chain({ data: { ...CHECK_IN, crowd_feel: "chill", gender_self_report: "nb" } });
+    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(profileChain).mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../venues/[id]/check-in/route");
+    const res = await POST(
+      request("POST", `http://localhost/api/venues/${VENUE.id}/check-in`, {
+        busyness: "dead",
+        crowd_feel: "chill",
+        gender: "nb",
+      }),
+      { params: Promise.resolve({ id: VENUE.id }) }
+    );
+
+    expect(res.status).toBe(200);
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        busyness: "dead",
+        crowd_feel: "chill",
+        gender_self_report: "nb",
       })
     );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);

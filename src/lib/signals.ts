@@ -4,9 +4,7 @@ import type { CrowdFeel, ReportedBusyness } from "@/types";
 export const SIGNAL_LOOKBACK_HOURS = 4;
 const LOOKBACK_MINUTES = SIGNAL_LOOKBACK_HOURS * 60;
 const HALF_LIFE_MINUTES = 45;
-// Minimum effective weight (N_eff = Σw) required before writing mf_ratio.
-// Below this threshold mf_ratio stays null so the UI doesn't show spurious data.
-const MIN_NEFF_FOR_RATIO = 2;
+const MIN_GENDERED_REPORTS_FOR_RATIO = 2;
 
 type SignalCheckInRow = {
   id: string;
@@ -15,7 +13,7 @@ type SignalCheckInRow = {
   busyness: ReportedBusyness;
   crowd_feel: CrowdFeel;
   reporter_gender: "male" | "female" | null;
-  gender_self_report?: "m" | "f" | null;
+  gender_self_report?: "m" | "f" | "nb" | null;
   created_at: string;
 };
 
@@ -27,30 +25,29 @@ function busynessToScore(busyness: ReportedBusyness): number {
   return 50; // moderate
 }
 
-function reporterGenderToMaleValue(
+function reporterGenderToSelfReport(
   reporterGender: SignalCheckInRow["reporter_gender"],
   genderSelfReport: SignalCheckInRow["gender_self_report"] = null,
-): number | null {
-  if (genderSelfReport === "m") return 100;
-  if (genderSelfReport === "f") return 0;
-  if (reporterGender === "male") return 100;
-  if (reporterGender === "female") return 0;
+): "m" | "f" | "nb" | null {
+  if (genderSelfReport === "m" || genderSelfReport === "f" || genderSelfReport === "nb") return genderSelfReport;
+  if (reporterGender === "male") return "m";
+  if (reporterGender === "female") return "f";
   return null;
 }
 
 // Recomputes the M/F and busyness signal from a set of recent check-in rows.
 //
 // Recency weight: w = 0.5 ^ (age_minutes / 45)  (half-life = 45 minutes)
-// M/F ratio:     mf_ratio = Σ(reporterGenderValue × w) / Σw  (0-100 scale, 100 = all male)
-// Confidence:    N_eff / (N_eff + 3)
-// N_eff < 2:     mf_ratio stays null (not enough signal to publish a ratio)
+// Busyness:      weighted average from recent check-ins
+// M/F ratio:     male_count / gendered_count * 100 from recent check-ins
+// Confidence:    gendered_count / (gendered_count + 3)
+// gendered_count < 2: mf_ratio stays null (not enough signal to publish a ratio)
 // sample_size:   raw count of visible check-ins in the last 4 hours, not effective weight
 export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date.now()) {
-  // N_eff = Σw across all check-ins (used for both busyness and ratio gating)
   let nEff = 0;
-  let genderNEff = 0;
   let weightedBusyness = 0;
-  let weightedMaleValue = 0;
+  let genderedCount = 0;
+  let maleCount = 0;
 
   const recentRows = rows.filter((row) => {
     const createdAtMs = new Date(row.created_at).getTime();
@@ -65,22 +62,16 @@ export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date
     nEff += w;
     weightedBusyness += busynessToScore(row.busyness) * w;
 
-    const maleValue = reporterGenderToMaleValue(row.reporter_gender, row.gender_self_report);
-    if (maleValue != null) {
-      genderNEff += w;
-      weightedMaleValue += maleValue * w;
+    const selfReport = reporterGenderToSelfReport(row.reporter_gender, row.gender_self_report);
+    if (selfReport != null) {
+      genderedCount += 1;
+      if (selfReport === "m") maleCount += 1;
     }
   }
 
   const busyness0To100 = nEff > 0 ? Math.round(weightedBusyness / nEff) : null;
-
-  // Raw ratio in 0-100 range (% male)
-  const rawMfRatio = genderNEff > 0 ? weightedMaleValue / genderNEff : null;
-
-  // Only publish ratio when there is enough effective weight
-  const mfRatio = genderNEff >= MIN_NEFF_FOR_RATIO ? rawMfRatio : null;
-
-  const confidence0To1 = genderNEff > 0 ? genderNEff / (genderNEff + 3) : 0;
+  const mfRatio = genderedCount >= MIN_GENDERED_REPORTS_FOR_RATIO ? (maleCount / genderedCount) * 100 : null;
+  const confidence0To1 = genderedCount > 0 ? genderedCount / (genderedCount + 3) : 0;
 
   return {
     busyness0To100,

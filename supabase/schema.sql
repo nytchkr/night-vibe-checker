@@ -154,8 +154,8 @@ create table if not exists public.check_ins (
   place_id      text not null,
   user_id       uuid not null references auth.users(id) on delete cascade,
   busyness      text not null check (busyness in ('dead','moderate','packed')),
-  crowd_feel    text not null check (crowd_feel in ('mostly_male','mostly_female','balanced','mixed')),
-  gender_self_report char(1) check (gender_self_report in ('m','f')),
+  crowd_feel    text not null check (crowd_feel in ('chill','hyped','mixed','dead','packed','mostly_male','mostly_female','balanced')),
+  gender_self_report text check (gender_self_report in ('m','f','nb')),
   note          text check (char_length(note) <= 200),
   hidden        boolean not null default false,
   created_at    timestamptz not null default now()
@@ -170,8 +170,8 @@ create index if not exists check_ins_created_at_idx on public.check_ins(created_
 -- guarded ALTER statements let Supabase migrate the shape in-place.
 alter table public.check_ins add column if not exists place_id text;
 alter table public.check_ins add column if not exists busyness text check (busyness in ('dead','moderate','packed'));
-alter table public.check_ins add column if not exists crowd_feel text check (crowd_feel in ('mostly_male','mostly_female','balanced','mixed'));
-alter table public.check_ins add column if not exists gender_self_report char(1) check (gender_self_report in ('m','f'));
+alter table public.check_ins add column if not exists crowd_feel text check (crowd_feel in ('chill','hyped','mixed','dead','packed','mostly_male','mostly_female','balanced'));
+alter table public.check_ins add column if not exists gender_self_report text check (gender_self_report in ('m','f','nb'));
 alter table public.check_ins add column if not exists hidden boolean not null default false;
 alter table public.check_ins drop column if exists venue_name;
 alter table public.check_ins drop column if exists crowd_level;

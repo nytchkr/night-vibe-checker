@@ -7,7 +7,7 @@ function row(
   crowdFeel: "mostly_male" | "mostly_female" | "balanced" | "mixed",
   ageMinutes: number,
   reporterGender: "male" | "female" | null = null,
-  genderSelfReport: "m" | "f" | null = null,
+  genderSelfReport: "m" | "f" | "nb" | null = null,
 ) {
   return {
     id: `${crowdFeel}-${ageMinutes}`,
@@ -22,7 +22,7 @@ function row(
 }
 
 describe("computeSignalFromCheckIns", () => {
-  it("computes the weighted M/F ratio from reporter gender", () => {
+  it("computes the M/F ratio from recent reporter gender counts", () => {
     const signal = computeSignalFromCheckIns(
       [
         row("mostly_female", 0, "male"),
@@ -32,12 +32,12 @@ describe("computeSignalFromCheckIns", () => {
       NOW
     );
 
-    expect(signal.mfRatio).toBeCloseTo(80, 5);
-    expect(signal.confidence0To1).toBeCloseTo(2.5 / 5.5, 5);
+    expect(signal.mfRatio).toBeCloseTo((2 / 3) * 100, 5);
+    expect(signal.confidence0To1).toBeCloseTo(3 / 6, 5);
     expect(signal.sampleSize).toBe(3);
   });
 
-  it("keeps mfRatio empty when effective sample weight is below 2", () => {
+  it("keeps mfRatio empty when fewer than 2 recent gendered reports exist", () => {
     const signal = computeSignalFromCheckIns([row("mostly_male", 0, "male")], NOW);
 
     expect(signal.mfRatio).toBeNull();
@@ -70,6 +70,21 @@ describe("computeSignalFromCheckIns", () => {
 
     expect(signal.mfRatio).toBe(100);
     expect(signal.sampleSize).toBe(2);
+  });
+
+  it("counts non-binary self-reports in the recent denominator without adding male count", () => {
+    const signal = computeSignalFromCheckIns(
+      [
+        row("balanced", 0, "male", "m"),
+        row("balanced", 0, "male", "nb"),
+        row("balanced", 0, "female", "f"),
+      ],
+      NOW
+    );
+
+    expect(signal.mfRatio).toBeCloseTo((1 / 3) * 100, 5);
+    expect(signal.confidence0To1).toBeCloseTo(3 / 6, 5);
+    expect(signal.sampleSize).toBe(3);
   });
 
   it("ignores check-ins older than 4 hours", () => {

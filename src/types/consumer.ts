@@ -61,7 +61,15 @@ export interface VibeReport {
 // --------------- Consumer domain types -----------------------
 
 export type ReportedBusyness = "dead" | "moderate" | "packed";
-export type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
+export type CrowdFeel =
+  | "chill"
+  | "hyped"
+  | "mixed"
+  | "dead"
+  | "packed"
+  | "mostly_male"
+  | "mostly_female"
+  | "balanced";
 export type BusynessSource = "live" | "forecast" | "crowd";
 
 export interface VenueSignal {
