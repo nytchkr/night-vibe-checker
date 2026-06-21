@@ -57,6 +57,30 @@ const venues = [
       lastBusynessRefresh: generatedAt,
     },
   },
+  {
+    id: "explore-null-1",
+    placeId: "place-explore-null-1",
+    zoneId: "south-end",
+    name: "Zero Proof",
+    address: "303 Explore Ave",
+    lat: 35.215,
+    lng: -80.864,
+    category: "lounge",
+    photoUrl: null,
+    openNow: true,
+    hidden: false,
+    signal: {
+      venueId: "explore-null-1",
+      placeId: "place-explore-null-1",
+      busyness0To100: null,
+      busynessSource: null,
+      mfRatio: null,
+      confidence0To1: 0,
+      sampleSize: 0,
+      computedAt: generatedAt,
+      lastBusynessRefresh: null,
+    },
+  },
 ];
 
 const trendingVenues = [
@@ -93,7 +117,7 @@ async function markOnboarded(page: Page) {
   });
 }
 
-async function mockVenues(page: Page) {
+async function mockVenues(page: Page, venueList = venues) {
   await page.route("**/api/venues**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -123,7 +147,7 @@ async function mockVenues(page: Page) {
       contentType: "application/json",
       body: JSON.stringify({
         status: "success",
-        data: { venues },
+        data: { venues: venueList },
         meta,
       }),
     });
@@ -145,7 +169,10 @@ test.describe("Explore tab", () => {
     await page.goto("/explore");
     await page.waitForLoadState("domcontentloaded");
     await expect(page.getByRole("heading", { name: "South End" })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByPlaceholder(/Search South End/)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByPlaceholder("Search venues...")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("button", { name: "Busiest first" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Quietest first" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "A-Z" })).toBeVisible();
   });
 
   test("shows Trending Now above search and links to venue detail", async ({ page }) => {
@@ -169,19 +196,53 @@ test.describe("Explore tab", () => {
   test("search bar filters venue list", async ({ page }) => {
     await page.goto("/explore");
 
-    await expect(page.getByText("Pulse Room")).toBeVisible();
-    await expect(page.getByText("Lowlight Lounge")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toBeVisible();
 
     const searchBox = page.getByRole("searchbox", { name: "Search venues" });
     await searchBox.fill("Pulse");
 
-    await expect(page.getByText("Pulse Room")).toBeVisible();
-    await expect(page.getByText("Lowlight Lounge")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toHaveCount(0);
 
     await searchBox.fill("Explore Ave");
 
-    await expect(page.getByText('No venues match "Explore Ave"')).toBeVisible();
-    await expect(page.getByText("Pulse Room")).toHaveCount(0);
+    await expect(page.getByText("No matches for 'Explore Ave'. Try a different name.")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
+  });
+
+  test("sorts by busyness with null crowd data last", async ({ page }) => {
+    await page.goto("/explore");
+
+    const cards = page.getByRole("article");
+    await expect(cards.first()).toContainText("Pulse Room");
+    await expect(cards.nth(2)).toContainText("Zero Proof");
+
+    await page.getByRole("button", { name: "Quietest first" }).click();
+
+    await expect(cards.first()).toContainText("Lowlight Lounge");
+    await expect(cards.nth(2)).toContainText("Zero Proof");
+
+    await page.getByRole("button", { name: "A-Z" }).click();
+
+    await expect(cards.first()).toContainText("Lowlight Lounge");
+    await expect(cards.nth(1)).toContainText("Pulse Room");
+  });
+
+  test("shows honest empty venue and sparse signal states", async ({ page }) => {
+    await page.goto("/explore");
+
+    const zeroProof = page.getByRole("link", { name: "Open Zero Proof" });
+    await expect(zeroProof).toContainText("No crowd data");
+    await expect(zeroProof).toContainText("No vibe reads yet");
+    await expect(zeroProof).not.toContainText("LIVE");
+  });
+
+  test("shows honest no venues empty state", async ({ page }) => {
+    await mockVenues(page, []);
+    await page.goto("/explore");
+
+    await expect(page.getByText("No venues in this area yet. Check back soon.")).toBeVisible();
   });
 
   test("Packed filter shows only packed venues", async ({ page }) => {
@@ -189,8 +250,8 @@ test.describe("Explore tab", () => {
 
     await page.getByRole("button", { name: "Packed" }).click();
 
-    await expect(page.getByText("Pulse Room")).toBeVisible();
-    await expect(page.getByText("Lowlight Lounge")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toHaveCount(0);
   });
 
   test("empty filtered results can clear filters", async ({ page }) => {
@@ -202,14 +263,14 @@ test.describe("Explore tab", () => {
 
     await page.getByRole("button", { name: "Clear filters" }).click();
 
-    await expect(page.getByText("Pulse Room")).toBeVisible();
-    await expect(page.getByText("Lowlight Lounge")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toBeVisible();
   });
 
   test("venue card click navigates to the venue detail route", async ({ page }) => {
     await page.goto("/explore");
 
-    await page.getByRole("link", { name: "Open Pulse Room" }).click();
+    await page.getByRole("link", { name: "Open Pulse Room", exact: true }).click();
 
     await expect(page).toHaveURL(/\/venues\/explore-packed-1$/);
   });

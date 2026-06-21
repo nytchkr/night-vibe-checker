@@ -19,12 +19,12 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
-import type { ConsumerVenue } from "@/types";
+import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
 type NeighborhoodFilter = "All Areas" | "South End";
-type SortOption = "Nearest" | "Busiest" | "A-Z" | "Open Now";
+type SortOption = "Busiest first" | "Quietest first" | "A-Z";
 type UserLocation = { lat: number; lng: number };
 type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
 type ActivityFeedItem = {
@@ -42,13 +42,7 @@ type ActivityFeedItem = {
 
 const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
 const NEIGHBORHOOD_FILTERS: NeighborhoodFilter[] = ["All Areas", "South End"];
-const SORT_OPTIONS: SortOption[] = ["Nearest", "Busiest", "A-Z", "Open Now"];
-const SORT_LABELS: Record<SortOption, string> = {
-  Nearest: "Nearest",
-  Busiest: "Busiest",
-  "A-Z": "A-z",
-  "Open Now": "Open now",
-};
+const SORT_OPTIONS: SortOption[] = ["Busiest first", "Quietest first", "A-Z"];
 const NEIGHBORHOOD_LABELS: Record<NeighborhoodFilter, string> = {
   "All Areas": "All areas",
   "South End": "South end",
@@ -277,7 +271,7 @@ function SortPill({
       aria-pressed={active}
       data-active={active}
     >
-      {SORT_LABELS[label]}
+      {label}
     </motion.button>
   );
 }
@@ -373,37 +367,56 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
   );
 }
 
-function BusynessBar({ value }: { value: number }) {
+function BusynessChip({
+  value,
+  source,
+}: {
+  value: number | null;
+  source: BusynessSource | null;
+}) {
+  if (value == null || !Number.isFinite(value)) {
+    return (
+      <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-[#646B79]">
+        No crowd data
+      </span>
+    );
+  }
+
   const percent = clampPercent(value);
   const state = getBusynessState(percent);
+  const badge = source === "live" ? "LIVE" : source === "forecast" ? "FORECAST" : source === "crowd" ? "CROWD" : null;
 
   return (
-    <div className="space-y-1" aria-label={`${state.label}, ${percent}% busy`}>
-      <div className="flex items-center justify-between gap-3 text-[11px] font-bold">
-        <span style={{ color: state.color }}>{state.label}</span>
-        <span className="text-white/35">{percent}%</span>
-      </div>
-      <div
-        className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]"
-        role="meter"
-        aria-label={`${state.label} busyness`}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={percent}
-      >
-        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: state.color }} />
-      </div>
-    </div>
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black leading-none"
+      style={{ borderColor: `${state.color}55`, backgroundColor: `${state.color}1A`, color: state.color }}
+      aria-label={`${state.label}, ${percent}% busy${badge ? `, ${badge}` : ""}`}
+    >
+      <span>{state.label}</span>
+      <span className="text-white/35">{percent}%</span>
+      {badge ? (
+        <span className="inline-flex items-center gap-1 text-[9px] text-white/55">
+          {badge === "LIVE" ? <span className="h-1.5 w-1.5 rounded-full bg-[#00F5D4] animate-pulse" aria-hidden="true" /> : null}
+          {badge}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
-function CompactMFSplit({ malePercent, femalePercent }: { malePercent: number; femalePercent: number }) {
+function MiniMFRatioBar({ malePercent, femalePercent }: { malePercent: number; femalePercent: number }) {
   return (
-    <p className="text-[11px] font-bold text-white/50" aria-label={`${malePercent}% male, ${femalePercent}% female`}>
-      <span className="text-[#4F9DFF]">{malePercent}M</span>
-      <span className="mx-1 text-white/30">·</span>
-      <span className="text-[#F0568C]">{femalePercent}F</span>
-    </p>
+    <span className="inline-flex items-center gap-1.5" aria-label={`${malePercent}% male, ${femalePercent}% female`}>
+      <span className="flex h-1.5 w-12 overflow-hidden rounded-full bg-white/[0.08]">
+        <span className="h-full bg-[#4F9DFF]" style={{ width: `${malePercent}%` }} />
+        <span className="h-full bg-[#F0568C]" style={{ width: `${femalePercent}%` }} />
+      </span>
+      <span className="text-[11px] font-bold text-white/50">
+        <span className="text-[#4F9DFF]">{malePercent}M</span>
+        <span className="mx-1 text-white/30">·</span>
+        <span className="text-[#F0568C]">{femalePercent}F</span>
+      </span>
+    </span>
   );
 }
 
@@ -467,7 +480,6 @@ function VenueFeedCard({
 }) {
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
-  const busynessState = getBusynessState(busyness);
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
   const reviewCount = venue.totalRatings;
@@ -480,12 +492,12 @@ function VenueFeedCard({
   const hasMfReading =
     signal?.mfRatio !== null &&
     signal?.mfRatio !== undefined &&
-    signal.confidence0To1 > 0.3;
+    signal.sampleSize >= 2;
   const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
 
   return (
     <motion.li
-      className="mb-3 h-[114px]"
+      className="mb-3 h-[126px]"
       role="article"
       initial={prefersReduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -501,14 +513,14 @@ function VenueFeedCard({
         className="group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] p-3 transition-colors hover:border-white/[0.16] hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         aria-label={`Open ${venue.name}`}
       >
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-[#8B6CFF]/20">
+        <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-[#8B6CFF]/20">
           {venue.photoUrl ? (
             <Image
               src={venue.photoUrl}
               alt={venue.name}
-              width={56}
-              height={56}
-              sizes="56px"
+              width={72}
+              height={72}
+              sizes="72px"
               loading={index === 0 ? "eager" : "lazy"}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
@@ -524,7 +536,7 @@ function VenueFeedCard({
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
           <div className="min-w-0 space-y-1">
             <div className="flex min-w-0 items-start justify-between gap-2">
-              <h2 className="min-w-0 flex-1 truncate text-[16px] font-bold leading-tight text-white">
+              <h2 className="min-w-0 flex-1 truncate text-[16px] font-semibold leading-tight text-white">
                 <HighlightText text={venue.name} query={searchQuery} />
               </h2>
               {googleRatingLabel ? (
@@ -542,7 +554,7 @@ function VenueFeedCard({
             </div>
           </div>
 
-          {hasBusyness ? <BusynessBar value={busyness} /> : null}
+          <BusynessChip value={busyness} source={signal?.busynessSource ?? null} />
 
           <div className="flex items-center justify-between gap-3">
             <span className="min-w-0 truncate text-[13px] font-medium text-[#9CA2AE]">
@@ -550,8 +562,12 @@ function VenueFeedCard({
               {venue.address}
             </span>
             <div className="flex shrink-0 items-center gap-2">
-              {mfPercents ? <CompactMFSplit malePercent={mfPercents.male} femalePercent={mfPercents.female} /> : null}
-              {busynessState.level ? <SignalFreshnessLabel signal={signal} /> : signalConfidenceLabel ? null : null}
+              {mfPercents ? (
+                <MiniMFRatioBar malePercent={mfPercents.male} femalePercent={mfPercents.female} />
+              ) : (
+                <span className="text-[11px] font-semibold text-[#646B79]">No vibe reads yet</span>
+              )}
+              {hasBusyness ? <SignalFreshnessLabel signal={signal} /> : null}
             </div>
           </div>
           {signalConfidenceLabel ? <p className="sr-only">{signalConfidenceLabel}</p> : null}
@@ -595,11 +611,10 @@ export function ExplorePageClient() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState<NeighborhoodFilter>("All Areas");
-  const [sortOption, setSortOption] = useState<SortOption>("Busiest");
+  const [sortOption, setSortOption] = useState<SortOption>("Busiest first");
   const [scrollTop, setScrollTop] = useState(0);
   const [listViewportHeight, setListViewportHeight] = useState(560);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
@@ -676,11 +691,6 @@ export function ExplorePageClient() {
   }, []);
 
   useEffect(() => {
-    const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 200);
-    return () => window.clearTimeout(id);
-  }, [searchQuery]);
-
-  useEffect(() => {
     const element = activitySectionRef.current;
     if (!element || activityViewedRef.current || !("IntersectionObserver" in window)) return;
 
@@ -717,7 +727,7 @@ export function ExplorePageClient() {
   useEffect(() => {
     setScrollTop(0);
     listRef.current?.scrollTo({ top: 0 });
-  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption]);
+  }, [busynessFilter, categoryFilter, searchQuery, neighborhoodFilter, sortOption]);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -737,7 +747,7 @@ export function ExplorePageClient() {
 
   const sortedVenues = useMemo(() => {
     if (venues === null) return [];
-    const normalizedSearch = normalizeSearchText(debouncedSearchQuery.trim());
+    const normalizedSearch = normalizeSearchText(searchQuery.trim());
 
     return venues.filter((venue) => {
       if (venue.hidden) return false;
@@ -749,25 +759,26 @@ export function ExplorePageClient() {
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
       const matchesNeighborhood = neighborhoodFilter === "All Areas" || venue.neighborhood === neighborhoodFilter;
-      const matchesOpenNow = sortOption !== "Open Now" || venue.openNow === true;
-
-      return matchesSearch && matchesBusyness && matchesCategory && matchesNeighborhood && matchesOpenNow;
+      return matchesSearch && matchesBusyness && matchesCategory && matchesNeighborhood;
     }).sort((a, b) => {
-      if (sortOption === "Nearest" && userLocation) {
-        const aDistance = distanceMiles(userLocation.lat, userLocation.lng, a.lat, a.lng);
-        const bDistance = distanceMiles(userLocation.lat, userLocation.lng, b.lat, b.lng);
-        return aDistance - bDistance || a.name.localeCompare(b.name);
-      }
-
-      if (sortOption === "A-Z" || sortOption === "Nearest") {
+      if (sortOption === "A-Z") {
         return a.name.localeCompare(b.name);
       }
 
-      const aState = getBusynessState(a.signal?.busyness0To100);
-      const bState = getBusynessState(b.signal?.busyness0To100);
-      return bState.rank - aState.rank || a.name.localeCompare(b.name);
+      const aBusyness = a.signal?.busyness0To100;
+      const bBusyness = b.signal?.busyness0To100;
+
+      if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
+      if (aBusyness == null) return 1;
+      if (bBusyness == null) return -1;
+
+      const busynessDelta = sortOption === "Busiest first"
+        ? bBusyness - aBusyness
+        : aBusyness - bBusyness;
+
+      return busynessDelta || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption, userLocation, venues]);
+  }, [busynessFilter, categoryFilter, searchQuery, neighborhoodFilter, sortOption, venues]);
 
   const hottestVenues = useMemo(() => {
     if (venues === null) return [];
@@ -833,15 +844,14 @@ export function ExplorePageClient() {
   const resultVenueNoun = categoryFilter === "All" ? "spot" : categoryFilter.toLowerCase();
   const resultAreaLabel = neighborhoodFilter === "All Areas" ? "all areas" : neighborhoodFilter;
   const resultCountLabel = `${sortedVenues.length} ${resultVenueNoun}${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
-  const trimmedVenueSearchQuery = debouncedSearchQuery.trim();
+  const trimmedVenueSearchQuery = searchQuery.trim();
 
   function clearFilters() {
     setSearchQuery("");
-    setDebouncedSearchQuery("");
     setBusynessFilter("All");
     setCategoryFilter("All");
     setNeighborhoodFilter("All Areas");
-    setSortOption("Busiest");
+    setSortOption("Busiest first");
   }
 
   function selectSortOption(option: SortOption) {
@@ -933,8 +943,8 @@ export function ExplorePageClient() {
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search South End..."
-                className="w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                placeholder="Search venues..."
+                className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               />
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -973,6 +983,18 @@ export function ExplorePageClient() {
               </div>
             )}
 
+            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Busyness sort">
+              {SORT_OPTIONS.map((option) => (
+                <SortPill
+                  key={option}
+                  label={option}
+                  active={sortOption === option}
+                  onSelect={() => selectSortOption(option)}
+                  prefersReduced={prefersReduced}
+                />
+              ))}
+            </div>
+
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {BUSYNESS_FILTERS.map((filter) => (
                 <FilterChip
@@ -1001,7 +1023,7 @@ export function ExplorePageClient() {
         </div>
       </header>
 
-      <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0E]/95 backdrop-blur" role="region" aria-label="Explore sort controls">
+      <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0E]/95 backdrop-blur" role="region" aria-label="Explore filters summary">
         <div className="mx-auto max-w-lg space-y-2 px-4 py-2">
           <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NEIGHBORHOOD_FILTERS.map((filter) => (
@@ -1010,17 +1032,6 @@ export function ExplorePageClient() {
                 label={filter}
                 active={neighborhoodFilter === filter}
                 onSelect={setNeighborhoodFilter}
-                prefersReduced={prefersReduced}
-              />
-            ))}
-          </div>
-          <div className="flex gap-2 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {SORT_OPTIONS.map((option) => (
-              <SortPill
-                key={option}
-                label={option}
-                active={sortOption === option}
-                onSelect={() => selectSortOption(option)}
                 prefersReduced={prefersReduced}
               />
             ))}
@@ -1059,7 +1070,7 @@ export function ExplorePageClient() {
 
         {venues !== null && !error && venues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
-            <h2 className="font-display text-lg font-bold text-white">No venues found in South End yet</h2>
+            <h2 className="font-display text-lg font-bold text-white">No venues in this area yet. Check back soon.</h2>
             <Link
               href="/map"
               className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full border border-white/10 bg-white/[0.06] px-5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
@@ -1074,7 +1085,7 @@ export function ExplorePageClient() {
             <div className="text-5xl" aria-hidden="true">🔍</div>
             <h2 className="font-display mt-4 text-lg font-bold text-white">
               {trimmedVenueSearchQuery
-                ? `No venues match "${trimmedVenueSearchQuery}"`
+                ? `No matches for '${trimmedVenueSearchQuery}'. Try a different name.`
                 : "No venues match your filters"}
             </h2>
             <button
@@ -1104,7 +1115,7 @@ export function ExplorePageClient() {
                 <VenueFeedCard
                   key={venue.id}
                   venue={venue}
-                  searchQuery={debouncedSearchQuery}
+                  searchQuery={searchQuery}
                   distance={venueDistances.get(venue.id) ?? null}
                   index={startIdx + index}
                   prefersReduced={prefersReduced}
