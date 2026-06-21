@@ -34,8 +34,8 @@ describe("venue share data", () => {
 
     expect(shareData).toEqual({
       title: "Bar X",
-      text: "Bar X is packed 🔥 right now · 61% guys (live) — NightVibe",
-      url: "https://night-vibe-checker.vercel.app/venues/bar-x",
+      text: "Check out Bar X on nytchkr — packed 🔥 (live) right now. https://night-vibe-checker.vercel.app/venue/bar-x",
+      url: "https://night-vibe-checker.vercel.app/venue/bar-x",
     });
   });
 
@@ -56,7 +56,7 @@ describe("venue share data", () => {
     });
 
     expect(buildVenueShareClipboardText(shareData)).toBe(
-      "Bar X is getting busy right now (forecast) — NightVibe https://night-vibe-checker.vercel.app/venues/bar-x",
+      "Check out Bar X on nytchkr — getting busy (forecast) right now. https://night-vibe-checker.vercel.app/venue/bar-x",
     );
   });
 });

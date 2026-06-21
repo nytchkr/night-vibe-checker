@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Bookmark } from "lucide-react";
+import { useOnboardingGate } from "@/components/OnboardingGate";
 import { useHaptic } from "@/hooks/useHaptic";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
@@ -25,9 +26,9 @@ export function SaveVenueButton({
   className,
   onSavedChange,
 }: SaveVenueButtonProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { consumePendingAction, requireAuth } = useOnboardingGate();
   const haptic = useHaptic();
   const [saved, setSaved] = useState(initialSaved);
   const [pending, setPending] = useState(false);
@@ -81,16 +82,10 @@ export function SaveVenueButton({
     return query ? `${pathname}?${query}` : pathname;
   }
 
-  async function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (!activeAccessToken) {
-      router.push(`/login?return=${encodeURIComponent(currentPath())}`);
-      return;
-    }
-
+  const toggleSaved = useCallback(async () => {
+    if (!activeAccessToken) return;
     const nextSaved = !saved;
+
     if (nextSaved) {
       haptic.light();
     } else {
@@ -118,6 +113,29 @@ export function SaveVenueButton({
     } finally {
       setPending(false);
     }
+  }, [activeAccessToken, haptic, onSavedChange, saved, venueId]);
+
+  useEffect(() => {
+    if (!activeAccessToken || pending) return;
+    if (!consumePendingAction(`save:${venueId}`)) return;
+    void toggleSaved();
+  }, [activeAccessToken, consumePendingAction, pending, toggleSaved, venueId]);
+
+  async function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!activeAccessToken) {
+      await requireAuth({
+        id: `save:${venueId}`,
+        label: `Sign in to save ${venueName}.`,
+        returnTo: currentPath(),
+        onAuthenticated: toggleSaved,
+      });
+      return;
+    }
+
+    await toggleSaved();
   }
 
   return (

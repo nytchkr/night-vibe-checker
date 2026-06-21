@@ -163,6 +163,9 @@ function LoginContent() {
               nyt<span className="text-[#8B6CFF]">chkr</span>
             </h1>
             <p className="text-sm font-semibold text-white/50">Know before you go.</p>
+            <p className="mx-auto max-w-xs text-xs font-bold text-white/45">
+              Check in at venues · See the M/F vibe · Save your spots
+            </p>
           </div>
 
           {otpSent ? (

@@ -2,13 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useOnboardingGate } from "@/components/OnboardingGate";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
+import { ShareButton } from "@/components/ShareButton";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { formatSignalAge, getSignalLabel } from "@/lib/signalFreshness";
-import { buildVenueShareClipboardText, buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
@@ -137,9 +139,10 @@ function VenueBottomSheetSkeleton({ onClose }: { onClose: () => void }) {
 }
 
 export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBottomSheetProps) {
+  const router = useRouter();
+  const { requireAuth } = useOnboardingGate();
   const touchStartYRef = useRef<number | null>(null);
   const [dragDelta, setDragDelta] = useState(0);
-  const [copied, setCopied] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const photoUrl = venue?.photoUrls?.[0] ?? venue?.photoUrl;
 
@@ -179,35 +182,29 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
     setDragDelta(0);
   }
 
-  async function handleShare() {
-    if (!venue || typeof navigator === "undefined") return;
+  async function handleReportClick() {
+    if (!venue) return;
 
-    const shareData = buildVenueShareData(venue);
+    const canContinue = await requireAuth({
+      id: `check-in:${venue.id}`,
+      label: `Sign in to report the vibe at ${venue.name}.`,
+      returnTo: reportHref,
+      onAuthenticated: () => router.push(reportHref),
+    });
 
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-      }
-    }
-
-    try {
-      if (!navigator.clipboard) return;
-      await navigator.clipboard.writeText(buildVenueShareClipboardText(shareData));
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
+    if (canContinue) router.push(reportHref);
   }
 
   if (loading) return <VenueBottomSheetSkeleton onClose={onClose} />;
   if (!venue) return null;
 
   const signal = venue.signal;
-  const reportHref = `/vibe-check?venueId=${encodeURIComponent(venue.id)}&venueName=${encodeURIComponent(venue.name)}`;
+  const reportParams = new URLSearchParams({
+    venue: venue.id,
+    venueId: venue.id,
+    venueName: venue.name,
+  });
+  const reportHref = `/vibe-check?${reportParams.toString()}`;
   const signalLabel = getSignalLabel(signal);
   const signalAge = formatSignalAge(signal?.computedAt ?? null);
 
@@ -276,24 +273,13 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                 </p>
               </div>
               <div className="relative flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/[0.06] text-white/70 transition-colors hover:border-white/25 hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/55"
-                  aria-label={`Share ${venue.name}`}
-                  title={copied ? "Link copied!" : "Share"}
-                >
-                  <ShareIcon />
-                  <span className="sr-only">Share</span>
-                </button>
+                <ShareButton
+                  venue={venue}
+                  className="[&_button]:h-9 [&_button]:w-9 [&_button]:border-white/15 [&_button]:bg-white/[0.06] [&_button]:text-white/70 [&_button:hover]:border-white/25 [&_button:hover]:bg-white/10 [&_button:hover]:text-white"
+                />
                 <span className="flex flex-col items-end gap-1">
                   <SourceBadge label={signalLabel} />
                 </span>
-                {copied ? (
-                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md border border-white/15 bg-[#0A0A0E] px-2 py-1 text-xs font-bold text-white/70 shadow-lg">
-                    Link copied!
-                  </span>
-                ) : null}
               </div>
             </div>
 
@@ -320,40 +306,18 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
               >
                 View details
               </Link>
-              <Link
-                href={reportHref}
+              <button
+                type="button"
+                onClick={handleReportClick}
                 className="flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.35)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 Report the vibe
-              </Link>
+              </button>
             </div>
           </div>
         </div>
       </aside>
     </>
-  );
-}
-
-function ShareIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={16}
-      height={16}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx={18} cy={5} r={3} />
-      <circle cx={6} cy={12} r={3} />
-      <circle cx={18} cy={19} r={3} />
-      <line x1={8.59} y1={13.51} x2={15.42} y2={17.49} />
-      <line x1={15.41} y1={6.51} x2={8.59} y2={10.49} />
-    </svg>
   );
 }
 

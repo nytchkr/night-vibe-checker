@@ -5,6 +5,7 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BottomNav } from "@/components/BottomNav";
+import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://night-vibe-checker.vercel.app";
@@ -84,9 +85,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </span>
           </div>
         )}
-        <main id="main-content" tabIndex={-1} className={isDev ? "pb-20 pt-5" : "pb-20"}>
-          {children}
-        </main>
+        <OnboardingGateProvider>
+          <main id="main-content" tabIndex={-1} className={isDev ? "pb-20 pt-5" : "pb-20"}>
+            {children}
+          </main>
+        </OnboardingGateProvider>
         <Analytics />
         <SpeedInsights />
         <BottomNav />
