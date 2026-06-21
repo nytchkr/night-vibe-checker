@@ -1,0 +1,168 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type VenueRatingValue = "up" | "down";
+
+type VenueRatingState = {
+  upCount: number;
+  downCount: number;
+  userRating: VenueRatingValue | null;
+};
+
+const EMPTY_RATING_STATE: VenueRatingState = {
+  upCount: 0,
+  downCount: 0,
+  userRating: null,
+};
+
+function getRatingJsonValue(json: unknown): VenueRatingState {
+  const value = json as Partial<VenueRatingState> & { data?: Partial<VenueRatingState> };
+  const source = value.data ?? value;
+
+  return {
+    upCount: typeof source.upCount === "number" ? source.upCount : 0,
+    downCount: typeof source.downCount === "number" ? source.downCount : 0,
+    userRating: source.userRating === "up" || source.userRating === "down" ? source.userRating : null,
+  };
+}
+
+function RatingButton({
+  active,
+  count,
+  disabled,
+  icon,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  disabled: boolean;
+  icon: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-label={`${label}: ${count}`}
+      className={`inline-flex h-10 min-w-[5.25rem] items-center justify-center gap-2 rounded-full border px-3 text-[14px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60 disabled:cursor-not-allowed ${
+        active
+          ? "border-[#00F5D4]/60 bg-[#00F5D4]/20 text-[#00F5D4]"
+          : "border-white/10 bg-white/[0.04] text-white/65 hover:border-white/20 hover:text-white disabled:hover:border-white/10 disabled:hover:text-white/65"
+      }`}
+    >
+      <span aria-hidden="true">{icon}</span>
+      <span>{count}</span>
+    </button>
+  );
+}
+
+export function VenueRating({ accessToken, venueId }: { accessToken: string | null; venueId: string }) {
+  const [ratingState, setRatingState] = useState<VenueRatingState>(EMPTY_RATING_STATE);
+  const [loading, setLoading] = useState(true);
+  const [pendingRating, setPendingRating] = useState<VenueRatingValue | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!venueId) return;
+    let cancelled = false;
+
+    async function fetchRatings() {
+      setLoading(true);
+      setError(null);
+      try {
+        const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+        const res = await fetch(`/api/venue-ratings?venueId=${encodeURIComponent(venueId)}`, { headers });
+        if (!res.ok) throw new Error(`${res.status}`);
+        const json = await res.json();
+        if (!cancelled) setRatingState(getRatingJsonValue(json));
+      } catch {
+        if (!cancelled) setError("Could not load ratings.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void fetchRatings();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, venueId]);
+
+  async function submitRating(rating: VenueRatingValue) {
+    if (!accessToken || pendingRating || ratingState.userRating === rating) return;
+
+    const previousState = ratingState;
+    const nextState = {
+      upCount:
+        previousState.upCount + (rating === "up" ? 1 : 0) - (previousState.userRating === "up" ? 1 : 0),
+      downCount:
+        previousState.downCount + (rating === "down" ? 1 : 0) - (previousState.userRating === "down" ? 1 : 0),
+      userRating: rating,
+    };
+
+    setPendingRating(rating);
+    setError(null);
+    setRatingState(nextState);
+
+    try {
+      const res = await fetch("/api/venue-ratings", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ venueId, rating }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+    } catch {
+      setRatingState(previousState);
+      setError("Could not save rating.");
+    } finally {
+      setPendingRating(null);
+    }
+  }
+
+  const readOnly = !accessToken;
+  const disabled = readOnly || loading || pendingRating !== null;
+  const tooltip = readOnly ? "Sign in to rate" : undefined;
+
+  return (
+    <section
+      className="space-y-3 border-t border-white/[0.06] pt-5"
+      role="region"
+      aria-label="Would you go back rating"
+      title={tooltip}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Would you go back?</p>
+          {readOnly && <p className="mt-1 text-[12px] text-white/35">Sign in to rate</p>}
+        </div>
+        <div className="flex items-center gap-2" aria-busy={loading}>
+          <RatingButton
+            active={ratingState.userRating === "up"}
+            count={ratingState.upCount}
+            disabled={disabled}
+            icon="👍"
+            label="Would go back"
+            onClick={() => void submitRating("up")}
+          />
+          <RatingButton
+            active={ratingState.userRating === "down"}
+            count={ratingState.downCount}
+            disabled={disabled}
+            icon="👎"
+            label="Would not go back"
+            onClick={() => void submitRating("down")}
+          />
+        </div>
+      </div>
+      {error && <p className="text-[12px] text-rose-300">{error}</p>}
+    </section>
+  );
+}

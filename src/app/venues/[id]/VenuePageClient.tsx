@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
+import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
@@ -405,6 +406,8 @@ export function VenuePageClient({
                 </p>
               )}
             </section>
+
+            <VenueRating venueId={venueId} accessToken={accessToken} />
 
             <section className="space-y-3 border-t border-white/[0.06] pt-5" role="region" aria-label="Venue hours">
               <p className="text-[15px] font-medium text-white">
