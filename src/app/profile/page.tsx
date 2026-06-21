@@ -115,6 +115,10 @@ type ProfileCheckInResponse = {
   created_at?: string | null;
 };
 
+type ProfileStreakResponse = {
+  streak?: number | null;
+};
+
 function readLocalTestSession(): Session | null {
   if (typeof window === "undefined") return null;
   if (process.env.NODE_ENV === "production") return null;
@@ -312,6 +316,7 @@ export default function ProfilePage() {
   const [session, setSession] = useState<Session | null>(null);
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
   const [savedVenues, setSavedVenues] = useState<ConsumerVenue[]>([]);
+  const [streak, setStreak] = useState(0);
   const [checkInsLoading, setCheckInsLoading] = useState(false);
   const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
   const [hapticsPreference, setHapticsPreferenceState] = useState<HapticsPreference>("on");
@@ -327,6 +332,7 @@ export default function ProfilePage() {
         setSession(null);
         setCheckIns([]);
         setSavedVenues([]);
+        setStreak(0);
         setAuthChecked(true);
         return;
       }
@@ -334,6 +340,7 @@ export default function ProfilePage() {
       setAuthChecked(true);
       fetchCheckIns(activeSession.access_token);
       fetchSavedVenues(activeSession.access_token);
+      fetchStreak(activeSession.access_token);
     });
 
     const { data: { subscription } } = client.auth.onAuthStateChange((_event, sess) => {
@@ -342,6 +349,7 @@ export default function ProfilePage() {
         setSession(null);
         setCheckIns([]);
         setSavedVenues([]);
+        setStreak(0);
         setAuthChecked(true);
         return;
       }
@@ -349,6 +357,7 @@ export default function ProfilePage() {
       setAuthChecked(true);
       fetchCheckIns(activeSession.access_token);
       fetchSavedVenues(activeSession.access_token);
+      fetchStreak(activeSession.access_token);
     });
 
     return () => subscription.unsubscribe();
@@ -431,6 +440,22 @@ export default function ProfilePage() {
     }
   }
 
+  async function fetchStreak(token: string) {
+    try {
+      const res = await fetch("/api/profile/streak", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setStreak(0);
+        return;
+      }
+      const json = (await res.json()) as ProfileStreakResponse;
+      setStreak(Math.max(0, Number(json.streak ?? 0)));
+    } catch {
+      setStreak(0);
+    }
+  }
+
   const userEmail = session?.user.email ?? "";
   const userInitial = userEmail.trim().charAt(0).toUpperCase() || "?";
   const hapticsEnabled = hapticsPreference === "on";
@@ -485,6 +510,12 @@ export default function ProfilePage() {
               </div>
               <p className="mt-3 max-w-full truncate text-sm text-white/50">{userEmail}</p>
               <p className="mt-1 text-xs font-semibold text-white/35">{joinedDate(session.user.created_at)}</p>
+            </div>
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 text-left">
+              <p className="text-2xl font-black text-[#00F5D4]">🔥 {streak}-night streak</p>
+              <p className="mt-1 text-sm font-semibold text-white/45">
+                {streak > 0 ? "Keep it up! Check in tonight to extend your streak." : "Start your streak tonight!"}
+              </p>
             </div>
             <div className="flex flex-wrap justify-center gap-2">
               <span className="rounded-full bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/65">
