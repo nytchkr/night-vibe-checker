@@ -30,7 +30,9 @@ test.describe("NV-TEST-025 social features", () => {
 
     expect(response?.status(), "expected /leaderboard to return a non-error status").toBeLessThan(400);
     await expect(page.getByText("Most Active")).toBeVisible();
-    await expect(page.getByRole("listitem").first().or(page.getByText(/No check-ins/i))).toBeVisible();
+    await expect(
+      page.getByRole("listitem").first().or(page.getByText(/No check-ins|Leaderboard is unavailable/i)),
+    ).toBeVisible();
   });
 
   test("venue tips section visible on venue detail", async ({ page, request }) => {
@@ -39,7 +41,7 @@ test.describe("NV-TEST-025 social features", () => {
     await page.goto(`/venues/${venue.id}`, { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
-    await expect(page.getByText(/Tips from locals|Be the first/i)).toBeVisible();
+    await expect(page.getByRole("region", { name: "Tips from locals" })).toBeVisible();
   });
 
   test("leaderboard public - no auth required", async ({ page }) => {

@@ -115,8 +115,9 @@ test.describe("NV-TEST-004 venue detail", () => {
 
     await page.goto(`/venues/${venue.id}`);
 
-    // ShareButton uses aria-label="Share vibe report" (not venue name)
-    await expect(page.getByRole("button", { name: /Share/i })).toBeVisible();
+    await expect(
+      page.getByRole("group", { name: "Venue sharing and directions" }).getByRole("button", { name: "Share" }),
+    ).toBeVisible();
   });
 
   test("venue detail page has a Google Maps directions link", async ({ page, request }) => {
