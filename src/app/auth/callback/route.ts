@@ -41,8 +41,11 @@ export async function GET(req: NextRequest) {
       }
     );
 
+    const cookieNames = req.cookies.getAll().map((c) => c.name);
+    console.error("[auth/callback] cookies present:", cookieNames);
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
+      console.error("[auth/callback] exchangeCodeForSession error:", error.message, error.status);
       return NextResponse.redirect(authFailedUrl(origin, "Could not finish sign-in. Please try again."));
     }
 
