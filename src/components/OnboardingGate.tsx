@@ -226,11 +226,11 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
             className="absolute inset-0 cursor-default"
             onClick={closeGate}
           />
-          <section className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#11111A] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
+          <section className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-[18px] border border-white/[0.08] bg-[#101017] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.16em] text-[#8B6CFF]">nytchkr</p>
-                <h2 id="onboarding-gate-title" className="font-display mt-1 text-xl font-black text-white">
+                <p className="text-[11.5px] font-semibold text-[#8B6CFF]">nytchkr</p>
+                <h2 id="onboarding-gate-title" className="font-display mt-1 text-xl font-semibold text-[#F4F5F8]">
                   Sign in to keep going
                 </h2>
                 <p className="mt-1 text-sm text-white/50">{pendingAction?.label ?? "Unlock the full vibe."}</p>
@@ -264,12 +264,12 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                   type="button"
                   onClick={handleGoogleSignIn}
                   disabled={googleSigningIn}
-                  className="flex min-h-12 w-full items-center justify-center rounded-2xl border border-gray-600 bg-gray-800 px-4 text-sm font-black text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                  className="flex min-h-12 w-full items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-4 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   {googleSigningIn ? "Connecting..." : "Continue with Google"}
                 </button>
 
-                <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-white/35">
+                <div className="flex items-center gap-3 text-[11.5px] font-semibold text-[#646B79]">
                   <span className="h-px flex-1 bg-white/10" />
                   <span>or</span>
                   <span className="h-px flex-1 bg-white/10" />
@@ -287,7 +287,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                     onKeyDown={(event) => event.key === "Enter" && handleEmailSignIn()}
                     placeholder="you@email.com"
                     autoComplete="email"
-                    className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white placeholder:text-white/25 focus:border-[#8B6CFF]/50 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/20"
+                    className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white placeholder:text-white/55 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                   />
                   <button
                     type="button"
@@ -309,7 +309,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
 
             <Link
               href={`/login?return=${encodeURIComponent(pendingAction?.returnTo ?? currentPath())}`}
-              className="mt-4 block text-center text-xs font-bold text-white/42 underline-offset-4 hover:text-white/70 hover:underline"
+              className="mt-4 block text-center text-xs font-bold text-white/55 underline-offset-4 hover:text-white/70 hover:underline focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
             >
               Open full sign-in page
             </Link>

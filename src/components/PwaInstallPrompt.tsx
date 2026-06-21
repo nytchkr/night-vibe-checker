@@ -99,7 +99,7 @@ export default function PwaInstallPrompt() {
     <aside
       role="status"
       aria-label="Install NightVibe"
-      className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[1500] mx-auto w-full max-w-lg rounded-t-2xl border-t border-white/10 bg-[#1A1A2E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-12px_32px_rgba(0,0,0,0.42)]"
+      className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[1500] mx-auto w-full max-w-lg rounded-t-[18px] border-t border-white/[0.08] bg-[#101017] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-[0_-12px_32px_rgba(0,0,0,0.42)]"
     >
       <div className="flex items-center gap-3">
         <p className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-white">
@@ -109,7 +109,7 @@ export default function PwaInstallPrompt() {
           type="button"
           size="sm"
           onClick={handleInstall}
-          className="h-9 rounded-full bg-[#8B6CFF] px-4 text-[13px] font-semibold text-white hover:bg-[#9A7CFF]"
+          className="h-9 rounded-[14px] bg-[#8B6CFF] px-4 text-[13px] font-semibold text-[#0A0A0E] hover:bg-[#9A7CFF]"
         >
           Install
         </Button>
@@ -117,7 +117,7 @@ export default function PwaInstallPrompt() {
           type="button"
           onClick={handleDismiss}
           aria-label="Dismiss install prompt"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white/70 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#9CA2AE] transition-colors hover:bg-white/10 hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           <X aria-hidden="true" className="h-4 w-4" />
         </button>

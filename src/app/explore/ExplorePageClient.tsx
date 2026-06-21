@@ -306,13 +306,13 @@ function getHottestBusynessLabel(level: number): HottestBusynessLabel {
 function getHottestBusynessColor(label: HottestBusynessLabel): string {
   switch (label) {
     case "Packed":
-      return "#FF2D78";
+      return "#FF5B6A";
     case "Busy":
       return "#FF5B6A";
     case "Moderate":
       return "#FFB020";
     case "Quiet":
-      return "#00F5D4";
+      return "#5C6573";
     case "Dead":
       return "#5C6573";
   }
@@ -358,7 +358,7 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
             <span className="font-black text-white">{item.user.name}</span>{" "}
             checked into <span className="font-black text-white">{item.venue.name}</span>
           </p>
-          <time dateTime={item.checked_in_at} className="mt-1 block text-[11px] font-semibold text-white/35">
+          <time dateTime={item.checked_in_at} className="mt-1 block text-[11px] font-semibold text-white/55">
             {getRelativeTimeLabel(item.checked_in_at)}
           </time>
         </div>
@@ -384,7 +384,7 @@ function BusynessChip({
 
   const percent = clampPercent(value);
   const state = getBusynessState(percent);
-  const badge = source === "live" ? "LIVE" : source === "forecast" ? "FORECAST" : source === "crowd" ? "CROWD" : null;
+  const badge = source === "live" || source === "crowd" ? "LIVE" : source === "forecast" ? "FORECAST" : null;
 
   return (
     <span
@@ -393,10 +393,13 @@ function BusynessChip({
       aria-label={`${state.label}, ${percent}% busy${badge ? `, ${badge}` : ""}`}
     >
       <span>{state.label}</span>
-      <span className="text-white/35">{percent}%</span>
+      <span className="text-[#646B79]">{percent}%</span>
       {badge ? (
-        <span className="inline-flex items-center gap-1 text-[9px] text-white/55">
-          {badge === "LIVE" ? <span className="h-1.5 w-1.5 rounded-full bg-[#00F5D4] animate-pulse" aria-hidden="true" /> : null}
+        <span className="inline-flex items-center gap-1 text-[9px] text-[#9CA2AE]">
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${badge === "LIVE" ? "animate-pulse bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.75)]" : "bg-[#646B79]"}`}
+            aria-hidden="true"
+          />
           {badge}
         </span>
       ) : null}
@@ -424,9 +427,9 @@ function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
   if (venues.length === 0) return null;
 
   return (
-    <section className="space-y-3" aria-label="Hottest Right Now">
-      <h2 className="font-display text-sm font-black text-white">Hottest Right Now</h2>
-      <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04]">
+    <section className="space-y-3" aria-label="Hottest right now">
+      <h2 className="font-display text-sm font-semibold text-[#F4F5F8]">Hottest right now</h2>
+      <div className="overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.035]">
         {venues.map((venue, index) => {
           const rawLevel = venue.signal?.busyness0To100 ?? 0;
           const level = clampPercent(rawLevel);
@@ -441,14 +444,11 @@ function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
               className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-3.5 py-3 transition-colors last:border-b-0 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/60"
               aria-label={`Open ${venue.name}, ranked number ${index + 1}, ${label}`}
             >
-              <span className="font-display text-sm font-black text-white/45">#{index + 1}</span>
+              <span className="font-display text-sm font-black text-white/55">#{index + 1}</span>
               <span className="min-w-0">
                 <span className="block truncate text-[14px] font-black text-white">{venue.name}</span>
                 <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
-                  <span
-                    className="block h-full rounded-full bg-gradient-to-r from-[#FFE066] via-[#FF8A3D] to-[#FF2D78]"
-                    style={{ width: `${level}%` }}
-                  />
+                  <span className="block h-full rounded-full" style={{ width: `${level}%`, backgroundColor: color }} />
                 </span>
               </span>
               <span
@@ -522,7 +522,6 @@ function VenueFeedCard({
               height={72}
               sizes="72px"
               loading={index === 0 ? "eager" : "lazy"}
-              priority={false}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
@@ -887,7 +886,7 @@ export function ExplorePageClient() {
 
       <header className="px-4 pb-5 pt-10" role="region" aria-label="Explore filters">
         <div className="mx-auto max-w-lg">
-          <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/45">
+          <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/55">
             <div className="flex min-w-0 items-center gap-1.5">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -900,7 +899,7 @@ export function ExplorePageClient() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 aria-hidden="true"
-                className="shrink-0 text-white/45"
+                className="shrink-0 text-white/55"
               >
                 <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
                 <circle cx="12" cy="10" r="3" />
@@ -908,7 +907,7 @@ export function ExplorePageClient() {
               <span className="truncate">South End Charlotte</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <time className="text-white/35">{timeLabel}</time>
+              <time className="text-white/55">{timeLabel}</time>
               {session && (
                 <Link
                   href="/profile"
@@ -922,7 +921,7 @@ export function ExplorePageClient() {
           <h1 className="font-display text-[34px] font-semibold text-white tracking-normal">
             South End
           </h1>
-          <p className="mt-1 text-sm text-white/40">{venuesCount} spots tracked tonight</p>
+          <p className="mt-1 text-sm text-white/55">{venuesCount} spots tracked tonight</p>
 
           {hottestVenues.length > 0 && (
             <div className="mt-5">
@@ -957,7 +956,7 @@ export function ExplorePageClient() {
                 strokeWidth={2.2}
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/35"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/55"
                 aria-hidden="true"
               >
                 <circle cx="11" cy="11" r="8" />
@@ -978,7 +977,7 @@ export function ExplorePageClient() {
             {showOutOfZoneSearchBanner && (
               <div
                 role="status"
-                className="rounded-2xl border border-[#F0568C]/20 bg-[#F0568C]/10 px-4 py-3 text-sm font-semibold leading-5 text-white/70"
+                className="rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-4 py-3 text-sm font-semibold leading-5 text-[#9CA2AE]"
               >
                 {OUT_OF_ZONE_SEARCH_MESSAGE}
               </div>
@@ -1037,7 +1036,7 @@ export function ExplorePageClient() {
               />
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-white/35">
+          <p className="mt-2 text-[11.5px] text-[#646B79]">
             {sortedVenues.length > 0
               ? `Showing ${startIdx + 1}-${endIdx} of ${resultCountLabel}`
               : `Showing ${resultCountLabel}`}
@@ -1070,11 +1069,11 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && venues.length === 0 && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
-            <h2 className="font-display text-lg font-bold text-white">No venues in this area yet. Check back soon.</h2>
+          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
+            <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">No venues in this area yet. Check back soon.</h2>
             <Link
               href="/map"
-              className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full border border-white/10 bg-white/[0.06] px-5 text-sm font-semibold text-white transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               View map
             </Link>
@@ -1082,9 +1081,8 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
-            <div className="text-5xl" aria-hidden="true">🔍</div>
-            <h2 className="font-display mt-4 text-lg font-bold text-white">
+          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
+            <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
               {trimmedVenueSearchQuery
                 ? `No matches for '${trimmedVenueSearchQuery}'. Try a different name.`
                 : "No venues match your filters"}
@@ -1134,14 +1132,14 @@ export function ExplorePageClient() {
         aria-label="Recent check-ins"
       >
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" aria-hidden="true" />
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[#22C55E]" aria-hidden="true" />
           <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
             Recent check-ins
           </h2>
         </div>
 
         {activityLoaded && activityItems.length === 0 ? (
-          <p className="mt-3 rounded-xl bg-white/[0.04] px-3 py-2.5 text-sm font-semibold text-white/45">
+          <p className="mt-3 rounded-[14px] bg-white/[0.035] px-3 py-2.5 text-sm font-semibold text-[#646B79]">
             No check-ins yet tonight. Be the first!
           </p>
         ) : (

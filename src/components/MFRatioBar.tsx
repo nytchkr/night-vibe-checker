@@ -43,7 +43,7 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
         role="img"
         aria-label="Male/female ratio: not enough data yet"
       >
-        <p className={cn("font-semibold text-white/45", compact ? "text-[11px]" : "text-xs")}>
+        <p className={cn("font-semibold text-[#646B79]", compact ? "text-[11px]" : "text-xs")}>
           No vibe reads yet — be the first to report
         </p>
       </div>
@@ -58,7 +58,7 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
       role="img"
       aria-label={`Male/female ratio: ${male}% male, ${female}% female`}
     >
-      <div className={cn("flex h-2 w-full overflow-hidden rounded-full bg-[#1A1A2E]", compact && "h-1.5")} aria-hidden="true">
+      <div className={cn("flex h-2 w-full overflow-hidden rounded-full bg-white/[0.08]", compact && "h-1.5")} aria-hidden="true">
         <div
           className="h-full bg-[#4F9DFF]"
           style={{ width: `${male}%` }}
@@ -68,10 +68,10 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
           style={{ width: `${female}%` }}
         />
       </div>
-      <p className={cn("font-semibold text-white/60", compact ? "text-[11px]" : "text-xs")}>
+      <p className={cn("font-semibold text-[#9CA2AE]", compact ? "text-[11px]" : "text-xs")}>
         {male}% male · {female}% female
       </p>
-      <p className={cn("font-semibold text-white/40", compact ? "text-[11px]" : "text-xs")}>
+      <p className={cn("font-semibold text-[#646B79]", compact ? "text-[11px]" : "text-xs")}>
         {formatRecentCheckInBasis(sampleSize)}
       </p>
     </div>

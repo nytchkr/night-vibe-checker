@@ -321,7 +321,7 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
             </div>
           ))}
           {extraCount > 0 && (
-            <div className="-ml-2 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-[#0A0A0E] bg-gray-800 text-[11px] font-black text-white shadow-lg">
+            <div className="-ml-2 flex h-9 min-w-9 items-center justify-center rounded-full border-2 border-[#0A0A0E] bg-white/[0.07] text-[11px] font-semibold text-[#F4F5F8] shadow-lg">
               +{extraCount}
             </div>
           )}
@@ -339,7 +339,7 @@ function CheckInFeed({ checkIns }: { checkIns: RecentCheckIn[] }) {
   return (
     <section className="space-y-3" role="region" aria-label="Recent vibes">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-lg font-bold text-white">Recent Vibes</h2>
+        <h2 className="font-display text-lg font-semibold text-[#F4F5F8]">Recent vibes</h2>
         {checkIns.length > 0 && (
           <span className="text-xs font-semibold text-white/35">
             Last {Math.min(checkIns.length, 10)}
@@ -889,7 +889,7 @@ export function VenuePageClient({
           message={toast}
           durationMs={2500}
           onDone={() => setToast(null)}
-          className="bottom-[calc(env(safe-area-inset-bottom)+8.75rem)] rounded-full border-white/10 bg-[#1A1A2E] px-5 py-3 font-semibold text-white shadow-2xl shadow-black/30"
+        className="bottom-[calc(env(safe-area-inset-bottom)+8.75rem)] rounded-[14px] border-white/[0.08] bg-[#101017] px-5 py-3 font-semibold text-[#F4F5F8] shadow-2xl shadow-black/30"
         />
       )}
 
@@ -899,10 +899,10 @@ export function VenuePageClient({
         <div className="mx-auto max-w-lg px-4 py-6 pb-36">
           <div
             role="alert"
-            className="rounded-2xl border border-rose-500/40 bg-rose-950/60 p-5 text-center"
+            className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-5 text-center"
           >
-            <p className="font-medium text-rose-300">Could not load venue</p>
-            <p className="mt-1 text-sm text-rose-400/70">{error}</p>
+            <p className="font-medium text-[#F4F5F8]">Could not load venue</p>
+            <p className="mt-1 text-sm text-[#646B79]">{error}</p>
           </div>
         </div>
       )}
@@ -910,7 +910,7 @@ export function VenuePageClient({
       {!loading && !error && venue && (
         <>
           <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div className="sticky top-0 z-30 h-48 max-h-48 w-full overflow-hidden bg-gradient-to-b from-[#1A1A2E] to-[#0A0A0E]">
+            <div className="sticky top-0 z-30 h-48 max-h-48 w-full overflow-hidden bg-gradient-to-b from-[#101017] to-[#0A0A0E]">
               {heroPhotoUrl ? (
                 <Image
                   src={heroPhotoUrl}
@@ -1028,7 +1028,7 @@ export function VenuePageClient({
               <div className="flex w-max min-w-full gap-3">
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Busyness</span>
+                    <span className="text-[11.5px] font-semibold text-[#646B79]">Busyness</span>
                     <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
                   {hasBusynessRead ? (
@@ -1051,7 +1051,7 @@ export function VenuePageClient({
                 </div>
 
                 <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">M/F ratio</span>
+                  <span className="text-[11.5px] font-semibold text-[#646B79]">M/F ratio</span>
                   {hasEnoughMfSample ? (
                     <MFRatioBar
                       mfRatio={signal?.mfRatio}
@@ -1070,9 +1070,9 @@ export function VenuePageClient({
                 </div>
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Status</span>
-                  <p className={`mt-2 text-sm font-black ${venue.openNow ? "text-[#8B6CFF]" : "text-white/35"}`}>
-                    {venue.openNow ? "Open Now" : "Closed"}
+                  <span className="text-[11.5px] font-semibold text-[#646B79]">Status</span>
+                  <p className={`mt-2 text-sm font-semibold ${venue.openNow ? "text-[#8B6CFF]" : "text-[#646B79]"}`}>
+                    {venue.openNow ? "Open now" : "Closed"}
                   </p>
                 </div>
               </div>
@@ -1083,7 +1083,7 @@ export function VenuePageClient({
             <WhoHereSection activity={venueActivity} />
 
             <section className="space-y-4" role="region" aria-label="Current venue signal">
-              <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Right now</p>
+              <p className="text-[13px] font-medium text-[#9CA2AE]">Right now</p>
               <div className="space-y-5">
                 <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
@@ -1141,7 +1141,7 @@ export function VenuePageClient({
                   aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
                   className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
                     checkInConfirmed
-                      ? "bg-[#1A1A2E] text-white hover:bg-[#1A1A2E]"
+                      ? "bg-[#101017] text-[#F4F5F8] hover:bg-[#101017]"
                       : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
                   } disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35`}
                 >
@@ -1156,7 +1156,7 @@ export function VenuePageClient({
                 </button>
               </div>
               {!hasBusynessRead && !signal?.sampleSize && (
-                <p className="text-[13px] text-white/35">
+                <p className="text-[13px] text-[#646B79]">
                   No live reads yet — be the first to report
                 </p>
               )}
@@ -1176,7 +1176,7 @@ export function VenuePageClient({
                 ) : (
                   <ul className="space-y-3">
                     {crowdNotes.map((note) => (
-                      <li key={note.id} className="rounded-2xl border border-white/[0.08] bg-[#12121A] p-4 shadow-lg shadow-black/20">
+                      <li key={note.id} className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4 shadow-lg shadow-black/20">
                         <blockquote className="text-sm leading-relaxed text-white">
                           &ldquo;{note.tip}&rdquo;
                         </blockquote>
@@ -1233,7 +1233,7 @@ export function VenuePageClient({
               if (!reportSubmitting) setReportOpen(false);
             }}
           />
-          <div className="relative mx-auto w-full max-w-lg rounded-2xl border border-white/10 bg-[#11111A] p-4 shadow-2xl">
+          <div className="relative mx-auto w-full max-w-lg rounded-[18px] border border-white/[0.08] bg-[#101017] p-4 shadow-2xl">
             <div className="flex items-center justify-between gap-4">
               <h2 id="venue-report-title" className="font-display text-lg font-black text-white">
                 Report an issue
@@ -1289,13 +1289,13 @@ export function VenuePageClient({
                 maxLength={200}
                 rows={3}
                 placeholder="What should we correct?"
-                className="w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
+                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-sm text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
               />
               <div className="flex items-center justify-between gap-3">
                 <span className={`text-xs ${reportCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
                   {reportCharactersRemaining} characters remaining
                 </span>
-                {reportError && <span className="text-right text-xs font-medium text-rose-300">{reportError}</span>}
+                {reportError && <span className="text-right text-xs font-medium text-[#FF5B6A]">{reportError}</span>}
               </div>
             </div>
 
@@ -1305,7 +1305,7 @@ export function VenuePageClient({
               disabled={reportSubmitting}
               className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
             >
-              {reportSubmitting ? "Submitting" : "Submit Report"}
+              {reportSubmitting ? "Submitting" : "Submit report"}
             </button>
           </div>
         </div>
@@ -1326,7 +1326,7 @@ export function VenuePageClient({
             className="absolute inset-0 cursor-default"
             onClick={closeVibeReport}
           />
-          <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#11111A] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
+          <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-[18px] border border-white/[0.08] bg-[#101017] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 id="vibe-report-title" className="font-display text-lg font-black text-white">
@@ -1376,7 +1376,7 @@ export function VenuePageClient({
                     );
                   })}
                 </div>
-                {vibeError && <p className="mt-3 text-sm font-medium text-rose-300">{vibeError}</p>}
+                {vibeError && <p className="mt-3 text-sm font-medium text-[#FF5B6A]">{vibeError}</p>}
               </fieldset>
             ) : (
               <div className="mt-5 space-y-4">
@@ -1413,7 +1413,7 @@ export function VenuePageClient({
                     );
                   })}
                 </div>
-                {vibeError && <p className="text-sm font-medium text-rose-300">{vibeError}</p>}
+                {vibeError && <p className="text-sm font-medium text-[#FF5B6A]">{vibeError}</p>}
                 <button
                   type="button"
                   onClick={() => {

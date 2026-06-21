@@ -20,6 +20,7 @@ import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoading
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap } from "@/components/MapBottomSheet";
+
 const MapBottomSheet = dynamic(() => import("@/components/MapBottomSheet"), {
   ssr: false,
   loading: () => null,
@@ -149,7 +150,7 @@ function RecenterButton({ center }: { center: [number, number] }) {
       type="button"
       aria-label="Recenter map"
       onClick={() => map.flyTo(center, 15)}
-      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-full bg-black/75 px-4 text-xs font-black uppercase tracking-[0.14em] text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 text-xs font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="7" />
@@ -285,7 +286,7 @@ function CitySelector({
         aria-haspopup="dialog"
         aria-label={`Choose neighborhood, currently ${city.name}`}
         onClick={() => setOpen(true)}
-        className="absolute left-4 top-4 z-[1000] inline-flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-full border border-white/10 bg-black/75 px-3.5 py-2 text-sm font-black text-white shadow-2xl backdrop-blur transition-colors hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+        className="absolute left-4 top-4 z-[1000] inline-flex max-w-[calc(100%-2rem)] items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3.5 py-2 text-sm font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         <span className="truncate">{city.name}</span>
         <ChevronDown aria-hidden="true" className="h-4 w-4 shrink-0 text-white/70" />
@@ -306,12 +307,12 @@ function CitySelector({
             onClick={() => setOpen(false)}
             className="absolute inset-0 h-full w-full cursor-default bg-black/55"
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
+          <div className="absolute inset-x-0 bottom-0 rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
             <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
             <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-between gap-4">
               <div className="min-w-0">
-                <h2 className="font-display text-base font-black text-white">Choose a neighborhood</h2>
-                <p className="mt-1 truncate text-xs font-semibold text-white/45">Charlotte, NC</p>
+                <h2 className="font-display text-base font-semibold text-[#F4F5F8]">Choose a neighborhood</h2>
+                <p className="mt-1 truncate text-xs font-semibold text-[#646B79]">Charlotte, NC</p>
               </div>
               <button
                 type="button"
@@ -344,7 +345,7 @@ function CitySelector({
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-black">{option.name}</span>
-                      <span className="mt-1 block truncate text-xs font-semibold text-white/45">
+                      <span className="mt-1 block truncate text-xs font-semibold text-white/55">
                         {comingSoon ? "Coming soon" : option.city}
                       </span>
                     </span>
@@ -417,7 +418,7 @@ function ZipRecenterControl() {
       onSubmit={handleSubmit}
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
-      className="absolute left-4 top-16 z-[1000] w-[min(13rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-black/75 p-2 shadow-2xl backdrop-blur"
+      className="absolute left-4 top-16 z-[1000] w-[min(13rem,calc(100vw-2rem))] rounded-[18px] border border-white/[0.08] bg-[#0A0A0E]/90 p-2 shadow-2xl backdrop-blur"
     >
       <div className="flex items-center gap-2">
         <input
@@ -429,8 +430,8 @@ function ZipRecenterControl() {
           placeholder="Zip"
           type="text"
           value={zip}
-          className={`h-9 min-w-0 flex-1 rounded-full border bg-white/[0.06] px-3 text-sm font-bold text-white shadow-inner placeholder:text-white/45 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-            showInvalid ? "border-red-500" : "border-white/10"
+          className={`h-9 min-w-0 flex-1 rounded-[12px] border bg-white/[0.07] px-3 text-sm font-semibold text-[#F4F5F8] shadow-inner placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+            showInvalid ? "border-[#FF5B6A]" : "border-white/[0.08]"
           }`}
         />
         {zip.length > 0 && (
@@ -554,7 +555,7 @@ function VenueSearchControl({
         placeholder="Search venues..."
         type="search"
         value={searchQuery}
-        className="w-full rounded-full border border-white/10 bg-black/70 px-3 py-1.5 pr-9 text-sm text-white shadow-2xl backdrop-blur placeholder:text-white/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 [&::-webkit-search-cancel-button]:appearance-none"
+        className="w-full rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3 py-1.5 pr-9 text-sm text-[#F4F5F8] shadow-2xl backdrop-blur placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {searchQuery.length > 0 && (
         <button
@@ -575,7 +576,7 @@ function VenueSearchControl({
         <div
           role="listbox"
           aria-label="Venue suggestions"
-          className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-xl border border-white/10 bg-[#111118] shadow-xl"
+          className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#101017] shadow-xl"
           onClick={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -596,12 +597,12 @@ function VenueSearchControl({
                   }`}
                 >
                   <span className="block truncate text-sm font-bold text-white">{venue.name}</span>
-                  <span className="mt-0.5 block truncate text-xs text-white/40">{venue.category}</span>
+                  <span className="mt-0.5 block truncate text-xs text-white/55">{venue.category}</span>
                 </button>
               );
             })
           ) : (
-            <div className="px-4 py-3 text-xs text-white/35">No venues found</div>
+            <div className="px-4 py-3 text-xs text-white/55">No venues found</div>
           )}
         </div>
       )}
@@ -619,7 +620,7 @@ function BusynessFilterBar({
   return (
     <div
       aria-label="Map busyness filter"
-      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 rounded-full border border-white/10 bg-[#1A1A2E]/80 p-1 shadow-2xl backdrop-blur sm:top-16"
+      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 rounded-[14px] border border-white/[0.08] bg-[#101017]/90 p-1 shadow-2xl backdrop-blur sm:top-16"
       role="group"
     >
       {BUSYNESS_FILTERS.map((filter) => {
@@ -668,8 +669,8 @@ function CategoryFilterPills({
               onClick={() => onFilterChange(filter)}
               className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black shadow-2xl backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                 isActive
-                  ? "border-[#00F5D4]/45 bg-[#00F5D4] text-[#061013] shadow-[0_0_18px_rgba(0,245,212,0.25)]"
-                  : "border-white/10 bg-black/70 text-white/75 hover:bg-black/90 hover:text-white"
+                  ? "border-[#8B6CFF] bg-[#8B6CFF] text-[#0A0A0E] shadow-[0_0_18px_rgba(139,108,255,0.25)]"
+                  : "border-white/[0.08] bg-[#0A0A0E]/90 text-[#9CA2AE] hover:bg-[#101017] hover:text-[#F4F5F8]"
               }`}
             >
               {filter}
@@ -744,7 +745,7 @@ function VenueFilterSheet({
 
   if (!isOpen) return null;
 
-  const openNowActiveClass = draftOpenNow ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/60";
+  const openNowActiveClass = draftOpenNow ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/65";
 
   return (
     <div
@@ -761,12 +762,12 @@ function VenueFilterSheet({
         onClick={onClose}
         className="absolute inset-0 h-full w-full cursor-default bg-black/40"
       />
-      <div className="absolute inset-x-0 bottom-0 max-h-[60vh] overflow-y-auto rounded-t-2xl bg-[#111118] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
+      <div className="absolute inset-x-0 bottom-0 max-h-[60vh] overflow-y-auto rounded-t-[18px] bg-[#101017] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
         <div className="mx-auto mt-4 w-full max-w-xl">
           <div className="flex items-center justify-between gap-4">
-            <h2 id="venue-filter-title" className="font-display text-base font-bold text-white">
-              Filter Venues
+            <h2 id="venue-filter-title" className="font-display text-base font-semibold text-[#F4F5F8]">
+              Filter venues
             </h2>
             <button
               type="button"
@@ -779,7 +780,7 @@ function VenueFilterSheet({
           </div>
 
           <section className="mt-6" aria-labelledby="venue-filter-category">
-            <h3 id="venue-filter-category" className="text-xs font-black uppercase tracking-[0.14em] text-white/45">
+            <h3 id="venue-filter-category" className="text-[11.5px] font-semibold text-[#646B79]">
               Category
             </h3>
             <div className="-mx-4 mt-3 flex overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -807,18 +808,18 @@ function VenueFilterSheet({
           </section>
 
           <section className="mt-6" aria-labelledby="venue-filter-status">
-            <h3 id="venue-filter-status" className="text-xs font-black uppercase tracking-[0.14em] text-white/45">
+            <h3 id="venue-filter-status" className="text-[11.5px] font-semibold text-[#646B79]">
               Status
             </h3>
             <div className="mt-3 flex items-center justify-between gap-4 rounded-2xl bg-white/[0.04] p-3">
-              <span className="text-sm font-bold text-white">Open Now</span>
+              <span className="text-sm font-semibold text-[#F4F5F8]">Open now</span>
               <button
                 type="button"
                 aria-pressed={draftOpenNow}
                 onClick={() => setDraftOpenNow((current) => !current)}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${openNowActiveClass}`}
               >
-                Open Now
+                Open now
               </button>
             </div>
           </section>
@@ -826,7 +827,7 @@ function VenueFilterSheet({
           <button
             type="button"
             onClick={() => onApply(draftCategory, draftOpenNow)}
-            className="mt-6 h-12 w-full rounded-full bg-[#8B6CFF] text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.32)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111118]"
+            className="mt-6 h-12 w-full rounded-[14px] bg-[#8B6CFF] text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.32)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101017]"
           >
             Apply
           </button>
@@ -1002,7 +1003,7 @@ export function VenueMap({
           role={refreshing ? "status" : undefined}
           aria-live="polite"
         >
-          <div className="rounded-full border border-white/10 bg-black/75 px-4 py-2 text-xs font-black text-white/55 shadow-2xl backdrop-blur">
+          <div className="rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 py-2 text-xs font-semibold text-[#9CA2AE] shadow-2xl backdrop-blur">
             {refreshing ? (
               <span className="flex items-center gap-2">
                 <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#8B6CFF] border-t-transparent" aria-hidden="true" />
@@ -1060,12 +1061,12 @@ export function VenueMap({
       />
 
       {showSearchCount && (
-        <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-full border border-white/10 bg-black/70 px-3 py-1.5 text-xs font-black text-white/75 shadow-2xl backdrop-blur">
+        <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3 py-1.5 text-xs font-semibold text-[#9CA2AE] shadow-2xl backdrop-blur">
           Showing {filteredVenues.length} of {visibleVenues.length}
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-20 left-1/2 z-[1000] flex -translate-x-1/2 gap-3 whitespace-nowrap rounded-full border border-white/10 bg-black/70 px-4 py-2 text-xs font-bold text-white/70 shadow-2xl backdrop-blur-sm">
+      <div className="pointer-events-none absolute bottom-20 left-1/2 z-[1000] flex -translate-x-1/2 gap-3 whitespace-nowrap rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 py-2 text-xs font-semibold text-[#9CA2AE] shadow-2xl backdrop-blur-sm">
         <span>
           <span style={{ color: getBusynessState(100).color }}>●</span> Packed
         </span>
@@ -1081,7 +1082,7 @@ export function VenueMap({
         <div className="pointer-events-none absolute inset-0 z-[1000]">
           <MapLoadingSkeleton className="h-full" style={{ height: "100%", minHeight: "100%" }} />
           {slowLoad && (
-            <p className="absolute inset-x-0 bottom-28 text-center text-xs font-semibold text-white/40">
+            <p className="absolute inset-x-0 bottom-28 text-center text-xs font-semibold text-white/55">
               Taking longer than usual...
             </p>
           )}
@@ -1090,9 +1091,9 @@ export function VenueMap({
 
       {showEmptyState && (
         <div className="pointer-events-none absolute inset-x-0 bottom-44 z-[999] flex justify-center px-4">
-          <div className="pointer-events-auto w-full max-w-xs rounded-2xl border border-white/10 bg-black/80 px-5 py-4 text-center text-white shadow-2xl backdrop-blur">
-            <p className="text-sm font-black">{city.name} — coming soon</p>
-            <p className="mt-1 text-xs font-semibold text-white/55">We&apos;re live in South End Charlotte right now.</p>
+          <div className="pointer-events-auto w-full max-w-xs rounded-[18px] border border-white/[0.08] bg-[#0A0A0E]/90 px-5 py-4 text-center text-[#F4F5F8] shadow-2xl backdrop-blur">
+            <p className="text-sm font-semibold">{city.name} — coming soon</p>
+            <p className="mt-1 text-xs font-semibold text-[#646B79]">We&apos;re live in South End Charlotte right now.</p>
             <button
               type="button"
               onClick={() => onCityChange("south-end-clt")}
@@ -1106,9 +1107,9 @@ export function VenueMap({
 
       {error && !loading && (
         <div className="absolute inset-0 z-[1000] flex items-center justify-center px-4">
-          <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-black/70 px-6 py-4 text-center text-white shadow-2xl backdrop-blur">
-            <h2 className="font-display text-base font-black">Couldn&apos;t load spots</h2>
-            <p className="mt-2 text-sm font-semibold text-white/70">{error}</p>
+          <div className="w-full max-w-xs rounded-[18px] border border-white/[0.08] bg-[#0A0A0E]/90 px-6 py-4 text-center text-[#F4F5F8] shadow-2xl backdrop-blur">
+            <h2 className="font-display text-base font-semibold">Couldn&apos;t load spots</h2>
+            <p className="mt-2 text-sm font-semibold text-[#9CA2AE]">{error}</p>
             <button
               type="button"
               onClick={() => void fetchVenues()}
@@ -1120,7 +1121,7 @@ export function VenueMap({
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="mt-3 block w-full text-xs font-semibold text-white/45 underline underline-offset-4 transition hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              className="mt-3 block w-full text-xs font-semibold text-white/55 underline underline-offset-4 transition hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Reload page
             </button>
@@ -1132,7 +1133,7 @@ export function VenueMap({
         href="/vibe-check"
         className="fixed bottom-28 right-4 z-[1000] rounded-full bg-[#8B6CFF] px-5 py-3 font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
-        ＋ Report Vibe
+        + Report vibe
       </Link>
 
       <MapBottomSheet
@@ -1234,7 +1235,7 @@ export function VenueMap({
         }
 
         .venue-cluster-pin-selected {
-          border-color: #00f5d4;
+          border-color: #8B6CFF;
           border-width: 3px;
         }
       `}</style>

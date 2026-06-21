@@ -82,8 +82,8 @@ function AlertsPreview() {
       <div className="rounded-3xl border border-[#8B6CFF]/25 bg-[#8B6CFF]/10 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#8B6CFF]">Vibe alert</div>
-            <div className="mt-2 text-xl font-black text-white">Saved venues can alert you</div>
+            <div className="text-[11.5px] font-semibold text-[#8B6CFF]">Vibe alert</div>
+            <div className="mt-2 text-xl font-semibold text-white">Saved venues can alert you</div>
           </div>
           <div className="grid h-12 w-12 place-items-center rounded-full bg-[#8B6CFF] text-xl text-[#071113]">!</div>
         </div>
@@ -195,7 +195,7 @@ export function OnboardingOverlay() {
           event.stopPropagation();
           close();
         }}
-        className="absolute right-4 top-4 z-10 rounded-full px-4 py-3 text-sm font-semibold text-white/35 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]"
+        className="absolute right-4 top-4 z-10 rounded-full px-4 py-3 text-sm font-semibold text-white/55 transition-colors hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
       >
         Skip
       </button>

@@ -153,8 +153,8 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[13px] font-medium uppercase tracking-wide text-white/40">Would you go back?</p>
-          {readOnly && <p className="mt-1 text-[12px] text-white/35">Sign in to rate</p>}
+          <p className="text-[13px] font-medium text-[#9CA2AE]">Would you go back?</p>
+          {readOnly && <p className="mt-1 text-[12px] text-[#9CA2AE]">Sign in to rate</p>}
         </div>
         <div className="flex items-center gap-2" aria-busy={loading}>
           <RatingButton
@@ -176,9 +176,9 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
         </div>
       </div>
       {hasNoRatings && (
-        <p className="text-[13px] italic text-white/35">Be the first to rate this venue</p>
+        <p className="text-[13px] italic text-[#9CA2AE]">Be the first to rate this venue</p>
       )}
-      {error && <p className="text-[12px] text-rose-300">{error}</p>}
+      {error && <p className="text-[12px] text-[#FF5B6A]">{error}</p>}
     </section>
   );
 }

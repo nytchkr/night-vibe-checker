@@ -93,7 +93,7 @@ function MiniMFRatio({ venue }: { venue: ConsumerVenue }) {
   const percents = sampleSize >= 2 ? getMFRatioPercents(venue.signal?.mfRatio) : null;
 
   if (!percents) {
-    return <p className="text-[12px] font-semibold text-white/42">No vibe reads yet</p>;
+    return <p className="text-[12px] font-semibold text-[#9CA2AE]">No vibe reads yet</p>;
   }
 
   return (
@@ -136,7 +136,7 @@ function VenueBottomSheetSkeleton({
       >
         <div role="status" className="sr-only">Loading venue details</div>
         <div className="mx-auto w-full max-w-lg px-4 pb-4 pt-4">
-          <div className="mx-auto h-1 w-10 rounded-full bg-white" aria-hidden="true" />
+          <div className="mx-auto h-1 w-10 rounded-full bg-[#646B79]" aria-hidden="true" />
           <div className="mt-3 space-y-2">
             <div className="h-5 w-44 animate-pulse rounded bg-white/[0.06]" />
             <div className="h-4 w-64 animate-pulse rounded bg-white/[0.06]" />
@@ -323,7 +323,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                 />
                 <Link
                   href={`/venues/${encodeURIComponent(venue.id)}`}
-                  className="text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                  className="text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 >
                   Open venue →
                 </Link>
@@ -343,8 +343,8 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   {!rating && !priceLevel && <span>Venue details pending</span>}
                 </div>
 
-                <p className="flex min-w-0 items-center gap-2 truncate text-[13px] font-medium text-white/45">
-                  <MapPin className="h-4 w-4 shrink-0 text-white/32" aria-hidden="true" />
+                <p className="flex min-w-0 items-center gap-2 truncate text-[13px] font-medium text-white/55">
+                  <MapPin className="h-4 w-4 shrink-0 text-white/55" aria-hidden="true" />
                   <span className="truncate">{venue.address}</span>
                 </p>
 

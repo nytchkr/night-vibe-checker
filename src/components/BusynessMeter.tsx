@@ -65,7 +65,7 @@ export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null
           style={{ backgroundColor: config.color }}
         />
       </div>
-      <p className="mt-1.5 text-xs text-gray-400">{confidenceLabel}</p>
+      <p className="mt-1.5 text-xs text-[#646B79]">{confidenceLabel}</p>
     </div>
   );
 }

@@ -119,7 +119,7 @@ function NavItem({
       className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
         active
           ? "text-[#8B6CFF]"
-          : "text-[#9CA2AE] hover:text-[#9CA2AE]"
+          : "text-[#9CA2AE] hover:text-[#F4F5F8]"
       }`}
     >
       {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF]" />}
@@ -245,6 +245,7 @@ export function BottomNav() {
 
   return (
     <nav
+      role="navigation"
       aria-label="Main navigation"
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
     >

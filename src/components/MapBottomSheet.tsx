@@ -27,7 +27,7 @@ function getVisibleHeight(snap: MapSheetSnap) {
 
 function NoDataChip() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#0A0A0E] px-2.5 py-1 text-[11px] font-black text-white/40">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-1 text-[11.5px] font-semibold text-[#9CA2AE]">
       <Info className="h-3.5 w-3.5" aria-hidden="true" />
       No data
     </span>
@@ -78,7 +78,7 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
 function MfRatioChip({ venue }: { venue: ConsumerVenue }) {
   const signal = venue.signal;
   const sampleSize = signal?.sampleSize ?? 0;
-  const percents = sampleSize >= 3 ? getMFRatioPercents(signal?.mfRatio) : null;
+  const percents = sampleSize >= 2 ? getMFRatioPercents(signal?.mfRatio) : null;
 
   if (!percents) return null;
 
@@ -113,7 +113,7 @@ function VenueRow({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
-            <p className="mt-1 truncate text-xs font-semibold text-white/45">{venue.category}</p>
+            <p className="mt-1 truncate text-xs font-semibold text-white/55">{venue.category}</p>
           </div>
           <BusynessBadge venue={venue} />
         </div>
@@ -121,7 +121,7 @@ function VenueRow({
           <OpenNowDot openNow={venue.openNow} />
           <div className="flex min-w-0 items-center justify-end gap-2">
             <MfRatioChip venue={venue} />
-            <span className="truncate text-xs font-semibold text-white/35">{venue.address}</span>
+            <span className="truncate text-xs font-semibold text-white/55">{venue.address}</span>
           </div>
         </div>
       </button>
@@ -312,7 +312,7 @@ export default function MapBottomSheet({
     <section
       ref={sheetRef}
       aria-label={`${cityName} venues`}
-      className="absolute inset-x-0 bottom-0 z-[1100] h-[85dvh] rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0E]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
+      className="absolute inset-x-0 bottom-0 z-[1100] h-[85dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -358,7 +358,7 @@ export default function MapBottomSheet({
             </div>
           ) : venues.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <p className="text-sm font-medium text-white/35">No venues in this area · Try moving the map</p>
+              <p className="text-sm font-medium text-[#646B79]">No venues in this area. Try moving the map.</p>
             </div>
           ) : (
             visibleVenues.map((venue) => (

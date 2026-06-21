@@ -18,10 +18,10 @@ const CATEGORY_META: Record<string, { icon: string; label: string }> = {
 };
 
 const PRICE_CLASS_BY_LEVEL: Record<1 | 2 | 3 | 4, string> = {
-  1: "text-green-400",
-  2: "text-yellow-400",
-  3: "text-orange-400",
-  4: "text-red-400",
+  1: "text-[#9CA2AE]",
+  2: "text-[#9CA2AE]",
+  3: "text-[#9CA2AE]",
+  4: "text-[#9CA2AE]",
 };
 
 function getCategoryMeta(category: string | null | undefined) {
