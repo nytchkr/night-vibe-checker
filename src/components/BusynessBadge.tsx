@@ -1,7 +1,6 @@
 "use client";
 
 import type { BusynessSource } from "@/types";
-import { getSignalLabel } from "@/lib/signalFreshness";
 
 type Props = {
   source: BusynessSource | null | undefined;
@@ -9,7 +8,8 @@ type Props = {
 };
 
 export function BusynessBadge({ source, computedAt = null }: Props) {
-  const label = getSignalLabel({ busynessSource: source ?? null, computedAt });
+  const label = source ?? null;
+  void computedAt;
 
   if (label === "live") {
     return (
@@ -24,6 +24,14 @@ export function BusynessBadge({ source, computedAt = null }: Props) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-[#9CA2AE] text-[11px] font-semibold">
         forecast
+      </span>
+    );
+  }
+
+  if (label === "crowd") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-[#9CA2AE] text-[11px] font-semibold">
+        crowd
       </span>
     );
   }

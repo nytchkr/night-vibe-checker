@@ -19,7 +19,7 @@ const VENUE_SELECT = `
   phone, website, opening_hours, open_now,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    confidence_0_1, sample_size, computed_at, updated_at, last_busyness_refresh
   )
 `;
 
@@ -30,7 +30,7 @@ const VENUE_SELECT_LEGACY = `
   open_now,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    confidence_0_1, sample_size, computed_at, updated_at, last_busyness_refresh
   )
 `;
 
@@ -49,6 +49,7 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
     confidence0To1: Number(row.confidence_0_1 ?? 0),
     sampleSize: Number(row.sample_size ?? 0),
     computedAt: row.computed_at as string,
+    updatedAt: (row.updated_at ?? null) as string | null,
     lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
   };
 }

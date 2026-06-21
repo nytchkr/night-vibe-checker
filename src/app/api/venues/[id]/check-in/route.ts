@@ -101,6 +101,7 @@ function mapSignal(row: Record<string, unknown> | null | undefined): VenueSignal
     confidence0To1: Number(row.confidence_0_1 ?? 0),
     sampleSize: Number(row.sample_size ?? 0),
     computedAt: row.computed_at as string,
+    updatedAt: (row.updated_at ?? null) as string | null,
     lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
   };
 }

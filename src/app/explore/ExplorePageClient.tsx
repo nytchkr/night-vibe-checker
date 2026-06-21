@@ -7,13 +7,13 @@ import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { TrendingStrip } from "@/components/TrendingStrip";
+import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { BUSYNESS_COLORS, getBusynessState, type BusynessLevel } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
-import { getSignalLabel } from "@/lib/signalFreshness";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue } from "@/types";
@@ -328,27 +328,6 @@ function BusynessChip({ level }: { level: BusynessLevel }) {
   );
 }
 
-function SignalFreshnessBadge({ label }: { label: "live" | "forecast" | null }) {
-  if (label === "live") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-emerald-300">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" aria-hidden="true" />
-        live
-      </span>
-    );
-  }
-
-  if (label === "forecast") {
-    return (
-      <span className="text-[12px] font-semibold text-[#9CA2AE]">
-        Forecast
-      </span>
-    );
-  }
-
-  return null;
-}
-
 function MFSplitLine({ malePercent }: { malePercent: number }) {
   const male = clampPercent(malePercent);
   const female = 100 - male;
@@ -437,7 +416,6 @@ function VenueFeedCard({
     signal.confidence0To1 > 0.3;
   const mfRatio = hasMfReading ? signal.mfRatio : null;
   const hasCrowdReading = hasBusyness || hasMfReading;
-  const signalLabel = getSignalLabel(signal);
 
   return (
     <motion.li
@@ -490,9 +468,9 @@ function VenueFeedCard({
 
           <div className="mt-2 min-h-[32px]">
             {hasCrowdReading ? (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : null}
-                <SignalFreshnessBadge label={signalLabel} />
+                <SignalFreshnessLabel signal={signal} />
                 {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
               </div>
             ) : (

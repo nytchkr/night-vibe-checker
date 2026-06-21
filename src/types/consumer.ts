@@ -73,6 +73,7 @@ export interface VenueSignal {
   confidence0To1: number;
   sampleSize: number;
   computedAt: string;
+  updatedAt: string | null;
   lastBusynessRefresh: string | null;
 }
 

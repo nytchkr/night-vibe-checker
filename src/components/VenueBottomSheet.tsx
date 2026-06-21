@@ -9,10 +9,10 @@ import type { RefObject } from "react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { ShareButton } from "@/components/ShareButton";
+import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
-import { formatSignalAge, getSignalLabel } from "@/lib/signalFreshness";
 import type { ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
@@ -30,17 +30,17 @@ function clampPercent(value: number) {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
-function SourceBadge({ label }: { label: "live" | "forecast" | null }) {
-  if (label === "live") {
+function SourceBadge({ source }: { source: ConsumerVenue["signal"] }) {
+  if (source?.busynessSource === "live") {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-[11.5px] font-semibold text-emerald-300">
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" aria-hidden="true" />
-        live
+        Live
       </span>
     );
   }
 
-  if (label === "forecast") {
+  if (source?.busynessSource === "forecast") {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-[#9CA2AE]">
         <Clock aria-hidden="true" className="h-3 w-3" />
@@ -220,8 +220,6 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
     venueName: venue.name,
   });
   const reportHref = `/vibe-check?${reportParams.toString()}`;
-  const signalLabel = getSignalLabel(signal);
-  const signalAge = formatSignalAge(signal?.computedAt ?? null);
 
   return (
     <>
@@ -297,16 +295,14 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   className="[&_button]:h-9 [&_button]:w-9 [&_button]:border-white/15 [&_button]:bg-white/[0.06] [&_button]:text-white/70 [&_button:hover]:border-white/25 [&_button:hover]:bg-white/10 [&_button:hover]:text-white"
                 />
                 <span className="flex flex-col items-end gap-1">
-                  <SourceBadge label={signalLabel} />
+                  <SourceBadge source={signal} />
                 </span>
               </div>
             </div>
 
-            <BusynessMeter value={signal?.busyness0To100} />
+            <SignalFreshnessLabel signal={signal} className="mt-2" />
 
-            {signalAge ? (
-              <p className="mt-2 text-xs font-semibold text-white/40">updated {signalAge}</p>
-            ) : null}
+            <BusynessMeter value={signal?.busyness0To100} />
 
             <MFRatioBar venue={venue} />
 

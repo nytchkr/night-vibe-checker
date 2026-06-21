@@ -7,10 +7,10 @@ type SignalFreshnessInput =
   | null
   | undefined;
 
-function getAgeMs(computedAt: string | null | undefined): number | null {
-  if (!computedAt) return null;
+function getAgeMs(timestampValue: string | null | undefined): number | null {
+  if (!timestampValue) return null;
 
-  const timestamp = Date.parse(computedAt);
+  const timestamp = Date.parse(timestampValue);
   if (!Number.isFinite(timestamp)) return null;
 
   return Math.max(0, Date.now() - timestamp);
@@ -35,4 +35,15 @@ export function formatSignalAge(computedAt: string | null): string | null {
   if (minutes < 60) return `${minutes}m ago`;
 
   return `${Math.floor(minutes / 60)}h ago`;
+}
+
+export function formatSignalFreshness(updatedAt: string | null | undefined): { label: string; stale: boolean } | null {
+  const ageMs = getAgeMs(updatedAt);
+  if (ageMs === null) return null;
+
+  const minutes = Math.floor(ageMs / 60_000);
+  if (minutes >= 24 * 60) return { label: "Data from yesterday", stale: true };
+  if (minutes < 60) return { label: `Updated ${minutes} min ago`, stale: false };
+
+  return { label: "Updated today", stale: false };
 }

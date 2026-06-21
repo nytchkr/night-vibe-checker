@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
+import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ConsumerVenue } from "@/types";
@@ -51,7 +52,10 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
       >
         {getBusynessLabel(value)}
       </span>
-      <SourceBadge source={source} computedAt={computedAt} />
+      <span className="flex max-w-[9rem] flex-wrap justify-end gap-1">
+        <SourceBadge source={source} computedAt={computedAt} />
+        <SignalFreshnessLabel signal={venue.signal} className="justify-end text-right" />
+      </span>
     </span>
   );
 }
