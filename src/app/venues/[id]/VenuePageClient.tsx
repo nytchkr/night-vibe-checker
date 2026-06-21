@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { Check, ChevronDown, Clock, Heart, MapPin, Share2, Users, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
+import { useOnboardingGate } from "@/components/OnboardingGate";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
@@ -237,8 +237,8 @@ function sourceLabel(signal: ConsumerVenue["signal"], fallbackUpdatedAt: string 
 }
 
 function mfEmptyMessage(sampleSize: number): string {
-  if (sampleSize <= 0) return "No check-ins in the last 4 hours yet";
-  return `Only ${sampleSize} check-in${sampleSize === 1 ? "" : "s"} in the last 4 hours — need 3 to show M/F`;
+  void sampleSize;
+  return "No vibe reads yet — be the first to report";
 }
 
 function getCrowdFeel(malePercent: number | null): { emoji: string; label: string } {
@@ -249,8 +249,8 @@ function getCrowdFeel(malePercent: number | null): { emoji: string; label: strin
 }
 
 function getBusynessColor(percent: number): string {
-  if (percent >= 70) return "#FF5B6A";
-  if (percent >= 40) return "#FFB020";
+  if (percent >= 67) return "#FF5B6A";
+  if (percent >= 34) return "#FFB020";
   return "#5C6573";
 }
 
@@ -408,6 +408,7 @@ export function VenuePageClient({
   initialVenue: ConsumerVenue | null;
 }) {
   const router = useRouter();
+  const { consumePendingAction, requireAuth } = useOnboardingGate();
   const haptic = useHaptic();
   const trackedVenueView = useRef(false);
   const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
@@ -415,9 +416,6 @@ export function VenuePageClient({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [savePending, setSavePending] = useState(false);
-  const [alerting, setAlerting] = useState(false);
-  const [alertPending, setAlertPending] = useState(false);
-  const [canShareVenue, setCanShareVenue] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
@@ -431,8 +429,6 @@ export function VenuePageClient({
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [vibeReportOpen, setVibeReportOpen] = useState(false);
-  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
-  const [loginPromptReason, setLoginPromptReason] = useState<"save" | "report">("report");
   const [vibeStep, setVibeStep] = useState<1 | 2>(1);
   const [vibeBusynessOptionId, setVibeBusynessOptionId] = useState<VibeBusynessOption["id"] | null>(null);
   const [vibeGenderSelfReport, setVibeGenderSelfReport] = useState<GenderSelfReport>(null);
@@ -442,7 +438,6 @@ export function VenuePageClient({
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
   const vibeDialogRef = useRef<HTMLDivElement | null>(null);
-  const loginDialogRef = useRef<HTMLDivElement | null>(null);
 
   useFocusTrap(reportOpen, reportDialogRef, () => {
     if (!reportSubmitting) setReportOpen(false);
@@ -450,20 +445,12 @@ export function VenuePageClient({
   useFocusTrap(vibeReportOpen, vibeDialogRef, () => {
     if (!vibeSubmitting) setVibeReportOpen(false);
   });
-  useFocusTrap(loginPromptOpen, loginDialogRef, () => setLoginPromptOpen(false));
 
   useEffect(() => {
     if (!checkInConfirmed) return;
     const timer = window.setTimeout(() => setCheckInConfirmed(false), 1500);
     return () => window.clearTimeout(timer);
   }, [checkInConfirmed]);
-
-  useEffect(() => {
-    setCanShareVenue(
-      typeof navigator !== "undefined" &&
-        (typeof navigator.share === "function" || typeof navigator.clipboard?.writeText === "function"),
-    );
-  }, []);
 
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
@@ -590,32 +577,21 @@ export function VenuePageClient({
 
       if (!token) {
         setSaved(false);
-        setAlerting(false);
         return;
       }
 
       try {
-        const [savedRes, alertRes] = await Promise.all([
-          fetch("/api/saved-venues", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`/api/push/venue-alert?venueId=${encodeURIComponent(venueId)}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
+        const savedRes = await fetch("/api/saved-venues", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
         if (savedRes.ok) {
           const json = await savedRes.json();
           const ids = json?.venueIds ?? json?.savedVenueIds ?? json?.data?.savedVenueIds ?? [];
           if (!cancelled) setSaved(Array.isArray(ids) && ids.includes(venueId));
         }
-
-        if (alertRes.ok) {
-          const json = await alertRes.json();
-          if (!cancelled) setAlerting(Boolean(json?.alerting ?? json?.data?.alerting));
-        }
       } catch {
-        // Saved/alert lookup is non-critical; leave defaults if it fails.
+        // Saved lookup is non-critical; leave defaults if it fails.
       }
     }
 
@@ -629,7 +605,6 @@ export function VenuePageClient({
       setAuthChecked(true);
       if (!token) {
         setSaved(false);
-        setAlerting(false);
       }
     });
 
@@ -639,12 +614,52 @@ export function VenuePageClient({
     };
   }, [venueId]);
 
+  useEffect(() => {
+    if (!accessToken || savePending) return;
+    if (!consumePendingAction(`save:${venueId}`)) return;
+    void toggleSaved();
+  }, [accessToken, consumePendingAction, savePending, venueId]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    if (!consumePendingAction(`report:${venueId}`)) return;
+    startVibeReport();
+  }, [accessToken, consumePendingAction, venueId]);
+
+  function currentPath() {
+    if (typeof window === "undefined") return `/venues/${venueId}`;
+    return `${window.location.pathname}${window.location.search}`;
+  }
+
+  async function getActiveAccessToken(): Promise<string | null> {
+    if (accessToken) return accessToken;
+    const client = createBrowserClient();
+    const { data } = await client.auth.getSession();
+    const token = data.session?.access_token ?? null;
+    if (token) {
+      setAccessToken(token);
+      setAuthChecked(true);
+    }
+    return token;
+  }
+
+  function startVibeReport() {
+    setVibeError(null);
+    setVibeStep(1);
+    setVibeReportOpen(true);
+  }
+
   async function toggleSaved() {
     if (savePending) return;
 
-    if (!accessToken) {
-      setLoginPromptReason("save");
-      setLoginPromptOpen(true);
+    const token = await getActiveAccessToken();
+    if (!token) {
+      await requireAuth({
+        id: `save:${venueId}`,
+        label: venue ? `Sign in to save ${venue.name}.` : "Sign in to save this venue.",
+        returnTo: currentPath(),
+        onAuthenticated: toggleSaved,
+      });
       return;
     }
 
@@ -661,7 +676,7 @@ export function VenuePageClient({
       const res = await fetch("/api/saved-venues", {
         method: nextSaved ? "POST" : "DELETE",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ venueId }),
@@ -675,46 +690,12 @@ export function VenuePageClient({
     }
   }
 
-  async function toggleVenueAlert() {
-    if (alertPending) return;
-    haptic.medium();
-
-    if (!accessToken) {
-      router.push(`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`);
-      return;
-    }
-
-    const nextAlerting = !alerting;
-    setAlerting(nextAlerting);
-    setAlertPending(true);
-
-    try {
-      const res = await fetch("/api/push/venue-alert", {
-        method: nextAlerting ? "POST" : "DELETE",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ venueId }),
-      });
-      if (!res.ok) throw new Error(`${res.status}`);
-      trackAnalytics("venue_alert_toggled", {
-        venue_id: venueId,
-        action: nextAlerting ? "subscribe" : "unsubscribe",
-      });
-    } catch {
-      setAlerting(!nextAlerting);
-    } finally {
-      setAlertPending(false);
-    }
-  }
-
   async function shareVenue() {
     if (!venue || typeof navigator === "undefined" || typeof window === "undefined") return;
 
     const shareData: ShareData = {
       title: venue.name,
-      text: `Check out ${venue.name} on NightVibe`,
+      text: `Check out ${venue.name} on nytchkr`,
       url: window.location.href,
     };
     trackAnalytics("venue_share", { venueId: venue.id });
@@ -768,17 +749,21 @@ export function VenuePageClient({
     }
   }
 
-  function openVibeReport() {
+  async function openVibeReport() {
     if (!authChecked) return;
     haptic.light();
     trackAnalytics("check_in", { venue_id: venueId });
-    if (!accessToken) {
-      router.push(`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`);
+    const token = await getActiveAccessToken();
+    if (!token) {
+      await requireAuth({
+        id: `report:${venueId}`,
+        label: venue ? `Sign in to report the vibe at ${venue.name}.` : "Sign in to report the vibe.",
+        returnTo: currentPath(),
+        onAuthenticated: startVibeReport,
+      });
       return;
     }
-    setVibeError(null);
-    setVibeStep(1);
-    setVibeReportOpen(true);
+    startVibeReport();
   }
 
   function closeVibeReport() {
@@ -882,9 +867,9 @@ export function VenuePageClient({
   const busynessSource = signal?.busynessSource ?? null;
   const mfSampleSize = signal?.sampleSize ?? 0;
   const mfPercents = getMFRatioPercents(signal?.mfRatio);
-  const hasEnoughMfSample = mfSampleSize >= 3 && mfPercents !== null;
+  const hasEnoughMfSample = mfSampleSize >= 2 && mfPercents !== null;
   const mfEmptyStateMessage = mfEmptyMessage(mfSampleSize);
-  const crowdFeel = getCrowdFeel(mfSampleSize >= 3 ? mfPercents?.male ?? null : null);
+  const crowdFeel = getCrowdFeel(hasEnoughMfSample ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
   const googleReviewLabel = formatReviewCount(venue?.totalRatings);
@@ -975,6 +960,28 @@ export function VenuePageClient({
               >
                 <span aria-hidden="true">&lt;</span>
               </button>
+              <div className="absolute right-4 top-4 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void toggleSaved()}
+                  disabled={!authChecked || savePending}
+                  aria-label={saved ? "Remove from saved" : "Save venue"}
+                  aria-pressed={saved}
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 shadow-lg backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-60 ${
+                    saved ? "text-[#F0568C]" : "text-white/70 hover:text-white"
+                  }`}
+                >
+                  <Heart size={19} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void shareVenue()}
+                  aria-label={`Share ${venue.name}`}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur transition-colors hover:bg-black/55 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                >
+                  <Share2 size={19} aria-hidden="true" />
+                </button>
+              </div>
             </div>
 
             <div className="relative mx-auto max-w-lg px-4 pb-6 pt-5">
@@ -1068,7 +1075,7 @@ export function VenuePageClient({
                       <EmptySignalState
                         compact
                         icon={Clock}
-                        message="No busyness data yet — check back later"
+                        message="No crowd data yet"
                       />
                     </div>
                   )}
@@ -1124,7 +1131,7 @@ export function VenuePageClient({
                   ) : (
                     <EmptySignalState
                       icon={Clock}
-                      message="No busyness data yet — check back later"
+                      message="No crowd data yet"
                     />
                   )}
                 </div>
@@ -1158,6 +1165,26 @@ export function VenuePageClient({
                   </p>
                 )}
                 <SignalFreshnessLabel signal={signal} />
+                <button
+                  type="button"
+                  onClick={() => void openVibeReport()}
+                  disabled={!authChecked}
+                  aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
+                  className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                    checkInConfirmed
+                      ? "bg-[#1A1A2E] text-white hover:bg-[#1A1A2E]"
+                      : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
+                  } disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35`}
+                >
+                  {checkInConfirmed ? (
+                    <>
+                      <Check size={20} strokeWidth={3} aria-hidden="true" />
+                      Recorded
+                    </>
+                  ) : (
+                    "Report the vibe"
+                  )}
+                </button>
               </div>
               {!hasBusynessRead && !signal?.sampleSize && (
                 <p className="text-[13px] text-white/35">
@@ -1192,7 +1219,7 @@ export function VenuePageClient({
               </section>
             )}
 
-            <div className="grid gap-3" role="group" aria-label="Venue actions">
+            <div className="grid gap-3" role="group" aria-label="Venue sharing and directions">
               <a
                 href={mapsHref}
                 target="_blank"
@@ -1435,128 +1462,6 @@ export function VenuePageClient({
         </div>
       )}
 
-      {venue && loginPromptOpen && (
-        <div
-          ref={loginDialogRef}
-          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="vibe-login-title"
-          tabIndex={-1}
-        >
-          <button
-            type="button"
-            aria-label="Close login prompt"
-            className="absolute inset-0 cursor-default"
-            onClick={() => setLoginPromptOpen(false)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#11111A] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 id="vibe-login-title" className="font-display text-lg font-black text-white">
-                  Login required
-                </h2>
-                <p className="mt-1 text-sm text-white/50">
-                  {loginPromptReason === "save"
-                    ? `Sign in to save ${venue.name}.`
-                    : `Sign in to report the vibe at ${venue.name}.`}
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label="Close login prompt"
-                onClick={() => setLoginPromptOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-              >
-                <X size={17} aria-hidden="true" />
-              </button>
-            </div>
-            <Link
-              href={`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`}
-              className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-            >
-              Log in
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {venue && !vibeReportOpen && !loginPromptOpen && (
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4rem)] left-0 right-0 z-[60] border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
-          <div className="mx-auto flex max-w-lg items-center gap-3">
-            {authChecked && !accessToken ? (
-              <button
-                type="button"
-                onClick={toggleSaved}
-                aria-label="Save venue"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-              >
-                <Heart size={19} aria-hidden="true" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={toggleSaved}
-                disabled={!authChecked || savePending}
-                aria-label={saved ? "Remove from saved" : "Save venue"}
-                aria-pressed={saved}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-60 ${
-                  saved ? "text-white" : "text-white/55 hover:text-white"
-                }`}
-              >
-                <Heart size={19} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
-              </button>
-            )}
-
-            {canShareVenue ? (
-              <button
-                type="button"
-                onClick={() => void shareVenue()}
-                aria-label={`Share ${venue.name}`}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-              >
-                <Share2 size={19} aria-hidden="true" />
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={toggleVenueAlert}
-              disabled={!authChecked || alertPending}
-              aria-label={alerting ? `Disable busy alerts for ${venue.name}` : `Alert me when ${venue.name} gets busy`}
-              aria-pressed={alerting}
-              className={`flex min-h-[54px] min-w-[7.35rem] shrink-0 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-60 ${
-                alerting
-                  ? "border-[#8B6CFF]/55 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_20px_rgba(139,108,255,0.18)]"
-                  : "border-white/10 bg-white/[0.04] text-white/35 hover:border-white/20 hover:text-white/70"
-              }`}
-            >
-              {alerting ? "Alerting 🔔" : "Alert Me"}
-            </button>
-
-            <button
-              type="button"
-              onClick={openVibeReport}
-              disabled={!authChecked}
-              aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
-              className={`flex min-h-[54px] flex-1 items-center justify-center gap-2 rounded-2xl px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
-                checkInConfirmed
-                  ? "bg-[#1A1A2E] text-white hover:bg-[#1A1A2E]"
-                  : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
-              } disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35`}
-            >
-              {checkInConfirmed ? (
-                <>
-                  <Check size={20} strokeWidth={3} aria-hidden="true" />
-                  Recorded
-                </>
-              ) : (
-                "Report the vibe"
-              )}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -31,10 +31,8 @@ export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null
     return (
       <div className={className}>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-[#9CA2AE]">No busyness data</span>
+          <span className="text-sm font-semibold text-[#9CA2AE]">No crowd data yet</span>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true" />
-        <p className="mt-1.5 text-xs text-gray-400">{confidenceLabel}</p>
       </div>
     );
   }
