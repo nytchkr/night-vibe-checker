@@ -7,6 +7,7 @@ import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import { Info } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
+import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { BUSYNESS_COLORS, getBusynessState, type BusynessLevel } from "@/lib/busyness";
@@ -289,10 +290,6 @@ function getCategoryIcon(category: string | null | undefined): string {
   return "📍";
 }
 
-function getCategoryChipLabel(category: string | null | undefined): string {
-  return normalizeCategory(category) ?? "Spot";
-}
-
 function getInitials(name: string): string {
   const initials = name
     .trim()
@@ -483,7 +480,6 @@ function VenueFeedCard({
   index: number;
   prefersReduced: boolean;
 }) {
-  const categoryLabel = getCategoryChipLabel(venue.category);
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
@@ -548,9 +544,10 @@ function VenueFeedCard({
                 <HighlightText text={venue.name} query={searchQuery} />
               </h2>
             </div>
-            <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.05] px-2 py-0.5 text-[11px] font-semibold text-[#9CA2AE]">
-              {categoryLabel}
-            </span>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <CategoryBadge category={venue.category} />
+              <PriceLevelDisplay priceLevel={venue.priceLevel} />
+            </div>
           </div>
 
           <div className="mt-2 min-h-[32px]">

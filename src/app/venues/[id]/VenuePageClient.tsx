@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { Check, ChevronDown, ChevronLeft, Clock, Heart, MapPin, Share2, Users, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
+import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
@@ -181,14 +182,6 @@ function formatWeekHours(hoursEntry: string): { day: string; hours: string; clos
     hours: isClosedHours(hours) ? "Closed" : hours.split(/\s*[–-]\s*/).map(formatShortTime).join(" – "),
     closed: isClosedHours(hours),
   };
-}
-
-function CategoryChip({ category }: { category: string }) {
-  return (
-    <span className="inline-flex rounded-full border border-white/15 bg-white/[0.08] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white/85 backdrop-blur">
-      {category.replaceAll("_", " ")}
-    </span>
-  );
 }
 
 function formatReviewCount(count: number | null | undefined): string | null {
@@ -1008,7 +1001,10 @@ export function VenuePageClient({
                     </div>
                   </div>
                 )}
-                <CategoryChip category={venue.category} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <CategoryBadge category={venue.category} />
+                  <PriceLevelDisplay priceLevel={venue.priceLevel} />
+                </div>
                 <h1 className="font-display mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
                 {venue.address && (
                   <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
