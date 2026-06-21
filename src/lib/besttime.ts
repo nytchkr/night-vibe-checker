@@ -135,6 +135,8 @@ async function writeBusyness(
   source: BusynessSource,
   refreshedAt: string
 ) {
+  // Data flow: BestTime forecast/live reads are cached in VenueSignal, and
+  // client-facing venue APIs only serve that cached signal row.
   const venueUpdate: Partial<Pick<VenueRow, "besttime_venue_id">> & { last_busyness_refresh: string } = {
     last_busyness_refresh: refreshedAt,
   };
