@@ -422,6 +422,7 @@ function ZipRecenterControl() {
       flashInvalid();
       return;
     }
+    trackAnalytics("zip_recenter", { zip: nextZip });
     setShowInvalid(false);
     map.flyTo(center, 14, {
       animate: true,
@@ -965,6 +966,7 @@ export function VenueMap({
 
   const selectVenueFromMap = useCallback((venue: ConsumerVenue) => {
     haptic.light();
+    trackAnalytics("map_pin_tapped", { venueId: venue.id });
     setSelectedVenueId(venue.id);
     setDetailVenueId(venue.id);
     setSheetSnap("mid");

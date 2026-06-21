@@ -433,6 +433,7 @@ function VenueFeedCard({
     >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
+        onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
         className="group relative flex h-full w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] transition-colors hover:border-white/[0.16] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
         aria-label={`Open ${venue.name}`}
       >

@@ -51,6 +51,10 @@ export function ShareButton(props: ShareButtonProps) {
           url,
         };
 
+    if (isVenue) {
+      trackAnalytics("share_venue", { venueId: props.venue.id });
+    }
+
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share(shareData);

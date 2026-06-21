@@ -534,6 +534,7 @@ export function VenuePageClient({
         body: JSON.stringify({ venueId }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
+      trackAnalytics(nextSaved ? "save_venue" : "unsave_venue", { venueId });
     } catch {
       setSaved(!nextSaved);
     } finally {
@@ -578,6 +579,7 @@ export function VenuePageClient({
   async function shareVenue() {
     if (!venue || typeof navigator === "undefined" || typeof navigator.share !== "function") return;
 
+    trackAnalytics("share_venue", { venueId: venue.id });
     const shareData = buildVenueShareData(venue);
 
     try {

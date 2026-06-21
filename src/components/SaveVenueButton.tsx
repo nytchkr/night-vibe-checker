@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { track } from "@vercel/analytics";
 import { Bookmark } from "lucide-react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -17,6 +18,14 @@ type SaveVenueButtonProps = {
   className?: string;
   onSavedChange?: (venueId: string, saved: boolean) => void;
 };
+
+function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
+  try {
+    track(event, properties);
+  } catch {
+    // Analytics must never break the UI.
+  }
+}
 
 export function SaveVenueButton({
   venueId,
@@ -105,6 +114,7 @@ export function SaveVenueButton({
         body: JSON.stringify({ venueId }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
+      trackAnalytics(nextSaved ? "save_venue" : "unsave_venue", { venueId });
       window.dispatchEvent(new CustomEvent(SAVED_VENUES_EVENT));
     } catch {
       setSaved(!nextSaved);
