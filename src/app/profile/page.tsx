@@ -14,23 +14,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
-type CrowdFeel = "mostly_male" | "mostly_female" | "balanced" | "mixed";
 type ProfileGender = "male" | "female" | "undisclosed";
 
 type CheckInItem = {
   id: string;
   venueId: string;
   venueName: string;
-  crowdFeel: CrowdFeel | string;
+  busyness: string | null;
   createdAt: string;
 };
 
 type CheckInRecord = {
   id: string;
   venue_id: string | null;
-  crowd_feel: string | null;
+  venue_name?: string | null;
+  busyness: string | null;
   created_at: string | null;
-  venues?: { name?: string | null } | { name?: string | null }[] | null;
 };
 
 type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
@@ -49,13 +48,6 @@ type ProfileStreakResponse = {
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
 const WELCOME_DISMISSED_KEY = "nightvibe.welcomeDismissed";
 
-const CROWD_FEEL_LABELS: Record<CrowdFeel, string> = {
-  mostly_male: "Mostly male",
-  mostly_female: "Mostly female",
-  balanced: "Balanced",
-  mixed: "Mixed",
-};
-
 const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
   { value: "male", label: "Man" },
   { value: "female", label: "Woman" },
@@ -63,22 +55,19 @@ const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
 ];
 
 function getVenueName(row: CheckInRecord): string {
-  const venue = Array.isArray(row.venues) ? row.venues[0] : row.venues;
-  return venue?.name ?? row.venue_id ?? "Unknown venue";
+  return row.venue_name ?? row.venue_id ?? "Unknown venue";
 }
 
-function formatCrowdFeel(value: string): string {
-  return CROWD_FEEL_LABELS[value as CrowdFeel] ?? value.replaceAll("_", " ");
+function formatBusyness(value: string): string {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function formatCheckInTime(value: string): string {
+function formatCheckInDate(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Recently";
+  if (Number.isNaN(date.getTime())) return "Recent";
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
   }).format(date);
 }
 
@@ -391,16 +380,16 @@ function CheckInsSection({
   error: string;
 }) {
   return (
-    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Your check-ins">
+    <section className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4" aria-label="Check-in History">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-black text-white">Your check-ins</h2>
+          <h2 className="font-display text-xl font-black text-white">Check-in History</h2>
           <p className="mt-1 text-sm font-semibold text-white/45">
             {loading ? "Loading..." : `${count} total`}
           </p>
         </div>
         <span className="rounded-full bg-[#F0568C]/15 px-3 py-1 text-xs font-black text-[#F0568C]">
-          Last 3
+          Last 10
         </span>
       </div>
 
@@ -423,10 +412,7 @@ function CheckInsSection({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <MapPin size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-base font-black text-white">No check-ins yet</p>
-          <p className="mx-auto mt-2 max-w-[240px] text-sm font-semibold leading-6 text-white/50">
-            Be the first to report the vibe tonight
-          </p>
+          <p className="mt-4 text-base font-black text-white">No check-ins yet — start exploring!</p>
           <Link
             href="/map"
             className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
@@ -443,12 +429,14 @@ function CheckInsSection({
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 truncate text-sm font-black text-white">{item.venueName}</p>
                 <time className="shrink-0 text-xs font-semibold text-white/38" dateTime={item.createdAt}>
-                  {formatCheckInTime(item.createdAt)}
+                  {formatCheckInDate(item.createdAt)}
                 </time>
               </div>
-              <p className="mt-2 inline-flex rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-xs font-bold text-[#8B6CFF]">
-                {formatCrowdFeel(item.crowdFeel)}
-              </p>
+              {item.busyness && (
+                <p className="mt-2 inline-flex rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-xs font-bold text-[#8B6CFF]">
+                  {formatBusyness(item.busyness)}
+                </p>
+              )}
             </li>
           ))}
         </ul>
@@ -568,7 +556,7 @@ function ProfileContent() {
       setAuthChecked(true);
 
       if (activeSession?.user.id) {
-        void fetchCheckIns(activeSession.user.id);
+        void fetchCheckIns(activeSession);
         void fetchStreak(activeSession);
         void fetchSavedVenues(activeSession);
         void fetchGender(activeSession);
@@ -622,34 +610,29 @@ function ProfileContent() {
     };
   }, [session]);
 
-  async function fetchCheckIns(userId: string) {
+  async function fetchCheckIns(activeSession: Session) {
     setCheckInsLoading(true);
     setCheckInsError("");
 
     try {
-      const client = createBrowserClient();
-      const { data, error, count } = await client
-        .from("check_ins")
-        .select("id, venue_id, crowd_feel, created_at, venues(name)", { count: "exact" })
-        .eq("user_id", userId)
-        .eq("hidden", false)
-        .order("created_at", { ascending: false })
-        .limit(3);
+      const res = await fetch("/api/profile/check-ins", {
+        headers: { Authorization: `Bearer ${activeSession.access_token}` },
+      });
 
-      if (error) {
+      if (!res.ok) {
         setCheckIns([]);
         setCheckInCount(0);
         setCheckInsError("Could not load your check-ins right now.");
         return;
       }
 
-      const rows = (data ?? []) as CheckInRecord[];
-      setCheckInCount(count ?? rows.length);
+      const rows = (await res.json()) as CheckInRecord[];
+      setCheckInCount(rows.length);
       setCheckIns(rows.map((row) => ({
         id: row.id,
         venueId: row.venue_id ?? "",
         venueName: getVenueName(row),
-        crowdFeel: row.crowd_feel ?? "mixed",
+        busyness: row.busyness,
         createdAt: row.created_at ?? new Date().toISOString(),
       })));
     } catch {
