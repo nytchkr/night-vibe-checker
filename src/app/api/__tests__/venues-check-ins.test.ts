@@ -17,6 +17,7 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
   const builder = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -67,6 +68,7 @@ describe("GET /api/venues/[id]/check-ins", () => {
       },
     ]);
     expect(JSON.stringify(json)).not.toContain("user_id");
+    expect(checkInsChain.gte).toHaveBeenCalledWith("created_at", expect.any(String));
     expect(checkInsChain.order).toHaveBeenCalledWith("created_at", { ascending: false });
     expect(checkInsChain.limit).toHaveBeenCalledWith(10);
   });
@@ -113,6 +115,7 @@ describe("GET /api/venues/[id]/check-ins", () => {
     ]);
     expect(fallbackChain.select).toHaveBeenCalledWith("id, busyness, note, gender_self_report, created_at");
     expect(fallbackChain.eq).toHaveBeenCalledWith("hidden", false);
+    expect(fallbackChain.gte).toHaveBeenCalledWith("created_at", expect.any(String));
   });
 
   it("returns VENUE_NOT_FOUND when the venue cannot be resolved", async () => {

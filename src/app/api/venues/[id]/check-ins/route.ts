@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const CHECK_IN_LIMIT = 10;
+const RECENT_CHECK_IN_HOURS = 4;
 const PUBLIC_CACHE_HEADERS = {
   "Cache-Control": "public, max-age=30",
 };
@@ -78,10 +79,13 @@ async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> 
 }
 
 async function fetchRecentCheckIns(venueId: string): Promise<{ data: RecentCheckInRow[] | null; error: unknown }> {
+  const cutoff = new Date(Date.now() - RECENT_CHECK_IN_HOURS * 60 * 60_000).toISOString();
+
   const primary = await supabaseAdmin
     .from("check_ins")
     .select("id, busyness_0_to_100, crowd_feel, gender, created_at")
     .eq("venue_id", venueId)
+    .gte("created_at", cutoff)
     .order("created_at", { ascending: false })
     .limit(CHECK_IN_LIMIT);
 
@@ -97,6 +101,7 @@ async function fetchRecentCheckIns(venueId: string): Promise<{ data: RecentCheck
     .select("id, busyness, note, gender_self_report, created_at")
     .eq("venue_id", venueId)
     .eq("hidden", false)
+    .gte("created_at", cutoff)
     .order("created_at", { ascending: false })
     .limit(CHECK_IN_LIMIT);
 

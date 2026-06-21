@@ -21,6 +21,11 @@ function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
+function formatRecentCheckInBasis(sampleSize: number | null | undefined): string {
+  const count = Math.max(0, Math.round(sampleSize ?? 0));
+  return `Based on ${count} check-in${count === 1 ? "" : "s"} in the last 4 hours`;
+}
+
 export function getMFRatioPercents(mfRatio: number | null | undefined): { male: number; female: number } | null {
   if (mfRatio == null || !Number.isFinite(mfRatio)) return null;
 
@@ -48,7 +53,7 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
       >
         <div className={cn("h-2 w-full rounded-full bg-[#1A1A2E]", compact && "h-1.5")} aria-hidden="true" />
         <p className={cn("font-semibold text-white/45", compact ? "text-[11px]" : "text-xs")}>
-          Not enough data yet
+          Need 3 check-ins in the last 4 hours
         </p>
       </div>
     );
@@ -74,6 +79,9 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
       </div>
       <p className={cn("font-semibold text-white/60", compact ? "text-[11px]" : "text-xs")}>
         {male}% M · {female}% F
+      </p>
+      <p className={cn("font-semibold text-white/40", compact ? "text-[11px]" : "text-xs")}>
+        {formatRecentCheckInBasis(sampleSize)}
       </p>
     </div>
   );

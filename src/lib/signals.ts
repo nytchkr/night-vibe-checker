@@ -1,7 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import type { CrowdFeel, ReportedBusyness } from "@/types";
 
-const LOOKBACK_MINUTES = 120;
+export const SIGNAL_LOOKBACK_HOURS = 4;
+const LOOKBACK_MINUTES = SIGNAL_LOOKBACK_HOURS * 60;
 const HALF_LIFE_MINUTES = 45;
 // Minimum effective weight (N_eff = Σw) required before writing mf_ratio.
 // Below this threshold mf_ratio stays null so the UI doesn't show spurious data.
@@ -43,7 +44,7 @@ function reporterGenderToMaleValue(
 // M/F ratio:     mf_ratio = Σ(reporterGenderValue × w) / Σw  (0-100 scale, 100 = all male)
 // Confidence:    N_eff / (N_eff + 3)
 // N_eff < 2:     mf_ratio stays null (not enough signal to publish a ratio)
-// sample_size:   raw count of recent visible check-ins, not effective weight
+// sample_size:   raw count of visible check-ins in the last 4 hours, not effective weight
 export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date.now()) {
   // N_eff = Σw across all check-ins (used for both busyness and ratio gating)
   let nEff = 0;
@@ -51,7 +52,13 @@ export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date
   let weightedBusyness = 0;
   let weightedMaleValue = 0;
 
-  for (const row of rows) {
+  const recentRows = rows.filter((row) => {
+    const createdAtMs = new Date(row.created_at).getTime();
+    if (!Number.isFinite(createdAtMs)) return false;
+    return nowMs - createdAtMs <= LOOKBACK_MINUTES * 60_000;
+  });
+
+  for (const row of recentRows) {
     const ageMinutes = Math.max(0, (nowMs - new Date(row.created_at).getTime()) / 60_000);
     const w = Math.pow(0.5, ageMinutes / HALF_LIFE_MINUTES);
 
@@ -80,7 +87,7 @@ export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date
     busynessSource: nEff > 0 ? ("crowd" as const) : null,
     mfRatio,
     confidence0To1: Math.max(0, Math.min(1, confidence0To1)),
-    sampleSize: rows.length,
+    sampleSize: recentRows.length,
   };
 }
 

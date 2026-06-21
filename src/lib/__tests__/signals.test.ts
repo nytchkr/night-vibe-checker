@@ -71,4 +71,21 @@ describe("computeSignalFromCheckIns", () => {
     expect(signal.mfRatio).toBe(100);
     expect(signal.sampleSize).toBe(2);
   });
+
+  it("ignores check-ins older than 4 hours", () => {
+    const signal = computeSignalFromCheckIns(
+      [
+        row("balanced", 0, "female"),
+        row("balanced", 0, "female"),
+        row("balanced", 0, "male"),
+        row("balanced", 241, "male"),
+        row("balanced", 300, "male"),
+      ],
+      NOW
+    );
+
+    expect(signal.sampleSize).toBe(3);
+    expect(signal.mfRatio).toBeCloseTo(100 / 3, 5);
+    expect(signal.confidence0To1).toBeCloseTo(3 / 6, 5);
+  });
 });

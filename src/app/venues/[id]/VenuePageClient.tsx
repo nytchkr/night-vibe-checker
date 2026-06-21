@@ -237,6 +237,11 @@ function sourceLabel(signal: ConsumerVenue["signal"], fallbackUpdatedAt: string 
   return `from ${sampleSize} check-ins · ${timeAgo(fallbackUpdatedAt)}`;
 }
 
+function mfEmptyMessage(sampleSize: number): string {
+  if (sampleSize <= 0) return "No check-ins in the last 4 hours yet";
+  return `Only ${sampleSize} check-in${sampleSize === 1 ? "" : "s"} in the last 4 hours — need 3 to show M/F`;
+}
+
 function getCrowdFeel(malePercent: number | null): { emoji: string; label: string } {
   if (malePercent == null) return { emoji: "⚖️", label: "No read yet" };
   if (malePercent >= 58) return { emoji: "👨", label: "Male-leaning" };
@@ -893,6 +898,7 @@ export function VenuePageClient({
   const mfSampleSize = signal?.sampleSize ?? 0;
   const mfPercents = getMFRatioPercents(signal?.mfRatio);
   const hasEnoughMfSample = mfSampleSize >= 3 && mfPercents !== null;
+  const mfEmptyStateMessage = mfEmptyMessage(mfSampleSize);
   const crowdFeel = getCrowdFeel(mfSampleSize >= 3 ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
@@ -1097,7 +1103,7 @@ export function VenuePageClient({
                       <EmptySignalState
                         compact
                         icon={Users}
-                        message="Not enough check-ins yet to show the vibe"
+                        message={mfEmptyStateMessage}
                       />
                     </div>
                   )}
@@ -1155,7 +1161,7 @@ export function VenuePageClient({
                   ) : (
                     <EmptySignalState
                       icon={Users}
-                      message="Not enough check-ins yet to show the vibe"
+                      message={mfEmptyStateMessage}
                     />
                   )}
                 </div>

@@ -81,7 +81,7 @@ function VenueBottomSheetSkeleton({
 
       <aside
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[1200] max-h-[180px] translate-y-0 overflow-hidden rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] transition-transform duration-200 ease-out"
+        className="fixed bottom-0 left-0 right-0 z-[1200] max-h-[220px] translate-y-0 overflow-hidden rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] transition-transform duration-200 ease-out"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         role="dialog"
         aria-modal="true"
@@ -179,7 +179,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
       <aside
         ref={sheetRef}
-        className={`fixed bottom-0 left-0 right-0 z-[1200] max-h-[180px] overflow-hidden rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] ${
+        className={`fixed bottom-0 left-0 right-0 z-[1200] max-h-[220px] overflow-hidden rounded-t-2xl border-t border-white/10 bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] ${
           dragDelta > 0 ? "" : "transition-transform duration-200 ease-out"
         }`}
         style={{
