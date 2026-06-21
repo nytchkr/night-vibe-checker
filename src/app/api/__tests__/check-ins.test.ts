@@ -22,7 +22,7 @@ vi.mock("@supabase/supabase-js", () => ({
 vi.mock("@/lib/supabase", () => ({
   assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
   MissingSupabaseEnvError: MockMissingSupabaseEnvError,
-  supabaseAdmin: { from: mockFrom },
+  supabaseAdmin: { from: mockFrom, auth: { getUser: mockGetUser } },
 }));
 
 vi.mock("@/lib/signals", () => ({
@@ -83,6 +83,7 @@ const CHECK_IN = {
   venues: { name: "Trio" },
   busyness: "packed",
   crowd_feel: "mostly_male",
+  reporter_gender: "female",
   note: "Line is moving",
   created_at: "2026-06-19T01:00:00.000Z",
 };
@@ -126,8 +127,13 @@ describe("POST /api/check-ins", () => {
   it("inserts an authenticated report and returns the recomputed signal", async () => {
     const venueChain = chain({ data: VENUE });
     const duplicateChain = chain({ data: [] });
+    const profileChain = chain({ data: { gender: "female" } });
     const insertChain = chain({ data: CHECK_IN });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(duplicateChain).mockReturnValueOnce(insertChain);
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(insertChain);
 
     const { POST } = await import("../check-ins/route");
     const res = await POST(
@@ -144,6 +150,66 @@ describe("POST /api/check-ins", () => {
     expect(json.data.checkIn.busyness).toBe("packed");
     expect(json.data.checkIn.crowdFeel).toBe("mostly_male");
     expect(json.data.signal.busyness0To100).toBe(90);
+    expect(profileChain.select).toHaveBeenCalledWith("gender");
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-123",
+        reporter_gender: "female",
+      })
+    );
+    expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
+  });
+
+  it("stores null reporter gender when profile gender is undisclosed", async () => {
+    const venueChain = chain({ data: VENUE });
+    const duplicateChain = chain({ data: [] });
+    const profileChain = chain({ data: { gender: "undisclosed" } });
+    const insertChain = chain({ data: { ...CHECK_IN, reporter_gender: null } });
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        venueId: VENUE.id,
+        busyness: "packed",
+        crowdFeel: "mostly_male",
+      })
+    );
+
+    expect(res.status).toBe(201);
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reporter_gender: null,
+      })
+    );
+  });
+
+  it("inserts reporter gender on venue-scoped check-ins", async () => {
+    const venueChain = chain({ data: VENUE });
+    const profileChain = chain({ data: { gender: "male" } });
+    const insertChain = chain({ data: { ...CHECK_IN, reporter_gender: "male" } });
+    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(profileChain).mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../venues/[id]/check-in/route");
+    const res = await POST(
+      request("POST", `http://localhost/api/venues/${VENUE.id}/check-in`, {
+        busyness: "moderate",
+        crowd_feel: "balanced",
+      }),
+      { params: Promise.resolve({ id: VENUE.id }) }
+    );
+
+    expect(res.status).toBe(201);
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-123",
+        reporter_gender: "male",
+      })
+    );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
   });
 

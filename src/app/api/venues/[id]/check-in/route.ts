@@ -18,6 +18,11 @@ const CheckInBodySchema = z.object({
   note: z.string().trim().max(VIBE_NOTE_MAX_LENGTH).optional(),
 });
 
+function normalizeReporterGender(gender: unknown): "male" | "female" | null {
+  if (gender === "male" || gender === "female") return gender;
+  return null;
+}
+
 function meta(requestId: string) {
   return { cached: false, generatedAt: new Date().toISOString(), requestId };
 }
@@ -41,6 +46,21 @@ async function getBearerUserId(authHeader: string | null): Promise<string | null
   const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) return null;
   return data.user.id;
+}
+
+async function getReporterGender(userId: string): Promise<"male" | "female" | null> {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("gender")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[venue-check-in POST] profile gender lookup failed:", error);
+    return null;
+  }
+
+  return normalizeReporterGender(data?.gender);
 }
 
 async function resolveVenue(venueIdOrPlaceId: string): Promise<{ id: string; place_id: string | null } | null> {
@@ -143,6 +163,8 @@ export async function POST(
     );
   }
 
+  const reporterGender = await getReporterGender(userId);
+
   const { data, error } = await supabaseAdmin
     .from("check_ins")
     .insert({
@@ -151,6 +173,7 @@ export async function POST(
       user_id: userId,
       busyness: parsed.data.busyness,
       crowd_feel: parsed.data.crowd_feel,
+      reporter_gender: reporterGender,
       note: parsed.data.note?.trim() || null,
     })
     .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")

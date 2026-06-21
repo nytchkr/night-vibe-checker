@@ -30,6 +30,11 @@ const PostBodySchema = z.object({
   note: z.string().trim().max(200).optional(),
 });
 
+function normalizeReporterGender(gender: unknown): "male" | "female" | null {
+  if (gender === "male" || gender === "female") return gender;
+  return null;
+}
+
 function missingSupabaseConfigResponse(
   error: unknown,
   meta: { cached: boolean; generatedAt: string; requestId: string },
@@ -123,6 +128,21 @@ async function hasRecentDuplicate(venueId: string, userId: string) {
   return Boolean(data?.length);
 }
 
+async function getReporterGender(userId: string): Promise<"male" | "female" | null> {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("gender")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[check-ins POST] profile gender lookup failed:", error);
+    return null;
+  }
+
+  return normalizeReporterGender(data?.gender);
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const meta = { cached: false, generatedAt: new Date().toISOString(), requestId };
@@ -206,6 +226,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const reporterGender = await getReporterGender(userId);
+
   const { data, error } = await supabaseAdmin
     .from("check_ins")
     .insert({
@@ -214,6 +236,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       user_id: userId,
       busyness: parsed.data.busyness,
       crowd_feel: parsed.data.crowdFeel,
+      reporter_gender: reporterGender,
       note: parsed.data.note ?? null,
     })
     .select()
