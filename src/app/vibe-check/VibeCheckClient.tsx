@@ -56,6 +56,14 @@ const CROWD_SHARE_COPY: Record<CrowdFeel, { emoji: string; label: string }> = {
   mostly_female: { emoji: "👩", label: "More Women" },
 };
 
+function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
+  try {
+    track(event, properties);
+  } catch {
+    // Analytics must never break the UI.
+  }
+}
+
 export default function VibeCheckClient({
   initialVenueId,
   initialVenueName,
@@ -198,10 +206,10 @@ export default function VibeCheckClient({
 
       triggerHapticFeedback([50, 30, 50]);
       setDone(true);
-      track("vibe_submitted", {
-        busyness: selectedBusyness?.submitValue ?? "",
-        crowdFeel: crowdFeel ?? "mixed",
-        venueId: effectiveVenueId,
+      trackAnalytics("vibe_check_submitted", {
+        venue_id: effectiveVenueId,
+        busyness_level: selectedBusyness?.submitValue ?? "",
+        crowd_feel: crowdFeel ?? "mixed",
       });
     } catch {
       setSubmitError({ type: "generic", msg: "Couldn't submit — tap to retry" });
@@ -233,6 +241,10 @@ export default function VibeCheckClient({
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share(shareData);
+        trackAnalytics("share_card_shared", {
+          venue_id: effectiveVenueId,
+          method: "native",
+        });
         return;
       } catch {
         // If native share is cancelled or blocked, fall back to copying the venue link.
@@ -243,10 +255,15 @@ export default function VibeCheckClient({
       await navigator.clipboard.writeText(venueUrl);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2000);
+      trackAnalytics("share_card_shared", {
+        venue_id: effectiveVenueId,
+        method: "clipboard",
+      });
     } catch {
       setShareCopied(false);
     }
   }, [
+    effectiveVenueId,
     effectiveVenueName,
     shareBusyness,
     shareCrowd,

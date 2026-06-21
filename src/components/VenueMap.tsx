@@ -6,6 +6,7 @@ import Link from "next/link";
 import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
+import { track } from "@vercel/analytics";
 import { Check, ChevronDown, Loader2, RefreshCw, X } from "lucide-react";
 import { CircleMarker, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
@@ -31,6 +32,14 @@ const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
   "28211": [35.19, -80.78],
   "28212": [35.2, -80.75],
 };
+
+function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
+  try {
+    track(event, properties);
+  } catch {
+    // Analytics must never break the UI.
+  }
+}
 
 type VenuePinStyle = {
   className: string;
@@ -160,6 +169,12 @@ function ClusteredVenueMarkers({
       spiderfyOnMaxZoom: true,
     });
 
+    clusterGroup.on("clusterclick", (event: L.LeafletEvent & { layer?: L.MarkerCluster }) => {
+      const venueCount = event.layer?.getChildCount();
+      if (typeof venueCount !== "number") return;
+      trackAnalytics("map_cluster_expanded", { venue_count: venueCount });
+    });
+
     venues.forEach((venue) => {
       const marker = L.marker([venue.lat, venue.lng], {
         icon: createVenueClusterPin(venue, selectedVenueId),
@@ -194,6 +209,13 @@ function CitySelector({
   const [open, setOpen] = useState(false);
 
   function selectCity(cityId: CityId) {
+    const nextCity = CITIES.find((option) => option.id === cityId);
+    if (nextCity && nextCity.id !== city.id) {
+      trackAnalytics("city_changed", {
+        from_city: city.name,
+        to_city: nextCity.name,
+      });
+    }
     onCityChange(cityId);
     setOpen(false);
   }
@@ -373,6 +395,7 @@ function VenueSearchControl({
   function selectSuggestion(venue: ConsumerVenue) {
     setSearchQuery(venue.name);
     setIsDropdownOpen(false);
+    trackAnalytics("search_suggestion_clicked", { venue_id: venue.id });
     onVenueSelect(venue);
   }
 

@@ -18,6 +18,14 @@ const EMPTY_RATING_STATE: VenueRatingState = {
   userRating: null,
 };
 
+function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
+  try {
+    track(event, properties);
+  } catch {
+    // Analytics must never break the UI.
+  }
+}
+
 function getRatingJsonValue(json: unknown): VenueRatingState {
   const value = json as Partial<VenueRatingState> & { data?: Partial<VenueRatingState> };
   const source = value.data ?? value;
@@ -122,7 +130,7 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
         body: JSON.stringify({ venueId, rating }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
-      track("venue_rated", { venueId, rating });
+      trackAnalytics("rating_submitted", { venue_id: venueId, rating });
     } catch {
       setRatingState(previousState);
       setError("Could not save rating.");

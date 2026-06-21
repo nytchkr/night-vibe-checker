@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
@@ -31,6 +32,14 @@ const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
   { value: "Restaurant", label: "🍔 Restaurant" },
   { value: "Lounge", label: "🛋 Lounge" },
 ];
+
+function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
+  try {
+    track(event, properties);
+  } catch {
+    // Analytics must never break the UI.
+  }
+}
 
 function normalizeCategory(category: string | null | undefined): CategoryFilter | null {
   const value = (category ?? "").toLowerCase();
@@ -293,7 +302,7 @@ function CardSkeleton() {
 }
 
 export function ExplorePageClient() {
-  const track = useTrack();
+  const trackPageView = useTrack();
   const prefersReduced =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -326,8 +335,8 @@ export function ExplorePageClient() {
   }, [fetchVenues]);
 
   useEffect(() => {
-    void track("page_view", { meta: { page: "explore" } });
-  }, [track]);
+    void trackPageView("page_view", { meta: { page: "explore" } });
+  }, [trackPageView]);
 
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
@@ -442,6 +451,11 @@ export function ExplorePageClient() {
     setBusynessFilter("All");
     setCategoryFilter("All");
     setSortOption("Busiest");
+  }
+
+  function selectSortOption(option: SortOption) {
+    setSortOption(option);
+    trackAnalytics("explore_filter_selected", { filter: option });
   }
 
   const timeLabel = useMemo(() => (
@@ -569,7 +583,7 @@ export function ExplorePageClient() {
                 key={option}
                 label={option}
                 active={sortOption === option}
-                onSelect={() => setSortOption(option)}
+                onSelect={() => selectSortOption(option)}
                 prefersReduced={prefersReduced}
               />
             ))}

@@ -183,6 +183,14 @@ function getBusynessColor(percent: number): string {
   return "#4ADE80";
 }
 
+function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
+  try {
+    track(event, properties);
+  } catch {
+    // Analytics must never break the UI.
+  }
+}
+
 function initialFor(name: string): string {
   const trimmed = name.trim();
   return (trimmed[0] ?? "?").toUpperCase();
@@ -263,8 +271,12 @@ export function VenuePageClient({
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
     trackedVenueView.current = true;
-    track("venue_viewed", { venueId, venueName: venue.name });
-  }, [venue?.name, venueId]);
+    trackAnalytics("venue_viewed", {
+      venue_id: venueId,
+      venue_name: venue.name,
+      category: venue.category,
+    });
+  }, [venue?.category, venue?.name, venueId]);
 
   useEffect(() => {
     if (!venueId) return;
@@ -426,6 +438,10 @@ export function VenuePageClient({
         body: JSON.stringify({ venueId }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
+      trackAnalytics("venue_alert_toggled", {
+        venue_id: venueId,
+        action: nextAlerting ? "subscribe" : "unsubscribe",
+      });
     } catch {
       setAlerting(!nextAlerting);
     } finally {
@@ -441,6 +457,10 @@ export function VenuePageClient({
     if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
         await navigator.share(shareData);
+        trackAnalytics("share_card_shared", {
+          venue_id: venue.id,
+          method: "native",
+        });
         return;
       } catch {
         // User cancelled or browser blocked native sharing; use clipboard fallback.
@@ -451,6 +471,10 @@ export function VenuePageClient({
       await navigator.clipboard.writeText(shareData.url ?? url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
+      trackAnalytics("share_card_shared", {
+        venue_id: venue.id,
+        method: "clipboard",
+      });
     } catch {
       // Clipboard is non-critical for the venue page.
     }
@@ -778,7 +802,10 @@ export function VenuePageClient({
 
             <Link
               href={reportUrl}
-              onClick={() => triggerHapticFeedback([40, 20, 40])}
+              onClick={() => {
+                triggerHapticFeedback([40, 20, 40]);
+                trackAnalytics("check_in", { venue_id: venueId });
+              }}
               className="flex min-h-[54px] flex-1 items-center justify-center rounded-2xl bg-[#00F5D4] px-5 text-base font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-all hover:bg-[#22FFE1] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/60"
             >
               Check In

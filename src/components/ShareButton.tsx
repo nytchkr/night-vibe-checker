@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@vercel/analytics";
 import { Button } from "@/components/ui/button";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
@@ -27,6 +28,14 @@ function isVenueShare(props: ShareButtonProps): props is VenueShareButtonProps {
   return "venue" in props;
 }
 
+function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
+  try {
+    track(event, properties);
+  } catch {
+    // Analytics must never break the UI.
+  }
+}
+
 export function ShareButton(props: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const caption = props.caption;
@@ -45,6 +54,12 @@ export function ShareButton(props: ShareButtonProps) {
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share(shareData);
+        if (isVenue) {
+          trackAnalytics("share_card_shared", {
+            venue_id: props.venue.id,
+            method: "native",
+          });
+        }
         return;
       } catch {
         // user cancelled or browser blocked — fall through to clipboard
@@ -56,6 +71,12 @@ export function ShareButton(props: ShareButtonProps) {
       setCopied(true);
       props.onCopied?.();
       setTimeout(() => setCopied(false), 2000);
+      if (isVenue) {
+        trackAnalytics("share_card_shared", {
+          venue_id: props.venue.id,
+          method: "clipboard",
+        });
+      }
     } catch {
       // clipboard unavailable — silent fail
     }
