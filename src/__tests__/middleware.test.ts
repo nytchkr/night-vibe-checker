@@ -10,14 +10,16 @@ describe("middleware route protection", () => {
   it("protects authenticated-only page routes and nested paths", () => {
     expect(isProtectedPageRoute("/vibe-check")).toBe(true);
     expect(isProtectedPageRoute("/vibe-check/history")).toBe(true);
-    expect(isProtectedPageRoute("/profile")).toBe(true);
-    expect(isProtectedPageRoute("/profile/settings")).toBe(true);
+    expect(isProtectedPageRoute("/notifications")).toBe(true);
+    expect(isProtectedPageRoute("/notifications/settings")).toBe(true);
   });
 
   it("leaves public page routes open", () => {
     expect(isProtectedPageRoute("/")).toBe(false);
     expect(isProtectedPageRoute("/map")).toBe(false);
     expect(isProtectedPageRoute("/explore")).toBe(false);
+    expect(isProtectedPageRoute("/profile")).toBe(false);
+    expect(isProtectedPageRoute("/profile/settings")).toBe(false);
     expect(isProtectedPageRoute("/venues/venue-1")).toBe(false);
     expect(isProtectedPageRoute("/login")).toBe(false);
     expect(isProtectedPageRoute("/auth/callback")).toBe(false);

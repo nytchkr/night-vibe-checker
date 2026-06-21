@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
-const PROTECTED_PAGE_ROUTES = ["/vibe-check", "/profile", "/notifications"] as const;
+const PROTECTED_PAGE_ROUTES = ["/vibe-check", "/notifications"] as const;
 const PROTECTED_API_ROUTES = [
   "/api/check-ins",
   "/api/ratings",
