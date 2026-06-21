@@ -283,9 +283,8 @@ export default function MapBottomSheet({
 
         <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
           {venues.length === 0 ? (
-            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-5 text-center">
-              <p className="text-sm font-black text-white">No venues loaded for {cityName} yet.</p>
-              <p className="mt-1 text-xs font-semibold text-white/45">Check back tonight.</p>
+            <div className="px-4 py-8 text-center">
+              <p className="text-sm font-medium text-white/30">No venues in this area · Try moving the map</p>
             </div>
           ) : (
             visibleVenues.map((venue) => (

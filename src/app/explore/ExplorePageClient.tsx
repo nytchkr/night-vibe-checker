@@ -405,6 +405,13 @@ export function ExplorePageClient() {
   const visibleVenues = sortedVenues.slice(0, visibleCount);
   const hasMoreVenues = sortedVenues.length > visibleVenues.length;
 
+  function clearFilters() {
+    setSearchQuery("");
+    setBusynessFilter("All");
+    setCategoryFilter("All");
+    setSortOption("Busiest");
+  }
+
   const timeLabel = useMemo(() => (
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
   ), [now]);
@@ -570,13 +577,18 @@ export function ExplorePageClient() {
 
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center">
-            <p className={sortOption === "Open Now" ? "text-sm font-semibold text-white/30" : "text-sm font-semibold text-white"}>
-              {sortOption === "Open Now"
-                ? "No venues open right now · Check back later"
-                : searchQuery.trim().length > 0
-                ? `No spots match "${searchQuery.trim()}" — try a different name or category`
-                : "No spots match your filters — try adjusting them"}
+            <div className="text-5xl" aria-hidden="true">🔍</div>
+            <h2 className="mt-4 text-lg font-bold text-white/40">No venues match</h2>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">
+              Try a different filter or zoom out on the map
             </p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#00F5D4] px-5 text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.24)] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+            >
+              Clear filters
+            </button>
           </div>
         )}
 

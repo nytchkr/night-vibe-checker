@@ -134,6 +134,7 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
   const readOnly = !accessToken;
   const disabled = readOnly || loading || pendingRating !== null;
   const tooltip = readOnly ? "Sign in to rate" : undefined;
+  const hasNoRatings = !loading && ratingState.upCount === 0 && ratingState.downCount === 0;
 
   return (
     <section
@@ -166,6 +167,9 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
           />
         </div>
       </div>
+      {hasNoRatings && (
+        <p className="text-[13px] italic text-white/30">Be the first to rate this venue</p>
+      )}
       {error && <p className="text-[12px] text-rose-300">{error}</p>}
     </section>
   );

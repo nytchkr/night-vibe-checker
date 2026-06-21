@@ -220,6 +220,34 @@ function SavedVenuesSkeleton() {
   );
 }
 
+function SavedPlacesEmptyState() {
+  return (
+    <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center">
+      <div className="text-5xl" aria-hidden="true">🔖</div>
+      <h3 className="mt-4 text-lg font-bold text-white/40">No saved places yet</h3>
+      <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">Tap ♡ on any venue to save it</p>
+    </div>
+  );
+}
+
+function CheckInsEmptyState() {
+  return (
+    <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center">
+      <div className="text-5xl" aria-hidden="true">🌃</div>
+      <h3 className="mt-4 text-lg font-bold text-white/40">No nights out yet</h3>
+      <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/40">
+        Check in at a venue to start your nightlife history
+      </p>
+      <Link
+        href="/map"
+        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#00F5D4] px-5 text-sm font-black text-[#0A0A0F] shadow-[0_0_20px_rgba(0,245,212,0.24)] transition-colors hover:bg-[#22FFE1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+      >
+        Find venues →
+      </Link>
+    </div>
+  );
+}
+
 function LoggedOutPitch() {
   const benefits = [
     "Report the vibe — tell others how packed it is",
@@ -405,11 +433,6 @@ export default function ProfilePage() {
   const userEmail = session?.user.email ?? "";
   const userInitial = userEmail.trim().charAt(0).toUpperCase() || "?";
   const hapticsEnabled = hapticsPreference === "on";
-  const profileIsEmpty = session
-    && !checkInsLoading
-    && !savedVenuesLoading
-    && checkIns.length === 0
-    && savedVenues.length === 0;
 
   async function handleSignOut() {
     const client = createBrowserClient();
@@ -468,39 +491,13 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {profileIsEmpty && (
-          <section
-            className="flex min-h-[46vh] items-center justify-center"
-            aria-label="Empty profile"
-          >
-            <div className="w-full rounded-2xl border border-white/[0.09] bg-white/[0.04] p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
-              <h2 className="text-2xl font-black text-white">Nothing here yet</h2>
-              <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/55">
-                Explore South End bars and see who&apos;s out
-              </p>
-              <Link
-                href="/explore"
-                className="mt-6 inline-flex min-h-[48px] items-center justify-center rounded-full bg-[#00F5D4] px-6 text-sm font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-colors hover:bg-[#2fffe2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
-              >
-                Explore Now
-              </Link>
-            </div>
-          </section>
-        )}
-
-        {session && !profileIsEmpty && (
+        {session && (
           <section aria-label="Saved places">
             <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Saved Places</h2>
             {savedVenuesLoading ? (
               <SavedVenuesSkeleton />
             ) : savedVenues.length === 0 ? (
-              <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5">
-                <h3 className="text-white font-bold text-lg">No saved places yet</h3>
-                <p className="mt-1 text-sm text-white/50">Bookmark venues to keep your next-night shortlist close.</p>
-                <Link href="/explore" className="mt-4 inline-flex items-center justify-center rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-bold text-[#0A0A0F]">
-                  Explore venues
-                </Link>
-              </div>
+              <SavedPlacesEmptyState />
             ) : (
               <ul className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 list-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {savedVenues.map((venue) => <SavedVenueCard key={venue.id} venue={venue} />)}
@@ -509,10 +506,10 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {session && !profileIsEmpty && <div className="border-t border-white/[0.06] my-6" />}
+        {session && <div className="border-t border-white/[0.06] my-6" />}
 
         {/* Check-in history */}
-        {session && !profileIsEmpty && (
+        {session && (
           <section aria-label="Your vibes">
             <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Your Vibes</h2>
             {checkInsLoading ? (
@@ -520,14 +517,7 @@ export default function ProfilePage() {
                 {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
               </div>
             ) : checkIns.length === 0 ? (
-              <div className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-6 text-center">
-                <p className="text-4xl mb-3">🌙</p>
-                <h3 className="text-white font-bold text-lg">Your first night awaits</h3>
-                <p className="text-white/50 text-sm mt-1">Report the vibe at any venue to see your history here</p>
-                <Link href="/explore" className="mt-4 inline-flex items-center justify-center rounded-full bg-[#00F5D4] px-5 py-2.5 text-sm font-bold text-[#0A0A0F]">
-                  Find a venue
-                </Link>
-              </div>
+              <CheckInsEmptyState />
             ) : (
               <ul className="space-y-3 list-none">
                 {checkIns.map((ci) => (
@@ -538,7 +528,7 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {session && !profileIsEmpty && <div className="border-t border-white/[0.06] my-6" />}
+        {session && <div className="border-t border-white/[0.06] my-6" />}
 
         {session && (
           <section aria-label="Preferences">
@@ -572,9 +562,9 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {session && !profileIsEmpty && <div className="border-t border-white/[0.06] my-6" />}
+        {session && <div className="border-t border-white/[0.06] my-6" />}
 
-        {session && !profileIsEmpty && (
+        {session && (
           <section aria-label="Notifications">
             <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Notifications</h2>
             <PushOptIn />
@@ -582,7 +572,7 @@ export default function ProfilePage() {
         )}
 
         {/* Report CTA */}
-        {session && !profileIsEmpty && (
+        {session && (
           <Link
             href="/vibe-check"
             className="flex items-center justify-center w-full min-h-[52px] rounded-2xl text-[#0A0A0F] font-black text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80 transition-all duration-150 active:scale-[0.98]"
