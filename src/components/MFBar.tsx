@@ -10,6 +10,7 @@ interface MFBarProps {
   malePercent: number | null;
   sampleSize: number;
   source: MFBarSource;
+  showWhenRatioPresent?: boolean;
   className?: string;
 }
 
@@ -17,11 +18,11 @@ function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
-export function MFBar({ malePercent, sampleSize, source, className }: MFBarProps) {
+export function MFBar({ malePercent, sampleSize, source, showWhenRatioPresent = false, className }: MFBarProps) {
   const rawId = useId();
   const prefersReducedMotion = useReducedMotion();
   const layoutId = `mf-bar-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const hasData = malePercent !== null && sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
+  const hasData = malePercent !== null && (showWhenRatioPresent || sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO);
 
   if (!hasData) {
     return null;
