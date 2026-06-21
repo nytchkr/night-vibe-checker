@@ -108,7 +108,7 @@ async function loadPublicProfiles(userIds: string[]): Promise<Map<string, Profil
 export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } | { error: string }>> {
   const { data, error } = await supabaseAdmin
     .from("check_ins")
-    .select("id, user_id, venue_id, created_at, venues(id, name, hidden)")
+    .select("id, user_id, venue_id, created_at")
     .not("user_id", "is", null)
     .order("created_at", { ascending: false })
     .limit(ACTIVITY_LIMIT);
@@ -121,17 +121,29 @@ export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } 
     );
   }
 
-  const rows = ((data ?? []) as CheckInFeedRow[]).filter((row) => row.id && row.user_id && readVenue(row));
-  const userIds = Array.from(new Set(rows.map((row) => row.user_id as string)));
+  const rawRows = (data ?? []) as CheckInFeedRow[];
+  const validRows = rawRows.filter((row) => row.id && row.user_id && row.venue_id);
+
+  // Fetch venue names in a separate query
+  const venueIds = Array.from(new Set(validRows.map((r) => r.venue_id as string)));
+  const { data: venueData } = venueIds.length
+    ? await supabaseAdmin.from("venues").select("id, name").in("id", venueIds)
+    : { data: [] };
+  const venueMap = new Map<string, string>(
+    ((venueData ?? []) as { id: string; name: string }[]).map((v) => [v.id, v.name])
+  );
+
+  const userIds = Array.from(new Set(validRows.map((row) => row.user_id as string)));
   const profiles = await loadPublicProfiles(userIds);
 
-  const items = rows.flatMap((row): ActivityFeedItem[] => {
+  const items = validRows.flatMap((row): ActivityFeedItem[] => {
     const userId = row.user_id as string;
     const profile = profiles.get(userId);
     if (!profile) return [];
 
-    const venue = readVenue(row);
-    if (!venue || venue.hidden) return [];
+    const venueId = row.venue_id as string;
+    const venueName = venueMap.get(venueId);
+    if (!venueName) return [];
 
     return [{
       id: row.id,
@@ -140,8 +152,8 @@ export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } 
         avatar_url: profile.avatar_url?.trim() || null,
       },
       venue: {
-        id: venue.id,
-        name: venue.name,
+        id: venueId,
+        name: venueName,
       },
       checked_in_at: row.created_at,
     }];
