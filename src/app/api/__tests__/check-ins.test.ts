@@ -259,7 +259,7 @@ describe("POST /api/check-ins", () => {
     );
   });
 
-  it("inserts reporter gender on venue-scoped check-ins", async () => {
+  it("accepts gender on venue-scoped check-ins", async () => {
     const venueChain = chain({ data: VENUE });
     const profileChain = chain({ data: { gender: "male" } });
     const insertChain = chain({ data: { ...CHECK_IN, reporter_gender: "male" } });
@@ -270,7 +270,7 @@ describe("POST /api/check-ins", () => {
       request("POST", `http://localhost/api/venues/${VENUE.id}/check-in`, {
         busyness: "moderate",
         crowd_feel: "balanced",
-        gender_self_report: "m",
+        gender: "man",
       }),
       { params: Promise.resolve({ id: VENUE.id }) }
     );

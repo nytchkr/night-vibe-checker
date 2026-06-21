@@ -16,8 +16,20 @@ const CheckInBodySchema = z.object({
   busyness: z.enum(["dead", "moderate", "packed"]),
   crowd_feel: z.enum(["mostly_male", "mostly_female", "balanced", "mixed"]),
   note: z.string().trim().max(VIBE_NOTE_MAX_LENGTH).optional(),
+  gender: z.enum(["man", "woman"]).nullable().optional(),
   gender_self_report: z.enum(["m", "f"]).nullable().optional(),
 });
+
+function genderToSelfReport(gender: "man" | "woman" | null | undefined): "m" | "f" | null {
+  if (gender === "man") return "m";
+  if (gender === "woman") return "f";
+  return null;
+}
+
+function selectedGenderSelfReport(data: z.infer<typeof CheckInBodySchema>): "m" | "f" | null {
+  if ("gender" in data) return genderToSelfReport(data.gender);
+  return data.gender_self_report ?? null;
+}
 
 function normalizeReporterGender(gender: unknown): "male" | "female" | null {
   if (gender === "male" || gender === "female") return gender;
@@ -189,7 +201,7 @@ export async function POST(
     busyness: parsed.data.busyness,
     crowd_feel: parsed.data.crowd_feel,
     reporter_gender: reporterGender,
-    gender_self_report: parsed.data.gender_self_report ?? null,
+    gender_self_report: selectedGenderSelfReport(parsed.data),
     note: parsed.data.note?.trim() || null,
   };
 
