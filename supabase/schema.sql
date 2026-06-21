@@ -48,6 +48,8 @@ create table if not exists public.venues (
   zone_id         text references public.zones(id),
   hidden          boolean not null default false,
   besttime_venue_id text,
+  busyness_pct   integer check (busyness_pct between 0 and 100),
+  crowd_feel     text check (crowd_feel in ('male','female','balanced')),
   busyness_0_100  integer check (busyness_0_100 between 0 and 100),
   busyness_source text check (busyness_source in ('live','forecast','crowd')),
   last_busyness_refresh timestamptz,
@@ -70,6 +72,8 @@ alter table public.venues add column if not exists category text;
 alter table public.venues add column if not exists zone_id text references public.zones(id);
 alter table public.venues add column if not exists hidden boolean not null default false;
 alter table public.venues add column if not exists besttime_venue_id text;
+alter table public.venues add column if not exists busyness_pct integer check (busyness_pct between 0 and 100);
+alter table public.venues add column if not exists crowd_feel text check (crowd_feel in ('male','female','balanced'));
 alter table public.venues add column if not exists busyness_0_100 integer check (busyness_0_100 between 0 and 100);
 alter table public.venues add column if not exists busyness_source text check (busyness_source in ('live','forecast','crowd'));
 alter table public.venues add column if not exists last_busyness_refresh timestamptz;

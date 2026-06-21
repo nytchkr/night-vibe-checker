@@ -54,8 +54,8 @@ describe("POST /api/admin/trigger-refresh", () => {
 
     const openNowReq = mockRefreshOpenNow.mock.calls[0][0] as NextRequest;
     const busynessReq = mockRefreshBusyness.mock.calls[0][0] as NextRequest;
-    expect(openNowReq.headers.get("x-cron-secret")).toBe("test-secret");
-    expect(busynessReq.headers.get("x-cron-secret")).toBe("test-secret");
+    expect(openNowReq.headers.get("authorization")).toBe("Bearer test-secret");
+    expect(busynessReq.headers.get("authorization")).toBe("Bearer test-secret");
   });
 
   it("returns a trigger failure when a refresh endpoint fails", async () => {

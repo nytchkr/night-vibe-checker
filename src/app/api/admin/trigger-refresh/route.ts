@@ -19,7 +19,7 @@ function internalCronRequest(req: NextRequest, path: string, secret: string) {
   return new NextRequest(new URL(path, req.nextUrl.origin), {
     method: "POST",
     headers: {
-      "x-cron-secret": secret,
+      authorization: `Bearer ${secret}`,
     },
   });
 }
