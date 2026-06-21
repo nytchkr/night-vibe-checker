@@ -25,6 +25,39 @@ function getBusynessText(venue: ConsumerVenue): string {
     : "Live busyness data";
 }
 
+function getVenueJsonLd(venue: ConsumerVenue) {
+  const url = `${siteUrl}/venues/${encodeURIComponent(venue.id)}`;
+  const ratingValue = venue.rating ?? venue.googleRating;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "NightClub",
+    "@id": url,
+    name: venue.name,
+    url,
+    address: venue.address,
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: venue.lat,
+      longitude: venue.lng,
+    },
+    ...(venue.photoUrl ? { image: venue.photoUrl } : {}),
+    ...(venue.phone ? { telephone: venue.phone } : {}),
+    ...(venue.website ? { sameAs: venue.website } : {}),
+    ...(typeof ratingValue === "number"
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue,
+            bestRating: 5,
+            worstRating: 1,
+            ...(typeof venue.totalRatings === "number" ? { ratingCount: venue.totalRatings } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
 export async function generateMetadata({ params }: VenuePageProps): Promise<Metadata> {
   const { id } = await params;
   const venue = await getConsumerVenueById(id);
@@ -62,6 +95,10 @@ export default async function VenuePage({ params }: VenuePageProps) {
   return (
     <>
       <link rel="canonical" href={`${siteUrl}/venues/${venue.id}`} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(getVenueJsonLd(venue)) }}
+      />
       <PageTransition>
         <VenuePageClient venueId={id} initialVenue={venue} />
       </PageTransition>

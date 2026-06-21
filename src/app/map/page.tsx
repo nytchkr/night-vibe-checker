@@ -4,7 +4,8 @@ import { PageTransition } from "@/components/PageTransition";
 
 export const metadata: Metadata = {
   title: "Map — nytchkr",
-  description: "Real-time busyness for South End Charlotte bars and clubs. Know before you go.",
+  description:
+    "Discover South End Charlotte bars and clubs. See live crowd levels and find your vibe before you go.",
 };
 
 export default function MapPage() {

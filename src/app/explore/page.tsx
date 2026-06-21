@@ -4,7 +4,8 @@ import { ExplorePageClient } from "./ExplorePageClient";
 
 export const metadata: Metadata = {
   title: "Explore — nytchkr",
-  description: "Find bars and clubs in South End Charlotte",
+  description:
+    "Discover South End Charlotte bars and clubs. See live crowd levels and find your vibe before you go.",
 };
 
 export default function ExplorePage() {
