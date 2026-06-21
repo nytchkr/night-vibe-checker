@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
+import { Info } from "lucide-react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
@@ -15,16 +16,20 @@ const COLLAPSED_HEIGHT = 72;
 const MID_RATIO = 0.4;
 export const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
 
-function getBusynessLabel(value: number | null | undefined) {
-  if (value == null) return "No signal";
-  return getBusynessState(value).label;
-}
-
 function getVisibleHeight(snap: MapSheetSnap) {
   if (typeof window === "undefined") return COLLAPSED_HEIGHT;
   if (snap === "collapsed") return COLLAPSED_HEIGHT;
   if (snap === "mid") return window.innerHeight * MID_RATIO;
   return window.innerHeight * 0.85;
+}
+
+function NoDataChip() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#0A0A0E] px-2.5 py-1 text-[11px] font-black text-white/40">
+      <Info className="h-3.5 w-3.5" aria-hidden="true" />
+      No data
+    </span>
+  );
 }
 
 function OpenNowDot({ openNow }: { openNow: boolean | undefined }) {
@@ -41,16 +46,24 @@ function OpenNowDot({ openNow }: { openNow: boolean | undefined }) {
 
 function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
   const value = venue.signal?.busyness0To100;
+  if (value == null || !Number.isFinite(value)) {
+    return (
+      <span className="flex shrink-0 flex-col items-end gap-1">
+        <NoDataChip />
+      </span>
+    );
+  }
+
   const state = getBusynessState(value);
-  const source = value != null ? venue.signal?.busynessSource : null;
-  const computedAt = value != null ? venue.signal?.computedAt : null;
+  const source = venue.signal?.busynessSource ?? null;
+  const computedAt = venue.signal?.computedAt ?? null;
   return (
     <span className="flex shrink-0 flex-col items-end gap-1">
       <span
         className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-black text-white/55"
         style={state.level ? { borderColor: `${state.color}59`, backgroundColor: `${state.color}26`, color: state.color } : undefined}
       >
-        {getBusynessLabel(value)}
+        {state.label}
       </span>
       <span className="flex max-w-[9rem] flex-wrap justify-end gap-1">
         <SourceBadge source={source} computedAt={computedAt} />

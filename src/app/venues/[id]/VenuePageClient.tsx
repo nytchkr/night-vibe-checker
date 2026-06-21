@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, ChevronLeft, Heart, MapPin, Share2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, Clock, Heart, MapPin, Share2, Users, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getBusynessState } from "@/lib/busyness";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -25,6 +24,14 @@ type VenueActivityItem = {
   avatarUrl: string | null;
   checkedInAt: string;
   minutesAgo: number;
+};
+
+type RecentCheckIn = {
+  id: string;
+  busynessLevel: number | null;
+  crowdFeel: string | null;
+  gender: "M" | "F" | null;
+  createdAt: string;
 };
 
 type VenueCrowdNote = {
@@ -203,6 +210,27 @@ function LoadingSkeleton() {
   );
 }
 
+function EmptySignalState({
+  icon: Icon,
+  message,
+  compact = false,
+}: {
+  icon: typeof Clock;
+  message: string;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-[#0A0A0E] text-white/40 ${
+        compact ? "px-3 py-2 text-xs font-semibold" : "px-4 py-3 text-sm font-semibold"
+      }`}
+    >
+      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span>{message}</span>
+    </div>
+  );
+}
+
 function clampPercent(value: number | null | undefined): number {
   if (value == null || !Number.isFinite(value)) return 0;
   return Math.min(100, Math.max(0, Math.round(value)));
@@ -227,6 +255,15 @@ function getBusynessColor(percent: number): string {
   if (percent >= 70) return "#FF5B6A";
   if (percent >= 40) return "#FFB020";
   return "#5C6573";
+}
+
+function busynessLevelLabel(level: number | null): string {
+  if (level == null) return "Reported";
+  if (level <= 15) return "Dead";
+  if (level <= 35) return "Quiet";
+  if (level <= 60) return "Moderate";
+  if (level <= 85) return "Busy";
+  return "Packed";
 }
 
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
@@ -295,6 +332,77 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
   );
 }
 
+function CheckInFeed({ checkIns }: { checkIns: RecentCheckIn[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleCheckIns = expanded ? checkIns : checkIns.slice(0, 5);
+  const hasMore = checkIns.length > 5;
+
+  return (
+    <section className="space-y-3" role="region" aria-label="Recent vibes">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg font-bold text-white">Recent Vibes</h2>
+        {checkIns.length > 0 && (
+          <span className="text-xs font-semibold text-white/35">
+            Last {Math.min(checkIns.length, 10)}
+          </span>
+        )}
+      </div>
+
+      {checkIns.length === 0 ? (
+        <p className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4 text-sm font-medium text-white/45">
+          No vibes reported yet — be the first!
+        </p>
+      ) : (
+        <>
+          <ul className="space-y-2">
+            {visibleCheckIns.map((checkIn) => {
+              const label = busynessLevelLabel(checkIn.busynessLevel);
+              return (
+                <li
+                  key={checkIn.id}
+                  className="rounded-2xl border border-white/[0.09] bg-white/[0.04] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-black text-white">{label}</span>
+                        {checkIn.gender && (
+                          <span className="rounded-full border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[11px] font-black text-white/65">
+                            {checkIn.gender}
+                          </span>
+                        )}
+                      </div>
+                      {checkIn.crowdFeel && (
+                        <p className="mt-2 text-sm leading-relaxed text-white/65">{checkIn.crowdFeel}</p>
+                      )}
+                    </div>
+                    <time
+                      dateTime={checkIn.createdAt}
+                      className="shrink-0 text-xs font-semibold text-white/35"
+                    >
+                      {timeAgo(checkIn.createdAt)}
+                    </time>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {hasMore && !expanded && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="w-full rounded-xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-sm font-black text-white/70 transition-colors hover:bg-white/[0.07] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            >
+              Show more
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export function VenuePageClient({
   venueId,
   initialVenue,
@@ -317,6 +425,7 @@ export function VenuePageClient({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
+  const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
   const [crowdNotes, setCrowdNotes] = useState<VenueCrowdNote[]>([]);
   const [crowdNotesLoading, setCrowdNotesLoading] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -370,6 +479,18 @@ export function VenuePageClient({
     });
   }, [venue?.category, venue?.name, venueId]);
 
+  const fetchRecentCheckIns = useCallback(async (targetVenueId: string, isCancelled?: () => boolean) => {
+    try {
+      const res = await fetch(`/api/venues/${encodeURIComponent(targetVenueId)}/check-ins`);
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json = await res.json();
+      const checkIns = Array.isArray(json) ? json : json?.data?.checkIns;
+      if (!isCancelled?.()) setRecentCheckIns(Array.isArray(checkIns) ? checkIns.slice(0, 10) : []);
+    } catch {
+      if (!isCancelled?.()) setRecentCheckIns([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (!venueId) return;
     let cancelled = false;
@@ -419,6 +540,17 @@ export function VenuePageClient({
       cancelled = true;
     };
   }, [venue?.id, venueId]);
+
+  useEffect(() => {
+    const feedVenueId = venue?.id ?? venueId;
+    if (!feedVenueId) return;
+
+    let cancelled = false;
+    void fetchRecentCheckIns(feedVenueId, () => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchRecentCheckIns, venue?.id, venueId]);
 
   useEffect(() => {
     const notesVenueId = venue?.id ?? venueId;
@@ -749,6 +881,7 @@ export function VenuePageClient({
         const json = await venueRes.json();
         setVenue(json?.data?.venue ?? venue);
       }
+      void fetchRecentCheckIns(reportVenueId);
     } catch (error) {
       setVibeError(error instanceof Error ? error.message : "Could not submit vibe.");
       haptic.error();
@@ -760,14 +893,13 @@ export function VenuePageClient({
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessPercent = clampPercent(busyness);
-  const busynessState = getBusynessState(busyness);
-  const label = busynessState.label;
   const hasBusynessRead = busyness != null;
   const updatedAt = signal?.lastBusynessRefresh ?? signal?.updatedAt ?? signal?.computedAt ?? null;
   const signalSourceLabel = sourceLabel(signal ?? null, updatedAt);
   const busynessSource = signal?.busynessSource ?? null;
   const mfSampleSize = signal?.sampleSize ?? 0;
   const mfPercents = getMFRatioPercents(signal?.mfRatio);
+  const hasEnoughMfSample = mfSampleSize >= 3 && mfPercents !== null;
   const crowdFeel = getCrowdFeel(mfSampleSize >= 3 ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
@@ -949,22 +1081,42 @@ export function VenuePageClient({
                     <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">Busyness</span>
                     <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
-                  <BusynessMeter
-                    value={busyness}
-                    source={busynessSource}
-                    sampleSize={signal?.sampleSize ?? 0}
-                    computedAt={signal?.computedAt ?? null}
-                    className="mt-3"
-                  />
+                  {hasBusynessRead ? (
+                    <BusynessMeter
+                      value={busyness}
+                      source={busynessSource}
+                      sampleSize={mfSampleSize}
+                      computedAt={signal?.computedAt ?? null}
+                      className="mt-3"
+                    />
+                  ) : (
+                    <div className="mt-3">
+                      <EmptySignalState
+                        compact
+                        icon={Clock}
+                        message="No busyness data yet — check back later"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/35">M/F ratio</span>
-                  <MFRatioBar
-                    mfRatio={signal?.mfRatio}
-                    sampleSize={mfSampleSize}
-                    className="mt-3"
-                  />
+                  {hasEnoughMfSample ? (
+                    <MFRatioBar
+                      mfRatio={signal?.mfRatio}
+                      sampleSize={mfSampleSize}
+                      className="mt-3"
+                    />
+                  ) : (
+                    <div className="mt-3">
+                      <EmptySignalState
+                        compact
+                        icon={Users}
+                        message="Not enough check-ins yet to show the vibe"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
@@ -988,12 +1140,19 @@ export function VenuePageClient({
                     <span className="text-sm font-black text-white">Busyness</span>
                     <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
-                  <BusynessMeter
-                    value={busyness}
-                    source={busynessSource}
-                    sampleSize={signal?.sampleSize ?? 0}
-                    computedAt={signal?.computedAt ?? null}
-                  />
+                  {hasBusynessRead ? (
+                    <BusynessMeter
+                      value={busyness}
+                      source={busynessSource}
+                      sampleSize={mfSampleSize}
+                      computedAt={signal?.computedAt ?? null}
+                    />
+                  ) : (
+                    <EmptySignalState
+                      icon={Clock}
+                      message="No busyness data yet — check back later"
+                    />
+                  )}
                 </div>
 
                 <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
@@ -1004,11 +1163,20 @@ export function VenuePageClient({
                       {crowdFeel.label}
                     </span>
                   </div>
-                  <MFRatioBar
-                    mfRatio={signal?.mfRatio}
-                    sampleSize={mfSampleSize}
-                  />
+                  {hasEnoughMfSample ? (
+                    <MFRatioBar
+                      mfRatio={signal?.mfRatio}
+                      sampleSize={mfSampleSize}
+                    />
+                  ) : (
+                    <EmptySignalState
+                      icon={Users}
+                      message="Not enough check-ins yet to show the vibe"
+                    />
+                  )}
                 </div>
+
+                <CheckInFeed checkIns={recentCheckIns} />
 
                 {signalSourceLabel && (
                   <p className="text-[11px] text-white/35">

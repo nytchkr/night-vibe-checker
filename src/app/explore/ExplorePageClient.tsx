@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
+import { Info } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
@@ -329,6 +330,15 @@ function BusynessChip({ level }: { level: BusynessLevel }) {
   );
 }
 
+function NoDataChip() {
+  return (
+    <span className="inline-flex min-h-[30px] items-center gap-2 rounded-full border border-white/[0.08] bg-[#0A0A0E] px-3 text-[13px] font-semibold text-white/40">
+      <Info className="h-3.5 w-3.5" aria-hidden="true" />
+      No data
+    </span>
+  );
+}
+
 function MFSplitLine({ malePercent }: { malePercent: number }) {
   const male = clampPercent(malePercent);
   const female = 100 - male;
@@ -478,16 +488,14 @@ function VenueFeedCard({
             {hasCrowdReading ? (
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : null}
+                  {hasBusyness && busynessState.level ? <BusynessChip level={busynessState.level} /> : <NoDataChip />}
                   <SignalFreshnessLabel signal={signal} />
                   {mfRatio !== null ? <MFSplitLine malePercent={mfRatio} /> : null}
                 </div>
                 {signalConfidenceLabel ? <p className="text-xs text-gray-400">{signalConfidenceLabel}</p> : null}
               </div>
             ) : (
-              <p className="line-clamp-1 text-[12px] font-medium text-[#9CA2AE]">
-                No live reads yet — be the first to report
-              </p>
+              <NoDataChip />
             )}
           </div>
 

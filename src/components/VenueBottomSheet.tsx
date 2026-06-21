@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { MFRatioBar } from "@/components/MFRatioBar";
@@ -15,19 +15,31 @@ type VenueBottomSheetProps = {
   onClose: () => void;
 };
 
-function busynessLabel(value: number | null | undefined) {
-  if (value == null) return "No data yet";
-  return getBusynessState(value).level === "dead" ? "Dead" : getBusynessState(value).label;
-}
-
 function clampPercent(value: number) {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
 
+function NoDataChip() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-[#0A0A0E] px-2.5 py-1 text-[11px] font-black text-white/40">
+      <Info className="h-3.5 w-3.5" aria-hidden="true" />
+      No data
+    </span>
+  );
+}
+
 function BusynessMeter({ value }: { value: number | null | undefined }) {
+  if (value == null || !Number.isFinite(value)) {
+    return (
+      <section className="mt-2" aria-label="Busyness">
+        <NoDataChip />
+      </section>
+    );
+  }
+
   const state = getBusynessState(value);
-  const percent = value == null ? 0 : clampPercent(value);
-  const label = busynessLabel(value);
+  const percent = clampPercent(value);
+  const label = state.level === "dead" ? "Dead" : state.label;
 
   return (
     <section className="mt-2" aria-label="Busyness">
