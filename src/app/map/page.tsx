@@ -3,7 +3,7 @@ import VenueMapClient from "@/components/VenueMapClient";
 import { PageTransition } from "@/components/PageTransition";
 
 export const metadata: Metadata = {
-  title: "NightVibe — Live Nightlife Map",
+  title: "Map — nytchkr",
   description: "Real-time busyness for South End Charlotte bars and clubs. Know before you go.",
 };
 

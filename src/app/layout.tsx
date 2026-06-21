@@ -7,11 +7,9 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
-const siteUrl = "https://night-vibe-checker.vercel.app";
-const title = "nytchkr";
-const description =
-  "See which Charlotte bars and clubs are packed right now. Real-time crowd vibes by neighborhood.";
-const ogImage = "/og-image.png";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://night-vibe-checker.vercel.app";
+const title = "nytchkr — Know the vibe before you go";
+const description = "Real-time busyness and crowd vibe for bars and clubs in Charlotte, NC.";
 const themeColor = "#8B6CFF";
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
@@ -33,24 +31,16 @@ export const metadata: Metadata = {
     title: "nytchkr",
   },
   openGraph: {
-    title,
-    description,
-    url: siteUrl,
+    title: "nytchkr",
+    description: "Real-time busyness for Charlotte nightlife.",
+    url: "https://nytchkr.com",
     siteName: "nytchkr",
-    images: [
-      {
-        url: ogImage,
-        width: 1200,
-        height: 630,
-      },
-    ],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title,
-    description,
-    images: [ogImage],
+    title: "nytchkr",
+    description: "Know the vibe before you go.",
   },
 };
 
