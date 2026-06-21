@@ -3,11 +3,12 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, Bookmark, ChevronRight, MapPin, X } from "lucide-react";
+import { Bell, Bookmark, ChevronRight, MapPin } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { PageTransition } from "@/components/PageTransition";
 import { PushOptIn } from "@/components/PushOptIn";
+import { WELCOME_SEEN_STORAGE_KEY, WelcomeOverlay } from "@/components/WelcomeOverlay";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -49,7 +50,6 @@ type ProfileStreakResponse = {
 };
 
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
-const WELCOME_DISMISSED_KEY = "nightvibe.welcomeDismissed";
 
 const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
   { value: "male", label: "Man" },
@@ -174,71 +174,6 @@ function AccountCard({
             {checkInCount} check-ins · {savedCount} saved
           </p>
         </div>
-      </div>
-    </section>
-  );
-}
-
-function WelcomeCard({ onDismiss }: { onDismiss: () => void }) {
-  const ctas = [
-    {
-      title: "Report a vibe",
-      subtitle: "Drop a live signal from the map.",
-      href: "/map",
-    },
-    {
-      title: "Browse venues",
-      subtitle: "Scan South End spots before you go.",
-      href: "/explore",
-    },
-    {
-      title: "Set up profile",
-      subtitle: "Confirm your account details.",
-      href: "#profile-section",
-    },
-  ];
-
-  return (
-    <section
-      className="relative overflow-hidden rounded-2xl border border-[#8B6CFF]/28 bg-[#0A0A0E] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.38),0_0_38px_rgba(139,108,255,0.14)]"
-      aria-label="Welcome to NightVibe"
-    >
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#8B6CFF] to-transparent" />
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label="Dismiss welcome message"
-        className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white/55 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-      >
-        <X className="h-4 w-4" aria-hidden="true" />
-      </button>
-
-      <div className="pr-12">
-        <p className="font-display text-2xl font-black text-white">Welcome to NightVibe</p>
-        <p className="mt-1 text-sm font-semibold text-white/58">Here are your first moves.</p>
-      </div>
-
-      <div className="mt-5 grid gap-3">
-        {ctas.map((cta) => (
-          <Link
-            key={cta.title}
-            href={cta.href}
-            className="group rounded-xl border border-white/[0.09] bg-white/[0.045] p-3 transition-colors hover:border-[#8B6CFF]/45 hover:bg-[#8B6CFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-black text-white">{cta.title}</p>
-                <p className="mt-1 text-xs font-semibold leading-5 text-white/45">{cta.subtitle}</p>
-              </div>
-              <span
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF]/16 text-sm font-black text-[#8B6CFF] transition-colors group-hover:bg-[#8B6CFF] group-hover:text-[#0A0A0E]"
-                aria-hidden="true"
-              >
-                →
-              </span>
-            </div>
-          </Link>
-        ))}
       </div>
     </section>
   );
@@ -570,7 +505,7 @@ function ProfileContent() {
     }
 
     try {
-      setShowWelcome(window.sessionStorage.getItem(WELCOME_DISMISSED_KEY) !== "1");
+      setShowWelcome(window.localStorage.getItem(WELCOME_SEEN_STORAGE_KEY) !== "1");
     } catch {
       setShowWelcome(true);
     }
@@ -749,11 +684,17 @@ function ProfileContent() {
 
   function handleDismissWelcome() {
     try {
-      window.sessionStorage.setItem(WELCOME_DISMISSED_KEY, "1");
+      window.localStorage.setItem(WELCOME_SEEN_STORAGE_KEY, "1");
     } catch {
       // Storage can be unavailable in private contexts. Dismiss for the current render either way.
     }
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("welcome");
+    const nextQuery = nextParams.toString();
+
     setShowWelcome(false);
+    router.replace(nextQuery ? `/profile?${nextQuery}` : "/profile", { scroll: false });
   }
 
   const userEmail = getUserEmail(session?.user);
@@ -774,7 +715,7 @@ function ProfileContent() {
 
           {authChecked && session && (
             <div className="space-y-5">
-              {showWelcome && <WelcomeCard onDismiss={handleDismissWelcome} />}
+              {showWelcome && <WelcomeOverlay onDismiss={handleDismissWelcome} />}
               <AccountCard
                 displayName={userDisplayName}
                 email={userEmail}
