@@ -2,36 +2,14 @@
 // PATCH /api/admin/check-ins/[id] — toggle hidden flag
 // DELETE /api/admin/check-ins/[id] — permanent delete
 //
-// Auth: Bearer token verified via supabaseAdmin.auth.getUser();
-//       email must appear in ADMIN_EMAILS env var (comma-separated).
+// Auth: /admin cookie must match the server-side ADMIN_PASSWORD token.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { recomputeVenueSignal } from "@/lib/signals";
+import { isAuthorizedAdminRequest } from "@/lib/adminApiAuth";
 import type { AdminCheckIn } from "@/types/admin";
-
-// --------------- Auth helper ---------------------------------
-
-async function verifyAdmin(req: NextRequest): Promise<{ email: string } | null> {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user?.email) return null;
-
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!adminEmails.includes(data.user.email.toLowerCase())) return null;
-
-  return { email: data.user.email };
-}
 
 // --------------- PATCH /api/admin/check-ins/[id] -------------
 
@@ -39,8 +17,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await verifyAdmin(req);
-  if (!admin) {
+  if (!isAuthorizedAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -105,8 +82,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await verifyAdmin(req);
-  if (!admin) {
+  if (!isAuthorizedAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

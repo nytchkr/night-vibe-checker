@@ -1,25 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isAuthorizedAdminRequest } from "@/lib/adminApiAuth";
 import type { AdminVenue } from "@/types/admin";
-
-async function verifyAdmin(req: NextRequest): Promise<{ email: string } | null> {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user?.email) return null;
-
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!adminEmails.includes(data.user.email.toLowerCase())) return null;
-  return { email: data.user.email };
-}
 
 function mapVenue(row: Record<string, unknown>): AdminVenue {
   const sig = row.venue_signals;
@@ -46,8 +28,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const admin = await verifyAdmin(req);
-  if (!admin) {
+  if (!isAuthorizedAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -82,6 +63,38 @@ export async function PATCH(
   if (error || !data) {
     return NextResponse.json(
       { error: "Failed to update venue", details: error?.message },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ venue: mapVenue(data as Record<string, unknown>) });
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  if (!isAuthorizedAdminRequest(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const { data, error } = await supabaseAdmin
+    .from("venues")
+    .update({ hidden: true })
+    .eq("id", id)
+    .select(`
+      id, place_id, name, address, venue_type, category, hidden, last_busyness_refresh,
+      venue_signals (
+        busyness_0_100, sample_size, last_busyness_refresh
+      )
+    `)
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json(
+      { error: "Failed to hide venue", details: error?.message },
       { status: 500 }
     );
   }

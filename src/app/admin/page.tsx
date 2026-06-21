@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ADMIN_COOKIE_NAME, getAdminCookieToken } from "@/lib/adminPasswordAuth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { BusiestVenueRows, RecentCheckInRows } from "@/components/admin/AdminDashboardModeration";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ type CheckInRow = {
 
 type RecentCheckIn = {
   id: string;
+  venueId: string;
   userEmail: string;
   venueName: string;
   createdAt: string;
@@ -47,20 +49,6 @@ function truncateEmail(email: string): string {
   const [local, domain] = email.split("@");
   if (!local || !domain) return email;
   return `${local.slice(0, 2)}***@${domain}`;
-}
-
-function timeAgo(iso: string): string {
-  const diffSeconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (diffSeconds < 60) return "just now";
-
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
 }
 
 function getUserLabel(userId: string | null, emailsByUserId: Map<string, string>): string {
@@ -154,6 +142,7 @@ async function getDashboardData() {
       .slice(0, 5),
     recentCheckIns: recentRows.map<RecentCheckIn>((row) => ({
       id: row.id,
+      venueId: row.venue_id,
       userEmail: getUserLabel(row.user_id, emailsByUserId),
       venueName: getVenueName(row),
       createdAt: row.created_at,
@@ -208,23 +197,11 @@ export default async function AdminPage() {
                 <tr className="border-b border-white/10">
                   <th className="px-4 py-3 font-medium">Venue</th>
                   <th className="px-4 py-3 text-right font-medium">Check-ins</th>
+                  <th className="px-4 py-3 text-right font-medium">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {data.busiestVenues.length > 0 ? (
-                  data.busiestVenues.map((venue) => (
-                    <tr key={venue.venueId} className="border-b border-white/5 last:border-0">
-                      <td className="px-4 py-3 text-white">{venue.name}</td>
-                      <td className="px-4 py-3 text-right tabular-nums text-white/80">{venue.count}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="px-4 py-6 text-white/45" colSpan={2}>
-                      No check-ins in the last 24 hours.
-                    </td>
-                  </tr>
-                )}
+                <BusiestVenueRows initialVenues={data.busiestVenues} />
               </tbody>
             </table>
           </div>
@@ -262,24 +239,11 @@ export default async function AdminPage() {
                   <th className="px-4 py-3 font-medium">User</th>
                   <th className="px-4 py-3 font-medium">Venue</th>
                   <th className="px-4 py-3 text-right font-medium">Time</th>
+                  <th className="px-4 py-3 text-right font-medium">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {data.recentCheckIns.length > 0 ? (
-                  data.recentCheckIns.map((checkIn) => (
-                    <tr key={checkIn.id} className="border-b border-white/5 last:border-0">
-                      <td className="px-4 py-3 font-mono text-white/75">{checkIn.userEmail}</td>
-                      <td className="px-4 py-3 text-white">{checkIn.venueName}</td>
-                      <td className="px-4 py-3 text-right text-white/60">{timeAgo(checkIn.createdAt)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="px-4 py-6 text-white/45" colSpan={3}>
-                      No check-ins recorded yet.
-                    </td>
-                  </tr>
-                )}
+                <RecentCheckInRows initialCheckIns={data.recentCheckIns} />
               </tbody>
             </table>
           </div>

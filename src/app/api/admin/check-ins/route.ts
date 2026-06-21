@@ -1,43 +1,20 @@
 // ============================================================
 // GET /api/admin/check-ins — list all check-ins for moderation
 //
-// Auth: Bearer token verified via supabaseAdmin.auth.getUser();
-//       email must appear in ADMIN_EMAILS env var (comma-separated).
+// Auth: /admin cookie must match the server-side ADMIN_PASSWORD token.
 // Returns: last 200 check-ins ordered by created_at desc,
 //          including hidden=true rows (bypasses RLS via service role).
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isAuthorizedAdminRequest } from "@/lib/adminApiAuth";
 import type { AdminCheckIn } from "@/types/admin";
-
-// --------------- Auth helper ---------------------------------
-
-async function verifyAdmin(req: NextRequest): Promise<{ email: string } | null> {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user?.email) return null;
-
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (!adminEmails.includes(data.user.email.toLowerCase())) return null;
-
-  return { email: data.user.email };
-}
 
 // --------------- GET /api/admin/check-ins --------------------
 
 export async function GET(req: NextRequest) {
-  const admin = await verifyAdmin(req);
-  if (!admin) {
+  if (!isAuthorizedAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
