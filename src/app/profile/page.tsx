@@ -392,6 +392,14 @@ export default function ProfilePage() {
     }
   }
 
+  const userEmail = session?.user.email ?? "";
+  const userInitial = userEmail.trim().charAt(0).toUpperCase() || "?";
+  const profileIsEmpty = session
+    && !checkInsLoading
+    && !savedVenuesLoading
+    && checkIns.length === 0
+    && savedVenues.length === 0;
+
   async function handleSignOut() {
     const client = createBrowserClient();
     await client.auth.signOut();
@@ -420,19 +428,15 @@ export default function ProfilePage() {
 
         {/* Logged-in header */}
         {session && (
-          <section className="space-y-4" aria-label="Account summary">
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06]">
-                <span className="text-2xl font-black uppercase text-white/70">
-                  {session.user.email?.[0] ?? "?"}
-                </span>
+          <section className="space-y-4 text-center" aria-label="Account summary">
+            <div className="flex flex-col items-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00F5D4] text-2xl font-black text-[#0A0A0F]">
+                {userInitial}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-bold text-white">{session.user.email}</p>
-                <p className="mt-1 text-xs font-semibold text-white/40">{joinedDate(session.user.created_at)}</p>
-              </div>
+              <p className="mt-3 max-w-full truncate text-sm text-white/50">{userEmail}</p>
+              <p className="mt-1 text-xs font-semibold text-white/35">{joinedDate(session.user.created_at)}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
               <span className="rounded-full bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/65">
                 {checkIns.length} vibe{checkIns.length === 1 ? "" : "s"} reported
               </span>
@@ -443,9 +447,29 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {session && (
+        {profileIsEmpty && (
+          <section
+            className="flex min-h-[46vh] items-center justify-center"
+            aria-label="Empty profile"
+          >
+            <div className="w-full rounded-2xl border border-white/[0.09] bg-white/[0.04] p-8 text-center shadow-[0_24px_70px_rgba(0,0,0,0.42)]">
+              <h2 className="text-2xl font-black text-white">Nothing here yet</h2>
+              <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/55">
+                Explore South End bars and see who&apos;s out
+              </p>
+              <Link
+                href="/explore"
+                className="mt-6 inline-flex min-h-[48px] items-center justify-center rounded-full bg-[#00F5D4] px-6 text-sm font-black text-[#0A0A0F] shadow-[0_0_24px_rgba(0,245,212,0.28)] transition-colors hover:bg-[#2fffe2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"
+              >
+                Explore Now
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {session && !profileIsEmpty && (
           <section aria-label="Saved places">
-            <h2 className="mb-2 text-[10px] font-black uppercase tracking-widest text-white/30">Saved Places</h2>
+            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Saved Places</h2>
             {savedVenuesLoading ? (
               <SavedVenuesSkeleton />
             ) : savedVenues.length === 0 ? (
@@ -464,10 +488,12 @@ export default function ProfilePage() {
           </section>
         )}
 
+        {session && !profileIsEmpty && <div className="border-t border-white/[0.06] my-6" />}
+
         {/* Check-in history */}
-        {session && (
+        {session && !profileIsEmpty && (
           <section aria-label="Your vibes">
-            <h2 className="mb-2 text-[10px] font-black uppercase tracking-widest text-white/30">Your Vibes</h2>
+            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Your Vibes</h2>
             {checkInsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => <CheckInSkeleton key={i} />)}
@@ -491,10 +517,17 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {session && <PushOptIn />}
+        {session && !profileIsEmpty && <div className="border-t border-white/[0.06] my-6" />}
+
+        {session && !profileIsEmpty && (
+          <section aria-label="Notifications">
+            <h2 className="mb-3 text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Notifications</h2>
+            <PushOptIn />
+          </section>
+        )}
 
         {/* Report CTA */}
-        {session && (
+        {session && !profileIsEmpty && (
           <Link
             href="/vibe-check"
             className="flex items-center justify-center w-full min-h-[52px] rounded-2xl text-[#0A0A0F] font-black text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/80 transition-all duration-150 active:scale-[0.98]"
@@ -505,13 +538,13 @@ export default function ProfilePage() {
         )}
 
         {session && (
-          <Button
+          <button
+            type="button"
             onClick={handleSignOut}
-            variant="ghost"
-            className="mt-8 min-h-0 w-full bg-transparent py-2 text-xs font-semibold text-white/30 hover:bg-transparent hover:text-white/50"
+            className="mt-10 w-full bg-transparent py-2 text-sm text-white/30 underline underline-offset-4 hover:text-white/50"
           >
             Sign out
-          </Button>
+          </button>
         )}
       </div>
     </div>
