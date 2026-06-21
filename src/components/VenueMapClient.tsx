@@ -28,9 +28,22 @@ const OnboardingOverlay = dynamic(
 );
 
 const CITY_STORAGE_KEY = "nightvibe:selected-city";
+const CITY_QUERY_PARAM = "city";
 
-function getCityById(cityId: string | null): City {
-  return CITIES.find((city) => city.id === cityId) ?? DEFAULT_CITY;
+function getAvailableCityById(cityId: string | null): City {
+  return CITIES.find((city) => city.id === cityId && !city.comingSoon) ?? DEFAULT_CITY;
+}
+
+function cleanUnsupportedCityParam() {
+  const url = new URL(window.location.href);
+  const cityId = url.searchParams.get(CITY_QUERY_PARAM);
+  if (!cityId) return;
+
+  const hasAvailableCityParam = CITIES.some((city) => city.id === cityId && !city.comingSoon);
+  if (hasAvailableCityParam) return;
+
+  url.searchParams.delete(CITY_QUERY_PARAM);
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function OnboardingGate() {
@@ -61,11 +74,18 @@ export default function VenueMapClient() {
   const [selectedCity, setSelectedCity] = useState<City>(DEFAULT_CITY);
 
   useEffect(() => {
-    setSelectedCity(getCityById(window.localStorage.getItem(CITY_STORAGE_KEY)));
+    cleanUnsupportedCityParam();
+
+    const urlCityId = new URL(window.location.href).searchParams.get(CITY_QUERY_PARAM);
+    const storedCityId = window.localStorage.getItem(CITY_STORAGE_KEY);
+    const nextCity = getAvailableCityById(urlCityId ?? storedCityId);
+
+    setSelectedCity(nextCity);
+    window.localStorage.setItem(CITY_STORAGE_KEY, nextCity.id);
   }, []);
 
   function handleCityChange(cityId: CityId) {
-    const nextCity = getCityById(cityId);
+    const nextCity = getAvailableCityById(cityId);
     setSelectedCity(nextCity);
     window.localStorage.setItem(CITY_STORAGE_KEY, nextCity.id);
   }
