@@ -4,6 +4,7 @@
   "description": "Know the vibe before you go",
   "start_url": "/map",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0A0A0E",
   "theme_color": "#8B6CFF",
   "icons": [
