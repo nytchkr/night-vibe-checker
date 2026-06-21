@@ -491,9 +491,6 @@ export default function ProfilePage() {
           </h1>
           <div className="mt-1 flex items-center justify-between gap-3">
             <p className="min-w-0 text-sm font-semibold text-white/45">{session ? "Your night out account" : "Sign in to unlock your night out tools"}</p>
-            <Link href="/leaderboard" className="shrink-0 rounded-full bg-white/[0.06] px-3 py-1.5 text-xs font-black text-white/65 transition-colors hover:bg-white/[0.1]">
-              Leaderboard
-            </Link>
           </div>
         </div>
       </header>

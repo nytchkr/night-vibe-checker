@@ -10,7 +10,6 @@ export type NotificationPrefs = {
   savedVenueBusy: boolean;
   subscribedVenueAlerts: boolean;
   friendCheckIns: boolean;
-  weeklyLeaderboard: boolean;
 };
 
 export type AlertVenue = {
@@ -32,7 +31,6 @@ const PREF_ROWS: Array<{
   { key: "savedVenueBusy", label: "When my saved venues get busy" },
   { key: "subscribedVenueAlerts", label: "Venue alerts I subscribed to" },
   { key: "friendCheckIns", label: "New check-ins from friends" },
-  { key: "weeklyLeaderboard", label: "Weekly leaderboard update" },
 ];
 
 function Toggle({

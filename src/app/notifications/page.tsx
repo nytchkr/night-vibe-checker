@@ -13,7 +13,6 @@ const DEFAULT_PREFS: NotificationPrefs = {
   savedVenueBusy: true,
   subscribedVenueAlerts: true,
   friendCheckIns: false,
-  weeklyLeaderboard: false,
 };
 
 function normalizePrefs(value: unknown, hasPushSubscription: boolean): NotificationPrefs {
@@ -25,7 +24,6 @@ function normalizePrefs(value: unknown, hasPushSubscription: boolean): Notificat
     subscribedVenueAlerts:
       typeof raw.subscribedVenueAlerts === "boolean" ? raw.subscribedVenueAlerts : DEFAULT_PREFS.subscribedVenueAlerts,
     friendCheckIns: typeof raw.friendCheckIns === "boolean" ? raw.friendCheckIns : DEFAULT_PREFS.friendCheckIns,
-    weeklyLeaderboard: typeof raw.weeklyLeaderboard === "boolean" ? raw.weeklyLeaderboard : DEFAULT_PREFS.weeklyLeaderboard,
   };
 }
 

@@ -65,18 +65,14 @@ export function busynessLabel(score: number): "dead" | "moderate" | "packed" {
   return "packed";
 }
 
-export function busynessScoreForStorage(score: number): 16 | 50 | 84 {
-  const clamped = Math.max(0, Math.min(100, Math.round(score)));
-  const label = busynessLabel(clamped);
-  if (label === "dead") return 16;
-  if (label === "moderate") return 50;
-  return 84;
+export function busynessScoreForStorage(score: number): number {
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 async function writeBusyness(
   venue: VenueRow,
   bestTimeVenueId: string | null,
-  busyness: 16 | 50 | 84,
+  busyness: number,
   source: BusynessSource,
   refreshedAt: string
 ) {

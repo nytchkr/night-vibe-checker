@@ -10,7 +10,6 @@ const NotificationPrefsSchema = z.object({
   savedVenueBusy: z.boolean(),
   subscribedVenueAlerts: z.boolean(),
   friendCheckIns: z.boolean(),
-  weeklyLeaderboard: z.boolean(),
 });
 
 async function getBearerUserId(authHeader: string | null): Promise<string | null> {

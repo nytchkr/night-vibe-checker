@@ -9,7 +9,7 @@ const LEGACY_STORAGE_KEY = "nv_onboarded";
 type Slide = {
   title: string;
   subtitle: string;
-  preview: "map" | "leaderboard" | "alerts";
+  preview: "map" | "alerts";
 };
 
 const slides: Slide[] = [
@@ -19,13 +19,8 @@ const slides: Slide[] = [
     preview: "map",
   },
   {
-    title: "Check In & Earn Cred 🎯",
-    subtitle: "Log your nights out. See how you stack up on the leaderboard.",
-    preview: "leaderboard",
-  },
-  {
     title: "Your Night, Your Call ✅",
-    subtitle: "Filter by vibe. Get push alerts. Know what's packed.",
+    subtitle: "Filter by vibe. See real signals when venues have current data.",
     preview: "alerts",
   },
 ];
@@ -68,57 +63,16 @@ function MapDotsPreview() {
       ))}
       <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/10 bg-black/45 p-3 backdrop-blur-md">
         <div className="flex items-center justify-between text-xs font-semibold text-white/55">
-          <span>South End live map</span>
-          <span className="text-[#8B6CFF]">4 packed now</span>
+          <span>South End map</span>
+          <span className="text-[#8B6CFF]">Real venues</span>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function LeaderboardPreview() {
-  const rows = [
-    { rank: "🏆", name: "Maya", detail: "12 check-ins", color: "border-[#8B6CFF]/35 bg-[#8B6CFF]/12" },
-    { rank: "🥈", name: "Jordan", detail: "9 check-ins", color: "border-white/12 bg-white/[0.06]" },
-    { rank: "🥉", name: "Chris", detail: "7 check-ins", color: "border-[#F0568C]/30 bg-[#F0568C]/10" },
-  ];
-
-  return (
-    <div
-      className="rounded-[28px] border border-white/10 bg-white/[0.045] p-4 shadow-[0_0_54px_rgba(240,86,140,0.12)]"
-      aria-hidden="true"
-    >
-      <div className="mb-4 flex items-center justify-between">
-        <div className="text-left">
-          <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#8B6CFF]">Tonight</div>
-          <div className="mt-1 text-lg font-black text-white">Cred board</div>
-        </div>
-        <div className="rounded-full border border-white/10 bg-black/35 px-3 py-1 text-xs font-bold text-white/60">
-          South End
-        </div>
-      </div>
-      <div className="space-y-3">
-        {rows.map((row, index) => (
-          <div key={row.name} className={`flex items-center gap-3 rounded-2xl border px-3 py-3 ${row.color}`}>
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-black/30 text-lg">{row.rank}</span>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="truncate text-sm font-black text-white">
-                {index + 1}. {row.name}
-              </div>
-              <div className="text-xs font-semibold text-white/48">{row.detail}</div>
-            </div>
-            <div className="h-2 w-14 rounded-full bg-white/10">
-              <div className="h-2 rounded-full bg-[#8B6CFF]" style={{ width: `${88 - index * 18}%` }} />
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
 }
 
 function AlertsPreview() {
-  const filters = ["Packed", "Balanced", "Open now"];
+  const filters = ["Live", "Balanced", "Open now"];
 
   return (
     <div
@@ -129,11 +83,11 @@ function AlertsPreview() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-xs font-bold uppercase tracking-[0.18em] text-[#8B6CFF]">Vibe alert</div>
-            <div className="mt-2 text-xl font-black text-white">Sycamore just got packed</div>
+            <div className="mt-2 text-xl font-black text-white">Saved venues can alert you</div>
           </div>
           <div className="grid h-12 w-12 place-items-center rounded-full bg-[#8B6CFF] text-xl text-[#071113]">!</div>
         </div>
-        <div className="mt-4 text-sm font-semibold leading-5 text-white/62">Live check-ins are moving fast. Decide before the line does.</div>
+        <div className="mt-4 text-sm font-semibold leading-5 text-white/62">Alerts use real venue and crowd signals when available.</div>
       </div>
       <div className="mt-4 grid grid-cols-3 gap-2">
         {filters.map((filter, index) => (
@@ -152,10 +106,10 @@ function AlertsPreview() {
       <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3">
         <div className="flex items-center justify-between text-xs font-bold text-white/55">
           <span>Crowd signal</span>
-          <span className="text-[#8B6CFF]">82%</span>
+          <span className="text-[#8B6CFF]">After reports</span>
         </div>
         <div className="mt-3 h-2 rounded-full bg-white/10">
-          <div className="h-2 w-[82%] rounded-full bg-[#8B6CFF]" />
+          <div className="h-2 w-1/3 rounded-full bg-[#8B6CFF]" />
         </div>
       </div>
     </div>
@@ -164,7 +118,6 @@ function AlertsPreview() {
 
 function SlidePreview({ preview }: { preview: Slide["preview"] }) {
   if (preview === "map") return <MapDotsPreview />;
-  if (preview === "leaderboard") return <LeaderboardPreview />;
   return <AlertsPreview />;
 }
 

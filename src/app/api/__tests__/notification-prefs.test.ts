@@ -26,7 +26,6 @@ const validPrefs = {
   savedVenueBusy: true,
   subscribedVenueAlerts: true,
   friendCheckIns: false,
-  weeklyLeaderboard: false,
 };
 
 function patchRequest(body: unknown, token = "token") {
