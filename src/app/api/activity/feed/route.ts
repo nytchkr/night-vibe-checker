@@ -109,7 +109,6 @@ export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } 
   const { data, error } = await supabaseAdmin
     .from("check_ins")
     .select("id, user_id, venue_id, created_at, venues(id, name, hidden)")
-    .eq("hidden", false)
     .not("user_id", "is", null)
     .order("created_at", { ascending: false })
     .limit(ACTIVITY_LIMIT);
