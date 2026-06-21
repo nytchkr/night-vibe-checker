@@ -1,4 +1,4 @@
-const RUNTIME_CACHE = "nightvibe-runtime-v1";
+const RUNTIME_CACHE = "nightvibe-v1";
 const STATIC_URLS = ["/", "/map", "/explore"];
 const CACHE_FIRST_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cartocdn.com"];
 const VENUE_DETAIL_TIMEOUT_MS = 5000;

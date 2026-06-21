@@ -14,8 +14,20 @@ const description = "Real-time busyness and crowd vibe for bars and clubs in Cha
 const themeColor = "#8B6CFF";
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
-const inter = Inter({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-inter" });
-const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600"], variable: "--font-display" });
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-inter",
+  display: "swap",
+  preload: true,
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-display",
+  display: "swap",
+  preload: true,
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -69,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://c.basemaps.cartocdn.com" />
         <link rel="preconnect" href="https://basemaps.cartocdn.com" />
         <link rel="preconnect" href="https://a.tile.openstreetmap.org" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="bg-[#0A0A0E] text-white font-sans antialiased min-h-screen">
         <OfflineBanner />

@@ -780,8 +780,7 @@ export function VenueMap({
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
   const [mapZoom, setMapZoom] = useState(15);
   const mapRef = useRef<LeafletMap | null>(null);
-  const mapHeightClass =
-    process.env.NEXT_PUBLIC_ENV === "development" ? "h-[calc(100dvh-100px)]" : "h-[calc(100dvh-80px)]";
+  const mapHeight = process.env.NEXT_PUBLIC_ENV === "development" ? "calc(100dvh - 100px)" : "calc(100dvh - 80px)";
   const cityCenter = useMemo<[number, number]>(() => [city.lat, city.lng], [city.lat, city.lng]);
 
   const fetchVenues = useCallback(async (signal?: AbortSignal, { showLoading = true }: { showLoading?: boolean } = {}) => {
@@ -913,7 +912,10 @@ export function VenueMap({
   }, [haptic]);
 
   return (
-    <main className={`relative w-full overflow-hidden bg-[#0A0A0E] ${mapHeightClass}`}>
+    <main
+      className="relative w-full overflow-hidden bg-[#0A0A0E]"
+      style={{ height: mapHeight, minHeight: "520px" }}
+    >
       {(pulling || refreshing) && (
         <div
           className="pointer-events-none fixed left-0 right-0 top-0 z-[1200] flex justify-center px-4 pt-3"
@@ -939,7 +941,7 @@ export function VenueMap({
           center={cityCenter}
           zoom={15}
           scrollWheelZoom={false}
-          style={{ height: "100%", width: "100%" }}
+          style={{ height: mapHeight, minHeight: "520px", width: "100%" }}
           className="z-0"
         >
           <TileLayer

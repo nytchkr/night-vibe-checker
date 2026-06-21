@@ -461,12 +461,13 @@ function VenueFeedCard({
             <Image
               src={venue.photoUrl}
               alt={venue.name}
-              fill
-              sizes="(max-width: 640px) 100vw, 400px"
-              loading="lazy"
+              width={118}
+              height={114}
+              sizes="(max-width: 640px) 104px, 118px"
+              loading={index === 0 ? "eager" : "lazy"}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,rgba(139,108,255,0.14),transparent_32%),radial-gradient(circle_at_70%_80%,rgba(240,86,140,0.12),transparent_34%)] text-4xl" aria-hidden="true">

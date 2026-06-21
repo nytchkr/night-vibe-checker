@@ -15,10 +15,12 @@
 // ============================================================
 
 // TODO(NV-076): VenueBasic removed with vibe.ts — prop type will be replaced by ConsumerVenue
+import Image from "next/image";
 import { VibeTagBadge } from "./VibeTagBadge";
 import { SaveVenueButton } from "./SaveVenueButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 
 // --------------- Crowd types --------------------------------
 
@@ -47,6 +49,7 @@ interface VenueShape {
   id?: string;
   placeId: string;
   name: string;
+  photoUrl?: string | null;
   googleRating?: number;
   priceLevel?: number;
 }
@@ -116,6 +119,21 @@ function CompactCard({
           />
         )}
         <div className="flex items-center gap-3">
+          {venue.photoUrl ? (
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white/[0.06]">
+              <Image
+                src={venue.photoUrl}
+                alt={venue.name}
+                width={56}
+                height={56}
+                sizes="56px"
+                loading="lazy"
+                placeholder="blur"
+                blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ) : null}
           <div className="min-w-0 pr-10">
             <p className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</p>
             <div className="flex items-center gap-2 mt-0.5">
