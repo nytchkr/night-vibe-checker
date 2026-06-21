@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
@@ -78,6 +80,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main id="main-content" tabIndex={-1} className={isDev ? "pb-20 pt-5" : "pb-20"}>
           {children}
         </main>
+        <Analytics />
+        <SpeedInsights />
         <BottomNav />
         <Script id="service-worker-registration" strategy="afterInteractive">
           {`if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`}

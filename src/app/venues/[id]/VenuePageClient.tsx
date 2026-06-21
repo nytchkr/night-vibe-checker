@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { track } from "@vercel/analytics";
 import { ChevronDown, Heart } from "lucide-react";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusynessState } from "@/lib/busyness";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { useTrack } from "@/lib/useTrack";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { ConsumerVenue } from "@/types";
 
@@ -174,7 +174,7 @@ export function VenuePageClient({
   venueId: string;
   initialVenue: ConsumerVenue | null;
 }) {
-  const track = useTrack();
+  const trackedVenueView = useRef(false);
   const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
@@ -186,8 +186,10 @@ export function VenuePageClient({
   const [hoursExpanded, setHoursExpanded] = useState(false);
 
   useEffect(() => {
-    void track("venue_view", { venueId });
-  }, [track, venueId]);
+    if (trackedVenueView.current || !venueId || !venue?.name) return;
+    trackedVenueView.current = true;
+    track("venue_viewed", { venueId, venueName: venue.name });
+  }, [venue?.name, venueId]);
 
   useEffect(() => {
     if (!venueId) return;

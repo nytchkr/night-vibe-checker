@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { track } from "@vercel/analytics";
 
 type VenueRatingValue = "up" | "down";
 
@@ -119,6 +120,7 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
         body: JSON.stringify({ venueId, rating }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
+      track("venue_rated", { venueId, rating });
     } catch {
       setRatingState(previousState);
       setError("Could not save rating.");

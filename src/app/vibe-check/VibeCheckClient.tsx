@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { track } from "@vercel/analytics";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { useTrack } from "@/lib/useTrack";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
 
 type VibeCheckClientProps = {
@@ -46,7 +46,6 @@ export default function VibeCheckClient({
   returnPath,
 }: VibeCheckClientProps) {
   const router = useRouter();
-  const track = useTrack();
 
   const venueId = initialVenueId;
   const venueName = initialVenueName;
@@ -176,7 +175,11 @@ export default function VibeCheckClient({
       }
 
       setDone(true);
-      void track("checkin_submit", { venueId: effectiveVenueId });
+      track("vibe_submitted", {
+        busyness: selectedBusyness?.submitValue ?? "",
+        crowdFeel: crowdFeel ?? "mixed",
+        venueId: effectiveVenueId,
+      });
     } catch {
       setSubmitError({ type: "generic", msg: "Couldn't submit — tap to retry" });
     } finally {
@@ -191,7 +194,6 @@ export default function VibeCheckClient({
     returnPath,
     router,
     selectedBusyness,
-    track,
   ]);
 
   if (done) {
