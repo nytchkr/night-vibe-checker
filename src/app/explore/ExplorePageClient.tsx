@@ -334,7 +334,7 @@ function VenueFeedCard({
   const hasMfReading =
     venue.signal?.mfRatio !== null &&
     venue.signal?.mfRatio !== undefined &&
-    (venue.signal?.sampleSize ?? 0) > 0;
+    (venue.signal?.sampleSize ?? 0) >= 2;
   const hasCrowdReading = hasBusyness || hasMfReading;
 
   return (

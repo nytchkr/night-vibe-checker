@@ -4,6 +4,7 @@ import { useId } from "react";
 import { motion } from "framer-motion";
 
 type MFBarSource = "live" | "forecast" | null;
+const MIN_SAMPLE_SIZE_FOR_RATIO = 2;
 
 interface MFBarProps {
   malePercent: number | null;
@@ -19,14 +20,13 @@ function clampPercent(value: number): number {
 export function MFBar({ malePercent, sampleSize, source, className }: MFBarProps) {
   const rawId = useId();
   const layoutId = `mf-bar-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
-  const hasData = malePercent !== null && sampleSize >= 1;
+  const hasData = malePercent !== null && sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
 
   if (!hasData) {
     return (
       <div className={className}>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-white/10" aria-hidden="true" />
-        <p className="mt-2 text-[11px] font-medium text-[#646B79]">
-          Be the first to report the crowd
+        <p className="text-sm text-[#9CA2AE]">
+          No live reads yet — be the first to report
         </p>
       </div>
     );

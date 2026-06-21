@@ -22,7 +22,13 @@ function busynessLabel(value: number | null | undefined) {
 
 function MFRatioBar({ venue }: { venue: ConsumerVenue }) {
   const signal = venue.signal;
-  if (signal?.mfRatio == null || signal.sampleSize < 3) return null;
+  if (signal?.mfRatio == null || signal.sampleSize < 2) {
+    return (
+      <p className="mt-3 text-sm text-[#9CA2AE]">
+        No live reads yet — be the first to report
+      </p>
+    );
+  }
 
   const malePercent = Math.min(100, Math.max(0, Math.round(signal.mfRatio)));
   const femalePercent = 100 - malePercent;
