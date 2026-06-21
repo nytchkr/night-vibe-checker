@@ -141,7 +141,7 @@ export function VenueBottomSheet({ venue, onClose }: VenueBottomSheetProps) {
                 src={venue.photoUrl}
                 alt={`${venue.name} venue`}
                 fill
-                sizes="(max-width: 640px) calc(100vw - 32px), 512px"
+                sizes="(max-width: 640px) 100vw, 400px"
                 placeholder="blur"
                 blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
                 className="object-cover"
