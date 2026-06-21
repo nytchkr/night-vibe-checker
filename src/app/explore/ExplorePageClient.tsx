@@ -409,6 +409,11 @@ function VenueFeedCard({
   const busyness = signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
+  const reviewCount = venue.totalRatings;
+  const reviewLabel = reviewCount == null || !Number.isFinite(reviewCount)
+    ? null
+    : `${Math.round(reviewCount).toLocaleString()} review${Math.round(reviewCount) === 1 ? "" : "s"}`;
+  const googleRatingLabel = ratingLabel ? `★ ${ratingLabel}${reviewLabel ? ` · ${reviewLabel}` : ""}` : null;
   const hasBusyness = busyness !== null && Number.isFinite(busyness);
   const busynessState = getBusynessState(busyness);
   const signalConfidenceLabel = hasBusyness ? formatSignalConfidenceLabel(signal) : null;
@@ -491,12 +496,12 @@ function VenueFeedCard({
               {distance != null ? `${distance.toFixed(1)} mi · ` : ""}
               {venue.address}
             </span>
-            {ratingLabel ? (
+            {googleRatingLabel ? (
               <span
-                className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-[12px] font-semibold text-[#F4F5F8]"
-                aria-label={`${ratingLabel} star rating`}
+                className="max-w-[9.5rem] shrink-0 truncate rounded-full border border-white/[0.08] bg-white/[0.06] px-2.5 py-1 text-[12px] font-semibold text-[#F4F5F8]"
+                aria-label={reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`}
               >
-                ★ {ratingLabel}
+                {googleRatingLabel}
               </span>
             ) : null}
           </div>

@@ -187,6 +187,12 @@ function CategoryChip({ category }: { category: string }) {
   );
 }
 
+function formatReviewCount(count: number | null | undefined): string | null {
+  if (count == null || !Number.isFinite(count)) return null;
+  const rounded = Math.round(count);
+  return `${rounded.toLocaleString()} review${rounded === 1 ? "" : "s"}`;
+}
+
 function LoadingSkeleton() {
   return (
     <div className="space-y-4" role="status" aria-label="Loading venue">
@@ -745,6 +751,9 @@ export function VenuePageClient({
   const signalSourceLabel = sourceLabel(signal ?? null, updatedAt);
   const busynessSource = signal?.busynessSource ?? null;
   const mfSource = signal?.sampleSize ? "live" : null;
+  const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
+  const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
+  const googleReviewLabel = formatReviewCount(venue?.totalRatings);
   const hoursSummary = useMemo(() => {
     const openingHours = venue?.openingHours ?? [];
     const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -915,6 +924,17 @@ export function VenuePageClient({
                 <h1 className="font-display mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
                 {venue.address && (
                   <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
+                )}
+                {googleRatingLabel && (
+                  <div
+                    className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-3"
+                    aria-label={googleReviewLabel ? `${googleRatingLabel} star rating from ${googleReviewLabel}` : `${googleRatingLabel} star rating`}
+                  >
+                    <span className="text-2xl font-black leading-none text-amber-300">★ {googleRatingLabel}</span>
+                    <span className="text-sm font-semibold text-white/45">
+                      {googleReviewLabel ?? "Google rating"}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>

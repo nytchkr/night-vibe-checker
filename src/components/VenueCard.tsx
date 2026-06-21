@@ -51,6 +51,7 @@ interface VenueShape {
   name: string;
   photoUrl?: string | null;
   googleRating?: number;
+  totalRatings?: number;
   priceLevel?: number;
 }
 
@@ -74,11 +75,21 @@ interface VenueCardProps {
 
 // --------------- Compact card (map popup) -------------------
 
-function StarRating({ rating }: { rating?: number }) {
+function formatReviewCount(count?: number): string | null {
+  if (count == null || !Number.isFinite(count)) return null;
+  return `${Math.round(count).toLocaleString()} review${Math.round(count) === 1 ? "" : "s"}`;
+}
+
+function GoogleRating({ rating, totalRatings }: { rating?: number; totalRatings?: number }) {
   if (rating == null) return null;
+  const ratingLabel = rating.toFixed(1);
+  const reviewLabel = formatReviewCount(totalRatings);
+  const label = reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`;
+
   return (
-    <span className="text-amber-400/80 text-xs font-semibold" aria-label={`${rating} star rating`}>
-      ★ {rating.toFixed(1)}
+    <span className="text-amber-400/80 text-xs font-semibold" aria-label={label}>
+      ★ {ratingLabel}
+      {reviewLabel ? <span className="text-white/35"> · {reviewLabel}</span> : null}
     </span>
   );
 }
@@ -137,7 +148,7 @@ function CompactCard({
           <div className="min-w-0 pr-10">
             <p className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</p>
             <div className="flex items-center gap-2 mt-0.5">
-              <StarRating rating={venue.googleRating} />
+              <GoogleRating rating={venue.googleRating} totalRatings={venue.totalRatings} />
               <PriceLevel level={venue.priceLevel} />
             </div>
           </div>
@@ -180,6 +191,11 @@ function FullCard({
 }: Omit<VenueCardProps, "variant">) {
   const crowd = crowdBadge ? CROWD_CFG[crowdBadge] : null;
   const meta: string[] = [];
+  const googleRating = venue.googleRating;
+  const reviewLabel = formatReviewCount(venue.totalRatings);
+  if (googleRating != null) {
+    meta.push(`★ ${googleRating.toFixed(1)}${reviewLabel ? ` · ${reviewLabel}` : ""}`);
+  }
   if (lastReportedAt) meta.push(timeAgo(lastReportedAt));
   if (reportCount != null && reportCount > 0) meta.push(`${reportCount} report${reportCount === 1 ? "" : "s"}`);
 
