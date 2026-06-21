@@ -366,12 +366,13 @@ describe("GET /api/check-ins", () => {
 
 describe("GET /api/check-ins/me", () => {
   it("returns the authenticated user's own reports", async () => {
-    mockFrom.mockReturnValueOnce(chain({ data: [CHECK_IN] }));
+    mockFrom.mockReturnValueOnce(chain({ data: [CHECK_IN], count: 12 }));
     const { GET } = await import("../check-ins/me/route");
     const res = await GET(request("GET", "http://localhost/api/check-ins/me"));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data.checkIns[0].busyness).toBe("packed");
     expect(json.data.checkIns[0].venueName).toBe("Trio");
+    expect(json.data.totalCheckIns).toBe(12);
   });
 });

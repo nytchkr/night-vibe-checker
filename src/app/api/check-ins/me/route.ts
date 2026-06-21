@@ -54,9 +54,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { data, error } = await supabaseAdmin
+  const { data, error, count } = await supabaseAdmin
     .from("check_ins")
-    .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at, venues!inner(name)")
+    .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at, venues!inner(name)", { count: "exact" })
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -69,9 +69,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  return NextResponse.json<APIResponse<{ checkIns: ConsumerCheckIn[] }>>({
+  const checkIns = ((data ?? []) as Record<string, unknown>[]).map(mapCheckIn);
+
+  return NextResponse.json<APIResponse<{ checkIns: ConsumerCheckIn[]; totalCheckIns: number }>>({
     status: "success",
-    data: { checkIns: ((data ?? []) as Record<string, unknown>[]).map(mapCheckIn) },
+    data: { checkIns, totalCheckIns: count ?? checkIns.length },
     meta,
   });
 }

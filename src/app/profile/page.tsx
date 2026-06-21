@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Bell, Bookmark, ChevronRight, MapPin, X } from "lucide-react";
@@ -26,12 +25,16 @@ type CheckInItem = {
 
 type CheckInRecord = {
   id: string;
-  venue_id: string | null;
-  venue_name?: string | null;
+  venueId: string;
+  venueName?: string;
   busyness: string | null;
-  created_at: string | null;
+  createdAt: string;
 };
 
+type CheckInsMeResponse = APIResponse<{
+  checkIns: CheckInRecord[];
+  totalCheckIns?: number;
+}>;
 type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
   venueIds?: string[];
   savedVenueIds?: string[];
@@ -55,7 +58,7 @@ const GENDER_OPTIONS: { value: ProfileGender; label: string }[] = [
 ];
 
 function getVenueName(row: CheckInRecord): string {
-  return row.venue_name ?? row.venue_id ?? "Unknown venue";
+  return row.venueName ?? row.venueId ?? "Unknown venue";
 }
 
 function formatBusyness(value: string): string {
@@ -73,22 +76,6 @@ function formatCheckInDate(value: string): string {
 
 function getUserEmail(user: User | undefined): string {
   return user?.email ?? "Signed in";
-}
-
-function getUserDisplayName(user: User | undefined): string {
-  const metadata = user?.user_metadata;
-  const fullName = metadata?.full_name;
-  const name = metadata?.name;
-
-  if (typeof fullName === "string" && fullName.trim()) return fullName.trim();
-  if (typeof name === "string" && name.trim()) return name.trim();
-
-  return getUserEmail(user);
-}
-
-function getUserAvatarUrl(user: User | undefined): string | null {
-  const avatarUrl = user?.user_metadata?.avatar_url;
-  return typeof avatarUrl === "string" && avatarUrl.trim() ? avatarUrl : null;
 }
 
 function getUserInitial(email: string): string {
@@ -145,7 +132,7 @@ function LoggedOutState() {
       <p className="font-display text-[34px] font-semibold tracking-normal text-white">
         nyt<span className="text-[#8B6CFF]">chkr</span>
       </p>
-      <p className="mt-3 text-base font-semibold text-white/72">Know the vibe before you go</p>
+      <p className="mt-3 text-base font-semibold text-white/72">Sign in to see your profile</p>
       <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-white/44">
         Sign in to keep your check-ins tied to your account and build a real history of nights out.
       </p>
@@ -161,13 +148,15 @@ function LoggedOutState() {
 }
 
 function AccountCard({
-  avatarUrl,
   displayName,
   email,
+  checkInCount,
+  savedCount,
 }: {
-  avatarUrl: string | null;
   displayName: string;
   email: string;
+  checkInCount: number;
+  savedCount: number;
 }) {
   return (
     <section
@@ -176,22 +165,14 @@ function AccountCard({
       aria-label="Account"
     >
       <div className="flex items-center gap-4">
-        {avatarUrl ? (
-          <Image
-            src={avatarUrl}
-            alt={`${displayName} profile photo`}
-            width={48}
-            height={48}
-            className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-white/15"
-          />
-        ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#4F9DFF]/18 text-lg font-black text-[#4F9DFF] ring-1 ring-[#4F9DFF]/35">
-            {getUserInitial(email)}
-          </div>
-        )}
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] text-lg font-black text-white ring-1 ring-[#8B6CFF]/45">
+          {getUserInitial(email)}
+        </div>
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-white">{displayName}</p>
-          <p className="mt-1 truncate text-sm font-semibold text-white/45">{email}</p>
+          <p className="mt-1 truncate text-sm font-semibold text-white/45">
+            {checkInCount} check-ins · {savedCount} saved
+          </p>
         </div>
       </div>
     </section>
@@ -615,7 +596,7 @@ function ProfileContent() {
     setCheckInsError("");
 
     try {
-      const res = await fetch("/api/profile/check-ins", {
+      const res = await fetch("/api/check-ins/me", {
         headers: { Authorization: `Bearer ${activeSession.access_token}` },
       });
 
@@ -626,14 +607,16 @@ function ProfileContent() {
         return;
       }
 
-      const rows = (await res.json()) as CheckInRecord[];
-      setCheckInCount(rows.length);
+      const json = (await res.json()) as CheckInsMeResponse;
+      const rows = Array.isArray(json.data?.checkIns) ? json.data.checkIns : [];
+      const totalCheckIns = json.data?.totalCheckIns;
+      setCheckInCount(typeof totalCheckIns === "number" && Number.isFinite(totalCheckIns) ? totalCheckIns : rows.length);
       setCheckIns(rows.map((row) => ({
         id: row.id,
-        venueId: row.venue_id ?? "",
+        venueId: row.venueId,
         venueName: getVenueName(row),
         busyness: row.busyness,
-        createdAt: row.created_at ?? new Date().toISOString(),
+        createdAt: row.createdAt,
       })));
     } catch {
       setCheckIns([]);
@@ -774,8 +757,7 @@ function ProfileContent() {
   }
 
   const userEmail = getUserEmail(session?.user);
-  const userDisplayName = getUserDisplayName(session?.user);
-  const userAvatarUrl = getUserAvatarUrl(session?.user);
+  const userDisplayName = userEmail;
 
   return (
     <PageTransition>
@@ -794,9 +776,10 @@ function ProfileContent() {
             <div className="space-y-5">
               {showWelcome && <WelcomeCard onDismiss={handleDismissWelcome} />}
               <AccountCard
-                avatarUrl={userAvatarUrl}
                 displayName={userDisplayName}
                 email={userEmail}
+                checkInCount={checkInCount}
+                savedCount={savedVenueIds.length}
               />
               <StreakCard streak={streak} loading={streakLoading} />
               <VibeIdentitySection
@@ -837,7 +820,8 @@ function ProfileContent() {
               <Button
                 type="button"
                 onClick={handleSignOut}
-                className="min-h-[52px] w-full rounded-full border border-white/12 bg-white/[0.06] text-sm font-black text-white hover:bg-white/[0.1]"
+                variant="outline"
+                className="min-h-[52px] w-full rounded-full border-red-400/30 bg-transparent text-sm font-black text-red-400 hover:border-red-400/45 hover:bg-red-400/10 hover:text-red-300"
               >
                 Sign out
               </Button>
