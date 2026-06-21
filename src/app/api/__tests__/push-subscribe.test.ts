@@ -3,27 +3,16 @@ import { NextRequest } from "next/server";
 
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
-const mockAssertSupabaseServerEnv = vi.fn();
 
-class MockMissingSupabaseEnvError extends Error {
-  constructor(public readonly variableName: string) {
-    super(`Missing ${variableName} — add to .env.local`);
-    this.name = "MissingSupabaseEnvError";
-  }
-}
-
-vi.mock("@/lib/supabase", () => ({
-  assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
-  MissingSupabaseEnvError: MockMissingSupabaseEnvError,
-  supabaseAdmin: {
+vi.mock("@supabase/ssr", () => ({
+  createServerClient: vi.fn(() => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
-  },
+  })),
 }));
 
-function request(body: unknown, token = "token") {
+function request(body: unknown) {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (token) headers.Authorization = `Bearer ${token}`;
 
   return new NextRequest("http://localhost/api/push/subscribe", {
     method: "POST",
@@ -43,7 +32,8 @@ const SUBSCRIPTION = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
-  mockAssertSupabaseServerEnv.mockReturnValue(undefined);
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.test";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
   mockGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
   mockFrom.mockReturnValue({ upsert: vi.fn().mockResolvedValue({ error: null }) });
 });
@@ -64,7 +54,7 @@ describe("POST /api/push/subscribe", () => {
 
     expect(res.status).toBe(422);
     const json = await res.json();
-    expect(json.error.code).toBe("VALIDATION_ERROR");
+    expect(json.error).toBe("endpoint, keys.auth, and keys.p256dh are required.");
   });
 
   it("upserts the subscription by endpoint", async () => {
@@ -73,16 +63,19 @@ describe("POST /api/push/subscribe", () => {
 
     const { POST } = await import("../push/subscribe/route");
     const res = await POST(request(SUBSCRIPTION));
+    const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(json).toEqual({ ok: true });
     expect(mockFrom).toHaveBeenCalledWith("push_subscriptions");
     expect(upsert).toHaveBeenCalledWith(
-      {
+      expect.objectContaining({
         user_id: "user-123",
         endpoint: SUBSCRIPTION.endpoint,
         auth: SUBSCRIPTION.keys.auth,
         p256dh: SUBSCRIPTION.keys.p256dh,
-      },
+        created_at: expect.any(String),
+      }),
       { onConflict: "endpoint" },
     );
   });

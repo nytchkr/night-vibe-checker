@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
-import type { APIResponse } from "@/types";
+
+/*
+-- CREATE TABLE IF NOT EXISTS push_subscriptions (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE, endpoint text UNIQUE NOT NULL, p256dh text NOT NULL, auth text NOT NULL, created_at timestamptz DEFAULT now());
+-- CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx ON push_subscriptions(user_id);
+*/
+
+export const dynamic = "force-dynamic";
 
 const PushSubscriptionSchema = z.object({
   endpoint: z.string().url(),
@@ -11,67 +17,49 @@ const PushSubscriptionSchema = z.object({
   }),
 });
 
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
-function json<T>(body: APIResponse<T>, init?: ResponseInit): NextResponse<APIResponse<T>> {
-  return NextResponse.json(body, init);
+function missingSupabaseConfigResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY." },
+    { status: 503 },
+  );
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const meta = { cached: false, generatedAt: new Date().toISOString() };
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return missingSupabaseConfigResponse();
 
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) {
-      return json<never>(
-        { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
-        { status: 503 },
-      );
-    }
-    throw error;
-  }
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll: () => req.cookies.getAll(),
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
-  if (!userId) {
-    return json<never>(
-      { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to enable push notifications." }, meta },
-      { status: 401 },
-    );
-  }
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  const userId = authData.user?.id;
+  if (authError || !userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return json<never>(
-      { status: "error", error: { code: "INVALID_JSON", message: "Request body must be valid JSON." }, meta },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
   }
 
   const parsed = PushSubscriptionSchema.safeParse(body);
   if (!parsed.success) {
-    return json<never>(
-      {
-        status: "error",
-        error: { code: "VALIDATION_ERROR", message: "endpoint, keys.auth, and keys.p256dh are required." },
-        meta,
-      },
+    return NextResponse.json(
+      { error: "endpoint, keys.auth, and keys.p256dh are required." },
       { status: 422 },
     );
   }
 
   const { endpoint, keys } = parsed.data;
-  const { error } = await supabaseAdmin
+  const { error } = await supabase
     .from("push_subscriptions")
     .upsert(
       {
@@ -79,16 +67,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         endpoint,
         auth: keys.auth,
         p256dh: keys.p256dh,
+        created_at: new Date().toISOString(),
       },
       { onConflict: "endpoint" },
     );
 
   if (error) {
-    return json<never>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save push subscription." }, meta },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Could not save push subscription." }, { status: 500 });
   }
 
-  return json({ status: "success", data: { subscribed: true }, meta });
+  return NextResponse.json({ ok: true });
 }

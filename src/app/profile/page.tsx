@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Bell, Bookmark, ChevronRight, Info, MapPin } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
+import { PushOptIn } from "@/components/PushOptIn";
 import { WELCOME_SEEN_STORAGE_KEY, WelcomeOverlay } from "@/components/WelcomeOverlay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -185,7 +186,7 @@ function LoggedOutState() {
 
         <a
           href="/api/auth/google?return=/profile"
-          className="mt-8 flex min-h-12 w-full items-center justify-center rounded-full bg-gray-800 px-5 text-[15px] font-semibold text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+          className="mt-8 flex min-h-12 w-full items-center justify-center rounded-[14px] bg-white/[0.07] px-5 text-[15px] font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
         >
           Continue with Google
         </a>
@@ -318,7 +319,7 @@ function CheckInsSection({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <MapPin size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-[15px] font-semibold text-[#F4F5F8]">No check-ins yet. Head out and check one in!</p>
+          <p className="mt-4 text-[15px] font-semibold text-[#646B79]">No check-ins yet. Head out and check one in!</p>
           <Link
             href="/map"
             className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-[13px] font-semibold text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
@@ -408,7 +409,7 @@ function SavedVenuesSection({
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <Bookmark size={22} strokeWidth={2.4} aria-hidden="true" />
           </div>
-          <p className="mt-4 text-[15px] font-semibold text-[#F4F5F8]">No saved spots yet</p>
+          <p className="mt-4 text-[15px] font-semibold text-[#646B79]">No saved spots yet</p>
           <p className="mx-auto mt-2 max-w-[240px] text-[13px] font-medium leading-6 text-[#9CA2AE]">
             Save venues you want to revisit
           </p>
@@ -715,6 +716,7 @@ function ProfileContent() {
                 error={savedVenuesError}
               />
               <SettingsSection />
+              <PushOptIn />
             </div>
           )}
         </div>
