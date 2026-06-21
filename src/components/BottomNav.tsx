@@ -99,7 +99,8 @@ export function BottomNav() {
     pathname.startsWith("/internal") ||
     pathname.startsWith("/agent-board") ||
     pathname.startsWith("/admin") ||
-    pathname.startsWith("/login")
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/widget")
   ) {
     return null;
   }
