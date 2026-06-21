@@ -1295,7 +1295,7 @@ export function VenuePageClient({
             </fieldset>
 
             <fieldset className="mt-5">
-              <legend className="text-sm font-black text-white">Crowd</legend>
+              <legend className="text-sm font-black text-white">Crowd feel</legend>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {VIBE_CROWD_OPTIONS.map((option) => {
                   const selected = vibeCrowdFeel === option.value;
@@ -1358,7 +1358,47 @@ export function VenuePageClient({
         </div>
       )}
 
-      {venue && !vibeReportOpen && (
+      {venue && loginPromptOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vibe-login-title"
+        >
+          <button
+            type="button"
+            aria-label="Close login prompt"
+            className="absolute inset-0 cursor-default"
+            onClick={() => setLoginPromptOpen(false)}
+          />
+          <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-3xl border border-white/10 bg-[#11111A] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 id="vibe-login-title" className="font-display text-lg font-black text-white">
+                  Login required
+                </h2>
+                <p className="mt-1 text-sm text-white/50">Sign in to report the vibe at {venue.name}.</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close login prompt"
+                onClick={() => setLoginPromptOpen(false)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              >
+                <X size={17} aria-hidden="true" />
+              </button>
+            </div>
+            <Link
+              href={`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`}
+              className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            >
+              Log in
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {venue && !vibeReportOpen && !loginPromptOpen && (
         <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+4rem)] left-0 right-0 z-[60] border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl" role="region" aria-label="Venue actions">
           <div className="mx-auto flex max-w-lg items-center gap-3">
             {authChecked && !accessToken ? (
