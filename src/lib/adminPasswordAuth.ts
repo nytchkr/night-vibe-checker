@@ -1,9 +1,9 @@
 import { createHash } from "crypto";
 
-export const ADMIN_COOKIE_NAME = "nightvibe_admin";
+export const ADMIN_COOKIE_NAME = "admin_auth";
 
 function getAdminPassword(): string {
-  return process.env.ADMIN_PASSWORD ?? "nightvibe-admin-2026";
+  return process.env.ADMIN_PASSWORD ?? "";
 }
 
 export function getAdminCookieToken(): string {
@@ -11,5 +11,10 @@ export function getAdminCookieToken(): string {
 }
 
 export function isValidAdminPassword(password: unknown): boolean {
-  return typeof password === "string" && password === getAdminPassword();
+  const adminPassword = getAdminPassword();
+  return Boolean(adminPassword) && typeof password === "string" && password === adminPassword;
+}
+
+export function isValidAdminCookieToken(token: unknown): boolean {
+  return Boolean(getAdminPassword()) && typeof token === "string" && token === getAdminCookieToken();
 }

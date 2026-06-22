@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { ADMIN_COOKIE_NAME, getAdminCookieToken } from "@/lib/adminPasswordAuth";
 
@@ -44,7 +44,12 @@ function chain(resolved: { data?: unknown; error?: { message: string } | null })
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  process.env.ADMIN_PASSWORD = "test-admin-password";
   mockRecomputeVenueSignal.mockResolvedValue({});
+});
+
+afterEach(() => {
+  delete process.env.ADMIN_PASSWORD;
 });
 
 describe("admin moderation API", () => {

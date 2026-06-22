@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { POST as refreshOpenNow } from "@/app/api/cron/refresh-open-now/route";
+import { POST as refreshSignals } from "@/app/api/cron/refresh-signals/route";
+import { isAuthorizedAdminRequest } from "@/lib/adminApiAuth";
 
-const TRIGGERED = ["open-now"] as const;
+const TRIGGERED = ["signals"] as const;
 
 type RefreshHandler = (req: NextRequest) => Response | Promise<Response>;
 
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-
-  return req.headers.get("authorization") === `Bearer ${secret}`;
+  return Boolean(secret) && (isAuthorizedAdminRequest(req) || req.headers.get("authorization") === `Bearer ${secret}`);
 }
 
 function internalCronRequest(req: NextRequest, path: string, secret: string) {
   return new NextRequest(new URL(path, req.nextUrl.origin), {
     method: "POST",
     headers: {
-      authorization: `Bearer ${secret}`,
+      "x-cron-secret": secret,
     },
   });
 }
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await assertRefreshSucceeded("open-now", refreshOpenNow, req, "/api/cron/refresh-open-now", secret);
+    await assertRefreshSucceeded("signals", refreshSignals, req, "/api/cron/refresh-signals", secret);
 
     return NextResponse.json({
       triggered: [...TRIGGERED],

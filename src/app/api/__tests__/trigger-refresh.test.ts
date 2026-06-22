@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockRefreshOpenNow = vi.fn();
 
-vi.mock("@/app/api/cron/refresh-open-now/route", () => ({
+vi.mock("@/app/api/cron/refresh-signals/route", () => ({
   POST: mockRefreshOpenNow,
 }));
 
@@ -34,18 +34,18 @@ describe("POST /api/admin/trigger-refresh", () => {
     expect(mockRefreshOpenNow).not.toHaveBeenCalled();
   });
 
-  it("triggers open-now refresh with the cron secret", async () => {
+  it("triggers signal refresh with the cron secret", async () => {
     const { POST } = await import("../admin/trigger-refresh/route");
     const res = await POST(request("test-secret"));
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.triggered).toEqual(["open-now"]);
+    expect(json.triggered).toEqual(["signals"]);
     expect(json.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(mockRefreshOpenNow).toHaveBeenCalledTimes(1);
 
     const openNowReq = mockRefreshOpenNow.mock.calls[0][0] as NextRequest;
-    expect(openNowReq.headers.get("authorization")).toBe("Bearer test-secret");
+    expect(openNowReq.headers.get("x-cron-secret")).toBe("test-secret");
   });
 
   it("returns a trigger failure when a refresh endpoint fails", async () => {
@@ -59,6 +59,6 @@ describe("POST /api/admin/trigger-refresh", () => {
 
     expect(res.status).toBe(502);
     expect(json.error.code).toBe("TRIGGER_REFRESH_FAILED");
-    expect(json.error.message).toContain("open-now refresh failed with HTTP 500");
+    expect(json.error.message).toContain("signals refresh failed with HTTP 500");
   });
 });

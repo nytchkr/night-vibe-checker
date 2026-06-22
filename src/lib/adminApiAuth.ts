@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { ADMIN_COOKIE_NAME, getAdminCookieToken } from "@/lib/adminPasswordAuth";
+import { ADMIN_COOKIE_NAME, isValidAdminCookieToken } from "@/lib/adminPasswordAuth";
 
 export function isAuthorizedAdminRequest(req: NextRequest): boolean {
-  return req.cookies.get(ADMIN_COOKIE_NAME)?.value === getAdminCookieToken();
+  return isValidAdminCookieToken(req.cookies.get(ADMIN_COOKIE_NAME)?.value);
 }
