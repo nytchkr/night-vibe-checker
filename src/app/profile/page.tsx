@@ -222,6 +222,31 @@ function WelcomeBanner() {
   );
 }
 
+function VibeCTA() {
+  return (
+    <section
+      className="flex items-center justify-between gap-4 rounded-[18px] border border-[#8B6CFF]/25 bg-[#8B6CFF]/[0.08] p-4"
+      aria-label="Drop a vibe check"
+    >
+      <div className="flex min-w-0 items-center gap-3">
+        <span
+          className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-[#8B6CFF] shadow-[0_0_12px_rgba(139,108,255,0.55)]"
+          aria-hidden="true"
+        />
+        <p className="min-w-0 text-[14px] font-semibold text-[#F4F5F8]">
+          South End is live right now
+        </p>
+      </div>
+      <Link
+        href="/map"
+        className="shrink-0 rounded-full bg-[#8B6CFF] px-4 py-2 text-[13px] font-black text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+      >
+        Check in →
+      </Link>
+    </section>
+  );
+}
+
 function AccountHeader({
   email,
   onSignOut,
@@ -694,6 +719,7 @@ function ProfileContent() {
   }
 
   const userEmail = getUserEmail(session?.user);
+  const showVibeCTA = Boolean(session) && !checkInsLoading && (totalCheckIns > 0 || checkInsLoaded);
 
   return (
     <PageTransition>
@@ -711,6 +737,7 @@ function ProfileContent() {
           {authChecked && session && (
             <div className="space-y-4">
               {showWelcomeBanner && <WelcomeBanner />}
+              {showVibeCTA && <VibeCTA />}
               <AccountHeader email={userEmail} onSignOut={() => void handleSignOut()} />
               <StatsRow
                 totalCheckIns={totalCheckIns}
