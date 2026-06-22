@@ -10,9 +10,8 @@ import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstal
 import "./globals.css";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
-const title = "NightVibe — South End Charlotte";
-const description =
-  "See which bars and clubs are poppin right now in South End Charlotte. Live busyness, crowd vibe, M/F ratio.";
+const title = "NightVibe";
+const description = "Find the hottest spots in Charlotte tonight";
 const themeColor = "#8B6CFF";
 const canonicalUrl = "https://night-vibe-checker.vercel.app";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
@@ -35,7 +34,10 @@ const spaceGrotesk = Space_Grotesk({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://night-vibe-checker.vercel.app"),
-  title,
+  title: {
+    default: title,
+    template: "%s — NightVibe",
+  },
   description,
   alternates: {
     canonical: canonicalUrl,
@@ -54,13 +56,13 @@ export const metadata: Metadata = {
     title,
     description,
     url: canonicalUrl,
-    siteName: "nytchkr",
+    siteName: "NightVibe",
     images: [
       {
         url: ogImageUrl,
         width: 1200,
         height: 630,
-        alt: "nytchkr nightlife vibe tracker preview",
+        alt: "NightVibe nightlife vibe tracker preview",
       },
     ],
     type: "website",

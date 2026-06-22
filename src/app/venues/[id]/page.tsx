@@ -1,11 +1,38 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
+import { findVisibleVenueByIdOrPlaceId } from "@/lib/venueLookup";
 import { PageTransition } from "@/components/PageTransition";
 import type { ConsumerVenue } from "@/types";
 import { VenuePageClient } from "./VenuePageClient";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
+const defaultOgImage = "/og-default.png";
+const genericMetadata: Metadata = {
+  title: {
+    absolute: "NightVibe",
+  },
+  description: "Find the hottest spots in Charlotte tonight",
+  openGraph: {
+    title: "NightVibe",
+    description: "Find the hottest spots in Charlotte tonight",
+    images: [defaultOgImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NightVibe",
+    description: "Find the hottest spots in Charlotte tonight",
+    images: [defaultOgImage],
+  },
+};
+
+type VenueMetadataRow = {
+  name: string;
+  description: string | null;
+  neighborhood: string | null;
+  vibeScore: number | null;
+  photos: string[];
+};
 
 export const dynamic = "force-dynamic";
 
@@ -21,30 +48,42 @@ function getVenueOgImage(venue: ConsumerVenue): string | undefined {
   return venue.photoUrls?.[0] ?? venue.photoUrl;
 }
 
-function getVenueDescription(venue: ConsumerVenue): string {
-  const parts = [getBusynessText(venue)];
-  const ratioText = getCrowdRatioText(venue);
-  if (ratioText) parts.push(ratioText);
-  return parts.join(" · ");
+function mapPhotoUrls(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
-function getBusynessText(venue: ConsumerVenue): string {
-  const busyness = venue.signal?.busyness0To100;
-  if (typeof busyness !== "number") return "Live busyness unavailable";
-  if (busyness >= 67) return "Packed right now";
-  if (busyness >= 34) return "Moderate right now";
-  return "Quiet right now";
+function mapVenueMetadataRow(row: Record<string, unknown>): VenueMetadataRow {
+  const photoUrl = typeof row.photo_url === "string" && row.photo_url.length > 0 ? row.photo_url : null;
+  const photoUrls = mapPhotoUrls(row.photo_urls);
+
+  return {
+    name: String(row.name ?? "NightVibe"),
+    description: typeof row.editorial_summary === "string" ? row.editorial_summary : null,
+    neighborhood: typeof row.neighborhood === "string" ? row.neighborhood : null,
+    vibeScore: row.avg_vibe_score == null ? null : Number(row.avg_vibe_score),
+    photos: photoUrl ? [photoUrl, ...photoUrls] : photoUrls,
+  };
 }
 
-function getCrowdRatioText(venue: ConsumerVenue): string | null {
-  const mfRatio = venue.signal?.mfRatio;
-  if ((venue.signal?.sampleSize ?? 0) < 3) return null;
-  if (typeof mfRatio !== "number") return null;
+async function getVenueMetadataRow(id: string): Promise<VenueMetadataRow | null> {
+  const result = await findVisibleVenueByIdOrPlaceId(
+    id,
+    "name, editorial_summary, neighborhood, avg_vibe_score, photo_url, photo_urls, hidden"
+  );
 
-  const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));
-  const womenPercent = 100 - malePercent;
-  if (malePercent === womenPercent) return "Balanced crowd";
-  return womenPercent > malePercent ? `${womenPercent}% women` : `${malePercent}% men`;
+  if (result.error || !result.data) return null;
+  return mapVenueMetadataRow(result.data);
+}
+
+function formatVibeScore(score: number | null): string {
+  if (score == null || !Number.isFinite(score)) return "unavailable";
+  return Number.isInteger(score) ? String(score) : score.toFixed(1);
+}
+
+function getVenueMetadataDescription(venue: VenueMetadataRow): string {
+  const neighborhood = venue.neighborhood ?? "Charlotte";
+  return `${neighborhood} · Vibe score ${formatVibeScore(venue.vibeScore)} · Check in on NightVibe`;
 }
 
 function getVenueJsonLd(venue: ConsumerVenue) {
@@ -84,30 +123,30 @@ function getVenueJsonLd(venue: ConsumerVenue) {
 
 export async function generateMetadata({ params }: VenuePageProps): Promise<Metadata> {
   const { id } = await params;
-  const venue = await getConsumerVenueById(id);
+  const venue = await getVenueMetadataRow(id);
 
-  if (!venue) return { title: "NightVibe" };
+  if (!venue) return genericMetadata;
 
-  const title = `${venue.name} | NightVibe`;
-  const description = getVenueDescription(venue);
-  const url = getVenuePublicUrl(venue);
-  const image = getVenueOgImage(venue);
+  const title = `${venue.name} — NightVibe`;
+  const description = getVenueMetadataDescription(venue);
+  const image = venue.photos[0] ?? defaultOgImage;
 
   return {
-    title,
+    title: {
+      absolute: title,
+    },
     description,
     openGraph: {
       title,
       description,
-      url,
-      images: image ? [{ url: image, width: 1200, height: 630 }] : [],
+      images: [image],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : [],
+      images: [image],
     },
   };
 }
