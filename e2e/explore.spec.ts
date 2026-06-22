@@ -118,6 +118,8 @@ async function markOnboarded(page: Page) {
 }
 
 async function mockVenues(page: Page, venueList = venues) {
+  await page.unroute("**/api/venues**").catch(() => undefined);
+
   await page.route("**/api/venues**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -238,6 +240,18 @@ test.describe("Explore tab", () => {
     await expect(zeroProof).not.toContainText("LIVE");
   });
 
+  test("venue cards show category, open status, busyness, ratio, and photo fallback", async ({ page }) => {
+    await page.goto("/explore");
+
+    const pulseRoom = page.getByRole("link", { name: "Open Pulse Room", exact: true });
+    await expect(pulseRoom).toContainText("Club");
+    await expect(pulseRoom).toContainText("Open now");
+    await expect(pulseRoom).toContainText("Packed");
+    await expect(pulseRoom).toContainText("52M");
+    await expect(pulseRoom).toContainText("48F");
+    await expect(pulseRoom.locator("div[aria-hidden='true']").filter({ hasText: /^P$/ })).toBeVisible();
+  });
+
   test("shows honest no venues empty state", async ({ page }) => {
     await mockVenues(page, []);
     await page.goto("/explore");
@@ -252,6 +266,15 @@ test.describe("Explore tab", () => {
 
     await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toHaveCount(0);
+  });
+
+  test("Dead filter shows low-busyness venues", async ({ page }) => {
+    await page.goto("/explore");
+
+    await page.getByRole("button", { name: "Dead" }).click();
+
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
   });
 
   test("empty filtered results can clear filters", async ({ page }) => {

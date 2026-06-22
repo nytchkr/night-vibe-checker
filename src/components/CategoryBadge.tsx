@@ -26,6 +26,12 @@ const PRICE_CLASS_BY_LEVEL: Record<1 | 2 | 3 | 4, string> = {
 
 function getCategoryMeta(category: string | null | undefined) {
   const key = (category ?? "").trim().toLowerCase();
+  if (key.includes("club") || key.includes("night club") || key.includes("night_club") || key.includes("nightclub")) {
+    return CATEGORY_META.night_club;
+  }
+  if (key.includes("restaurant") || key.includes("food")) return CATEGORY_META.restaurant;
+  if (key.includes("lounge")) return CATEGORY_META.lounge;
+  if (key.includes("bar")) return CATEGORY_META.bar;
   return CATEGORY_META[key] ?? { icon: "📍", label: "Venue" };
 }
 
