@@ -60,6 +60,8 @@ const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
 const SOUTH_END_MAP_CENTER: [number, number] = [35.2178, -80.8597];
 const MAP_DEFAULT_ZOOM = 15;
+const MAP_CLUSTER_MAX_ZOOM = 14;
+const MAP_CLUSTER_RADIUS = 50;
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -202,11 +204,14 @@ function RecenterButton({ center }: { center: [number, number] }) {
 }
 
 function createVenueClusterIcon(cluster: L.MarkerCluster) {
+  const count = cluster.getChildCount();
+  const size = count < 5 ? 40 : count < 20 ? 56 : 72;
+
   return L.divIcon({
-    html: `<span>${cluster.getChildCount()}</span>`,
+    html: `<span>${count}</span>`,
     className: "venue-cluster-icon",
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
@@ -250,18 +255,28 @@ function ClusteredVenueMarkers({
   useEffect(() => {
     const clusterGroup = L.markerClusterGroup({
       chunkedLoading: true,
-      disableClusteringAtZoom: 15,
+      disableClusteringAtZoom: MAP_CLUSTER_MAX_ZOOM + 1,
       iconCreateFunction: createVenueClusterIcon,
-      maxClusterRadius: 60,
+      maxClusterRadius: MAP_CLUSTER_RADIUS,
       showCoverageOnHover: false,
       spiderfyOnMaxZoom: true,
-      zoomToBoundsOnClick: true,
+      zoomToBoundsOnClick: false,
     });
 
     clusterGroup.on("clusterclick", (event: L.LeafletEvent & { layer?: L.MarkerCluster }) => {
-      const venueCount = event.layer?.getChildCount();
+      const cluster = event.layer;
+      const venueCount = cluster?.getChildCount();
       if (typeof venueCount !== "number") return;
       trackAnalytics("map_cluster_expanded", { venue_count: venueCount });
+
+      const currentZoom = map.getZoom();
+      const maxZoom = map.getMaxZoom();
+      const targetZoom = Number.isFinite(maxZoom) ? Math.min(currentZoom + 2, maxZoom) : currentZoom + 2;
+
+      map.flyTo(cluster.getLatLng(), targetZoom, {
+        animate: true,
+        duration: 0.45,
+      });
     });
 
     venues.forEach((venue) => {
@@ -1255,10 +1270,10 @@ export function VenueMap({
 
         .venue-cluster-icon {
           align-items: center;
-          background: #0a0a0e;
-          border: 2px solid rgba(255, 255, 255, 0.82);
+          background: #8B6CFF;
+          border: 2px solid rgba(255, 255, 255, 0.88);
           border-radius: 9999px;
-          box-shadow: 0 0 24px rgba(0, 245, 212, 0.34), 0 10px 30px rgba(0, 0, 0, 0.52);
+          box-shadow: 0 0 24px rgba(139, 108, 255, 0.42), 0 10px 30px rgba(0, 0, 0, 0.52);
           color: #ffffff;
           display: flex;
           font-size: 14px;

@@ -254,7 +254,7 @@ test.describe("Map tab", () => {
     await expect(sheet.getByRole("button", { name: /Map Test Cocktail Bar/ })).toHaveCount(0);
   });
 
-  test("nearby venues collapse into a dark cluster when zoomed out", async ({ page }) => {
+  test("nearby venues collapse into a purple cluster when zoomed out", async ({ page }) => {
     await openMap(page);
 
     await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
@@ -264,7 +264,7 @@ test.describe("Map tab", () => {
     const cluster = page.locator(".venue-cluster-icon").first();
     await expect(cluster).toBeVisible({ timeout: 10000 });
     await expect(cluster).toContainText(String(venues.length));
-    await expect(cluster).toHaveCSS("background-color", "rgb(10, 10, 14)");
+    await expect(cluster).toHaveCSS("background-color", "rgb(139, 108, 255)");
     await expect(cluster).toHaveCSS("color", "rgb(255, 255, 255)");
 
     await cluster.click();
