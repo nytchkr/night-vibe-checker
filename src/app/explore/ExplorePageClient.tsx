@@ -10,6 +10,11 @@ import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
+import {
+  ExploreSortFilter,
+  type ExploreFilterOption,
+  type ExploreSortOption,
+} from "@/components/ExploreSortFilter";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
@@ -19,17 +24,12 @@ import { getNeighborhood } from "@/lib/neighborhood";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { inZone } from "@/lib/zone";
-import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
-type BusynessFilter = "All" | "Packed" | "Moderate" | "Dead";
-type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
-type NeighborhoodFilter = "All Areas" | "South End";
-type SortOption = "Busiest first" | "Quietest first" | "A-Z";
 type UserLocation = { lat: number; lng: number };
 type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
 type ActivityFeedItem = {
@@ -45,13 +45,9 @@ type ActivityFeedItem = {
   checked_in_at: string;
 };
 
-const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Dead"];
-const NEIGHBORHOOD_FILTERS: NeighborhoodFilter[] = ["All Areas", "South End"];
-const SORT_OPTIONS: SortOption[] = ["Busiest first", "Quietest first", "A-Z"];
-const NEIGHBORHOOD_LABELS: Record<NeighborhoodFilter, string> = {
-  "All Areas": "All areas",
-  "South End": "South end",
-};
+const EXPLORE_SORT_STORAGE_KEY = "nv_explore_sort";
+const DEFAULT_EXPLORE_SORT: ExploreSortOption = "hottest";
+const NEIGHBORHOOD_EXPLORE_FILTERS: ExploreFilterOption[] = ["South End", "Uptown", "NoDa", "Dilworth"];
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
@@ -71,14 +67,6 @@ const LOCATION_SEARCH_CENTERS: Record<string, [number, number]> = {
   "28211": [35.19, -80.78],
   "28212": [35.2, -80.75],
 };
-const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
-  { value: "All", label: "All" },
-  { value: "Bar", label: "🍸 Bar" },
-  { value: "Club", label: "🎵 Club" },
-  { value: "Restaurant", label: "🍔 Restaurant" },
-  { value: "Lounge", label: "🛋 Lounge" },
-];
-
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
   try {
     track(event, properties);
@@ -87,23 +75,26 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
   }
 }
 
-function normalizeCategory(category: string | null | undefined, name?: string | null): CategoryFilter | null {
-  const value = (category ?? "").toLowerCase();
-  const nameLower = (name ?? "").toLowerCase();
-  if (value.includes("club") || value.includes("night club") || value.includes("night_club") || value.includes("nightclub")) return "Club";
-  if (value.includes("restaurant") || value.includes("food")) return "Restaurant";
-  // Google Places categorizes most lounges as "bar" — also check venue name
-  if (value.includes("lounge") || nameLower.includes("lounge") || nameLower.includes("rooftop") || nameLower.includes("sky bar")) return "Lounge";
-  if (value.includes("bar")) return "Bar";
-  return null;
+function isExploreSortOption(value: string | null): value is ExploreSortOption {
+  return value === "hottest" || value === "top-rated" || value === "trending" || value === "nearby";
 }
 
-function getBusynessFilterValue(value: number | null | undefined): Exclude<BusynessFilter, "All"> | null {
-  const level = getBusynessState(value).level;
-  if (level === "packed") return "Packed";
-  if (level === "moderate") return "Moderate";
-  if (level === "dead") return "Dead";
-  return null;
+function getVenueVibeScore(venue: ConsumerVenue): number | null {
+  const score = venue.vibe_score ?? venue.current_popularity ?? venue.signal?.busyness0To100 ?? null;
+  return score == null || !Number.isFinite(score) ? null : score;
+}
+
+function getVenueRating(venue: ConsumerVenue): number | null {
+  const rating = venue.rating ?? venue.googleRating ?? null;
+  return rating == null || !Number.isFinite(rating) ? null : rating;
+}
+
+function getVenueOpenNow(venue: ConsumerVenue): boolean | null {
+  return venue.openNow ?? venue.open_now ?? venue.opening_hours?.open_now ?? null;
+}
+
+function getVenueNeighborhoodName(venue: ConsumerVenue): string {
+  return venue.neighborhood ?? getNeighborhood(venue.lat, venue.lng);
 }
 
 function normalizeSearchText(value: string | null | undefined): string {
@@ -150,142 +141,6 @@ function HighlightText({ text, query }: { text: string; query: string }) {
       <mark className="rounded bg-white/15 px-0.5 text-white">{match}</mark>
       {afterMatch}
     </>
-  );
-}
-
-function FilterChip<T extends string>({
-  label,
-  active,
-  onSelect,
-  prefersReduced,
-}: {
-  label: T;
-  active: boolean;
-  onSelect: (label: T) => void;
-  prefersReduced: boolean;
-}) {
-  const haptic = useHaptic();
-
-  return (
-    <motion.button
-      type="button"
-      onClick={() => {
-        haptic.light();
-        onSelect(label);
-      }}
-      animate={{
-        backgroundColor: active ? "rgba(255,255,255,0.16)" : "rgba(255,255,255,0.1)",
-        borderColor: active ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0)",
-      }}
-      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-semibold text-white/60 transition-colors hover:bg-white/15 hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-white"
-      aria-pressed={active}
-      data-active={active}
-    >
-      {label}
-    </motion.button>
-  );
-}
-
-function CategoryFilterPill({
-  label,
-  active,
-  onSelect,
-  prefersReduced,
-}: {
-  label: string;
-  active: boolean;
-  onSelect: () => void;
-  prefersReduced: boolean;
-}) {
-  const haptic = useHaptic();
-
-  return (
-    <motion.button
-      type="button"
-      onClick={() => {
-        haptic.light();
-        onSelect();
-      }}
-      animate={{
-        backgroundColor: active ? "#8B6CFF" : "rgba(10,10,15,0.8)",
-        borderColor: active ? "#8B6CFF" : "rgba(255,255,255,0.1)",
-        color: active ? "#0A0A0E" : "rgba(255,255,255,0.5)",
-      }}
-      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors hover:border-white/20 hover:bg-white/10 hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-      aria-pressed={active}
-      data-active={active}
-    >
-      {label}
-    </motion.button>
-  );
-}
-
-function NeighborhoodFilterPill({
-  label,
-  active,
-  onSelect,
-  prefersReduced,
-}: {
-  label: NeighborhoodFilter;
-  active: boolean;
-  onSelect: (label: NeighborhoodFilter) => void;
-  prefersReduced: boolean;
-}) {
-  const haptic = useHaptic();
-
-  return (
-    <motion.button
-      type="button"
-      onClick={() => {
-        haptic.light();
-        onSelect(label);
-      }}
-      animate={{
-        backgroundColor: active ? "#8B6CFF" : "rgba(255,255,255,0.06)",
-        color: active ? "#0A0A0E" : "rgba(255,255,255,0.6)",
-      }}
-      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="min-h-[38px] shrink-0 rounded-full px-4 text-sm font-semibold transition-colors hover:bg-white/[0.1] hover:text-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-      aria-pressed={active}
-    >
-      {NEIGHBORHOOD_LABELS[label]}
-    </motion.button>
-  );
-}
-
-function SortPill({
-  label,
-  active,
-  onSelect,
-  prefersReduced,
-}: {
-  label: SortOption;
-  active: boolean;
-  onSelect: () => void;
-  prefersReduced: boolean;
-}) {
-  const haptic = useHaptic();
-
-  return (
-    <motion.button
-      type="button"
-      onClick={() => {
-        haptic.light();
-        onSelect();
-      }}
-      animate={{
-        backgroundColor: active ? "rgba(139,108,255,0.2)" : "rgba(255,255,255,0.05)",
-        borderColor: active ? "rgba(139,108,255,0.4)" : "rgba(255,255,255,0.1)",
-      }}
-      transition={{ duration: prefersReduced ? 0 : 0.16, ease: "easeOut" }}
-      className="shrink-0 rounded-full border px-3 py-1 text-xs font-semibold text-white/50 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 data-[active=true]:text-[#8B6CFF]"
-      aria-pressed={active}
-      data-active={active}
-    >
-      {label}
-    </motion.button>
   );
 }
 
@@ -635,10 +490,8 @@ export function ExplorePageClient() {
   const [now, setNow] = useState(() => new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
-  const [neighborhoodFilter, setNeighborhoodFilter] = useState<NeighborhoodFilter>("All Areas");
-  const [sortOption, setSortOption] = useState<SortOption>("Busiest first");
+  const [exploreSort, setExploreSort] = useState<ExploreSortOption>(DEFAULT_EXPLORE_SORT);
+  const [exploreFilters, setExploreFilters] = useState<Set<ExploreFilterOption>>(() => new Set());
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
@@ -737,6 +590,15 @@ export function ExplorePageClient() {
   }, []);
 
   useEffect(() => {
+    const storedSort = localStorage.getItem(EXPLORE_SORT_STORAGE_KEY);
+    if (isExploreSortOption(storedSort)) setExploreSort(storedSort);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(EXPLORE_SORT_STORAGE_KEY, exploreSort);
+  }, [exploreSort]);
+
+  useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(id);
   }, []);
@@ -777,7 +639,7 @@ export function ExplorePageClient() {
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption]);
+  }, [debouncedSearchQuery, exploreFilters, exploreSort]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
@@ -812,37 +674,58 @@ export function ExplorePageClient() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const effectiveExploreSort = exploreSort === "nearby" && !userLocation ? DEFAULT_EXPLORE_SORT : exploreSort;
+
   const sortedVenues = useMemo(() => {
     if (venues === null) return [];
+
+    const activeNeighborhoodFilters = NEIGHBORHOOD_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
 
     return venues.filter((venue) => {
       if (venue.hidden) return false;
 
-      const busyness = getBusynessFilterValue(venue.signal?.busyness0To100);
-      const category = normalizeCategory(venue.category, venue.name);
-      const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
-      const matchesCategory = categoryFilter === "All" || category === categoryFilter;
-      const matchesNeighborhood = neighborhoodFilter === "All Areas" || getNeighborhood(venue.lat, venue.lng) === neighborhoodFilter;
-      return matchesBusyness && matchesCategory && matchesNeighborhood;
+      const neighborhoodName = getVenueNeighborhoodName(venue);
+      const matchesOpenNow = !exploreFilters.has("open-now") || getVenueOpenNow(venue) === true;
+      const matchesExploreNeighborhood =
+        activeNeighborhoodFilters.length === 0 || activeNeighborhoodFilters.includes(neighborhoodName as ExploreFilterOption);
+      return matchesOpenNow && matchesExploreNeighborhood;
     }).sort((a, b) => {
-      if (sortOption === "A-Z") {
-        return a.name.localeCompare(b.name);
+      if (effectiveExploreSort === "top-rated") {
+        const aRating = getVenueRating(a);
+        const bRating = getVenueRating(b);
+        if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
+        if (aRating == null) return 1;
+        if (bRating == null) return -1;
+        return bRating - aRating || a.name.localeCompare(b.name);
       }
 
-      const aBusyness = a.signal?.busyness0To100;
-      const bBusyness = b.signal?.busyness0To100;
+      if (effectiveExploreSort === "trending") {
+        const aTrending = Boolean(a.trending) || trendingVenueIds.has(a.id);
+        const bTrending = Boolean(b.trending) || trendingVenueIds.has(b.id);
+        if (aTrending !== bTrending) return aTrending ? -1 : 1;
+        const aScore = getVenueVibeScore(a) ?? 0;
+        const bScore = getVenueVibeScore(b) ?? 0;
+        return bScore - aScore || a.name.localeCompare(b.name);
+      }
 
-      if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
-      if (aBusyness == null) return 1;
-      if (bBusyness == null) return -1;
+      if (effectiveExploreSort === "nearby" && userLocation) {
+        const aDistance = distanceMiles(userLocation.lat, userLocation.lng, a.lat, a.lng);
+        const bDistance = distanceMiles(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        return aDistance - bDistance || a.name.localeCompare(b.name);
+      }
 
-      const busynessDelta = sortOption === "Busiest first"
-        ? bBusyness - aBusyness
-        : aBusyness - bBusyness;
+      if (effectiveExploreSort === "hottest") {
+        const aScore = getVenueVibeScore(a);
+        const bScore = getVenueVibeScore(b);
+        if (aScore == null && bScore == null) return a.name.localeCompare(b.name);
+        if (aScore == null) return 1;
+        if (bScore == null) return -1;
+        return bScore - aScore || a.name.localeCompare(b.name);
+      }
 
-      return busynessDelta || a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, neighborhoodFilter, sortOption, venues]);
+  }, [effectiveExploreSort, exploreFilters, trendingVenueIds, userLocation, venues]);
 
   const hottestVenues = useMemo(() => {
     if (venues === null) return [];
@@ -876,26 +759,32 @@ export function ExplorePageClient() {
   const showOutOfZoneSearchBanner = searchedLocationCenter
     ? !inZone(searchedLocationCenter[0], searchedLocationCenter[1])
     : false;
-  const resultVenueNoun = categoryFilter === "All" ? "spot" : categoryFilter.toLowerCase();
-  const resultAreaLabel = neighborhoodFilter === "All Areas" ? "all areas" : neighborhoodFilter;
-  const resultCountLabel = `${sortedVenues.length} ${resultVenueNoun}${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
-  const hasActiveFilters =
-    busynessFilter !== "All" ||
-    categoryFilter !== "All" ||
-    neighborhoodFilter !== "All Areas" ||
-    sortOption !== "Busiest first";
+  const activeExploreNeighborhoods = NEIGHBORHOOD_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
+  const resultAreaLabel = activeExploreNeighborhoods.length > 0
+    ? activeExploreNeighborhoods.join(", ")
+    : "all areas";
+  const resultCountLabel = `${sortedVenues.length} spot${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
   const trimmedSearchQuery = debouncedSearchQuery.trim();
   const isSearchingVenues = isFetchingVenues && trimmedSearchQuery.length > 0;
   function clearFilters() {
     setSearchQuery("");
-    setBusynessFilter("All");
-    setCategoryFilter("All");
-    setNeighborhoodFilter("All Areas");
-    setSortOption("Busiest first");
+    setExploreSort(DEFAULT_EXPLORE_SORT);
+    setExploreFilters(new Set());
   }
 
-  function selectSortOption(option: SortOption) {
-    setSortOption(option);
+  function selectExploreSort(option: ExploreSortOption) {
+    if (option === "nearby" && !userLocation) return;
+    setExploreSort(option);
+    trackAnalytics("explore_filter_selected", { filter: option });
+  }
+
+  function toggleExploreFilter(option: ExploreFilterOption) {
+    setExploreFilters((current) => {
+      const next = new Set(current);
+      if (next.has(option)) next.delete(option);
+      else next.add(option);
+      return next;
+    });
     trackAnalytics("explore_filter_selected", { filter: option });
   }
 
@@ -1023,60 +912,20 @@ export function ExplorePageClient() {
               </div>
             )}
 
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Busyness sort">
-              {SORT_OPTIONS.map((option) => (
-                <SortPill
-                  key={option}
-                  label={option}
-                  active={sortOption === option}
-                  onSelect={() => selectSortOption(option)}
-                  prefersReduced={prefersReduced}
-                />
-              ))}
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {BUSYNESS_FILTERS.map((filter) => (
-                <FilterChip
-                  key={filter}
-                  label={filter}
-                  active={busynessFilter === filter}
-                  onSelect={setBusynessFilter}
-                  prefersReduced={prefersReduced}
-                />
-              ))}
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {CATEGORY_FILTERS.map((filter) => (
-                <CategoryFilterPill
-                  key={filter.value}
-                  label={filter.label}
-                  active={categoryFilter === filter.value}
-                  onSelect={() => setCategoryFilter(filter.value)}
-                  prefersReduced={prefersReduced}
-                />
-              ))}
-            </div>
-
+            <ExploreSortFilter
+              selectedSort={effectiveExploreSort}
+              selectedFilters={exploreFilters}
+              nearbyEnabled={userLocation !== null}
+              onSortChange={selectExploreSort}
+              onFilterToggle={toggleExploreFilter}
+            />
           </div>
         </div>
       </header>
 
       <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0E]/95 backdrop-blur" role="region" aria-label="Explore filters summary">
-        <div className="mx-auto max-w-lg space-y-2 px-4 py-2">
-          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {NEIGHBORHOOD_FILTERS.map((filter) => (
-              <NeighborhoodFilterPill
-                key={filter}
-                label={filter}
-                active={neighborhoodFilter === filter}
-                onSelect={setNeighborhoodFilter}
-                prefersReduced={prefersReduced}
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-[11.5px] text-[#9CA2AE]">
+        <div className="mx-auto max-w-lg px-4 py-2">
+          <p className="text-[11.5px] text-[#9CA2AE]">
             {`Showing ${resultCountLabel}`}
           </p>
         </div>
