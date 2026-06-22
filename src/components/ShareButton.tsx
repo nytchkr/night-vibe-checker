@@ -26,10 +26,10 @@ export function ShareButton(props: ShareButtonProps) {
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
       try {
         await navigator.share(shareData);
+        return;
       } catch {
-        // User cancelled or browser blocked native sharing.
+        // If native sharing is cancelled or blocked, fall back to a copied venue link.
       }
-      return;
     }
 
     try {
@@ -49,8 +49,8 @@ export function ShareButton(props: ShareButtonProps) {
         variant="ghost"
         size="sm"
         onClick={handleShare}
-        aria-label="Share"
-        title="Share"
+        aria-label="Share venue"
+        title="Share venue"
         className={[
           `
           h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
@@ -69,7 +69,7 @@ export function ShareButton(props: ShareButtonProps) {
           role="status"
           className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-[1300] mx-auto w-fit max-w-[calc(100vw-2rem)] rounded-full border border-[#8B6CFF]/25 bg-black/90 px-4 py-2 text-sm font-semibold text-[#F4F5F8] shadow-2xl shadow-black/40"
         >
-          Link copied to clipboard!
+          Link copied
         </div>
       ) : null}
     </>

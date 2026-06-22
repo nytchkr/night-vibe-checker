@@ -115,9 +115,7 @@ test.describe("NV-TEST-004 venue detail", () => {
 
     await page.goto(`/venues/${venue.id}`);
 
-    await expect(
-      page.getByRole("group", { name: "Venue sharing and directions" }).getByRole("button", { name: "Share" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Share venue" })).toBeVisible();
   });
 
   test("venue detail page has a Google Maps directions link", async ({ page, request }) => {

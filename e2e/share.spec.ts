@@ -63,14 +63,12 @@ test.describe("Venue detail share", () => {
     await page.goto(`/venues/${venue.id}`);
 
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
-    const shareButton = page
-      .getByRole("group", { name: "Venue sharing and directions" })
-      .getByRole("button", { name: "Share" });
+    const shareButton = page.getByRole("button", { name: "Share venue" });
     await expect(shareButton).toBeVisible();
 
     await shareButton.dispatchEvent("click");
 
-    // "Link copied!" is in title attribute (tooltip) not visible text; verify clipboard write instead
+    // The fallback toast is transient; verify clipboard write instead.
     await expect(page.evaluate(() => window.localStorage.getItem("e2e_copied_url"))).resolves.toContain(
       `/venues/${venue.id}`,
     );

@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 describe("ShareButton share logic", () => {
   const shareProps = {
     title: "Test Bar on nytchkr",
-    text: "Check out Test Bar on nytchkr — Packed right now",
+    text: "Check out Test Bar on nytchkr: packed right now. http://localhost:3000/vibe-check",
   };
 
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe("ShareButton share logic", () => {
 
     expect(mockShare).toHaveBeenCalledWith({
       title: "Test Bar on nytchkr",
-      text: "Check out Test Bar on nytchkr — Packed right now",
+      text: "Check out Test Bar on nytchkr: packed right now. http://localhost:3000/vibe-check",
       url: "http://localhost:3000/vibe-check",
     });
   });
@@ -61,11 +61,11 @@ describe("ShareButton share logic", () => {
     const hasShare = typeof navigator !== "undefined" && "share" in navigator;
     expect(hasShare).toBe(false);
 
-    await navigator.clipboard.writeText(`${shareProps.text} ${url}`);
+    await navigator.clipboard.writeText(shareProps.text);
     onCopied();
 
     expect(mockWriteText).toHaveBeenCalledWith(
-      "Check out Test Bar on nytchkr — Packed right now http://localhost:3000/vibe-check",
+      "Check out Test Bar on nytchkr: packed right now. http://localhost:3000/vibe-check",
     );
     expect(onCopied).toHaveBeenCalledTimes(1);
   });
@@ -78,7 +78,7 @@ describe("ShareButton share logic", () => {
       url,
     }).toEqual({
       title: "Test Bar on nytchkr",
-      text: "Check out Test Bar on nytchkr — Packed right now",
+      text: "Check out Test Bar on nytchkr: packed right now. http://localhost:3000/vibe-check",
       url: "http://localhost:3000/vibe-check",
     });
   });
