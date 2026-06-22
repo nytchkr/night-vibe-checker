@@ -782,6 +782,7 @@ function SettingsSection({
     </section>
   );
 }
+
 function ProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
