@@ -13,6 +13,7 @@ import { TrendingStrip } from "@/components/TrendingStrip";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
+import { getNeighborhood } from "@/lib/neighborhood";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -528,6 +529,7 @@ function VenueFeedCard({
     signal?.mfRatio !== undefined &&
     signal.sampleSize >= 3;
   const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
+  const neighborhood = getNeighborhood(venue.lat, venue.lng);
 
   return (
     <motion.li
@@ -582,6 +584,7 @@ function VenueFeedCard({
                 </span>
               ) : null}
             </div>
+            <p className="truncate text-xs font-semibold text-[#9CA2AE]">{neighborhood}</p>
             <div className="flex min-w-0 items-center gap-2">
               <CategoryBadge category={venue.category} className="max-w-[8.5rem] shrink truncate" />
               <PriceLevelDisplay priceLevel={venue.priceLevel} className="shrink-0" />
@@ -817,7 +820,7 @@ export function ExplorePageClient() {
       const category = normalizeCategory(venue.category, venue.name);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
-      const matchesNeighborhood = neighborhoodFilter === "All Areas" || venue.neighborhood === neighborhoodFilter;
+      const matchesNeighborhood = neighborhoodFilter === "All Areas" || getNeighborhood(venue.lat, venue.lng) === neighborhoodFilter;
       return matchesBusyness && matchesCategory && matchesNeighborhood;
     }).sort((a, b) => {
       if (sortOption === "A-Z") {

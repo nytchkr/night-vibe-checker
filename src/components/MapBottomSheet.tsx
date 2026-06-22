@@ -8,6 +8,7 @@ import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
+import { getNeighborhood } from "@/lib/neighborhood";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { ConsumerVenue } from "@/types";
 
@@ -103,6 +104,8 @@ function VenueRow({
   onSelect: () => void;
   venue: ConsumerVenue;
 }) {
+  const neighborhood = getNeighborhood(venue.lat, venue.lng);
+
   return (
     <div className="relative">
       <button
@@ -118,7 +121,8 @@ function VenueRow({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
-            <p className="mt-1 truncate text-xs font-semibold text-white/55">{venue.category}</p>
+            <p className="mt-1 truncate text-xs font-semibold text-white/55">{neighborhood}</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-white/40">{venue.category}</p>
           </div>
           <BusynessBadge venue={venue} />
         </div>

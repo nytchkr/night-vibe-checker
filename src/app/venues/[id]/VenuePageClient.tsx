@@ -18,6 +18,7 @@ import { Toast } from "@/components/Toast";
 import { Badge } from "@/components/ui/badge";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getNeighborhood } from "@/lib/neighborhood";
 import { buildVenueShareData } from "@/lib/venueShare";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -1240,6 +1241,7 @@ export function VenuePageClient({
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
   const googleReviewLabel = formatReviewCount(venue?.userRatingCount ?? venue?.totalRatings);
+  const neighborhood = venue ? getNeighborhood(venue.lat, venue.lng) : "Charlotte";
   const hoursSummary = useMemo(() => {
     const openingHours = venue?.openingHours ?? [];
     const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -1348,6 +1350,7 @@ export function VenuePageClient({
                 {venue.address && (
                   <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
                 )}
+                <p className="mt-1 text-sm font-semibold text-white/45">{neighborhood}</p>
                 {googleRatingLabel && (
                   <div
                     className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-3"

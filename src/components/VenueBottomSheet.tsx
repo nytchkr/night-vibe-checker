@@ -10,6 +10,7 @@ import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
+import { getNeighborhood } from "@/lib/neighborhood";
 import { buildVenueShareData } from "@/lib/venueShare";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
@@ -281,6 +282,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   const priceLevel = formatPriceLevel(venue.priceLevel);
   const photoUrl = venue.photoUrl ?? venue.photoUrls?.[0] ?? null;
   const openStatus = getOpenStatus(venue);
+  const neighborhood = getNeighborhood(venue.lat, venue.lng);
 
   return (
     <>
@@ -348,6 +350,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 pr-1">
                 <h2 className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</h2>
+                <p className="mt-1 truncate text-xs font-semibold text-white/45">{neighborhood}</p>
                 <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
                   <span className="rounded-full bg-[#5C6573]/35 px-2.5 py-1 text-[11px] font-semibold text-white/66">
                     {category}
