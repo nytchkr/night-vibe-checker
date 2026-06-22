@@ -8,7 +8,7 @@ import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, RefreshCw, X } from "lucide-react";
+import { Check, ChevronDown, RefreshCw, Search, X } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
@@ -36,44 +36,27 @@ const BUSYNESS_FILTERS = ["All", "Busy", "Live only"] as const;
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
-  "28104": [35.0589, -80.724],
-  "28105": [35.1168, -80.7237],
-  "28110": [35.003, -80.549],
-  "28112": [34.982, -80.549],
-  "28117": [35.5849, -80.884],
-  "28134": [35.0855, -80.8923],
-  "28173": [34.9246, -80.7434],
-  "28202": [35.2271, -80.8431],
-  "28203": [35.2065, -80.8651],
-  "28204": [35.2156, -80.8306],
-  "28205": [35.2303, -80.8015],
-  "28206": [35.2612, -80.8283],
-  "28207": [35.1965, -80.832],
-  "28208": [35.222, -80.9088],
-  "28209": [35.1767, -80.859],
-  "28210": [35.144, -80.8694],
-  "28211": [35.1823, -80.7971],
-  "28212": [35.2002, -80.7685],
-  "28213": [35.282, -80.7842],
-  "28214": [35.2474, -80.9461],
-  "28215": [35.247, -80.738],
-  "28216": [35.3079, -80.8826],
-  "28217": [35.1617, -80.9085],
-  "28223": [35.3055, -80.7321],
-  "28226": [35.1106, -80.854],
-  "28227": [35.1868, -80.7201],
-  "28262": [35.3188, -80.7425],
-  "28269": [35.3561, -80.8141],
-  "28270": [35.1231, -80.7629],
-  "28273": [35.1352, -80.939],
-  "28277": [35.0559, -80.8434],
-  "28278": [35.1321, -81.008],
+  "28202": [35.2271, -80.8433],
+  "28203": [35.2126, -80.8598],
+  "28204": [35.2208, -80.8325],
+  "28205": [35.2267, -80.8183],
+  "28206": [35.2567, -80.827],
+  "28207": [35.2051, -80.8299],
+  "28208": [35.2257, -80.8765],
+  "28209": [35.1873, -80.8598],
+  "28210": [35.1567, -80.8598],
+  "28211": [35.2123, -80.8098],
+  "28212": [35.2001, -80.7932],
+  "28213": [35.2876, -80.8098],
+  "28214": [35.2567, -80.9265],
+  "28216": [35.3123, -80.8765],
+  "28217": [35.1765, -80.8765],
+  "28269": [35.3567, -80.8098],
 };
 
 const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
 const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
-const CHARLOTTE_AREA_ZIP_PATTERN = /^28[12]\d{2}$/;
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -365,34 +348,17 @@ function ZipRecenterControl() {
   const map = useMap();
   const [zip, setZip] = useState("");
   const [showInvalid, setShowInvalid] = useState(false);
-  const invalidTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (invalidTimerRef.current) {
-        clearTimeout(invalidTimerRef.current);
-      }
-    };
-  }, []);
-
-  function flashInvalid() {
-    setShowInvalid(true);
-    if (invalidTimerRef.current) {
-      clearTimeout(invalidTimerRef.current);
-    }
-    invalidTimerRef.current = setTimeout(() => setShowInvalid(false), 2500);
-  }
 
   function recenterForZip(nextZip: string) {
     const normalizedZip = nextZip.trim();
     const center = CHARLOTTE_ZIP_CENTERS[normalizedZip];
-    if (!CHARLOTTE_AREA_ZIP_PATTERN.test(normalizedZip) || !center) {
-      flashInvalid();
+    if (!center) {
+      setShowInvalid(true);
       return;
     }
     trackAnalytics("zip_recenter", { zip: normalizedZip });
     setShowInvalid(false);
-    map.setView(center, 14, {
+    map.setView(center, map.getZoom(), {
       animate: true,
       duration: 0.7,
     });
@@ -401,6 +367,7 @@ function ZipRecenterControl() {
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const nextZip = event.target.value.replace(/\D/g, "").slice(0, 5);
     setZip(nextZip);
+    setShowInvalid(false);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -408,52 +375,42 @@ function ZipRecenterControl() {
     recenterForZip(zip);
   }
 
-  function clearZip() {
-    setZip("");
-    setShowInvalid(false);
-  }
-
   return (
     <form
       onSubmit={handleSubmit}
       onClick={(event) => event.stopPropagation()}
       onMouseDown={(event) => event.stopPropagation()}
-      className="absolute left-4 top-16 z-[1000] w-[min(13rem,calc(100vw-2rem))] rounded-[18px] border border-white/[0.08] bg-[#0A0A0E]/90 p-2 shadow-2xl backdrop-blur"
+      className="absolute left-4 top-16 z-[1000] w-[min(15.5rem,calc(100vw-2rem))]"
     >
-      <div className="flex items-center gap-2">
+      <div
+        className={`flex h-11 items-center rounded-[14px] border bg-white/[0.035] px-3 shadow-2xl backdrop-blur transition-colors ${
+          showInvalid ? "border-[#FF5B6A]/70" : "border-white/[0.08]"
+        } focus-within:ring-2 focus-within:ring-[#8B6CFF]/70`}
+      >
         <input
-          aria-label="Charlotte zip"
+          aria-describedby={showInvalid ? "zip-recenter-error" : undefined}
+          aria-invalid={showInvalid}
+          aria-label="Search by zip"
           inputMode="numeric"
           maxLength={5}
           onChange={handleChange}
           pattern="[0-9]*"
-          placeholder="Zip"
+          placeholder="Search by zip..."
           type="text"
           value={zip}
-          className={`h-9 min-w-0 flex-1 rounded-[12px] border bg-white/[0.07] px-3 text-sm font-semibold text-[#F4F5F8] shadow-inner placeholder:text-[#9CA2AE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-            showInvalid ? "border-[#FF5B6A]" : "border-white/[0.08]"
-          }`}
+          className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#F4F5F8] outline-none placeholder:text-[#9CA2AE]"
         />
-        {zip.length > 0 && (
-          <button
-            type="button"
-            aria-label="Clear zip code"
-            onClick={clearZip}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/70 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-          >
-            <X aria-hidden="true" className="h-4 w-4" />
-          </button>
-        )}
         <button
           type="submit"
-          className="h-9 shrink-0 rounded-full bg-[#8B6CFF] px-3 text-xs font-black text-[#0A0A0E] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+          aria-label="Search zip"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] text-[#F4F5F8] transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
-          Go
+          <Search aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
       {showInvalid && (
-        <p role="status" className="mt-2 px-1 text-xs font-bold text-[#FF6B9A]">
-          Enter a Charlotte zip code
+        <p id="zip-recenter-error" role="status" className="mt-2 px-3 text-xs font-bold text-[#FF6B9A]">
+          Not live in your area yet
         </p>
       )}
     </form>
