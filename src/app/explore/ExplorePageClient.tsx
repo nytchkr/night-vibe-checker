@@ -21,7 +21,7 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
-type BusynessFilter = "All" | "Packed" | "Moderate" | "Quiet";
+type BusynessFilter = "All" | "Packed" | "Moderate" | "Dead";
 type CategoryFilter = "All" | "Bar" | "Club" | "Restaurant" | "Lounge";
 type NeighborhoodFilter = "All Areas" | "South End";
 type SortOption = "Busiest first" | "Quietest first" | "A-Z";
@@ -40,7 +40,7 @@ type ActivityFeedItem = {
   checked_in_at: string;
 };
 
-const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Quiet"];
+const BUSYNESS_FILTERS: BusynessFilter[] = ["All", "Packed", "Moderate", "Dead"];
 const NEIGHBORHOOD_FILTERS: NeighborhoodFilter[] = ["All Areas", "South End"];
 const SORT_OPTIONS: SortOption[] = ["Busiest first", "Quietest first", "A-Z"];
 const NEIGHBORHOOD_LABELS: Record<NeighborhoodFilter, string> = {
@@ -84,12 +84,22 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
   }
 }
 
-function normalizeCategory(category: string | null | undefined): CategoryFilter | null {
+function normalizeCategory(category: string | null | undefined, name?: string | null): CategoryFilter | null {
   const value = (category ?? "").toLowerCase();
-  if (value.includes("club") || value.includes("night_club") || value.includes("nightclub")) return "Club";
+  const nameLower = (name ?? "").toLowerCase();
+  if (value.includes("club") || value.includes("night club") || value.includes("night_club") || value.includes("nightclub")) return "Club";
   if (value.includes("restaurant") || value.includes("food")) return "Restaurant";
-  if (value.includes("lounge")) return "Lounge";
+  // Google Places categorizes most lounges as "bar" — also check venue name
+  if (value.includes("lounge") || nameLower.includes("lounge") || nameLower.includes("rooftop") || nameLower.includes("sky bar")) return "Lounge";
   if (value.includes("bar")) return "Bar";
+  return null;
+}
+
+function getBusynessFilterValue(value: number | null | undefined): Exclude<BusynessFilter, "All"> | null {
+  const level = getBusynessState(value).level;
+  if (level === "packed") return "Packed";
+  if (level === "moderate") return "Moderate";
+  if (level === "dead") return "Dead";
   return null;
 }
 
@@ -423,6 +433,28 @@ function MiniMFRatioBar({ malePercent, femalePercent }: { malePercent: number; f
   );
 }
 
+function OpenStatusBadge({ openNow }: { openNow: boolean | undefined }) {
+  if (openNow === undefined) {
+    return (
+      <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] font-semibold text-[#9CA2AE]">
+        Hours unavailable
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-black ${
+        openNow
+          ? "border-[#22C55E]/30 bg-[#22C55E]/10 text-[#4ADE80]"
+          : "border-[#F0568C]/35 bg-[#F0568C]/10 text-[#F0568C]"
+      }`}
+    >
+      {openNow ? "Open now" : "Closed"}
+    </span>
+  );
+}
+
 function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
   if (venues.length === 0) return null;
 
@@ -478,6 +510,7 @@ function VenueFeedCard({
   index: number;
   prefersReduced: boolean;
 }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
@@ -514,7 +547,7 @@ function VenueFeedCard({
         aria-label={`Open ${venue.name}`}
       >
         <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-[#8B6CFF]/20">
-          {venue.photoUrl ? (
+          {venue.photoUrl && !photoFailed ? (
             <Image
               src={venue.photoUrl}
               alt={venue.name}
@@ -524,6 +557,7 @@ function VenueFeedCard({
               loading={index === 0 ? "eager" : "lazy"}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
+              onError={() => setPhotoFailed(true)}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           ) : (
@@ -551,6 +585,7 @@ function VenueFeedCard({
             <div className="flex min-w-0 items-center gap-2">
               <CategoryBadge category={venue.category} className="max-w-[8.5rem] shrink truncate" />
               <PriceLevelDisplay priceLevel={venue.priceLevel} className="shrink-0" />
+              <OpenStatusBadge openNow={venue.openNow} />
             </div>
           </div>
 
@@ -579,8 +614,8 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="mb-3 flex h-[114px] w-full animate-pulse items-center gap-3 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] p-3 last:mb-0">
-      <div className="h-14 w-14 shrink-0 rounded-2xl bg-white/10" />
+    <div className="mb-3 flex h-[126px] w-full animate-pulse items-center gap-3 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] p-3 last:mb-0">
+      <div className="h-[72px] w-[72px] shrink-0 rounded-xl bg-white/10" />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
@@ -738,9 +773,11 @@ export function ExplorePageClient() {
   useEffect(() => {
     const client = createBrowserClient();
 
-    client.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-    });
+    client.auth.getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+      })
+      .catch(() => setSession(null));
 
     const {
       data: { subscription },
@@ -758,8 +795,8 @@ export function ExplorePageClient() {
     return venues.filter((venue) => {
       if (venue.hidden) return false;
 
-      const busyness = getBusynessState(venue.signal?.busyness0To100).label;
-      const category = normalizeCategory(venue.category);
+      const busyness = getBusynessFilterValue(venue.signal?.busyness0To100);
+      const category = normalizeCategory(venue.category, venue.name);
       const searchableText = normalizeSearchText(venue.name);
       const matchesSearch = normalizedSearch.length === 0 || searchableText.includes(normalizedSearch);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
@@ -850,6 +887,18 @@ export function ExplorePageClient() {
   const resultVenueNoun = categoryFilter === "All" ? "spot" : categoryFilter.toLowerCase();
   const resultAreaLabel = neighborhoodFilter === "All Areas" ? "all areas" : neighborhoodFilter;
   const resultCountLabel = `${sortedVenues.length} ${resultVenueNoun}${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
+  const hasActiveFilters =
+    busynessFilter !== "All" ||
+    categoryFilter !== "All" ||
+    neighborhoodFilter !== "All Areas" ||
+    sortOption !== "Busiest first";
+  const trimmedSearchQuery = debouncedSearchQuery.trim();
+  const noResultsTitle = trimmedSearchQuery
+    ? `No matches for '${trimmedSearchQuery}'. Try a different name.`
+    : "No venues match your filters";
+  const noResultsDetail = hasActiveFilters
+    ? "Clear filters or choose another crowd level or category."
+    : "Try a different venue name.";
   function clearFilters() {
     setSearchQuery("");
     setBusynessFilter("All");
@@ -1087,8 +1136,9 @@ export function ExplorePageClient() {
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
             <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
-              No venues match · Try adjusting your filters
+              {noResultsTitle}
             </h2>
+            <p className="mt-2 text-sm font-semibold leading-5 text-[#9CA2AE]">{noResultsDetail}</p>
             <button
               type="button"
               onClick={clearFilters}
