@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { isOpenNow } from "@/lib/openNow";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
@@ -55,6 +56,8 @@ function mapOpeningHours(value: unknown): string[] | undefined {
   const rawHours =
     value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekdayDescriptions?: unknown }).weekdayDescriptions)
       ? (value as { weekdayDescriptions: unknown[] }).weekdayDescriptions
+      : value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekday_text?: unknown }).weekday_text)
+        ? (value as { weekday_text: unknown[] }).weekday_text
       : value;
 
   if (!Array.isArray(rawHours)) return undefined;
@@ -101,7 +104,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
     editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
-    openNow: row.open_now == null ? undefined : Boolean(row.open_now),
+    openNow: isOpenNow(row.opening_hours),
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,

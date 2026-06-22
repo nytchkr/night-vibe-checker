@@ -110,7 +110,7 @@ export interface ConsumerVenue {
   googleMapsUri?: string;
   editorialSummary?: string;
   openingHours?: string[];
-  openNow?: boolean;
+  openNow?: boolean | null;
   besttimeVenueId?: string;
   hidden: boolean;
   signal: VenueSignal | null;

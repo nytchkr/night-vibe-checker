@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
+import { isOpenNow } from "@/lib/openNow";
 import { discoverZone } from "@/lib/places";
 import { supabaseAdmin } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
@@ -133,8 +134,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       : undefined,
     openingHours: Array.isArray(row.opening_hours)
       ? row.opening_hours.filter((item): item is string => typeof item === "string" && item.length > 0)
-      : undefined,
-    openNow: row.open_now == null ? undefined : Boolean(row.open_now),
+      : row.opening_hours && typeof row.opening_hours === "object" && !Array.isArray(row.opening_hours) && Array.isArray((row.opening_hours as { weekday_text?: unknown }).weekday_text)
+        ? (row.opening_hours as { weekday_text: unknown[] }).weekday_text.filter((item): item is string => typeof item === "string" && item.length > 0)
+        : undefined,
+    openNow: isOpenNow(row.opening_hours),
     hidden: Boolean(row.hidden),
     signal: null,
   }));

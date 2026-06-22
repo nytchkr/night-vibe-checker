@@ -5,9 +5,9 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { Info } from "lucide-react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
+import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
-import { StarRating } from "@/components/StarRating";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -32,23 +32,6 @@ function NoDataChip() {
     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.035] px-2.5 py-1 text-[11.5px] font-semibold text-[#9CA2AE]">
       <Info className="h-3.5 w-3.5" aria-hidden="true" />
       No data
-    </span>
-  );
-}
-
-function OpenNowDot({ openNow }: { openNow: boolean | null | undefined }) {
-  const status = openNow === true ? "Open now" : openNow === false ? "Closed now" : "Hours pending";
-  const dotClass =
-    openNow === true
-      ? "bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.75)]"
-      : openNow === false
-        ? "bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.55)]"
-        : "bg-white/25";
-
-  return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white/55">
-      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dotClass}`} />
-      {status}
     </span>
   );
 }
@@ -106,8 +89,6 @@ function VenueRow({
   venue: ConsumerVenue;
 }) {
   const neighborhood = getNeighborhood(venue.lat, venue.lng);
-  const rating = venue.rating ?? venue.googleRating;
-  const reviewCount = venue.userRatingCount ?? venue.totalRatings;
 
   return (
     <div className="relative">
@@ -123,19 +104,16 @@ function VenueRow({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
-            {rating != null && reviewCount != null ? (
-              <div className="mt-1 text-xs">
-                <StarRating rating={rating} count={reviewCount} />
-              </div>
-            ) : null}
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
+              <OpenNowBadge openNow={venue.openNow ?? null} />
+            </div>
             <p className="mt-1 truncate text-xs font-semibold text-white/55">{neighborhood}</p>
             <p className="mt-0.5 truncate text-xs font-semibold text-white/40">{venue.category}</p>
           </div>
           <BusynessBadge venue={venue} />
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
-          <OpenNowDot openNow={venue.openNow} />
           <div className="flex min-w-0 items-center justify-end gap-2">
             <MfRatioChip venue={venue} />
             <span className="truncate text-xs font-semibold text-white/55">{venue.address}</span>

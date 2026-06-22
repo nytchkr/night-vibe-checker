@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOpenNow, isOpenNowFromGoogleHours } from "@/lib/openNow";
+import { inferOpenNow, isOpenNow, isOpenNowFromGoogleHours } from "@/lib/openNow";
 
 const sampleHours = {
   periods: [
@@ -48,13 +48,21 @@ describe("isOpenNowFromGoogleHours", () => {
 });
 
 describe("isOpenNow", () => {
-  it("uses Google hours before category heuristics", () => {
-    expect(isOpenNow("bar", { day: 1, hour: 18, minute: 0 }, sampleHours)).toBe(true);
-  });
-
-  it("falls back to the category heuristic when Google hours are unavailable", () => {
-    expect(isOpenNow("bar", { day: 1, hour: 18, minute: 0 }, null)).toBe(false);
-    expect(isOpenNow("restaurant", { day: 1, hour: 12, minute: 0 }, null)).toBe(true);
+  it("returns only the explicit Google open_now value", () => {
+    expect(isOpenNow({ open_now: true })).toBe(true);
+    expect(isOpenNow({ open_now: false })).toBe(false);
+    expect(isOpenNow(null)).toBeNull();
+    expect(isOpenNow({ periods: [] })).toBeNull();
   });
 });
 
+describe("inferOpenNow", () => {
+  it("uses Google hours before category heuristics", () => {
+    expect(inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, sampleHours)).toBe(true);
+  });
+
+  it("falls back to the category heuristic when Google hours are unavailable", () => {
+    expect(inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, null)).toBe(false);
+    expect(inferOpenNow("restaurant", { day: 1, hour: 12, minute: 0 }, null)).toBe(true);
+  });
+});

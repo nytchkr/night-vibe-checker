@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { isOpenNow } from "@/lib/openNow";
 import { v4 as uuidv4 } from "uuid";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
@@ -55,8 +56,15 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
 }
 
 function mapOpeningHours(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const hours = value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  const rawHours =
+    value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekdayDescriptions?: unknown }).weekdayDescriptions)
+      ? (value as { weekdayDescriptions: unknown[] }).weekdayDescriptions
+      : value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekday_text?: unknown }).weekday_text)
+        ? (value as { weekday_text: unknown[] }).weekday_text
+        : value;
+
+  if (!Array.isArray(rawHours)) return undefined;
+  const hours = rawHours.filter((item): item is string => typeof item === "string" && item.length > 0);
   return hours.length ? hours : undefined;
 }
 
@@ -87,7 +95,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     phone: (row.phone ?? undefined) as string | undefined,
     website: (row.website ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
-    openNow: row.open_now == null ? undefined : Boolean(row.open_now),
+    openNow: isOpenNow(row.opening_hours),
     hidden: Boolean(row.hidden),
     signal,
     mf_ratio: signal?.mfRatio ?? null,

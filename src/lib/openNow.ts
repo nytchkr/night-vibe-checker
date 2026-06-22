@@ -147,7 +147,11 @@ export function isOpenNowFromGoogleHours(openingHours: unknown, charlotteTime: C
   return parsedAnyPeriod ? false : null;
 }
 
-export function isOpenNow(category: string | null, charlotteTime: CharlotteTime, openingHours?: unknown) {
+export function isOpenNow(opening_hours: any): boolean | null {
+  return opening_hours?.open_now ?? null;
+}
+
+export function inferOpenNow(category: string | null, charlotteTime: CharlotteTime, openingHours?: unknown) {
   if (openingHours != null) {
     const googleOpenNow = isOpenNowFromGoogleHours(openingHours, charlotteTime);
     if (googleOpenNow != null) return googleOpenNow;
@@ -176,7 +180,7 @@ export async function refreshOpenNow() {
   const charlotteTime = getCharlotteTimeParts();
   const updates = ((venues ?? []) as VenueOpenNowRow[]).map((venue) => ({
     ...venue,
-    open_now: isOpenNow(venue.category, charlotteTime, venue.opening_hours),
+    open_now: inferOpenNow(venue.category, charlotteTime, venue.opening_hours),
   }));
 
   for (let index = 0; index < updates.length; index += UPDATE_BATCH_SIZE) {
