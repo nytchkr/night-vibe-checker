@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Check, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { WaitlistForm } from "./WaitlistForm";
 
 const FEATURES = [
   "AI crowd prediction",
@@ -62,9 +62,7 @@ export default function UpgradePage() {
               ))}
             </ul>
 
-            <Button asChild className="mt-7 w-full bg-[#8B6CFF] font-black text-[#0A0A0E] hover:bg-[#A896FF]">
-              <a href="mailto:hello@nytchkr.com?subject=NightVibe%20Pro%20Waitlist">Join Waitlist</a>
-            </Button>
+            <WaitlistForm />
           </CardContent>
         </Card>
       </div>
