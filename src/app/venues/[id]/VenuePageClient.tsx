@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Clock, Globe, MapPin, Phone, Share2, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getNeighborhood } from "@/lib/neighborhood";
-import { buildVenueShareData } from "@/lib/venueShare";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -71,11 +70,6 @@ type VenuePrediction = {
     confidenceScore: number;
     summary: string;
   };
-};
-
-type VenueShareCardResponse = {
-  shareUrl: string;
-  text: string;
 };
 
 type VenuePhotosResponse = {
@@ -805,7 +799,6 @@ export function VenuePageClient({
   const [vibeGenderSelfReport, setVibeGenderSelfReport] = useState<GenderSelfReport>(null);
   const [vibeSubmitting, setVibeSubmitting] = useState(false);
   const [vibeError, setVibeError] = useState<string | null>(null);
-  const [shareVibeLoading, setShareVibeLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
@@ -1204,48 +1197,6 @@ export function VenuePageClient({
     }
   }
 
-  async function shareVibeSnapshot() {
-    if (!venue || shareVibeLoading) return;
-
-    setShareVibeLoading(true);
-
-    try {
-      const response = await fetch(`/api/venues/${encodeURIComponent(venue.id)}/share-card`, {
-        cache: "no-store",
-      });
-      if (!response.ok) throw new Error(`${response.status}`);
-
-      const shareCard = (await response.json()) as VenueShareCardResponse;
-      const title = `${venue.name} on NightVibe`;
-      const shareData: ShareData = {
-        title,
-        text: shareCard.text,
-        url: shareCard.shareUrl,
-      };
-
-      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-        try {
-          await navigator.share(shareData);
-          haptic.success();
-          return;
-        } catch {
-          // Fall through to clipboard when the native sheet is unavailable or dismissed.
-        }
-      }
-
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(shareCard.shareUrl);
-        setToast("Copied!");
-        haptic.success();
-      }
-    } catch {
-      setToast("Could not share this vibe.");
-      haptic.error();
-    } finally {
-      setShareVibeLoading(false);
-    }
-  }
-
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessPercent = clampPercent(busyness);
@@ -1354,7 +1305,8 @@ export function VenuePageClient({
                   className="h-11 w-11 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55"
                 />
                 <ShareButton
-                  {...buildVenueShareData(venue)}
+                  venueId={venue.id}
+                  venueName={venue.name}
                   className="h-11 w-11 border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55 hover:text-white focus-visible:ring-[#8B6CFF]/60"
                 />
               </div>
@@ -1525,15 +1477,13 @@ export function VenuePageClient({
                       message="No crowd data yet"
                     />
                   )}
-                  <button
-                    type="button"
-                    onClick={() => void shareVibeSnapshot()}
-                    disabled={shareVibeLoading}
-                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#F0568C] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(240,86,140,0.25)] transition-colors hover:bg-[#FF72A3] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
+                  <ShareButton
+                    venueId={venue.id}
+                    venueName={venue.name}
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white/[0.04] px-5 text-sm font-black text-gray-200 shadow-none transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:ring-[#8B6CFF]/70 disabled:bg-white/10 disabled:text-white/35"
                   >
-                    <Share2 size={17} strokeWidth={2.5} aria-hidden="true" />
-                    {shareVibeLoading ? "Sharing" : "Share Vibe"}
-                  </button>
+                    <span>Share Vibe</span>
+                  </ShareButton>
                 </div>
 
                 {hasEnoughMfSample ? (

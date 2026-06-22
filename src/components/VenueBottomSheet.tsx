@@ -12,7 +12,6 @@ import { ShareButton } from "@/components/ShareButton";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
-import { buildVenueShareData } from "@/lib/venueShare";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type VenueBottomSheetProps = {
@@ -375,7 +374,8 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   className="h-9 w-9 text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
                 />
                 <ShareButton
-                  {...buildVenueShareData(venue)}
+                  venueId={venue.id}
+                  venueName={venue.name}
                   className="h-9 w-9 text-white/75 hover:text-white focus-visible:ring-[#8B6CFF]/70"
                 />
                 <Link

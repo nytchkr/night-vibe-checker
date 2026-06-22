@@ -1,44 +1,69 @@
 "use client";
 
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { buildVenueShareClipboardText } from "@/lib/venueShare";
 
 type ShareButtonProps = {
-  title: string;
-  text: string;
-  url?: string;
+  venueId: string;
+  venueName: string;
   className?: string;
+  children?: ReactNode;
+  "aria-label"?: string;
 };
 
+type VenueShareCardResponse = {
+  shareUrl: string;
+  text: string;
+};
+
+export function buildVenueShareEndpoint(venueId: string): string {
+  return `/api/venues/${encodeURIComponent(venueId)}/share-card`;
+}
+
+export function createVenueShareData(venueName: string, shareCard: VenueShareCardResponse): ShareData {
+  return {
+    title: `${venueName} on NightVibe`,
+    text: shareCard.text,
+    url: shareCard.shareUrl,
+  };
+}
+
 export function ShareButton(props: ShareButtonProps) {
-  const [copied, setCopied] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   async function handleShare() {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    const shareData: ShareData = {
-      title: props.title,
-      text: props.text,
-      url: props.url ?? url,
-    };
-
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch {
-        // If native sharing is cancelled or blocked, fall back to a copied venue link.
-      }
-    }
+    if (sharing) return;
+    setSharing(true);
 
     try {
+      const response = await fetch(buildVenueShareEndpoint(props.venueId), {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(`Share card request failed: ${response.status}`);
+
+      const shareCard = (await response.json()) as VenueShareCardResponse;
+      const shareData = createVenueShareData(props.venueName, shareCard);
+
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        try {
+          await navigator.share(shareData);
+          return;
+        } catch {
+          // Fall back to clipboard when the native sheet is cancelled or blocked.
+        }
+      }
+
       if (typeof navigator === "undefined" || !navigator.clipboard) return;
-      await navigator.clipboard.writeText(buildVenueShareClipboardText(shareData));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(shareCard.shareUrl);
+      setToastVisible(true);
+      setTimeout(() => setToastVisible(false), 2000);
     } catch {
-      // Clipboard access can be denied by the browser.
+      // Sharing is best-effort; failures should not break the venue page.
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -49,13 +74,14 @@ export function ShareButton(props: ShareButtonProps) {
         variant="ghost"
         size="sm"
         onClick={handleShare}
-        aria-label="Share venue"
+        disabled={sharing}
+        aria-label={props["aria-label"] ?? "Share venue"}
         title="Share venue"
         className={[
           `
-          h-8 w-8 rounded-full border border-white/10 bg-white/[0.04] p-0
-          text-white/55 hover:border-[#8B6CFF]/35 hover:bg-[#8B6CFF]/10 hover:text-[#F4F5F8]
-          focus-visible:text-white focus-visible:ring-[#8B6CFF]/60
+          h-8 w-8 rounded-full p-0
+          text-gray-300 hover:bg-white/10 hover:text-white
+          focus-visible:text-white focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:opacity-60
         `,
           props.className,
         ]
@@ -63,13 +89,14 @@ export function ShareButton(props: ShareButtonProps) {
           .join(" ")}
       >
         <Share2 className="h-4 w-4" aria-hidden="true" />
+        {props.children}
       </Button>
-      {copied ? (
+      {toastVisible ? (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-[1300] mx-auto w-fit max-w-[calc(100vw-2rem)] rounded-full border border-[#8B6CFF]/25 bg-black/90 px-4 py-2 text-sm font-semibold text-[#F4F5F8] shadow-2xl shadow-black/40"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-[1300] -translate-x-1/2 rounded-full bg-gray-800 px-4 py-2 text-sm text-white shadow-2xl shadow-black/40"
         >
-          Link copied
+          Link copied!
         </div>
       ) : null}
     </>
