@@ -22,14 +22,14 @@ type VenueBottomSheetProps = {
 type VenueSheetSnap = "peek" | "half" | "full";
 
 const SNAP_HEIGHTS: Record<VenueSheetSnap, string> = {
-  peek: "96px",
+  peek: "120px",
   half: "45dvh",
   full: "90dvh",
 };
 
 function getSnapHeightPx(snap: VenueSheetSnap) {
-  if (typeof window === "undefined") return snap === "peek" ? 96 : snap === "half" ? 360 : 720;
-  if (snap === "peek") return 96;
+  if (typeof window === "undefined") return snap === "peek" ? 120 : snap === "half" ? 360 : 720;
+  if (snap === "peek") return 120;
   if (snap === "half") return window.innerHeight * 0.45;
   return window.innerHeight * 0.9;
 }
@@ -202,7 +202,7 @@ function VenueBottomSheetSkeleton({
 export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBottomSheetProps) {
   const sheetRef = useRef<HTMLElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragRef = useRef({ pointerId: -1, startY: 0, startHeight: 96, currentHeight: 96 });
+  const dragRef = useRef({ pointerId: -1, startY: 0, startHeight: 120, currentHeight: 120 });
   const [snap, setSnap] = useState<VenueSheetSnap>("peek");
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -251,6 +251,13 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
     if (dragRef.current.pointerId !== event.pointerId) return;
+    const downwardDrag = event.clientY - dragRef.current.startY;
+    if (downwardDrag > 72 && dragRef.current.startHeight <= getSnapHeightPx("peek") + 20) {
+      dragRef.current.pointerId = -1;
+      setDragHeight(null);
+      handleClose();
+      return;
+    }
     const nearestSnap = getNearestSnap(dragRef.current.currentHeight);
     dragRef.current.pointerId = -1;
     setDragHeight(null);
@@ -290,7 +297,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
       <aside
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[1200] overflow-hidden rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] shadow-[0_-24px_70px_rgba(0,0,0,0.62)]"
+        className="fixed bottom-0 left-0 right-0 z-[1200] overflow-hidden overscroll-contain rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] shadow-[0_-24px_70px_rgba(0,0,0,0.62)]"
         style={{
           height: dragHeight == null ? SNAP_HEIGHTS[snap] : `${dragHeight}px`,
           maxHeight: "90dvh",
@@ -315,7 +322,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             <div className="h-1 w-10 rounded-full bg-white" />
           </div>
 
-          <div className="mt-3 min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {!isPeek && (
               <div className="mb-4 overflow-hidden rounded-[14px] border border-white/[0.08] bg-white/[0.035]">
                 {photoUrl ? (

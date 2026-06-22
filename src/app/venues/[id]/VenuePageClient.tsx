@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
@@ -303,6 +304,32 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
   }
 }
 
+function useSwipeDownToClose(isOpen: boolean, onClose: () => void, disabled = false) {
+  const dragRef = useRef({ pointerId: -1, startY: 0, currentY: 0 });
+
+  return {
+    onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+      if (!isOpen || disabled) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = { pointerId: event.pointerId, startY: event.clientY, currentY: event.clientY };
+    },
+    onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+      if (dragRef.current.pointerId !== event.pointerId) return;
+      dragRef.current.currentY = event.clientY;
+    },
+    onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+      if (dragRef.current.pointerId !== event.pointerId) return;
+      const draggedDown = dragRef.current.currentY - dragRef.current.startY;
+      dragRef.current.pointerId = -1;
+      if (draggedDown > 80) onClose();
+    },
+    onPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
+      if (dragRef.current.pointerId !== event.pointerId) return;
+      dragRef.current.pointerId = -1;
+    },
+  };
+}
+
 function initialFor(name: string): string {
   const trimmed = name.trim();
   return (trimmed[0] ?? "?").toUpperCase();
@@ -488,8 +515,8 @@ function BestTimeForecastSection({
           message="BestTime has no hourly forecast for today"
         />
       ) : (
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
-          <div className="grid max-h-72 gap-3 overflow-y-auto pr-1">
+        <div className="overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="grid max-h-72 min-w-[28rem] gap-3 overflow-y-auto overscroll-contain pr-1">
             {forecast.map((hour) => {
               const busyness = clampPercent(hour.busyness);
               const color = getBusynessColor(busyness);
@@ -567,6 +594,8 @@ export function VenuePageClient({
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
   const vibeDialogRef = useRef<HTMLDivElement | null>(null);
+  const reportSwipeHandlers = useSwipeDownToClose(reportOpen, () => setReportOpen(false), reportSubmitting);
+  const vibeSwipeHandlers = useSwipeDownToClose(vibeReportOpen, closeVibeReport, vibeSubmitting);
 
   useFocusTrap(reportOpen, reportDialogRef, () => {
     if (!reportSubmitting) setReportOpen(false);
@@ -1014,7 +1043,7 @@ export function VenuePageClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0E] pb-48">
+    <div className="min-h-screen bg-[#0A0A0E] pb-56">
       {toast && (
         <Toast
           message={toast}
@@ -1041,14 +1070,14 @@ export function VenuePageClient({
       {!loading && !error && venue && (
         <>
           <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div className="sticky top-0 z-30 h-48 max-h-48 w-full overflow-hidden bg-gradient-to-b from-[#101017] to-[#0A0A0E]">
+            <div className="relative h-auto aspect-video max-h-[52vh] min-h-48 w-full overflow-hidden bg-gradient-to-b from-[#101017] to-[#0A0A0E]">
               {heroPhotoUrl && !heroImageFailed ? (
                 <Image
                   src={heroPhotoUrl}
                   alt={`${venue.name} photo`}
                   fill
                   sizes="100vw"
-                  priority={false}
+                  priority
                   className="object-cover"
                   onError={() => setHeroImageFailed(true)}
                 />
@@ -1388,13 +1417,47 @@ export function VenuePageClient({
               </button>
             </div>
           </div>
+
+          <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl sm:hidden">
+            <div className="mx-auto grid max-w-lg grid-cols-[minmax(0,1fr)_4rem] gap-3">
+              {canReportVibe ? (
+                <button
+                  type="button"
+                  onClick={() => void openVibeReport()}
+                  aria-label={checkInConfirmed ? "Check-in recorded" : "Check in"}
+                  className={`flex min-h-[52px] items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                    checkInConfirmed
+                      ? "bg-[#101017] text-[#F4F5F8]"
+                      : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
+                  }`}
+                >
+                  {checkInConfirmed ? (
+                    <>
+                      <Check size={20} strokeWidth={3} aria-hidden="true" />
+                      Recorded
+                    </>
+                  ) : (
+                    "Check In"
+                  )}
+                </button>
+              ) : authChecked ? (
+                <AuthRequiredReportAction venueId={venue.id} venueName={venue.name} />
+              ) : (
+                <div className="min-h-[52px] rounded-full bg-white/10" aria-hidden="true" />
+              )}
+              <SaveButton
+                placeId={venue.placeId}
+                className="h-[52px] w-full rounded-full border border-white/[0.08] bg-white/[0.06] text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
+              />
+            </div>
+          </div>
         </>
       )}
 
       {venue && reportOpen && (
         <div
           ref={reportDialogRef}
-          className="fixed inset-0 z-[80] flex items-end bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm"
+          className="fixed inset-0 z-[80] flex items-end overscroll-contain bg-black/60 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="venue-report-title"
@@ -1408,7 +1471,11 @@ export function VenuePageClient({
               if (!reportSubmitting) setReportOpen(false);
             }}
           />
-          <div className="relative mx-auto w-full max-w-lg rounded-[18px] border border-white/[0.08] bg-[#101017] p-4 shadow-2xl">
+          <div
+            className="relative mx-auto w-full max-w-lg touch-pan-y rounded-[18px] border border-white/[0.08] bg-[#101017] p-4 shadow-2xl"
+            {...reportSwipeHandlers}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
             <div className="flex items-center justify-between gap-4">
               <h2 id="venue-report-title" className="font-display text-lg font-black text-white">
                 Report an issue
@@ -1464,7 +1531,7 @@ export function VenuePageClient({
                 maxLength={200}
                 rows={3}
                 placeholder="What should we correct?"
-                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-sm text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
+                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-base text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
               />
               <div className="flex items-center justify-between gap-3">
                 <span className={`text-xs ${reportCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
@@ -1489,7 +1556,7 @@ export function VenuePageClient({
       {venue && vibeReportOpen && (
         <div
           ref={vibeDialogRef}
-          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm"
+          className="fixed inset-0 z-50 overscroll-contain bg-black/65 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby="vibe-report-title"
@@ -1501,7 +1568,11 @@ export function VenuePageClient({
             className="absolute inset-0 cursor-default"
             onClick={closeVibeReport}
           />
-          <div className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-[18px] border border-white/[0.08] bg-[#101017] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
+          <div
+            className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg touch-pan-y rounded-t-[18px] border border-white/[0.08] bg-[#101017] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl"
+            {...vibeSwipeHandlers}
+          >
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h2 id="vibe-report-title" className="font-display text-lg font-black text-white">

@@ -87,6 +87,20 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    overscroll-behavior-x: none;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  p,
+  li,
+  dd,
+  dt {
+    font-size: max(14px, 1em);
   }
 
   h1,
@@ -173,6 +187,10 @@
   /* Safe area bottom padding for devices with a home indicator */
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .overscroll-contain {
+    overscroll-behavior: contain;
   }
 
   .font-black,

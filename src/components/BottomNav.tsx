@@ -42,8 +42,8 @@ function MapIcon({ filled }: { filled?: boolean }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={22}
-      height={22}
+      width={24}
+      height={24}
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -62,8 +62,8 @@ function ExploreIcon({ filled }: { filled?: boolean }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={22}
-      height={22}
+      width={24}
+      height={24}
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"
@@ -82,8 +82,8 @@ function YouIcon({ filled }: { filled?: boolean }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={22}
-      height={22}
+      width={24}
+      height={24}
       viewBox="0 0 24 24"
       fill={filled ? "currentColor" : "none"}
       stroke="currentColor"

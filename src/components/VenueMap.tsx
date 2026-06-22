@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import L from "leaflet";
@@ -86,6 +86,32 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
   } catch {
     // Analytics must never break the UI.
   }
+}
+
+function useSwipeDownToClose(isOpen: boolean, onClose: () => void) {
+  const dragRef = useRef({ pointerId: -1, startY: 0, currentY: 0 });
+
+  return {
+    onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+      if (!isOpen) return;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = { pointerId: event.pointerId, startY: event.clientY, currentY: event.clientY };
+    },
+    onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+      if (dragRef.current.pointerId !== event.pointerId) return;
+      dragRef.current.currentY = event.clientY;
+    },
+    onPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+      if (dragRef.current.pointerId !== event.pointerId) return;
+      const draggedDown = dragRef.current.currentY - dragRef.current.startY;
+      dragRef.current.pointerId = -1;
+      if (draggedDown > 80) onClose();
+    },
+    onPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
+      if (dragRef.current.pointerId !== event.pointerId) return;
+      dragRef.current.pointerId = -1;
+    },
+  };
 }
 
 type BusynessMapFilter = (typeof BUSYNESS_FILTERS)[number];
@@ -275,6 +301,7 @@ function CitySelector({
 }) {
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const swipeHandlers = useSwipeDownToClose(open, () => setOpen(false));
 
   useFocusTrap(open, dialogRef, () => setOpen(false));
 
@@ -319,7 +346,10 @@ function CitySelector({
             onClick={() => setOpen(false)}
             className="absolute inset-0 h-full w-full cursor-default bg-black/55"
           />
-          <div className="absolute inset-x-0 bottom-0 rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
+          <div
+            className="absolute inset-x-0 bottom-0 touch-pan-y overscroll-contain rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]"
+            {...swipeHandlers}
+          >
             <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
             <div className="mx-auto mt-4 flex w-full max-w-md items-center justify-between gap-4">
               <div className="min-w-0">
@@ -427,7 +457,7 @@ function ZipRecenterControl() {
           placeholder="Search by zip..."
           type="text"
           value={zip}
-          className="h-full min-w-0 flex-1 bg-transparent text-sm font-semibold text-[#F4F5F8] outline-none placeholder:text-[#9CA2AE]"
+          className="h-full min-w-0 flex-1 bg-transparent text-base font-semibold text-[#F4F5F8] outline-none placeholder:text-[#9CA2AE]"
         />
         <button
           type="submit"
@@ -541,7 +571,7 @@ function VenueSearchControl({
         placeholder="Search venues..."
         type="search"
         value={searchQuery}
-        className="w-full rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3 py-1.5 pr-9 text-sm text-[#F4F5F8] shadow-2xl backdrop-blur placeholder:text-[#9CA2AE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 [&::-webkit-search-cancel-button]:appearance-none"
+        className="w-full rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3 py-1.5 pr-9 text-base text-[#F4F5F8] shadow-2xl backdrop-blur placeholder:text-[#9CA2AE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {searchQuery.length > 0 && (
         <button
@@ -606,7 +636,7 @@ function BusynessFilterBar({
   return (
     <div
       aria-label="Map busyness filter"
-      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 rounded-[14px] border border-white/[0.08] bg-[#101017]/90 p-1 shadow-2xl backdrop-blur sm:top-16"
+      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 overflow-x-auto whitespace-nowrap rounded-[14px] border border-white/[0.08] bg-[#101017]/90 p-1 shadow-2xl backdrop-blur [scrollbar-width:none] sm:top-16 [&::-webkit-scrollbar]:hidden"
       role="group"
     >
       {BUSYNESS_FILTERS.map((filter) => {
@@ -718,6 +748,7 @@ function VenueFilterSheet({
 }) {
   const haptic = useHaptic();
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const swipeHandlers = useSwipeDownToClose(isOpen, onClose);
   const [draftCategory, setDraftCategory] = useState<MapCategoryFilter>(activeCategoryFilter);
   const [draftOpenNow, setDraftOpenNow] = useState(openNowFilter);
 
@@ -748,7 +779,10 @@ function VenueFilterSheet({
         onClick={onClose}
         className="absolute inset-0 h-full w-full cursor-default bg-black/40"
       />
-      <div className="absolute inset-x-0 bottom-0 max-h-[60vh] overflow-y-auto rounded-t-[18px] bg-[#101017] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]">
+      <div
+        className="absolute inset-x-0 bottom-0 max-h-[60vh] touch-pan-y overflow-y-auto overscroll-contain rounded-t-[18px] bg-[#101017] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]"
+        {...swipeHandlers}
+      >
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
         <div className="mx-auto mt-4 w-full max-w-xl">
           <div className="flex items-center justify-between gap-4">

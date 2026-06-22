@@ -47,8 +47,6 @@ const NEIGHBORHOOD_LABELS: Record<NeighborhoodFilter, string> = {
   "All Areas": "All areas",
   "South End": "South end",
 };
-const ITEM_HEIGHT = 126;
-const OVERSCAN = 3;
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
@@ -530,7 +528,7 @@ function VenueFeedCard({
 
   return (
     <motion.li
-      className="mb-3 h-[126px]"
+      className="mb-3 h-auto sm:h-[126px]"
       role="article"
       initial={prefersReduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -543,17 +541,16 @@ function VenueFeedCard({
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="group relative flex h-full w-full items-center gap-3 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] p-3 transition-colors hover:border-white/[0.16] hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        className="group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] p-3 transition-colors hover:border-white/[0.16] hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 sm:flex-row sm:items-center"
         aria-label={`Open ${venue.name}`}
       >
-        <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl bg-[#8B6CFF]/20">
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-[#8B6CFF]/20 sm:h-[72px] sm:w-[72px] sm:aspect-auto">
           {venue.photoUrl && !photoFailed ? (
             <Image
               src={venue.photoUrl}
               alt={venue.name}
-              width={72}
-              height={72}
-              sizes="72px"
+              fill
+              sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
               loading={index === 0 ? "eager" : "lazy"}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
@@ -591,12 +588,12 @@ function VenueFeedCard({
 
           <BusynessChip value={busyness} source={signal?.busynessSource ?? null} />
 
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <span className="min-w-0 truncate text-[13px] font-medium text-[#9CA2AE]">
               {distance != null ? `${distance.toFixed(1)} mi · ` : ""}
               {venue.address}
             </span>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
               {mfPercents ? (
                 <MiniMFRatioBar malePercent={mfPercents.male} femalePercent={mfPercents.female} />
               ) : (
@@ -614,8 +611,8 @@ function VenueFeedCard({
 
 function CardSkeleton() {
   return (
-    <div className="mb-3 flex h-[126px] w-full animate-pulse items-center gap-3 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] p-3 last:mb-0">
-      <div className="h-[72px] w-[72px] shrink-0 rounded-xl bg-white/10" />
+    <div className="mb-3 flex w-full animate-pulse flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] p-3 last:mb-0 sm:h-[126px] sm:flex-row sm:items-center">
+      <div className="aspect-video w-full shrink-0 rounded-xl bg-white/10 sm:h-[72px] sm:w-[72px] sm:aspect-auto" />
       <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-3">
@@ -651,12 +648,9 @@ export function ExplorePageClient() {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState<NeighborhoodFilter>("All Areas");
   const [sortOption, setSortOption] = useState<SortOption>("Busiest first");
-  const [scrollTop, setScrollTop] = useState(0);
-  const [listViewportHeight, setListViewportHeight] = useState(560);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
-  const listRef = useRef<HTMLDivElement | null>(null);
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
 
@@ -761,8 +755,7 @@ export function ExplorePageClient() {
   }, [venues]);
 
   useEffect(() => {
-    setScrollTop(0);
-    listRef.current?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
   }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption]);
 
   useEffect(() => {
@@ -850,36 +843,7 @@ export function ExplorePageClient() {
     );
   }, [userLocation, venues]);
 
-  useEffect(() => {
-    const element = listRef.current;
-    if (!element) return;
-    const currentElement = element;
-
-    function updateViewportHeight() {
-      setListViewportHeight(currentElement.clientHeight || 560);
-    }
-
-    updateViewportHeight();
-
-    if (typeof ResizeObserver === "undefined") {
-      globalThis.addEventListener("resize", updateViewportHeight);
-      return () => globalThis.removeEventListener("resize", updateViewportHeight);
-    }
-
-    const observer = new ResizeObserver(updateViewportHeight);
-    observer.observe(currentElement);
-    return () => observer.disconnect();
-  }, [sortedVenues.length]);
-
   const venuesCount = venues?.length ?? 0;
-  const startIdx = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - OVERSCAN);
-  const endIdx = Math.min(
-    sortedVenues.length,
-    Math.ceil((scrollTop + listViewportHeight) / ITEM_HEIGHT) + OVERSCAN,
-  );
-  const visibleVenues = sortedVenues.slice(startIdx, endIdx);
-  const topPadding = startIdx * ITEM_HEIGHT;
-  const bottomPadding = Math.max(0, (sortedVenues.length - endIdx) * ITEM_HEIGHT);
   const searchedLocationCenter = getSearchedLocationCenter(searchQuery);
   const showOutOfZoneSearchBanner = searchedLocationCenter
     ? !inZone(searchedLocationCenter[0], searchedLocationCenter[1])
@@ -986,7 +950,7 @@ export function ExplorePageClient() {
             <TrendingStrip />
           </div>
 
-          <div className="mt-5 space-y-3">
+          <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
             <div className="relative">
               <label htmlFor="venue-search" className="sr-only">
                 Search South End venues
@@ -1090,9 +1054,7 @@ export function ExplorePageClient() {
             ))}
           </div>
           <p className="mt-2 text-[11.5px] text-[#9CA2AE]">
-            {sortedVenues.length > 0
-              ? `Showing ${startIdx + 1}-${endIdx} of ${resultCountLabel}`
-              : `Showing ${resultCountLabel}`}
+            {`Showing ${resultCountLabel}`}
           </p>
         </div>
       </div>
@@ -1150,25 +1112,15 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && sortedVenues.length > 0 && (
-          <div
-            ref={listRef}
-            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-            className="overflow-y-auto pr-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            style={{ maxHeight: "min(66vh, calc(100vh - 250px))" }}
-          >
-            <ul
-              style={{
-                paddingTop: topPadding,
-                paddingBottom: bottomPadding,
-              }}
-            >
-              {visibleVenues.map((venue, index) => (
+          <div className="pr-1">
+            <ul>
+              {sortedVenues.map((venue, index) => (
                 <VenueFeedCard
                   key={venue.id}
                   venue={venue}
                   searchQuery={searchQuery}
                   distance={venueDistances.get(venue.id) ?? null}
-                  index={startIdx + index}
+                  index={index}
                   prefersReduced={prefersReduced}
                 />
               ))}
