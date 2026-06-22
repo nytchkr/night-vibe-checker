@@ -492,7 +492,7 @@ function VenueFeedCard({
   const hasMfReading =
     signal?.mfRatio !== null &&
     signal?.mfRatio !== undefined &&
-    signal.sampleSize >= 2;
+    signal.confidence0To1 >= 0.4;
   const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
 
   return (
@@ -611,6 +611,7 @@ export function ExplorePageClient() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("All");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState<NeighborhoodFilter>("All Areas");
@@ -727,7 +728,12 @@ export function ExplorePageClient() {
   useEffect(() => {
     setScrollTop(0);
     listRef.current?.scrollTo({ top: 0 });
-  }, [busynessFilter, categoryFilter, searchQuery, neighborhoodFilter, sortOption]);
+  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+    return () => window.clearTimeout(id);
+  }, [searchQuery]);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -747,7 +753,7 @@ export function ExplorePageClient() {
 
   const sortedVenues = useMemo(() => {
     if (venues === null) return [];
-    const normalizedSearch = normalizeSearchText(searchQuery.trim());
+    const normalizedSearch = normalizeSearchText(debouncedSearchQuery.trim());
 
     return venues.filter((venue) => {
       if (venue.hidden) return false;
@@ -778,7 +784,7 @@ export function ExplorePageClient() {
 
       return busynessDelta || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, searchQuery, neighborhoodFilter, sortOption, venues]);
+  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption, venues]);
 
   const hottestVenues = useMemo(() => {
     if (venues === null) return [];
@@ -844,8 +850,6 @@ export function ExplorePageClient() {
   const resultVenueNoun = categoryFilter === "All" ? "spot" : categoryFilter.toLowerCase();
   const resultAreaLabel = neighborhoodFilter === "All Areas" ? "all areas" : neighborhoodFilter;
   const resultCountLabel = `${sortedVenues.length} ${resultVenueNoun}${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
-  const trimmedVenueSearchQuery = searchQuery.trim();
-
   function clearFilters() {
     setSearchQuery("");
     setBusynessFilter("All");
@@ -1083,9 +1087,7 @@ export function ExplorePageClient() {
         {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
             <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
-              {trimmedVenueSearchQuery
-                ? `No matches for '${trimmedVenueSearchQuery}'. Try a different name.`
-                : "No venues match your filters"}
+              No venues match · Try adjusting your filters
             </h2>
             <button
               type="button"
