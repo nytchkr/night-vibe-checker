@@ -10,6 +10,8 @@ import { Card, CardContent } from "@/components/ui/card";
 type ProGateProps = {
   children: ReactNode;
   feature: string;
+  variant?: "card" | "compact";
+  className?: string;
 };
 
 const FEATURES = [
@@ -18,10 +20,24 @@ const FEATURES = [
   "Vibe forecast 12hrs ahead",
 ];
 
-export function ProGate({ children, feature }: ProGateProps) {
+export function ProGate({ children, feature, variant = "card", className }: ProGateProps) {
   const { isPro, loading } = useSubscription();
 
   if (isPro) return <>{children}</>;
+
+  if (variant === "compact") {
+    return (
+      <Button
+        asChild
+        aria-label={`Upgrade to Pro for ${feature}`}
+        className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-violet-300/25 bg-violet-400/15 p-0 text-violet-100 hover:bg-violet-400/25 ${className ?? ""}`}
+      >
+        <Link href="/upgrade">
+          <Lock size={18} aria-hidden="true" />
+        </Link>
+      </Button>
+    );
+  }
 
   return (
     <Card className="overflow-hidden border-violet-400/35 bg-violet-950/80 shadow-2xl shadow-violet-950/30 backdrop-blur">

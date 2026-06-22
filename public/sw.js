@@ -114,11 +114,27 @@ function fetchWithTimeout(request, timeoutMs) {
 }
 
 self.addEventListener("push", (event) => {
-  const body = event.data ? event.data.text() : "Friday night picks are ready.";
+  const fallback = { title: "NightVibe", body: "Friday night picks are ready.", url: "/" };
+  let payload = fallback;
+  if (event.data) {
+    try {
+      payload = { ...fallback, ...event.data.json() };
+    } catch {
+      payload = { ...fallback, body: event.data.text() };
+    }
+  }
+
   event.waitUntil(
-    self.registration.showNotification("NightVibe", {
-      body,
+    self.registration.showNotification(payload.title || fallback.title, {
+      body: payload.body || fallback.body,
       icon: "/icon-192.png",
+      data: { url: payload.url || fallback.url },
     }),
   );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(self.clients.openWindow(url));
 });

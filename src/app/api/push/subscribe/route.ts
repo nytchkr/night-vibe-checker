@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
-
-/*
--- CREATE TABLE IF NOT EXISTS push_subscriptions (id uuid DEFAULT gen_random_uuid() PRIMARY KEY, user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE, endpoint text UNIQUE NOT NULL, p256dh text NOT NULL, auth text NOT NULL, created_at timestamptz DEFAULT now());
--- CREATE INDEX IF NOT EXISTS push_subscriptions_user_id_idx ON push_subscriptions(user_id);
-*/
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -17,40 +13,36 @@ const PushSubscriptionSchema = z.object({
   }),
 });
 
-function missingSupabaseConfigResponse(): NextResponse {
-  return NextResponse.json(
-    { error: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY." },
-    { status: 503 },
-  );
+const DeleteSubscriptionSchema = z.object({
+  endpoint: z.string().url().optional(),
+});
+
+function configError(error: unknown) {
+  if (!(error instanceof MissingSupabaseEnvError)) return null;
+  return NextResponse.json({ error: "Server configuration is incomplete." }, { status: 503 });
+}
+
+async function readJson(req: NextRequest): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return missingSupabaseConfigResponse();
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll: () => req.cookies.getAll(),
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-
-  const { data: authData, error: authError } = await supabase.auth.getUser();
-  const userId = authData.user?.id;
-  if (authError || !userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: unknown;
+  let userId: string | null;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+    userId = await getAuthenticatedUserId(req);
+  } catch (error) {
+    const response = configError(error);
+    if (response) return response;
+    throw error;
   }
 
-  const parsed = PushSubscriptionSchema.safeParse(body);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const parsed = PushSubscriptionSchema.safeParse(await readJson(req));
   if (!parsed.success) {
     return NextResponse.json(
       { error: "endpoint, keys.auth, and keys.p256dh are required." },
@@ -59,21 +51,45 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const { endpoint, keys } = parsed.data;
-  const { error } = await supabase
-    .from("push_subscriptions")
-    .upsert(
-      {
-        user_id: userId,
-        endpoint,
-        auth: keys.auth,
-        p256dh: keys.p256dh,
-        created_at: new Date().toISOString(),
-      },
-      { onConflict: "endpoint" },
-    );
+  const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
+    {
+      user_id: userId,
+      endpoint,
+      auth: keys.auth,
+      p256dh: keys.p256dh,
+      created_at: new Date().toISOString(),
+    },
+    { onConflict: "endpoint" },
+  );
 
   if (error) {
+    console.error("[push subscribe POST] DB error:", error);
     return NextResponse.json({ error: "Could not save push subscription." }, { status: 500 });
+  }
+
+  return NextResponse.json({ data: { ok: true }, ok: true });
+}
+
+export async function DELETE(req: NextRequest): Promise<NextResponse> {
+  let userId: string | null;
+  try {
+    userId = await getAuthenticatedUserId(req);
+  } catch (error) {
+    const response = configError(error);
+    if (response) return response;
+    throw error;
+  }
+
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const parsed = DeleteSubscriptionSchema.safeParse(await readJson(req));
+  let query = supabaseAdmin.from("push_subscriptions").delete().eq("user_id", userId);
+  if (parsed.success && parsed.data.endpoint) query = query.eq("endpoint", parsed.data.endpoint);
+
+  const { error } = await query;
+  if (error) {
+    console.error("[push subscribe DELETE] DB error:", error);
+    return NextResponse.json({ error: "Could not remove push subscription." }, { status: 500 });
   }
 
   return NextResponse.json({ data: { ok: true }, ok: true });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { subscribeToPush } from "@/lib/push";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
 export const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
@@ -9,14 +10,38 @@ type SavedVenuesResponse = {
   place_ids?: string[];
   venueIds?: string[];
   savedVenueIds?: string[];
+  savedVenues?: Array<{ venueId?: string; placeId?: string | null }>;
   data?: {
     savedVenueIds?: string[];
+    placeIds?: string[];
+    savedVenues?: Array<{ venueId?: string; placeId?: string | null }>;
   };
 };
 
 function readSavedIds(json: SavedVenuesResponse): string[] {
-  const ids = json.place_ids ?? json.venueIds ?? json.savedVenueIds ?? json.data?.savedVenueIds ?? [];
-  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string" && id.length > 0) : [];
+  const ids = [
+    ...(json.place_ids ?? []),
+    ...(json.venueIds ?? []),
+    ...(json.savedVenueIds ?? []),
+    ...(json.data?.savedVenueIds ?? []),
+    ...(json.data?.placeIds ?? []),
+    ...((json.savedVenues ?? json.data?.savedVenues ?? []).flatMap((item) => [item.venueId, item.placeId])),
+  ];
+  return ids.filter((id): id is string => typeof id === "string" && id.length > 0);
+}
+
+async function savePushSubscription(accessToken: string) {
+  const subscription = await subscribeToPush();
+  if (!subscription) return;
+
+  await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(subscription.toJSON()),
+  });
 }
 
 export function useSavedVenues() {
@@ -39,7 +64,7 @@ export function useSavedVenues() {
         return;
       }
 
-      const res = await fetch("/api/saved-venues", {
+      const res = await fetch("/api/venues/saved", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -100,16 +125,17 @@ export function useSavedVenues() {
     });
 
     try {
-      const res = await fetch("/api/saved-venues", {
+      const res = await fetch(`/api/venues/${encodeURIComponent(placeId)}/save`, {
         method: nextSaved ? "POST" : "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ place_id: placeId }),
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) throw new Error(`${res.status}`);
+      if (nextSaved) void savePushSubscription(token);
       window.dispatchEvent(new CustomEvent(SAVED_VENUES_EVENT));
       return nextSaved;
     } catch (error) {

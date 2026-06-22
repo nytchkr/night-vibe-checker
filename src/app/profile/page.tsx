@@ -34,13 +34,26 @@ type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
   place_ids?: string[];
   venueIds?: string[];
   savedVenueIds?: string[];
+  savedVenues?: SavedVenueItem[];
+  data?: {
+    savedVenueIds?: string[];
+    savedVenues?: SavedVenueItem[];
+  };
 };
 
-type VenuesResponse = APIResponse<{ venues: ConsumerVenue[] }>;
 type ProfileStreakResponse = {
   currentStreak: number;
   longestStreak: number;
   totalCheckIns: number;
+};
+
+type SavedVenueItem = {
+  venueId: string;
+  placeId: string | null;
+  alertThreshold: number;
+  createdAt: string | null;
+  currentBusyness: number | null;
+  venue: ConsumerVenue | null;
 };
 
 const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
@@ -70,6 +83,13 @@ function getBusynessChipClass(value: ReportedBusyness): string {
   if (value === "dead") return "bg-white/[0.08] text-[#D1D5DB] ring-white/[0.12]";
   if (value === "moderate") return "bg-yellow-400/15 text-yellow-200 ring-yellow-300/20";
   return "bg-red-500/15 text-red-200 ring-red-400/25";
+}
+
+function getBusynessPercentChipClass(value: number | null): string {
+  if (value == null) return "bg-white/[0.08] text-[#9CA2AE] ring-white/[0.12]";
+  if (value >= 70) return "bg-red-500/15 text-red-200 ring-red-400/25";
+  if (value >= 40) return "bg-yellow-400/15 text-yellow-200 ring-yellow-300/20";
+  return "bg-emerald-400/15 text-emerald-200 ring-emerald-300/20";
 }
 
 function formatRelativeTime(value: string): string {
@@ -544,24 +564,31 @@ function CheckInsSection({
 }
 
 function SavedVenuesSection({
-  savedVenueIds,
-  venues,
+  savedVenues,
   loading,
   error,
+  accessToken,
+  onThresholdChange,
 }: {
-  savedVenueIds: string[];
-  venues: ConsumerVenue[];
+  savedVenues: SavedVenueItem[];
   loading: boolean;
   error: string;
+  accessToken: string;
+  onThresholdChange: (venueId: string, threshold: number) => void;
 }) {
-  const venuesById = new Map<string, ConsumerVenue>();
-  venues.forEach((venue) => {
-    venuesById.set(venue.id, venue);
-    venuesById.set(venue.placeId, venue);
-  });
-  const savedVenues = savedVenueIds
-    .slice(0, 5)
-    .map((id) => venuesById.get(id) ?? { id, name: id, category: "Saved venue" });
+  const visibleSavedVenues = savedVenues.slice(0, 5);
+
+  async function updateThreshold(item: SavedVenueItem, threshold: number) {
+    onThresholdChange(item.venueId, threshold);
+    await fetch(`/api/venues/${encodeURIComponent(item.venueId)}/save`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ alertThreshold: threshold }),
+    }).catch(() => undefined);
+  }
 
   return (
     <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4" aria-label="Saved venues">
@@ -569,7 +596,7 @@ function SavedVenuesSection({
         <div>
           <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Saved venues</h2>
           <p className="mt-1 text-[13px] font-medium text-[#9CA2AE]">
-            {loading ? "Loading..." : `${savedVenueIds.length.toLocaleString()} saved`}
+            {loading ? "Loading..." : `${savedVenues.length.toLocaleString()} saved`}
           </p>
         </div>
         <span className="rounded-full border border-white/[0.08] px-3 py-1 text-[11.5px] font-medium text-[#9CA2AE]">
@@ -589,7 +616,7 @@ function SavedVenuesSection({
         </p>
       )}
 
-      {!loading && !error && savedVenueIds.length === 0 && (
+      {!loading && !error && savedVenues.length === 0 && (
         <div className="mt-5 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/60 px-4 py-7 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
             <Bookmark size={22} strokeWidth={2.4} aria-hidden="true" />
@@ -607,29 +634,60 @@ function SavedVenuesSection({
         </div>
       )}
 
-      {!loading && !error && savedVenueIds.length > 0 && (
+      {!loading && !error && savedVenues.length > 0 && (
         <>
           <ul className="mt-5 divide-y divide-white/[0.08]">
-            {savedVenues.map((venue) => (
-              <li key={venue.id} className="py-3 first:pt-0 last:pb-0">
-                <Link
-                  href={`/venues/${encodeURIComponent(venue.id)}`}
-                  className="group flex items-center justify-between gap-4 rounded-[14px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>
-                    <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">{venue.category}</span>
-                  </span>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE] transition-colors group-hover:text-[#F4F5F8]" aria-hidden="true" />
-                </Link>
-              </li>
-            ))}
+            {visibleSavedVenues.map((item) => {
+              const venue = item.venue;
+              const venueName = venue?.name ?? item.venueId;
+              const venueHref = `/venues/${encodeURIComponent(venue?.id ?? item.venueId)}`;
+              const busynessLabel = item.currentBusyness == null ? "No live read" : `${Math.round(item.currentBusyness)}% busy`;
+
+              return (
+                <li key={item.venueId} className="py-3 first:pt-0 last:pb-0">
+                  <Link
+                    href={venueHref}
+                    className="group flex items-center justify-between gap-3 rounded-[14px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venueName}</span>
+                      <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">
+                        {venue?.category ?? "Saved venue"}
+                      </span>
+                    </span>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-1 text-[11.5px] font-semibold ring-1 ${getBusynessPercentChipClass(item.currentBusyness)}`}
+                    >
+                      {busynessLabel}
+                    </span>
+                    <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE] transition-colors group-hover:text-[#F4F5F8]" aria-hidden="true" />
+                  </Link>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-[11.5px] font-semibold text-[#9CA2AE]">Set Alert</span>
+                    {[50, 70, 90].map((threshold) => (
+                      <button
+                        key={threshold}
+                        type="button"
+                        onClick={() => void updateThreshold(item, threshold)}
+                        className={`min-h-8 rounded-full px-3 text-[12px] font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                          item.alertThreshold === threshold
+                            ? "bg-[#8B6CFF] text-[#0A0A0E]"
+                            : "border border-white/[0.08] bg-white/[0.04] text-[#D6DAE2] hover:bg-white/[0.08]"
+                        }`}
+                      >
+                        {threshold}%
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
           <Link
             href="/profile/saved"
             className="mt-4 inline-flex min-h-11 items-center rounded-full px-1 text-[13px] font-semibold text-[#8B6CFF] transition-colors hover:text-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
           >
-            See all {savedVenueIds.length.toLocaleString()} saved &rarr;
+            See all {savedVenues.length.toLocaleString()} saved &rarr;
           </Link>
         </>
       )}
@@ -903,9 +961,9 @@ function ProfileContent() {
   });
   const [streakLoaded, setStreakLoaded] = useState(false);
   const [savedVenueIds, setSavedVenueIds] = useState<string[]>([]);
+  const [savedVenueItems, setSavedVenueItems] = useState<SavedVenueItem[]>([]);
   const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
   const [savedVenuesError, setSavedVenuesError] = useState("");
-  const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const totalCheckIns = streak.totalCheckIns || checkInCount;
 
   useEffect(() => {
@@ -930,8 +988,8 @@ function ProfileContent() {
         setStreak({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 });
         setStreakLoaded(false);
         setSavedVenueIds([]);
+        setSavedVenueItems([]);
         setSavedVenuesError("");
-        setVenues([]);
       }
     }
 
@@ -1040,29 +1098,26 @@ function ProfileContent() {
     setSavedVenuesError("");
 
     try {
-      const [savedRes, venuesRes] = await Promise.all([
-        fetch("/api/saved-venues", {
-          headers: { Authorization: `Bearer ${activeSession.access_token}` },
-        }),
-        fetch("/api/venues"),
-      ]);
+      const savedRes = await fetch("/api/venues/saved", {
+        headers: { Authorization: `Bearer ${activeSession.access_token}` },
+      });
 
-      if (!savedRes.ok || !venuesRes.ok) {
+      if (!savedRes.ok) {
         setSavedVenueIds([]);
-        setVenues([]);
+        setSavedVenueItems([]);
         setSavedVenuesError("Could not load your saved venues right now.");
         return;
       }
 
       const savedJson = (await savedRes.json()) as SavedVenueIdsResponse;
-      const venuesJson = (await venuesRes.json()) as VenuesResponse;
       const ids = savedJson.place_ids ?? savedJson.venueIds ?? savedJson.savedVenueIds ?? savedJson.data?.savedVenueIds ?? [];
+      const items = savedJson.savedVenues ?? savedJson.data?.savedVenues ?? [];
 
       setSavedVenueIds(Array.isArray(ids) ? ids : []);
-      setVenues(Array.isArray(venuesJson.data?.venues) ? venuesJson.data.venues : []);
+      setSavedVenueItems(Array.isArray(items) ? items : []);
     } catch {
       setSavedVenueIds([]);
-      setVenues([]);
+      setSavedVenueItems([]);
       setSavedVenuesError("Could not load your saved venues right now.");
     } finally {
       setSavedVenuesLoading(false);
@@ -1105,6 +1160,12 @@ function ProfileContent() {
     });
   }
 
+  function handleAlertThresholdChange(venueId: string, threshold: number) {
+    setSavedVenueItems((current) => current.map((item) => (
+      item.venueId === venueId ? { ...item, alertThreshold: threshold } : item
+    )));
+  }
+
   const userEmail = getUserEmail(session?.user);
   const displayName = getUserDisplayName(session?.user);
   const showVibeCTA = Boolean(session) && !checkInsLoading && (totalCheckIns > 0 || checkInsLoaded);
@@ -1145,10 +1206,11 @@ function ProfileContent() {
                 error={checkInsError}
               />
               <SavedVenuesSection
-                savedVenueIds={savedVenueIds}
-                venues={venues}
+                savedVenues={savedVenueItems}
                 loading={savedVenuesLoading}
                 error={savedVenuesError}
+                accessToken={session.access_token}
+                onThresholdChange={handleAlertThresholdChange}
               />
               <SettingsSection session={session} onSignOut={() => void handleSignOut()} />
             </div>

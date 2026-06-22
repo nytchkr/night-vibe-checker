@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
+import { ProGate } from "@/components/ProGate";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
 type SaveButtonProps = {
   placeId: string;
   className?: string;
+  requirePro?: boolean;
 };
 
 function currentPath() {
@@ -16,7 +18,7 @@ function currentPath() {
   return `${window.location.pathname}${window.location.search}`;
 }
 
-export function SaveButton({ placeId, className }: SaveButtonProps) {
+function SaveButtonInner({ placeId, className }: SaveButtonProps) {
   const { isSaved, toggle, loading } = useSavedVenues();
   const { requireAuth } = useOnboardingGate();
   const [pending, setPending] = useState(false);
@@ -73,6 +75,16 @@ export function SaveButton({ placeId, className }: SaveButtonProps) {
     >
       <Icon className="h-[18px] w-[18px]" fill={saved ? "currentColor" : "none"} strokeWidth={2.3} aria-hidden="true" />
     </button>
+  );
+}
+
+export function SaveButton({ requirePro = false, ...props }: SaveButtonProps) {
+  if (!requirePro) return <SaveButtonInner {...props} />;
+
+  return (
+    <ProGate feature="saved venue alerts" variant="compact" className={props.className}>
+      <SaveButtonInner {...props} />
+    </ProGate>
   );
 }
 

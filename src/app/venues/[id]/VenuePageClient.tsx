@@ -1194,7 +1194,8 @@ export function VenuePageClient({
               </button>
               <div className="absolute right-4 top-4 flex items-center gap-2">
                 <SaveButton
-                  placeId={venue.placeId}
+                  placeId={venue.id}
+                  requirePro
                   className="h-11 w-11 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55"
                 />
                 <ShareButton
@@ -1556,7 +1557,8 @@ export function VenuePageClient({
                 <div className="min-h-[52px] rounded-full bg-white/10" aria-hidden="true" />
               )}
               <SaveButton
-                placeId={venue.placeId}
+                placeId={venue.id}
+                requirePro
                 className="h-[52px] w-full rounded-full border border-white/[0.08] bg-white/[0.06] text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
               />
             </div>
