@@ -10,11 +10,13 @@ import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { TrendingStrip } from "@/components/TrendingStrip";
+import { TrendingBadge } from "@/components/TrendingBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
+import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { inZone } from "@/lib/zone";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -505,12 +507,14 @@ function VenueFeedCard({
   distance,
   index,
   prefersReduced,
+  isTrending,
 }: {
   venue: ConsumerVenue;
   searchQuery: string;
   distance: number | null;
   index: number;
   prefersReduced: boolean;
+  isTrending: boolean;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const signal = venue.signal;
@@ -549,6 +553,7 @@ function VenueFeedCard({
         className="group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] p-3 transition-colors hover:border-white/[0.16] hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 sm:flex-row sm:items-center"
         aria-label={`Open ${venue.name}`}
       >
+        {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
         <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-[#8B6CFF]/20 sm:h-[72px] sm:w-[72px] sm:aspect-auto">
           {venue.photoUrl && !photoFailed ? (
             <Image
@@ -656,6 +661,7 @@ export function ExplorePageClient() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
+  const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const hasLoadedVenuesRef = useRef(false);
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
@@ -714,6 +720,21 @@ export function ExplorePageClient() {
     const id = window.setInterval(() => void fetchActivity(), 60_000);
     return () => window.clearInterval(id);
   }, [fetchActivity]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadTrendingVenues() {
+      try {
+        setTrendingVenueIds(await fetchTrendingVenueIds(controller.signal));
+      } catch {
+        if (!controller.signal.aborted) setTrendingVenueIds(new Set());
+      }
+    }
+
+    void loadTrendingVenues();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     void trackPageView("page_view", { meta: { page: "explore" } });
@@ -1157,6 +1178,7 @@ export function ExplorePageClient() {
                   distance={venueDistances.get(venue.id) ?? null}
                   index={index}
                   prefersReduced={prefersReduced}
+                  isTrending={trendingVenueIds.has(venue.id)}
                 />
               ))}
             </ul>

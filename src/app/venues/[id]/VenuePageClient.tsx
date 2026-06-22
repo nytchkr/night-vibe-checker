@@ -15,12 +15,14 @@ import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
+import { TrendingBadge } from "@/components/TrendingBadge";
 import { Badge } from "@/components/ui/badge";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { buildVenueShareData } from "@/lib/venueShare";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
@@ -805,6 +807,7 @@ export function VenuePageClient({
   const [shareVibeLoading, setShareVibeLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
+  const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
   const vibeDialogRef = useRef<HTMLDivElement | null>(null);
   const reportSwipeHandlers = useSwipeDownToClose(reportOpen, () => setReportOpen(false), reportSubmitting);
@@ -822,6 +825,21 @@ export function VenuePageClient({
     const timer = window.setTimeout(() => setCheckInConfirmed(false), 1500);
     return () => window.clearTimeout(timer);
   }, [checkInConfirmed]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadTrendingVenues() {
+      try {
+        setTrendingVenueIds(await fetchTrendingVenueIds(controller.signal));
+      } catch {
+        if (!controller.signal.aborted) setTrendingVenueIds(new Set());
+      }
+    }
+
+    void loadTrendingVenues();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (trackedVenueView.current || !venueId || !venue?.name) return;
@@ -1279,6 +1297,7 @@ export function VenuePageClient({
     : statusText === "Hours not available"
       ? "text-[#646B79]"
       : "text-[#F0568C]";
+  const isTrending = venue ? trendingVenueIds.has(venue.id) : false;
 
   function goBackToMap() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -1346,7 +1365,10 @@ export function VenuePageClient({
                   <CategoryBadge category={venue.category} />
                   <PriceLevelDisplay priceLevel={venue.priceLevel} />
                 </div>
-                <h1 className="font-display mt-3 max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <h1 className="font-display max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
+                  {isTrending ? <TrendingBadge /> : null}
+                </div>
                 {venue.address && (
                   <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
                 )}

@@ -17,6 +17,7 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
+import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap } from "@/components/MapBottomSheet";
@@ -209,7 +210,7 @@ function createVenueClusterIcon(cluster: L.MarkerCluster) {
   });
 }
 
-function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | null) {
+function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | null, isTrending: boolean) {
   const isSelected = selectedVenueId === venue.id;
   const busyness = venue.signal?.busyness0To100 ?? null;
   const color = getBusynessColor(busyness);
@@ -218,7 +219,7 @@ function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | n
 
   return L.divIcon({
     html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="--venue-pin-color:${color}; --venue-pin-dot-size:${dotSize}px; background:${color};"></span>`,
-    className: `venue-cluster-pin${isSelected ? " venue-cluster-pin-selected" : ""}`,
+    className: `venue-cluster-pin${isSelected ? " venue-cluster-pin-selected" : ""}${isTrending ? " venue-cluster-pin-trending" : ""}`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
     tooltipAnchor: [0, -30],
@@ -236,10 +237,12 @@ function createVenueTooltip(name: string) {
 function ClusteredVenueMarkers({
   venues,
   selectedVenueId,
+  trendingVenueIds,
   onVenueClick,
 }: {
   venues: ConsumerVenue[];
   selectedVenueId: string | null;
+  trendingVenueIds: Set<string>;
   onVenueClick: (venue: ConsumerVenue) => void;
 }) {
   const map = useMap();
@@ -264,7 +267,7 @@ function ClusteredVenueMarkers({
     venues.forEach((venue) => {
       const marker = L.marker([venue.lat, venue.lng], {
         alt: `${venue.name} map pin`,
-        icon: createVenueClusterPin(venue, selectedVenueId),
+        icon: createVenueClusterPin(venue, selectedVenueId, trendingVenueIds.has(venue.id)),
         keyboard: true,
         title: venue.name,
       });
@@ -287,7 +290,7 @@ function ClusteredVenueMarkers({
     return () => {
       map.removeLayer(clusterGroup);
     };
-  }, [map, onVenueClick, selectedVenueId, venues]);
+  }, [map, onVenueClick, selectedVenueId, trendingVenueIds, venues]);
 
   return null;
 }
@@ -878,6 +881,7 @@ export function VenueMap({
   const [slowLoad, setSlowLoad] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
+  const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const mapRef = useRef<LeafletMap | null>(null);
   const mapViewportStyle = getMapViewportStyle();
   const cityCenter = useMemo<[number, number]>(
@@ -940,6 +944,21 @@ export function VenueMap({
       controller.abort();
     };
   }, [fetchVenues]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadTrendingVenues() {
+      try {
+        setTrendingVenueIds(await fetchTrendingVenueIds(controller.signal));
+      } catch {
+        if (!controller.signal.aborted) setTrendingVenueIds(new Set());
+      }
+    }
+
+    void loadTrendingVenues();
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -1065,7 +1084,12 @@ export function VenueMap({
           />
           <RecenterButton center={cityCenter} />
 
-          <ClusteredVenueMarkers venues={filteredVenues} selectedVenueId={selectedVenueId} onVenueClick={selectVenueFromMap} />
+          <ClusteredVenueMarkers
+            venues={filteredVenues}
+            selectedVenueId={selectedVenueId}
+            trendingVenueIds={trendingVenueIds}
+            onVenueClick={selectVenueFromMap}
+          />
         </MapContainer>
       </MapErrorBoundary>
 
@@ -1263,6 +1287,10 @@ export function VenueMap({
         .venue-cluster-pin-selected {
           border-color: #8B6CFF;
           border-width: 3px;
+        }
+
+        .venue-cluster-pin-trending > span {
+          box-shadow: 0 0 8px #F0568C;
         }
       `}</style>
     </main>
