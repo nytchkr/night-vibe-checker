@@ -1,12 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, Bookmark, ChevronRight, Info, MapPin } from "lucide-react";
+import { Bell, Bookmark, ChevronRight, Info, Lock, MapPin, Pencil } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
-import { PushOptIn } from "@/components/PushOptIn";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { APIResponse, ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
@@ -93,8 +92,18 @@ function getUserEmail(user: User | undefined): string {
   return user?.email ?? "Signed in";
 }
 
-function getUserInitials(email: string): string {
-  const name = email.split("@")[0]?.replace(/[._-]+/g, " ").trim();
+function getEmailPrefix(email: string): string {
+  return email.split("@")[0]?.replace(/[._-]+/g, " ").trim() || email;
+}
+
+function getUserDisplayName(user: User | undefined): string {
+  const displayName = user?.user_metadata?.display_name;
+  if (typeof displayName === "string" && displayName.trim()) return displayName.trim();
+  return getEmailPrefix(getUserEmail(user));
+}
+
+function getUserInitials(displayName: string, email: string): string {
+  const name = displayName.trim() || getEmailPrefix(email);
   const initials = name
     ? name
         .split(/\s+/)
@@ -198,10 +207,10 @@ function LoggedOutState() {
   );
 }
 
-function WelcomeBanner() {
+function WelcomeBanner({ displayName }: { displayName: string }) {
   return (
     <section className="rounded-2xl border border-[#8B6CFF]/30 bg-[#8B6CFF]/10 p-5" aria-label="Welcome">
-      <h2 className="text-xl font-bold text-white">Welcome to nytchkr</h2>
+      <h2 className="text-xl font-bold text-white">Hey, {displayName}</h2>
       <p className="mt-2 text-sm leading-6 text-white/60">
         Find a spot on the map, tap it, and report the vibe. Your check-ins show up here.
       </p>
@@ -242,11 +251,44 @@ function VibeCTA() {
 
 function AccountHeader({
   email,
+  displayName,
+  onDisplayNameSave,
   onSignOut,
 }: {
   email: string;
+  displayName: string;
+  onDisplayNameSave: (value: string) => Promise<void>;
   onSignOut: () => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftName, setDraftName] = useState(displayName);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isEditing) setDraftName(displayName);
+  }, [displayName, isEditing]);
+
+  async function handleSave() {
+    const nextName = draftName.trim();
+    if (!nextName) {
+      setError("Enter a display name.");
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+
+    try {
+      await onDisplayNameSave(nextName);
+      setIsEditing(false);
+    } catch {
+      setError("Could not save your display name.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <section
       id="profile-section"
@@ -255,11 +297,61 @@ function AccountHeader({
     >
       <div className="flex items-center gap-4">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] font-display text-lg font-semibold text-white ring-1 ring-[#8B6CFF]/40">
-          {getUserInitials(email)}
+          {getUserInitials(displayName, email)}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-semibold text-[#F4F5F8]">{email}</p>
-          <p className="mt-1 text-[13px] font-medium text-[#9CA2AE]">Charlotte nightlife scout</p>
+          {isEditing ? (
+            <div className="space-y-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <input
+                  type="text"
+                  value={draftName}
+                  onChange={(event) => {
+                    setDraftName(event.target.value);
+                    if (error) setError("");
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") void handleSave();
+                    if (event.key === "Escape") {
+                      setDraftName(displayName);
+                      setError("");
+                      setIsEditing(false);
+                    }
+                  }}
+                  disabled={isSaving}
+                  aria-label="Display name"
+                  className="min-h-10 min-w-0 flex-1 rounded-[12px] border border-white/[0.12] bg-[#0A0A0E] px-3 text-[15px] font-semibold text-[#F4F5F8] outline-none transition-colors placeholder:text-[#9CA2AE] focus:border-[#8B6CFF] focus:ring-2 focus:ring-[#8B6CFF]/25 disabled:cursor-not-allowed disabled:opacity-70"
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleSave()}
+                  disabled={isSaving}
+                  className="min-h-10 shrink-0 rounded-full bg-[#8B6CFF] px-4 text-[13px] font-black text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSaving ? "Saving" : "Save"}
+                </button>
+              </div>
+              {error && <p className="text-[12px] font-medium text-[#F0568C]">{error}</p>}
+            </div>
+          ) : (
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="truncate text-[15px] font-semibold text-[#F4F5F8]">{displayName}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftName(displayName);
+                  setError("");
+                  setIsEditing(true);
+                }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9CA2AE] transition-colors hover:bg-white/[0.06] hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                aria-label="Edit display name"
+              >
+                <Pencil size={15} strokeWidth={2.3} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          <p className="mt-1 truncate text-[13px] font-medium text-[#9CA2AE]">{email}</p>
         </div>
         <button
           type="button"
@@ -732,7 +824,36 @@ function ProfileContent() {
     router.replace("/profile");
   }
 
+  async function handleDisplayNameSave(value: string) {
+    const nextDisplayName = value.trim();
+    const client = createBrowserClient();
+    const { data, error } = await client.auth.updateUser({
+      data: { display_name: nextDisplayName },
+    });
+
+    if (error) throw error;
+
+    setSession((currentSession) => {
+      if (!currentSession) return currentSession;
+
+      const currentMetadata = currentSession.user.user_metadata ?? {};
+      const nextUser = data.user ?? {
+        ...currentSession.user,
+        user_metadata: {
+          ...currentMetadata,
+          display_name: nextDisplayName,
+        },
+      };
+
+      return {
+        ...currentSession,
+        user: nextUser,
+      };
+    });
+  }
+
   const userEmail = getUserEmail(session?.user);
+  const displayName = getUserDisplayName(session?.user);
   const showVibeCTA = Boolean(session) && !checkInsLoading && (totalCheckIns > 0 || checkInsLoaded);
 
   return (
@@ -750,9 +871,14 @@ function ProfileContent() {
 
           {authChecked && session && (
             <div className="space-y-4">
-              {showWelcomeBanner && <WelcomeBanner />}
+              {showWelcomeBanner && <WelcomeBanner displayName={displayName} />}
               {showVibeCTA && <VibeCTA />}
-              <AccountHeader email={userEmail} onSignOut={() => void handleSignOut()} />
+              <AccountHeader
+                email={userEmail}
+                displayName={displayName}
+                onDisplayNameSave={handleDisplayNameSave}
+                onSignOut={() => void handleSignOut()}
+              />
               <StatsRow
                 totalCheckIns={totalCheckIns}
                 savedCount={savedVenueIds.length}
