@@ -101,7 +101,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, hidden")
     .eq("zone_id", LAUNCH_ZONE.id)
     .eq("hidden", false)
-    .order("name", { ascending: true });
+    .order("name", { ascending: true })
+    .limit(100);
 
   if (fetchError) {
     console.error("[venues/discover] post-upsert fetch failed:", fetchError);

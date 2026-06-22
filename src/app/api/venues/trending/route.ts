@@ -132,7 +132,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .from("venues")
     .select(VENUE_SELECT)
     .eq("hidden", false)
-    .eq("zone_id", LAUNCH_ZONE.id);
+    .eq("zone_id", LAUNCH_ZONE.id)
+    .limit(100);
   let venuesData = primaryResult.data as Record<string, unknown>[] | null;
   let venuesError = primaryResult.error;
 
@@ -141,7 +142,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .from("venues")
       .select(VENUE_SELECT_LEGACY)
       .eq("hidden", false)
-      .eq("zone_id", LAUNCH_ZONE.id);
+      .eq("zone_id", LAUNCH_ZONE.id)
+      .limit(100);
     venuesData = legacyResult.data as Record<string, unknown>[] | null;
     venuesError = legacyResult.error;
   }

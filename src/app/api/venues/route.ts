@@ -35,7 +35,7 @@ const VENUE_SELECT_LEGACY = `
 `;
 
 const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+  "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300",
 };
 
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
@@ -146,7 +146,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .select(VENUE_SELECT)
     .eq("zone_id", LAUNCH_ZONE.id)
     .eq("hidden", false)
-    .order("name", { ascending: true });
+    .order("name", { ascending: true })
+    .limit(100);
   let data = primaryResult.data as Record<string, unknown>[] | null;
   let error = primaryResult.error;
 
@@ -156,7 +157,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .select(VENUE_SELECT_LEGACY)
       .eq("zone_id", LAUNCH_ZONE.id)
       .eq("hidden", false)
-      .order("name", { ascending: true });
+      .order("name", { ascending: true })
+      .limit(100);
     data = legacyResult.data as Record<string, unknown>[] | null;
     error = legacyResult.error;
   }

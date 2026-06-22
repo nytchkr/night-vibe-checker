@@ -31,6 +31,10 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
+const PUBLIC_CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+};
+
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
   if (!row) return null;
   return {
@@ -182,6 +186,6 @@ export async function GET(
       data: { venue: mapVenue(data as Record<string, unknown>) },
       meta: { cached: true, generatedAt, requestId },
     },
-    { headers }
+    { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } }
   );
 }
