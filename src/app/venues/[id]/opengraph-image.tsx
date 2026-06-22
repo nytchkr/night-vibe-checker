@@ -1,41 +1,21 @@
 import { ImageResponse } from "next/og";
+import { getBusynessState } from "@/lib/busyness";
+import { getConsumerVenueById } from "@/lib/consumerVenue";
 
-export const runtime = "edge";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-type VenueApiResponse = {
-  status?: string;
-  data?: {
-    venue?: {
-      name?: string;
-    };
-  };
-};
-
-const siteUrl = "https://night-vibe-checker.vercel.app";
-
-async function getVenueName(id: string): Promise<string> {
-  const fallbackName = "South End Nightlife";
-  const venueId = decodeURIComponent(id ?? "").trim();
-  if (!venueId) return fallbackName;
-
-  try {
-    const response = await fetch(`${siteUrl}/api/venues/${encodeURIComponent(venueId)}`, {
-      next: { revalidate: 300 },
-    });
-    if (!response.ok) return fallbackName;
-
-    const json = (await response.json()) as VenueApiResponse;
-    return json.data?.venue?.name?.trim() || fallbackName;
-  } catch {
-    return fallbackName;
-  }
+function getBusynessText(busynessScore: number | null | undefined): string {
+  if (busynessScore == null || !Number.isFinite(busynessScore)) return "Check the vibe before you go.";
+  const score = Math.round(busynessScore);
+  return `${getBusynessState(busynessScore).label} right now · ${score}% busy`;
 }
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const venueName = await getVenueName(id);
+  const venue = await getConsumerVenueById(id);
+  const venueName = venue?.name ?? "NightVibe";
+  const busynessScore = venue?.signal?.busyness0To100 ?? null;
 
   return new ImageResponse(
     (
@@ -57,8 +37,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         <div style={{ color: "white", fontSize: 72, fontWeight: 900, textAlign: "center" }}>
           {venueName}
         </div>
-        <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 28, marginTop: 24 }}>
-          Know before you go.
+        <div style={{ color: "#F0568C", fontSize: 34, fontWeight: 800, marginTop: 24 }}>
+          {getBusynessText(busynessScore)}
         </div>
       </div>
     ),

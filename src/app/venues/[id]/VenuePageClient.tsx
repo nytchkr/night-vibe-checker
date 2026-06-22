@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Globe, MapPin, Phone, Share2, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
@@ -67,6 +67,11 @@ type VenuePrediction = {
     confidenceScore: number;
     summary: string;
   };
+};
+
+type VenueShareCardResponse = {
+  shareUrl: string;
+  text: string;
 };
 
 type VenueReportReason = "wrong_hours" | "wrong_location" | "permanently_closed" | "duplicate" | "other";
@@ -683,6 +688,7 @@ export function VenuePageClient({
   const [vibeGenderSelfReport, setVibeGenderSelfReport] = useState<GenderSelfReport>(null);
   const [vibeSubmitting, setVibeSubmitting] = useState(false);
   const [vibeError, setVibeError] = useState<string | null>(null);
+  const [shareVibeLoading, setShareVibeLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
@@ -1069,6 +1075,48 @@ export function VenuePageClient({
     }
   }
 
+  async function shareVibeSnapshot() {
+    if (!venue || shareVibeLoading) return;
+
+    setShareVibeLoading(true);
+
+    try {
+      const response = await fetch(`/api/venues/${encodeURIComponent(venue.id)}/share-card`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(`${response.status}`);
+
+      const shareCard = (await response.json()) as VenueShareCardResponse;
+      const title = `${venue.name} on NightVibe`;
+      const shareData: ShareData = {
+        title,
+        text: shareCard.text,
+        url: shareCard.shareUrl,
+      };
+
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        try {
+          await navigator.share(shareData);
+          haptic.success();
+          return;
+        } catch {
+          // Fall through to clipboard when the native sheet is unavailable or dismissed.
+        }
+      }
+
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(shareCard.shareUrl);
+        setToast("Copied!");
+        haptic.success();
+      }
+    } catch {
+      setToast("Could not share this vibe.");
+      haptic.error();
+    } finally {
+      setShareVibeLoading(false);
+    }
+  }
+
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessPercent = clampPercent(busyness);
@@ -1139,7 +1187,7 @@ export function VenuePageClient({
       {toast && (
         <Toast
           message={toast}
-          durationMs={2500}
+          durationMs={toast === "Copied!" ? 2000 : 2500}
           onDone={() => setToast(null)}
         className="bottom-[calc(env(safe-area-inset-bottom)+8.75rem)] rounded-[14px] border-white/[0.08] bg-[#101017] px-5 py-3 font-semibold text-[#F4F5F8] shadow-2xl shadow-black/30"
         />
@@ -1359,6 +1407,15 @@ export function VenuePageClient({
                       message="No crowd data yet"
                     />
                   )}
+                  <button
+                    type="button"
+                    onClick={() => void shareVibeSnapshot()}
+                    disabled={shareVibeLoading}
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#F0568C] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(240,86,140,0.25)] transition-colors hover:bg-[#FF72A3] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
+                  >
+                    <Share2 size={17} strokeWidth={2.5} aria-hidden="true" />
+                    {shareVibeLoading ? "Sharing" : "Share Vibe"}
+                  </button>
                 </div>
 
                 {hasEnoughMfSample ? (
