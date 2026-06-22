@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { refreshBusyness } from "@/lib/besttime";
+import { errorMessage, logCronRun } from "@/lib/cronHealth";
 import { refreshOpenNow } from "@/lib/openNow";
 
 export const dynamic = "force-dynamic";
@@ -19,23 +20,27 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const startedAt = Date.now();
   try {
     const results = await refreshBusyness(50);
     const openNow = await refreshOpenNow();
+    const updated = results.filter((result) => result.ok).length;
     const errors = results
       .filter((result) => !result.ok)
       .map((result) => ({
         venueId: result.venueId,
         error: result.reason ?? "Unknown refresh error",
       }));
+    await logCronRun({ jobName: "refresh-busyness", startedAt, venuesUpdated: updated });
 
     return NextResponse.json({
-      updated: results.filter((result) => result.ok).length,
+      updated,
       errors,
       results,
       openNow,
     });
   } catch (err) {
+    await logCronRun({ jobName: "refresh-busyness", startedAt, error: errorMessage(err) });
     console.error("[cron/refresh-busyness] Refresh failed:", err);
     return NextResponse.json({ error: "Refresh busyness failed." }, { status: 500 });
   }

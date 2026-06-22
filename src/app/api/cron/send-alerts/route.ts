@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
+import { logCronRun } from "@/lib/cronHealth";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
@@ -31,6 +32,7 @@ function authorize(req: NextRequest): boolean {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!authorize(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const startedAt = Date.now();
   try {
     assertSupabaseServerEnv();
     webpush.setVapidDetails(
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   } catch (error) {
     const message = error instanceof MissingSupabaseEnvError ? "Server configuration is incomplete." : error instanceof Error ? error.message : "Missing push configuration.";
+    await logCronRun({ jobName: "send-alerts", startedAt, error: message });
     return NextResponse.json({ error: message }, { status: 503 });
   }
 
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   if (savedError) {
     console.error("[cron send-alerts] saved venue query failed:", savedError);
+    await logCronRun({ jobName: "send-alerts", startedAt, error: savedError.message });
     return NextResponse.json({ error: "Could not load saved venues." }, { status: 500 });
   }
 
@@ -96,6 +100,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
   }
 
+  const runError = errors > 0 ? `${errors} alert send or query error(s)` : null;
+  await logCronRun({ jobName: "send-alerts", startedAt, venuesUpdated: sent, error: runError });
   return NextResponse.json({ sent, errors });
 }
 
