@@ -22,9 +22,20 @@ function callbackRequest(path: string) {
   return new NextRequest(`http://localhost${path}`);
 }
 
+function callbackRequestWithCookies(path: string, cookies: Record<string, string>) {
+  return new NextRequest(`http://localhost${path}`, {
+    headers: {
+      cookie: Object.entries(cookies)
+        .map(([name, value]) => `${name}=${value}`)
+        .join("; "),
+    },
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  vi.spyOn(console, "error").mockImplementation(() => {});
   mockFrom.mockReturnValue({ select: mockSelect });
   mockSelect.mockReturnValue({ eq: mockEq });
   mockExchangeCodeForSession.mockResolvedValue({
@@ -35,6 +46,38 @@ beforeEach(() => {
 });
 
 describe("GET /auth/callback", () => {
+  it("restarts Google OAuth once when the PKCE exchange fails", async () => {
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { name: "AuthApiError", message: "invalid flow state", code: "flow_state_not_found", status: 404 },
+    });
+
+    const { GET } = await import("../callback/route");
+    const res = await GET(callbackRequest("/auth/callback?code=auth-code&return=%2Fexplore"));
+
+    expect(res.headers.get("location")).toBe("http://localhost/api/auth/google?return=%2Fexplore");
+    expect(res.cookies.get("nytchkr-auth-retry")?.value).toBe("1");
+  });
+
+  it("shows the auth failure after the one-time retry has already happened", async () => {
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { name: "AuthApiError", message: "invalid flow state", code: "flow_state_not_found", status: 404 },
+    });
+
+    const { GET } = await import("../callback/route");
+    const res = await GET(
+      callbackRequestWithCookies("/auth/callback?code=auth-code&return=%2Fexplore", {
+        "nytchkr-auth-retry": "1",
+      })
+    );
+
+    expect(res.headers.get("location")).toBe(
+      "http://localhost/login?error=auth_failed&message=Could+not+finish+sign-in.+Please+try+again."
+    );
+    expect(res.cookies.get("nytchkr-auth-retry")?.value).toBe("");
+  });
+
   it("redirects users with no check-ins to the profile welcome state", async () => {
     mockEq.mockResolvedValue({ count: 0, error: null });
 
