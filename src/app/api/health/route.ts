@@ -15,6 +15,11 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "no-store",
 };
 
+// Busyness signals are populated by the protected daily BestTime cron in
+// vercel.json. Keep health aligned to that cache cadence, with grace for
+// cron delay/runtime, and degrade only when a full daily refresh is missed.
+const BUSYNESS_STALE_AFTER_MS = 30 * 60 * 60 * 1000;
+
 async function countRows(table: "venues" | "venue_signals"): Promise<number | null> {
   try {
     const query = supabaseAdmin.from(table).select("*", { count: "exact", head: true });
@@ -72,7 +77,7 @@ export async function GET() {
     .sort((a, b) => a.getTime() - b.getTime());
   const oldestSignal = refreshTimes[0] ?? null;
   const newestSignal = refreshTimes[refreshTimes.length - 1] ?? null;
-  const staleCutoffMs = Date.now() - 6 * 60 * 60 * 1000;
+  const staleCutoffMs = Date.now() - BUSYNESS_STALE_AFTER_MS;
   const staleSince = oldestSignal && oldestSignal.getTime() < staleCutoffMs ? oldestSignal.toISOString() : null;
   const hasCoverageGap =
     venueCount != null && signalsCount != null && signalsCount < venueCount * 0.8;
