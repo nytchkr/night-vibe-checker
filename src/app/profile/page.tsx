@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Bell, Bookmark, ChevronRight, Info, Lock, MapPin, Pencil, UsersRound } from "lucide-react";
+import { Bell, Bookmark, ChevronRight, Info, Lock, LogOut, MapPin, Pencil, Trash2, UsersRound } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -688,18 +688,23 @@ function PreferenceToggleRow({
 }
 
 function SettingsSection({
-  user,
+  session,
   onSignOut,
 }: {
-  user: User;
+  session: Session;
   onSignOut: () => void;
 }) {
+  const router = useRouter();
+  const user = session.user;
   const [preferences, setPreferences] = useState({
     push_enabled: user.user_metadata?.push_enabled === true,
     private_checkins: user.user_metadata?.private_checkins === true,
   });
   const [savingPreference, setSavingPreference] = useState<SavingPreference>(null);
   const [error, setError] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     setPreferences({
@@ -730,56 +735,153 @@ function SettingsSection({
     }
   }
 
+  async function handleDeleteAccount() {
+    setDeleteLoading(true);
+    setDeleteError("");
+
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+
+      if (!res.ok) {
+        setDeleteError(json.error ?? "Could not delete your account right now.");
+        return;
+      }
+
+      const client = createBrowserClient();
+      await client.auth.signOut();
+      clearLocalTestSession();
+      router.push("/");
+    } catch {
+      setDeleteError("Could not delete your account right now.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
-    <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4" aria-label="Settings">
-      <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Settings</h2>
-      <div className="mt-4 divide-y divide-white/[0.08] border-y border-white/[0.08]">
-        <PreferenceToggleRow
-          icon={<Bell size={17} strokeWidth={2.2} aria-hidden="true" />}
-          label="Push notifications"
-          subLabel="Get notified when saved venues get packed"
-          enabled={preferences.push_enabled}
-          saving={savingPreference === "push_enabled"}
-          onToggle={() => void updatePreference("push_enabled", !preferences.push_enabled)}
-        />
-        <PreferenceToggleRow
-          icon={<Lock size={17} strokeWidth={2.2} aria-hidden="true" />}
-          label="Private check-ins"
-          subLabel="Your check-ins won't appear in public vibe data"
-          enabled={preferences.private_checkins}
-          saving={savingPreference === "private_checkins"}
-          onToggle={() => void updatePreference("private_checkins", !preferences.private_checkins)}
-        />
-        <Link
-          href="/about"
-          className="flex min-h-14 items-center justify-between gap-4 py-3 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-        >
-          <span className="flex min-w-0 items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-[#9CA2AE]">
-              <Info size={17} strokeWidth={2.2} aria-hidden="true" />
+    <>
+      <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4" aria-label="Settings">
+        <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Settings</h2>
+        <div className="mt-4 divide-y divide-white/[0.08] border-y border-white/[0.08]">
+          <PreferenceToggleRow
+            icon={<Bell size={17} strokeWidth={2.2} aria-hidden="true" />}
+            label="Push notifications"
+            subLabel="Get notified when saved venues get packed"
+            enabled={preferences.push_enabled}
+            saving={savingPreference === "push_enabled"}
+            onToggle={() => void updatePreference("push_enabled", !preferences.push_enabled)}
+          />
+          <PreferenceToggleRow
+            icon={<Lock size={17} strokeWidth={2.2} aria-hidden="true" />}
+            label="Private check-ins"
+            subLabel="Your check-ins won't appear in public vibe data"
+            enabled={preferences.private_checkins}
+            saving={savingPreference === "private_checkins"}
+            onToggle={() => void updatePreference("private_checkins", !preferences.private_checkins)}
+          />
+          <Link
+            href="/about"
+            className="flex min-h-14 items-center justify-between gap-4 py-3 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-[#9CA2AE]">
+                <Info size={17} strokeWidth={2.2} aria-hidden="true" />
+              </span>
+              <span className="truncate text-[15px] font-medium text-[#F4F5F8]">About</span>
             </span>
-            <span className="truncate text-[15px] font-medium text-[#F4F5F8]">About</span>
-          </span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE]" aria-hidden="true" />
-        </Link>
-        <button
-          type="button"
-          onClick={onSignOut}
-          className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE]" aria-hidden="true" />
+          </Link>
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-[#9CA2AE]">
+                <LogOut size={17} strokeWidth={2.2} aria-hidden="true" />
+              </span>
+              <span className="truncate text-[15px] font-medium text-[#9CA2AE]">Sign out</span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE]" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="mt-4 border-t border-white/[0.08] pt-1">
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteError("");
+              setShowDeleteConfirm(true);
+            }}
+            className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:text-red-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-600/15 text-red-400">
+                <Trash2 size={17} strokeWidth={2.2} aria-hidden="true" />
+              </span>
+              <span className="truncate text-[15px] font-semibold text-red-400">Delete account</span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-red-400" aria-hidden="true" />
+          </button>
+        </div>
+        {error && (
+          <p
+            className="mt-3 rounded-[14px] border border-[#F0568C]/25 bg-[#F0568C]/10 px-3 py-2 text-[12px] font-medium text-[#F0568C]"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+      </section>
+
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/70 px-4 pb-6 pt-20 backdrop-blur-sm sm:items-center sm:justify-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-title"
         >
-          <span className="truncate text-[15px] font-medium text-[#9CA2AE]">Sign out</span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE]" aria-hidden="true" />
-        </button>
-      </div>
-      {error && (
-        <p
-          className="mt-3 rounded-[14px] border border-[#F0568C]/25 bg-[#F0568C]/10 px-3 py-2 text-[12px] font-medium text-[#F0568C]"
-          role="alert"
-        >
-          {error}
-        </p>
+          <div className="w-full max-w-sm rounded-[18px] border border-white/[0.1] bg-[#0A0A0E] p-5 shadow-2xl">
+            <h3 id="delete-account-title" className="font-display text-[21px] font-semibold text-[#F4F5F8]">
+              Delete your account?
+            </h3>
+            <p className="mt-3 text-[14px] font-medium leading-6 text-[#9CA2AE]">
+              This permanently deletes your check-ins, saved venues, and account. Cannot be undone.
+            </p>
+            {deleteError && (
+              <p className="mt-4 rounded-[14px] border border-[#F0568C]/25 bg-[#F0568C]/10 p-3 text-[13px] font-medium text-[#F0568C]">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (deleteLoading) return;
+                  setShowDeleteConfirm(false);
+                  setDeleteError("");
+                }}
+                disabled={deleteLoading}
+                className="min-h-12 rounded-full border border-white/[0.1] bg-white/[0.055] px-4 text-[14px] font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.09] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDeleteAccount()}
+                disabled={deleteLoading}
+                className="min-h-12 rounded-full bg-red-600 px-4 text-[14px] font-bold text-white transition-colors hover:bg-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {deleteLoading ? "Deleting..." : "Yes, delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </section>
+    </>
   );
 }
 
@@ -1046,7 +1148,7 @@ function ProfileContent() {
                 loading={savedVenuesLoading}
                 error={savedVenuesError}
               />
-              <SettingsSection user={session.user} onSignOut={() => void handleSignOut()} />
+              <SettingsSection session={session} onSignOut={() => void handleSignOut()} />
             </div>
           )}
         </div>
