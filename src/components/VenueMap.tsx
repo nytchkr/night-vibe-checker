@@ -57,6 +57,8 @@ const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
 const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
 const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
+const SOUTH_END_MAP_CENTER: [number, number] = [35.2178, -80.8597];
+const MAP_DEFAULT_ZOOM = 15;
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -115,11 +117,36 @@ function matchesBusynessFilter(venue: ConsumerVenue, filter: BusynessMapFilter) 
   return venue.signal?.busynessSource === "live";
 }
 
+function resetMapView(map: LeafletMap, center: [number, number], { animate = false }: { animate?: boolean } = {}) {
+  map.setView(center, MAP_DEFAULT_ZOOM, {
+    animate,
+    duration: animate ? 0.35 : undefined,
+  });
+
+  window.setTimeout(() => map.invalidateSize({ pan: false }), 0);
+  window.setTimeout(() => map.invalidateSize({ pan: false }), 250);
+}
+
 function CityMapCenter({ center }: { center: [number, number] }) {
   const map = useMap();
 
   useEffect(() => {
-    map.setView(center, 15);
+    resetMapView(map, center);
+
+    function resetVisibleMap() {
+      if (document.visibilityState === "hidden") return;
+      resetMapView(map, center);
+    }
+
+    window.addEventListener("pageshow", resetVisibleMap);
+    window.addEventListener("focus", resetVisibleMap);
+    document.addEventListener("visibilitychange", resetVisibleMap);
+
+    return () => {
+      window.removeEventListener("pageshow", resetVisibleMap);
+      window.removeEventListener("focus", resetVisibleMap);
+      document.removeEventListener("visibilitychange", resetVisibleMap);
+    };
   }, [center, map]);
 
   return null;
@@ -132,7 +159,7 @@ function RecenterButton({ center }: { center: [number, number] }) {
     <button
       type="button"
       aria-label="Recenter map"
-      onClick={() => map.flyTo(center, 15)}
+      onClick={() => map.flyTo(center, MAP_DEFAULT_ZOOM)}
       className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 text-xs font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -817,7 +844,10 @@ export function VenueMap({
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
   const mapRef = useRef<LeafletMap | null>(null);
   const mapViewportStyle = getMapViewportStyle();
-  const cityCenter = useMemo<[number, number]>(() => [city.lat, city.lng], [city.lat, city.lng]);
+  const cityCenter = useMemo<[number, number]>(
+    () => (city.id === "south-end-clt" ? SOUTH_END_MAP_CENTER : [city.lat, city.lng]),
+    [city.id, city.lat, city.lng],
+  );
 
   const fetchVenues = useCallback(async (signal?: AbortSignal, { showLoading = true }: { showLoading?: boolean } = {}) => {
     if (showLoading) setLoading(true);
@@ -977,10 +1007,13 @@ export function VenueMap({
         <MapContainer
           ref={mapRef}
           center={cityCenter}
-          zoom={15}
+          zoom={MAP_DEFAULT_ZOOM}
           scrollWheelZoom={false}
           style={{ ...mapViewportStyle, width: "100%" }}
           className="z-0"
+          whenReady={() => {
+            if (mapRef.current) resetMapView(mapRef.current, cityCenter);
+          }}
         >
           <TileLayer
             attribution='&copy; <a href="https://carto.com/">CARTO</a>'
