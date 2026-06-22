@@ -38,6 +38,40 @@ const PUBLIC_CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300",
 };
 
+type VenueQueryResult = {
+  data: Record<string, unknown>[] | null;
+  error: unknown;
+};
+
+type VenueSearchRow = {
+  id: string;
+  search_rank: number;
+};
+
+function parseOptionalNumber(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeOptionalParam(value: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function distanceMeters(fromLat: number, fromLng: number, toLat: number, toLng: number): number {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusMeters = 6_371_000;
+  const dLat = toRadians(toLat - fromLat);
+  const dLng = toRadians(toLng - fromLng);
+  const lat1 = toRadians(fromLat);
+  const lat2 = toRadians(toLat);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusMeters * 2 * Math.asin(Math.sqrt(a));
+}
+
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
   if (!row) return null;
   return {
@@ -134,6 +168,39 @@ function isMissingContactColumn(error: unknown): boolean {
   );
 }
 
+async function loadVenueRows(
+  select: string,
+  params: {
+    category: string | null;
+    searchIds: string[] | null;
+  }
+): Promise<VenueQueryResult> {
+  let query = supabaseAdmin
+    .from("venues")
+    .select(select)
+    .eq("zone_id", LAUNCH_ZONE.id)
+    .eq("hidden", false);
+
+  if (params.category) {
+    query = query.ilike("category", params.category);
+  }
+
+  if (params.searchIds) {
+    if (params.searchIds.length === 0) {
+      return { data: [], error: null };
+    }
+    query = query.in("id", params.searchIds);
+  } else {
+    query = query.order("name", { ascending: true });
+  }
+
+  const result = await query.limit(100);
+  return {
+    data: result.data as Record<string, unknown>[] | null,
+    error: result.error,
+  };
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const generatedAt = new Date().toISOString();
@@ -157,25 +224,59 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const primaryResult = await supabaseAdmin
-      .from("venues")
-      .select(VENUE_SELECT)
-      .eq("zone_id", LAUNCH_ZONE.id)
-      .eq("hidden", false)
-      .order("name", { ascending: true })
-      .limit(100);
-    let data = primaryResult.data as Record<string, unknown>[] | null;
+    const searchParams = req.nextUrl.searchParams;
+    const searchQuery = normalizeOptionalParam(searchParams.get("q"));
+    const category = normalizeOptionalParam(searchParams.get("category"));
+    const lat = parseOptionalNumber(searchParams.get("lat"));
+    const lng = parseOptionalNumber(searchParams.get("lng"));
+    const radiusMeters = parseOptionalNumber(searchParams.get("radius"));
+    const hasRadiusFilter = lat !== null && lng !== null && radiusMeters !== null && radiusMeters > 0;
+    let searchRankById = new Map<string, number>();
+    let searchIds: string[] | null = null;
+
+    if (searchQuery) {
+      const { data: searchRows, error: searchError } = await supabaseAdmin.rpc("search_venue_ids", {
+        search_query: searchQuery,
+        search_zone_id: LAUNCH_ZONE.id,
+        search_category: category,
+        center_lat: hasRadiusFilter ? lat : null,
+        center_lng: hasRadiusFilter ? lng : null,
+        radius_m: hasRadiusFilter ? radiusMeters : null,
+        max_results: 100,
+      });
+
+      if (searchError) {
+        console.error("[venues] search DB error:", searchError);
+        return NextResponse.json<APIResponse<never>>(
+          {
+            status: "error",
+            error: { code: "DB_ERROR", message: "Could not search cached venues." },
+            meta: { cached: true, generatedAt, requestId },
+          },
+          { status: 500, headers }
+        );
+      }
+
+      const rankedRows = ((searchRows ?? []) as VenueSearchRow[]).filter((row) => row.id);
+      searchIds = rankedRows.map((row) => row.id);
+      searchRankById = new Map(rankedRows.map((row) => [row.id, Number(row.search_rank ?? 0)]));
+
+      if (searchIds.length === 0) {
+        return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
+          status: "success",
+          data: { zone: LAUNCH_ZONE, venues: [] },
+          meta: { cached: true, generatedAt, requestId },
+        }, { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } });
+      }
+    }
+
+    const primaryResult = await loadVenueRows(VENUE_SELECT, { category, searchIds });
+    let data = primaryResult.data;
     let error = primaryResult.error;
 
     if (error && isMissingContactColumn(error)) {
-      const legacyResult = await supabaseAdmin
-        .from("venues")
-        .select(VENUE_SELECT_LEGACY)
-        .eq("zone_id", LAUNCH_ZONE.id)
-        .eq("hidden", false)
-        .order("name", { ascending: true })
-        .limit(100);
-      data = legacyResult.data as Record<string, unknown>[] | null;
+      const legacyResult = await loadVenueRows(VENUE_SELECT_LEGACY, { category, searchIds });
+      data = legacyResult.data;
       error = legacyResult.error;
     }
 
@@ -194,7 +295,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const venues = (data ?? [])
       .map(mapVenue)
       .filter((venue) => inZone(venue.lat, venue.lng))
+      .filter((venue) => {
+        if (!hasRadiusFilter) return true;
+        return distanceMeters(lat, lng, venue.lat, venue.lng) <= radiusMeters;
+      })
       .sort((a, b) => {
+        if (searchQuery) {
+          const rankDelta = (searchRankById.get(b.id) ?? 0) - (searchRankById.get(a.id) ?? 0);
+          if (rankDelta !== 0) return rankDelta;
+          return a.name.localeCompare(b.name);
+        }
+
         const aBusyness = a.signal?.busyness0To100;
         const bBusyness = b.signal?.busyness0To100;
 

@@ -640,6 +640,7 @@ export function ExplorePageClient() {
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[] | null>(null);
+  const [isFetchingVenues, setIsFetchingVenues] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [searchQuery, setSearchQuery] = useState("");
@@ -651,25 +652,43 @@ export function ExplorePageClient() {
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
+  const hasLoadedVenuesRef = useRef(false);
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
 
-  const fetchVenues = useCallback(async ({ reset = false }: { reset?: boolean } = {}) => {
+  const fetchVenues = useCallback(async ({
+    reset = false,
+    searchTerm = "",
+    signal,
+  }: {
+    reset?: boolean;
+    searchTerm?: string;
+    signal?: AbortSignal;
+  } = {}) => {
     if (reset) setVenues(null);
+    setIsFetchingVenues(true);
     setError(null);
     try {
-      const res = await fetch("/api/venues");
+      const params = new URLSearchParams();
+      const trimmedSearchTerm = searchTerm.trim();
+      if (trimmedSearchTerm) params.set("q", trimmedSearchTerm);
+      const url = params.size ? `/api/venues?${params.toString()}` : "/api/venues";
+      const res = await fetch(url, { signal });
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
       setVenues(json?.data?.venues ?? []);
+      hasLoadedVenuesRef.current = true;
     } catch {
+      if (signal?.aborted) return;
       setError("📡 Can't reach the server. Pull to refresh.");
+    } finally {
+      if (!signal?.aborted) setIsFetchingVenues(false);
     }
   }, []);
 
   const refreshVenues = useCallback(async () => {
-    await fetchVenues();
-  }, [fetchVenues]);
+    await fetchVenues({ searchTerm: debouncedSearchQuery });
+  }, [debouncedSearchQuery, fetchVenues]);
 
   const fetchActivity = useCallback(async () => {
     try {
@@ -685,10 +704,6 @@ export function ExplorePageClient() {
   }, []);
 
   const { pulling, refreshing } = usePullToRefresh(refreshVenues);
-
-  useEffect(() => {
-    fetchVenues({ reset: true });
-  }, [fetchVenues]);
 
   useEffect(() => {
     void fetchActivity();
@@ -764,6 +779,16 @@ export function ExplorePageClient() {
   }, [searchQuery]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    void fetchVenues({
+      reset: !hasLoadedVenuesRef.current,
+      searchTerm: debouncedSearchQuery,
+      signal: controller.signal,
+    });
+    return () => controller.abort();
+  }, [debouncedSearchQuery, fetchVenues]);
+
+  useEffect(() => {
     const client = createBrowserClient();
 
     client.auth.getSession()
@@ -783,19 +808,16 @@ export function ExplorePageClient() {
 
   const sortedVenues = useMemo(() => {
     if (venues === null) return [];
-    const normalizedSearch = normalizeSearchText(debouncedSearchQuery.trim());
 
     return venues.filter((venue) => {
       if (venue.hidden) return false;
 
       const busyness = getBusynessFilterValue(venue.signal?.busyness0To100);
       const category = normalizeCategory(venue.category, venue.name);
-      const searchableText = normalizeSearchText(venue.name);
-      const matchesSearch = normalizedSearch.length === 0 || searchableText.includes(normalizedSearch);
       const matchesBusyness = busynessFilter === "All" || busyness === busynessFilter;
       const matchesCategory = categoryFilter === "All" || category === categoryFilter;
       const matchesNeighborhood = neighborhoodFilter === "All Areas" || venue.neighborhood === neighborhoodFilter;
-      return matchesSearch && matchesBusyness && matchesCategory && matchesNeighborhood;
+      return matchesBusyness && matchesCategory && matchesNeighborhood;
     }).sort((a, b) => {
       if (sortOption === "A-Z") {
         return a.name.localeCompare(b.name);
@@ -814,7 +836,7 @@ export function ExplorePageClient() {
 
       return busynessDelta || a.name.localeCompare(b.name);
     });
-  }, [busynessFilter, categoryFilter, debouncedSearchQuery, neighborhoodFilter, sortOption, venues]);
+  }, [busynessFilter, categoryFilter, neighborhoodFilter, sortOption, venues]);
 
   const hottestVenues = useMemo(() => {
     if (venues === null) return [];
@@ -857,12 +879,13 @@ export function ExplorePageClient() {
     neighborhoodFilter !== "All Areas" ||
     sortOption !== "Busiest first";
   const trimmedSearchQuery = debouncedSearchQuery.trim();
+  const isSearchingVenues = isFetchingVenues && trimmedSearchQuery.length > 0;
   const noResultsTitle = trimmedSearchQuery
-    ? `No matches for '${trimmedSearchQuery}'. Try a different name.`
+    ? `No venues found for "${trimmedSearchQuery}"`
     : "No venues match your filters";
   const noResultsDetail = hasActiveFilters
     ? "Clear filters or choose another crowd level or category."
-    : "Try a different venue name.";
+    : "Try a different venue, category, or vibe.";
   function clearFilters() {
     setSearchQuery("");
     setBusynessFilter("All");
@@ -1076,26 +1099,40 @@ export function ExplorePageClient() {
           </div>
         )}
 
-        {venues === null && !error && (
-          <div role="status" aria-label="Loading venues">
-            <p className="sr-only">Loading venues...</p>
+        {(venues === null || isSearchingVenues) && !error && (
+          <div role="status" aria-label={isSearchingVenues ? "Searching venues" : "Loading venues"}>
+            <p className="mb-3 text-sm font-semibold text-white/55">
+              {isSearchingVenues ? "Searching..." : "Loading venues..."}
+            </p>
             {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
           </div>
         )}
 
-        {venues !== null && !error && venues.length === 0 && (
+        {venues !== null && !error && !isSearchingVenues && venues.length === 0 && (
           <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
-            <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">No venues in this area yet. Check back soon.</h2>
-            <Link
-              href="/map"
-              className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-            >
-              View map
-            </Link>
+            <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
+              {trimmedSearchQuery ? `No venues found for "${trimmedSearchQuery}"` : "No venues in this area yet. Check back soon."}
+            </h2>
+            {trimmedSearchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                Clear search
+              </button>
+            ) : (
+              <Link
+                href="/map"
+                className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                View map
+              </Link>
+            )}
           </div>
         )}
 
-        {venues !== null && !error && venues.length > 0 && sortedVenues.length === 0 && (
+        {venues !== null && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
             <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
               {noResultsTitle}
@@ -1103,15 +1140,15 @@ export function ExplorePageClient() {
             <p className="mt-2 text-sm font-semibold leading-5 text-[#9CA2AE]">{noResultsDetail}</p>
             <button
               type="button"
-              onClick={clearFilters}
+              onClick={trimmedSearchQuery && !hasActiveFilters ? () => setSearchQuery("") : clearFilters}
               className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
-              Clear filters
+              {trimmedSearchQuery && !hasActiveFilters ? "Clear search" : "Clear filters"}
             </button>
           </div>
         )}
 
-        {venues !== null && !error && sortedVenues.length > 0 && (
+        {venues !== null && !error && !isSearchingVenues && sortedVenues.length > 0 && (
           <div className="pr-1">
             <ul>
               {sortedVenues.map((venue, index) => (

@@ -1,0 +1,118 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+
+const mockFrom = vi.fn();
+const mockRpc = vi.fn();
+
+vi.mock("@/lib/supabase", () => ({
+  supabaseAdmin: {
+    from: mockFrom,
+    rpc: mockRpc,
+  },
+}));
+
+function chain(resolved: { data?: unknown; error?: unknown }) {
+  const promise = Promise.resolve({
+    data: resolved.data ?? null,
+    error: resolved.error ?? null,
+  });
+  const builder = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    ilike: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    then: promise.then.bind(promise),
+    catch: promise.catch.bind(promise),
+  };
+  return builder;
+}
+
+function venue(id: string, name: string) {
+  return {
+    id,
+    place_id: `place-${id}`,
+    zone_id: "south-end-charlotte",
+    name,
+    address: "South End",
+    lat: 35.2123,
+    lng: -80.859,
+    category: "bar",
+    hidden: false,
+    open_now: true,
+    venue_signals: [
+      {
+        venue_id: id,
+        place_id: `place-${id}`,
+        busyness_0_100: null,
+        busyness_source: null,
+        mf_ratio: null,
+        confidence_0_1: 0,
+        sample_size: 0,
+        computed_at: "2026-06-20T20:00:00.000Z",
+        last_busyness_refresh: null,
+      },
+    ],
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.resetModules();
+});
+
+describe("GET /api/venues search", () => {
+  it("uses ranked Postgres full-text search ids when q is present", async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [
+        { id: "venue-b", search_rank: 0.8 },
+        { id: "venue-a", search_rank: 0.4 },
+      ],
+      error: null,
+    });
+    const query = chain({ data: [venue("venue-a", "Alpha"), venue("venue-b", "Beta")] });
+    mockFrom.mockReturnValueOnce(query);
+
+    const { GET } = await import("../venues/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues?q=rooftop"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
+      search_query: "rooftop",
+      search_zone_id: "south-end-charlotte",
+      search_category: null,
+      center_lat: null,
+      center_lng: null,
+      radius_m: null,
+      max_results: 100,
+    });
+    expect(query.in).toHaveBeenCalledWith("id", ["venue-b", "venue-a"]);
+    expect(query.order).not.toHaveBeenCalled();
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-b", "venue-a"]);
+  });
+
+  it("applies category and radius filters to the ranked search rpc", async () => {
+    mockRpc.mockResolvedValueOnce({ data: [], error: null });
+
+    const { GET } = await import("../venues/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/venues?q=lounge&category=bar&lat=35.21&lng=-80.86&radius=500")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
+      search_query: "lounge",
+      search_zone_id: "south-end-charlotte",
+      search_category: "bar",
+      center_lat: 35.21,
+      center_lng: -80.86,
+      radius_m: 500,
+      max_results: 100,
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
+    expect(json.data.venues).toEqual([]);
+  });
+});
