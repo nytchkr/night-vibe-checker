@@ -43,7 +43,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<DeleteAccount
     const { error: deleteUserError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (deleteUserError) return errorResponse("Could not delete account.", 500);
 
-    return NextResponse.json({ data: { success: true }, success: true });
+    return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof MissingSupabaseEnvError) {
       return errorResponse("Account deletion is not configured.", 503);
