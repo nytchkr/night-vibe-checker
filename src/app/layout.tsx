@@ -10,9 +10,9 @@ import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import "./globals.css";
 
 const siteUrl = "https://night-vibe-checker.vercel.app";
-const title = "nytchkr — Know the vibe before you go";
+const title = "NightVibe — South End Charlotte";
 const description =
-  "Real-time bar and nightlife crowd tracker for Charlotte. See how packed a venue is and the male/female split before you go.";
+  "See which bars and clubs are poppin right now in South End Charlotte. Live busyness, crowd vibe, M/F ratio.";
 const themeColor = "#8B6CFF";
 const canonicalUrl = "https://night-vibe-checker.vercel.app";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
@@ -76,6 +76,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
   themeColor,
 };
