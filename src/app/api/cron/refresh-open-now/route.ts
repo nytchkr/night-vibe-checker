@@ -1,26 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-
-type VenueRow = {
-  id: string;
-  place_id: string | null;
-};
-
-type RefreshError = {
-  venueId: string;
-  placeId?: string;
-  error: string;
-};
-
-type GooglePlaceDetailsResponse = {
-  status?: string;
-  error_message?: string;
-  result?: {
-    opening_hours?: {
-      open_now?: boolean;
-    };
-  };
-};
+import { refreshOpenNow } from "@/lib/openNow";
 
 function isAuthorized(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -28,93 +7,27 @@ function isAuthorized(req: NextRequest) {
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
-async function fetchOpenNow(placeId: string, googlePlacesKey: string) {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
-  url.searchParams.set("place_id", placeId);
-  url.searchParams.set("fields", "opening_hours");
-  url.searchParams.set("key", googlePlacesKey);
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Google Places HTTP ${response.status}`);
-  }
-
-  const payload = (await response.json()) as GooglePlaceDetailsResponse;
-  if (payload.status && payload.status !== "OK") {
-    throw new Error(payload.error_message ?? `Google Places status ${payload.status}`);
-  }
-
-  return payload.result?.opening_hours?.open_now ?? null;
-}
-
-async function refreshOpenNowFromGoogle(req: NextRequest) {
+async function refreshOpenNowFromCachedHours(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const googlePlacesKey = process.env.GOOGLE_PLACES_API_KEY ?? process.env.GOOGLE_PLACES_KEY;
-  if (!googlePlacesKey) {
+  try {
+    const data = await refreshOpenNow();
+    return NextResponse.json({ status: "success", data });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : JSON.stringify(err);
     return NextResponse.json(
-      { error: "Missing GOOGLE_PLACES_API_KEY server environment variable." },
+      { status: "error", error: { code: "REFRESH_OPEN_NOW_FAILED", message } },
       { status: 500 }
     );
   }
-
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, place_id")
-    .eq("hidden", false)
-    .order("id", { ascending: true });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const errors: RefreshError[] = [];
-  const updates: Array<{ id: string; open_now: boolean | null }> = [];
-
-  for (const venue of (data ?? []) as VenueRow[]) {
-    if (!venue.place_id) {
-      errors.push({ venueId: venue.id, error: "Missing place_id" });
-      continue;
-    }
-
-    try {
-      const openNow = await fetchOpenNow(venue.place_id, googlePlacesKey);
-      updates.push({ id: venue.id, open_now: openNow });
-    } catch (err) {
-      errors.push({
-        venueId: venue.id,
-        placeId: venue.place_id,
-        error: err instanceof Error ? err.message : "Unknown Google Places error",
-      });
-    }
-  }
-
-  let refreshed = 0;
-  if (updates.length) {
-    for (const update of updates) {
-      const { error: updateError } = await supabaseAdmin
-        .from("venues")
-        .update({ open_now: update.open_now })
-        .eq("id", update.id);
-
-      if (updateError) {
-        errors.push({ venueId: update.id, error: updateError.message });
-        continue;
-      }
-
-      refreshed += 1;
-    }
-  }
-
-  return NextResponse.json({ refreshed, errors });
 }
 
 export async function GET(req: NextRequest) {
-  return refreshOpenNowFromGoogle(req);
+  return refreshOpenNowFromCachedHours(req);
 }
 
 export async function POST(req: NextRequest) {
-  return refreshOpenNowFromGoogle(req);
+  return refreshOpenNowFromCachedHours(req);
 }

@@ -55,8 +55,13 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
 }
 
 function mapOpeningHours(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const hours = value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  const rawHours =
+    value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekdayDescriptions?: unknown }).weekdayDescriptions)
+      ? (value as { weekdayDescriptions: unknown[] }).weekdayDescriptions
+      : value;
+
+  if (!Array.isArray(rawHours)) return undefined;
+  const hours = rawHours.filter((item): item is string => typeof item === "string" && item.length > 0);
   return hours.length ? hours : undefined;
 }
 
