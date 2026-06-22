@@ -162,7 +162,7 @@ function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | n
   const pulse = hasLivePinPulse(venue);
 
   return L.divIcon({
-    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="background:${color};"></span>`,
+    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="--venue-pin-color:${color}; background:${color};"></span>`,
     className: `venue-cluster-pin${isSelected ? " venue-cluster-pin-selected" : ""}`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -1124,40 +1124,43 @@ export function VenueMap({
         }
 
         .venue-pin-live-dot {
-          box-shadow: 0 0 0 3px rgba(255, 91, 106, 0.22), 0 0 14px rgba(255, 176, 32, 0.3);
           display: block;
+          isolation: isolate;
           position: relative;
         }
 
-        .venue-pin-live-dot::after {
-          animation: venue-pin-live-source-pulse 1.65s ease-out infinite;
-          border: 2px solid rgba(255, 91, 106, 0.62);
+        .venue-pin-live-dot::before {
+          animation: livePin 2s ease-out infinite;
+          background: transparent;
+          border: 2px solid var(--venue-pin-color);
           border-radius: inherit;
-          box-shadow: 0 0 16px rgba(255, 176, 32, 0.34);
           content: "";
-          inset: -6px;
+          inset: 0;
+          opacity: 0.7;
           position: absolute;
+          transform-origin: center;
+          z-index: -1;
         }
 
-        @keyframes venue-pin-live-source-pulse {
+        @keyframes livePin {
           0% {
-            opacity: 0.72;
-            transform: scale(0.82);
+            opacity: 0.7;
+            transform: scale(1);
           }
 
           70% {
             opacity: 0;
-            transform: scale(1.55);
+            transform: scale(2.4);
           }
 
           100% {
             opacity: 0;
-            transform: scale(1.55);
+            transform: scale(1);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .venue-pin-live-dot::after {
+          .venue-pin-live-dot::before {
             animation: none !important;
           }
         }
