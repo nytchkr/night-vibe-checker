@@ -104,7 +104,7 @@ function SignalPreview({ signal }: { signal: VenueSignal | null }) {
   }
 
   const busynessPercent = signal.busyness0To100 == null ? null : clampPercent(signal.busyness0To100);
-  const malePercent = signal.mfRatio == null ? null : clampPercent(signal.mfRatio);
+  const malePercent = signal.sampleSize >= 3 && signal.mfRatio != null ? clampPercent(signal.mfRatio) : null;
   const femalePercent = malePercent == null ? null : 100 - malePercent;
 
   return (
@@ -144,12 +144,12 @@ function SignalPreview({ signal }: { signal: VenueSignal | null }) {
         ) : (
           <>
             <p className="mt-2 text-sm font-semibold">
-              <span style={{ color: "#4F9DFF" }}>~{malePercent}% M</span>
+              <span style={{ color: "#8B6CFF" }}>~{malePercent}% M</span>
               <span className="text-white/35"> / </span>
               <span style={{ color: "#F0568C" }}>~{femalePercent}% F</span>
             </p>
             <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-white/15" aria-hidden="true">
-              <div className="h-full bg-[#4F9DFF]" style={{ width: `${malePercent}%` }} />
+              <div className="h-full bg-[#8B6CFF]" style={{ width: `${malePercent}%` }} />
               <div className="h-full bg-[#F0568C]" style={{ width: `${femalePercent}%` }} />
             </div>
           </>

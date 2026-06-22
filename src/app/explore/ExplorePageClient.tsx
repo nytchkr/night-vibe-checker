@@ -415,18 +415,19 @@ function BusynessChip({
   );
 }
 
-function MiniMFRatioBar({ malePercent, femalePercent }: { malePercent: number; femalePercent: number }) {
+function MFRatioPill({ malePercent, femalePercent }: { malePercent: number; femalePercent: number }) {
+  const isMaleLeaning = malePercent >= femalePercent;
+  const percent = isMaleLeaning ? malePercent : femalePercent;
+  const label = isMaleLeaning ? "M" : "F";
+  const color = isMaleLeaning ? "#8B6CFF" : "#F0568C";
+
   return (
-    <span className="inline-flex items-center gap-1.5" aria-label={`${malePercent}% male, ${femalePercent}% female`}>
-      <span className="flex h-1.5 w-12 overflow-hidden rounded-full bg-white/[0.08]">
-        <span className="h-full bg-[#4F9DFF]" style={{ width: `${malePercent}%` }} />
-        <span className="h-full bg-[#F0568C]" style={{ width: `${femalePercent}%` }} />
-      </span>
-      <span className="text-[11px] font-bold text-white/50">
-        <span className="text-[#4F9DFF]">{malePercent}M</span>
-        <span className="mx-1 text-white/30">·</span>
-        <span className="text-[#F0568C]">{femalePercent}F</span>
-      </span>
+    <span
+      className="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-black"
+      style={{ borderColor: `${color}55`, backgroundColor: `${color}1A`, color }}
+      aria-label={`${malePercent}% male, ${femalePercent}% female`}
+    >
+      {percent}% {label}
     </span>
   );
 }
@@ -523,7 +524,7 @@ function VenueFeedCard({
   const hasMfReading =
     signal?.mfRatio !== null &&
     signal?.mfRatio !== undefined &&
-    signal.confidence0To1 >= 0.4;
+    signal.sampleSize >= 3;
   const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
 
   return (
@@ -595,10 +596,8 @@ function VenueFeedCard({
             </span>
             <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
               {mfPercents ? (
-                <MiniMFRatioBar malePercent={mfPercents.male} femalePercent={mfPercents.female} />
-              ) : (
-                <span className="text-[11px] font-semibold text-[#9CA2AE]">No vibe reads yet</span>
-              )}
+                <MFRatioPill malePercent={mfPercents.male} femalePercent={mfPercents.female} />
+              ) : null}
               {hasBusyness ? <SignalFreshnessLabel signal={signal} /> : null}
             </div>
           </div>

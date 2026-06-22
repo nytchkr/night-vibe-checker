@@ -83,7 +83,7 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
 function MfRatioChip({ venue }: { venue: ConsumerVenue }) {
   const signal = venue.signal;
   const sampleSize = signal?.sampleSize ?? 0;
-  const percents = sampleSize >= 2 ? getMFRatioPercents(signal?.mfRatio) : null;
+  const percents = sampleSize >= 3 ? getMFRatioPercents(signal?.mfRatio) : null;
 
   if (!percents) return null;
 

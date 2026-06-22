@@ -142,16 +142,16 @@ function SourceChip({ source }: { source: BusynessSource | null | undefined }) {
 
 function MiniMFRatio({ venue }: { venue: ConsumerVenue }) {
   const sampleSize = venue.signal?.sampleSize ?? 0;
-  const percents = sampleSize >= 2 ? getMFRatioPercents(venue.signal?.mfRatio) : null;
+  const percents = sampleSize >= 3 ? getMFRatioPercents(venue.signal?.mfRatio) : null;
 
   if (!percents) {
-    return <p className="text-[12px] font-semibold text-[#9CA2AE]">No vibe reads yet</p>;
+    return null;
   }
 
   return (
     <div className="flex min-w-0 items-center gap-2" role="img" aria-label={`${percents.male}% male, ${percents.female}% female`}>
       <div className="flex h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
-        <span className="h-full bg-[#4F9DFF]" style={{ width: `${percents.male}%` }} />
+        <span className="h-full bg-[#8B6CFF]" style={{ width: `${percents.male}%` }} />
         <span className="h-full bg-[#F0568C]" style={{ width: `${percents.female}%` }} />
       </div>
       <span className="truncate text-[12px] font-semibold text-white/58">

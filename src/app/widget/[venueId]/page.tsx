@@ -30,7 +30,7 @@ function barColor(value: number | null | undefined): string {
 function crowdFeel(venue: ConsumerVenue): { label: string; icon: string } {
   const signal = venue.signal;
   const mfRatio = signal?.mfRatio;
-  if (mfRatio == null || (signal?.sampleSize ?? 0) < 2) return { label: "No live reads yet", icon: "👥" };
+  if (mfRatio == null || (signal?.sampleSize ?? 0) < 3) return { label: "No live reads yet", icon: "👥" };
   if (mfRatio >= 60) return { label: "More guys", icon: "🕺" };
   if (mfRatio <= 40) return { label: "More women", icon: "💃" };
   return { label: "Mixed", icon: "👥" };

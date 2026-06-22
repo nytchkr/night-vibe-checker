@@ -75,6 +75,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     : sig != null
       ? (sig as Record<string, unknown>)
       : undefined;
+  const signal = mapSignal(signalRow);
 
   return {
     id: row.id as string,
@@ -103,7 +104,9 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     openNow: row.open_now == null ? undefined : Boolean(row.open_now),
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
-    signal: mapSignal(signalRow),
+    signal,
+    mf_ratio: signal?.mfRatio ?? null,
+    mf_sample_size: signal?.sampleSize ?? 0,
   };
 }
 

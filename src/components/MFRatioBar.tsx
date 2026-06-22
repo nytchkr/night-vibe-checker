@@ -15,7 +15,7 @@ interface MFRatioBarProps {
   className?: string;
 }
 
-export const MIN_SAMPLE_SIZE_FOR_RATIO = 2;
+export const MIN_SAMPLE_SIZE_FOR_RATIO = 3;
 
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
@@ -23,7 +23,7 @@ function clampPercent(value: number): number {
 
 function formatRecentCheckInBasis(sampleSize: number | null | undefined): string {
   const count = Math.max(0, Math.round(sampleSize ?? 0));
-  return `Based on ${count} check-in${count === 1 ? "" : "s"} (last 2h)`;
+  return `From ${count} check-in${count === 1 ? "" : "s"}`;
 }
 
 export function getMFRatioPercents(mfRatio: number | null | undefined): { male: number; female: number } | null {
@@ -37,17 +37,7 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
   const hasData = percents !== null && (sampleSize ?? 0) >= MIN_SAMPLE_SIZE_FOR_RATIO;
 
   if (!hasData) {
-    return (
-      <div
-        className={cn("space-y-1.5", className)}
-        role="img"
-        aria-label="Male/female ratio: not enough data yet"
-      >
-        <p className={cn("font-semibold text-[#9CA2AE]", compact ? "text-[11px]" : "text-xs")}>
-          No vibe reads yet — be the first to report
-        </p>
-      </div>
-    );
+    return null;
   }
 
   const { male, female } = percents;
@@ -60,7 +50,7 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
     >
       <div className={cn("flex h-2 w-full overflow-hidden rounded-full bg-white/[0.08]", compact && "h-1.5")} aria-hidden="true">
         <div
-          className="h-full bg-[#4F9DFF]"
+          className="h-full bg-[#8B6CFF]"
           style={{ width: `${male}%` }}
         />
         <div
@@ -69,7 +59,7 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
         />
       </div>
       <p className={cn("font-semibold text-[#9CA2AE]", compact ? "text-[11px]" : "text-xs")}>
-        {male}% male · {female}% female
+        {male}% M · {female}% F
       </p>
       <p className={cn("font-semibold text-[#9CA2AE]", compact ? "text-[11px]" : "text-xs")}>
         {formatRecentCheckInBasis(sampleSize)}

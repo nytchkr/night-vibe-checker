@@ -5,7 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Clock, Globe, MapPin, Phone, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
@@ -270,11 +270,6 @@ function sourceLabel(signal: ConsumerVenue["signal"], fallbackUpdatedAt: string 
   if (signal.busynessSource === "live") return "via live venue data";
   const sampleSize = signal.sampleSize ?? 0;
   return `from ${sampleSize} check-ins · ${timeAgo(fallbackUpdatedAt)}`;
-}
-
-function mfEmptyMessage(sampleSize: number): string {
-  void sampleSize;
-  return "No live reads yet — be the first to report";
 }
 
 function getCrowdFeel(malePercent: number | null): { emoji: string; label: string } {
@@ -1083,8 +1078,7 @@ export function VenuePageClient({
   const busynessSource = signal?.busynessSource ?? null;
   const mfSampleSize = signal?.sampleSize ?? 0;
   const mfPercents = getMFRatioPercents(signal?.mfRatio);
-  const hasEnoughMfSample = mfSampleSize >= 2 && mfPercents !== null;
-  const mfEmptyStateMessage = mfEmptyMessage(mfSampleSize);
+  const hasEnoughMfSample = mfSampleSize >= 3 && mfPercents !== null;
   const crowdFeel = getCrowdFeel(hasEnoughMfSample ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
@@ -1318,24 +1312,16 @@ export function VenuePageClient({
                   )}
                 </div>
 
-                <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
-                  <span className="text-[11.5px] font-semibold text-[#646B79]">M/F ratio</span>
-                  {hasEnoughMfSample ? (
+                {hasEnoughMfSample ? (
+                  <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
+                    <span className="text-[11.5px] font-semibold text-[#646B79]">M/F ratio</span>
                     <MFRatioBar
                       mfRatio={signal?.mfRatio}
                       sampleSize={mfSampleSize}
                       className="mt-3"
                     />
-                  ) : (
-                    <div className="mt-3">
-                      <EmptySignalState
-                        compact
-                        icon={Users}
-                        message={mfEmptyStateMessage}
-                      />
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11.5px] font-semibold text-[#646B79]">Status</span>
@@ -1375,26 +1361,21 @@ export function VenuePageClient({
                   )}
                 </div>
 
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="text-sm font-black text-white">M/F ratio</span>
-                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45">
-                      <span aria-hidden="true">{crowdFeel.emoji}</span>
-                      {crowdFeel.label}
-                    </span>
-                  </div>
-                  {hasEnoughMfSample ? (
+                {hasEnoughMfSample ? (
+                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="text-sm font-black text-white">M/F ratio</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/45">
+                        <span aria-hidden="true">{crowdFeel.emoji}</span>
+                        {crowdFeel.label}
+                      </span>
+                    </div>
                     <MFRatioBar
                       mfRatio={signal?.mfRatio}
                       sampleSize={mfSampleSize}
                     />
-                  ) : (
-                    <EmptySignalState
-                      icon={Users}
-                      message={mfEmptyStateMessage}
-                    />
-                  )}
-                </div>
+                  </div>
+                ) : null}
 
                 <CheckInFeed checkIns={recentCheckIns} />
 

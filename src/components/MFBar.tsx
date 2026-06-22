@@ -4,7 +4,7 @@ import { useId } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 type MFBarSource = "live" | "forecast" | null;
-const MIN_SAMPLE_SIZE_FOR_RATIO = 2;
+const MIN_SAMPLE_SIZE_FOR_RATIO = 3;
 
 interface MFBarProps {
   malePercent: number | null;
@@ -45,7 +45,7 @@ export function MFBar({ malePercent, sampleSize, source, showWhenRatioPresent = 
       >
         <motion.div
           layoutId={`${layoutId}-male`}
-          className="h-full bg-[#4F9DFF]"
+          className="h-full bg-[#8B6CFF]"
           initial={prefersReducedMotion ? false : { width: "0%" }}
           animate={{ width: `${male}%` }}
           transition={{ duration: prefersReducedMotion ? 0 : 0.55, ease: "easeOut" }}

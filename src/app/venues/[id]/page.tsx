@@ -38,6 +38,7 @@ function getBusynessText(venue: ConsumerVenue): string {
 
 function getCrowdRatioText(venue: ConsumerVenue): string | null {
   const mfRatio = venue.signal?.mfRatio;
+  if ((venue.signal?.sampleSize ?? 0) < 3) return null;
   if (typeof mfRatio !== "number") return null;
 
   const malePercent = Math.min(100, Math.max(0, Math.round(mfRatio)));

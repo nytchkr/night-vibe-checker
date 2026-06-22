@@ -114,6 +114,8 @@ export interface ConsumerVenue {
   besttimeVenueId?: string;
   hidden: boolean;
   signal: VenueSignal | null;
+  mf_ratio?: number | null;
+  mf_sample_size?: number;
 }
 
 export interface ConsumerCheckIn {
