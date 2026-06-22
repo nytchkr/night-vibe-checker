@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import webpush from "web-push";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,7 @@ function getRequiredEnv(name: string): string {
 }
 
 function authorize(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  return Boolean(secret && req.headers.get("Authorization") === `Bearer ${secret}`);
+  return isAuthorizedCronRequest(req);
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {

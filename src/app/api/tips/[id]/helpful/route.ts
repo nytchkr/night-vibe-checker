@@ -7,9 +7,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getClientIp } from "@/lib/apiSecurity";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import type { APIResponse } from "@/types";
 
 const TipIdSchema = z.string().uuid();
+const HELPFUL_RATE_LIMIT_MAX = 10;
+const HELPFUL_RATE_LIMIT_WINDOW_MS = 60_000;
 
 type HelpfulTip = {
   id: string;
@@ -32,7 +36,7 @@ function missingSupabaseConfigResponse(
 }
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const requestId = uuidv4();
@@ -44,6 +48,16 @@ export async function POST(
     const response = missingSupabaseConfigResponse(error, responseMeta);
     if (response) return response;
     throw error;
+  }
+
+  const rate = checkRateLimit(`tip-helpful:POST:${getClientIp(req)}`, HELPFUL_RATE_LIMIT_MAX, HELPFUL_RATE_LIMIT_WINDOW_MS);
+  const headers = rateLimitHeaders(rate);
+  if (!rate.allowed) {
+    const retrySeconds = Math.ceil((rate.retryAfterMs ?? HELPFUL_RATE_LIMIT_WINDOW_MS) / 1000);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "RATE_LIMITED", message: "Too many helpful votes. Try again shortly." }, meta: responseMeta },
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } },
+    );
   }
 
   const { id: rawId } = await params;
@@ -82,5 +96,5 @@ export async function POST(
     status: "success",
     data: { tip },
     meta: responseMeta,
-  });
+  }, { headers });
 }

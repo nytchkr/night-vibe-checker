@@ -8,9 +8,13 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
+import { getClientIp } from "@/lib/apiSecurity";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import type { APIResponse } from "@/types";
 
 const TIP_LIMIT = 3;
+const TIP_POST_RATE_LIMIT_MAX = 5;
+const TIP_POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const TipBodySchema = z.object({
   tip: z.string().trim().min(10).max(200),
 });
@@ -144,6 +148,16 @@ export async function POST(
     throw error;
   }
 
+  const rate = checkRateLimit(`venue-tips:POST:${getClientIp(req)}`, TIP_POST_RATE_LIMIT_MAX, TIP_POST_RATE_LIMIT_WINDOW_MS);
+  const headers = rateLimitHeaders(rate);
+  if (!rate.allowed) {
+    const retrySeconds = Math.ceil((rate.retryAfterMs ?? TIP_POST_RATE_LIMIT_WINDOW_MS) / 1000);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "RATE_LIMITED", message: "Too many tips. Try again shortly." }, meta: responseMeta },
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } },
+    );
+  }
+
   const userId = await getBearerUserId(req.headers.get("Authorization"));
   if (!userId) {
     return NextResponse.json<APIResponse<never>>(
@@ -203,6 +217,6 @@ export async function POST(
 
   return NextResponse.json<APIResponse<{ tip: VenueTip }>>(
     { status: "success", data: { tip: mapTip(data as Record<string, unknown>) }, meta: responseMeta },
-    { status: 201 },
+    { status: 201, headers },
   );
 }

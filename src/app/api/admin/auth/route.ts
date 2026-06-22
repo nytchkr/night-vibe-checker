@@ -13,23 +13,9 @@ function setAdminCookie(response: NextResponse) {
   });
 }
 
-function safeNextPath(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/admin";
-  return value;
-}
-
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const password = url.searchParams.get("pw");
-  const next = safeNextPath(url.searchParams.get("next"));
-
-  if (!isValidAdminPassword(password)) {
-    return NextResponse.redirect(new URL("/admin?error=1", url.origin));
-  }
-
-  const response = NextResponse.redirect(new URL(next, url.origin));
-  setAdminCookie(response);
-  return response;
+  return NextResponse.redirect(new URL("/admin/login", url.origin), { status: 303 });
 }
 
 export async function POST(req: Request) {

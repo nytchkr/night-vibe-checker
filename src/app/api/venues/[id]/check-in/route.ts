@@ -9,9 +9,13 @@ import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { recomputeVenueSignal } from "@/lib/signals";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
+import { getClientIp } from "@/lib/apiSecurity";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import type { APIResponse, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const VIBE_NOTE_MAX_LENGTH = 500;
+const POST_RATE_LIMIT_MAX = 5;
+const POST_RATE_LIMIT_WINDOW_MS = 60_000;
 
 const CrowdFeelSchema = z.enum([
   "chill",
@@ -169,6 +173,16 @@ export async function POST(
     throw error;
   }
 
+  const rate = checkRateLimit(`venue-check-in:POST:${getClientIp(req)}`, POST_RATE_LIMIT_MAX, POST_RATE_LIMIT_WINDOW_MS);
+  const headers = rateLimitHeaders(rate);
+  if (!rate.allowed) {
+    const retrySeconds = Math.ceil((rate.retryAfterMs ?? POST_RATE_LIMIT_WINDOW_MS) / 1000);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "RATE_LIMITED", message: "Too many check-ins. Try again shortly." }, meta: responseMeta },
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } },
+    );
+  }
+
   const userId = await getBearerUserId(req.headers.get("Authorization"));
   if (!userId) {
     return NextResponse.json<APIResponse<never>>(
@@ -265,6 +279,6 @@ export async function POST(
 
   return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
     { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta: responseMeta },
-    { status: 200 },
+    { status: 200, headers },
   );
 }

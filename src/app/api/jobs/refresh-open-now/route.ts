@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshOpenNow } from "@/lib/openNow";
+import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 function isCronAuthorized(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  const cronSecret = req.headers.get("x-cron-secret");
-  return (
-    auth === `Bearer ${secret}` ||
-    cronSecret === secret ||
-    req.nextUrl.searchParams.get("secret") === secret
-  );
+  return isAuthorizedCronRequest(req);
 }
 
 export async function POST(req: NextRequest) {

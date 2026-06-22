@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshOpenNow } from "@/lib/openNow";
+import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 function isAuthorized(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return req.headers.get("authorization") === `Bearer ${secret}`;
+  return isAuthorizedCronRequest(req);
 }
 
 async function refreshOpenNowFromCachedHours(req: NextRequest) {

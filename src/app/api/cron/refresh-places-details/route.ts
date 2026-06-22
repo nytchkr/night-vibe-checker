@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshGooglePlacesDetailsForVenue, type PlaceDetailsVenueRow } from "@/lib/googlePlacesDetails";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 export const dynamic = "force-dynamic";
 
 function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  return Boolean(secret) && req.headers.get("authorization") === `Bearer ${secret}`;
+  return isAuthorizedCronRequest(req);
 }
 
 async function refreshPlacesDetails(req: NextRequest): Promise<NextResponse> {

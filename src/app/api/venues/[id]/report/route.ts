@@ -8,7 +8,12 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
+import { getClientIp } from "@/lib/apiSecurity";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import type { APIResponse } from "@/types";
+
+const REPORT_RATE_LIMIT_MAX = 5;
+const REPORT_RATE_LIMIT_WINDOW_MS = 60_000;
 
 const ReportBodySchema = z.object({
   reason: z.enum(["wrong_hours", "wrong_location", "permanently_closed", "duplicate", "other"]),
@@ -50,6 +55,16 @@ export async function POST(
     const response = missingSupabaseConfigResponse(error, responseMeta);
     if (response) return response;
     throw error;
+  }
+
+  const rate = checkRateLimit(`venue-report:POST:${getClientIp(req)}`, REPORT_RATE_LIMIT_MAX, REPORT_RATE_LIMIT_WINDOW_MS);
+  const headers = rateLimitHeaders(rate);
+  if (!rate.allowed) {
+    const retrySeconds = Math.ceil((rate.retryAfterMs ?? REPORT_RATE_LIMIT_WINDOW_MS) / 1000);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "RATE_LIMITED", message: "Too many reports. Try again shortly." }, meta: responseMeta },
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } },
+    );
   }
 
   const { id: rawId } = await params;
@@ -108,6 +123,6 @@ export async function POST(
 
   return NextResponse.json<APIResponse<{ report: typeof data }>>(
     { status: "success", data: { report: data }, meta: responseMeta },
-    { status: 201 },
+    { status: 201, headers },
   );
 }

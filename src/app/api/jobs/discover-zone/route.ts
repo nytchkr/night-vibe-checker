@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
 import { discoverZone, PlacesApiError } from "@/lib/places";
 import { supabaseAdmin } from "@/lib/supabase";
+import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 function isAuthorized(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return req.headers.get("authorization") === `Bearer ${secret}`;
+  return isAuthorizedCronRequest(req);
 }
 
 export async function POST(req: NextRequest) {

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshBusyness, refreshBusynessForVenue } from "@/lib/besttime";
 import { refreshOpenNow } from "@/lib/openNow";
+import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 function isCronAuthorized(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return req.headers.get("authorization") === `Bearer ${secret}`;
+  return isAuthorizedCronRequest(req);
 }
 
 export async function POST(req: NextRequest) {
