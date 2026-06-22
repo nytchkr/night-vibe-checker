@@ -252,7 +252,7 @@ function sourceLabel(signal: ConsumerVenue["signal"], fallbackUpdatedAt: string 
 
 function mfEmptyMessage(sampleSize: number): string {
   void sampleSize;
-  return "No vibe reads yet — be the first to report";
+  return "No live reads yet — be the first to report";
 }
 
 function getCrowdFeel(malePercent: number | null): { emoji: string; label: string } {
@@ -917,6 +917,15 @@ export function VenuePageClient({
                     </span>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() => void openVibeReport()}
+                  disabled={!authChecked}
+                  aria-label="Report the vibe"
+                  className="mt-5 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
+                >
+                  Report the vibe
+                </button>
                 <section className="mt-4" role="region" aria-label="Venue hours">
                   <button
                     type="button"
@@ -1082,7 +1091,7 @@ export function VenuePageClient({
                   onClick={() => void openVibeReport()}
                   disabled={!authChecked}
                   aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
-                  className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-2xl px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                  className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
                     checkInConfirmed
                       ? "bg-[#101017] text-[#F4F5F8] hover:bg-[#101017]"
                       : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
