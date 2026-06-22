@@ -6,10 +6,15 @@
       "path": "/api/cron/refresh-open-now",
       "schedule": "0 2 * * *"
     },
-    {
-      "path": "/api/cron/refresh-busyness",
-      "schedule": "0 22 * * *"
-    },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 21 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 22 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 23 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 1 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 4 * * *" },
+    { "path": "/api/cron/refresh-busyness", "schedule": "0 5 * * *" },
     {
       "path": "/api/jobs/discover-zone",
       "schedule": "0 18 * * *"
