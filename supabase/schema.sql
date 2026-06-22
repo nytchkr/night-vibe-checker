@@ -53,7 +53,7 @@ create table if not exists public.venues (
   busyness_pct   integer check (busyness_pct between 0 and 100),
   crowd_feel     text check (crowd_feel in ('male','female','balanced')),
   busyness_0_100  integer check (busyness_0_100 between 0 and 100),
-  busyness_source text check (busyness_source in ('live','forecast','crowd')),
+  busyness_source text check (busyness_source in ('live','forecast','crowd','unavailable')),
   last_busyness_refresh timestamptz,
   website         text,
   phone_number    text,
@@ -86,7 +86,7 @@ alter table public.venues add column if not exists besttime_venue_id text;
 alter table public.venues add column if not exists busyness_pct integer check (busyness_pct between 0 and 100);
 alter table public.venues add column if not exists crowd_feel text check (crowd_feel in ('male','female','balanced'));
 alter table public.venues add column if not exists busyness_0_100 integer check (busyness_0_100 between 0 and 100);
-alter table public.venues add column if not exists busyness_source text check (busyness_source in ('live','forecast','crowd'));
+alter table public.venues add column if not exists busyness_source text check (busyness_source in ('live','forecast','crowd','unavailable'));
 alter table public.venues add column if not exists last_busyness_refresh timestamptz;
 alter table public.venues add column if not exists rating numeric(3,1);
 alter table public.venues add column if not exists user_rating_count integer;
@@ -204,7 +204,7 @@ create table if not exists public.venue_signals (
   venue_id              uuid primary key references public.venues(id) on delete cascade,
   place_id              text not null unique,
   busyness_0_100        integer check (busyness_0_100 between 0 and 100),
-  busyness_source       text check (busyness_source in ('live','forecast','crowd')),
+  busyness_source       text check (busyness_source in ('live','forecast','crowd','unavailable')),
   mf_ratio              integer check (mf_ratio between 0 and 100),
   confidence_0_1        numeric(5,4) not null default 0 check (confidence_0_1 between 0 and 1),
   sample_size           numeric(8,2) not null default 0,

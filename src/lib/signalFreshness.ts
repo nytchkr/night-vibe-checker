@@ -19,6 +19,8 @@ function getAgeMs(timestampValue: string | null | undefined): number | null {
 export function getSignalLabel(signal: SignalFreshnessInput): "live" | "forecast" | null {
   if (!signal?.busynessSource) return null;
 
+  if (signal.busynessSource === "unavailable") return null;
+
   if (signal.busynessSource === "forecast") return "forecast";
 
   const ageMs = getAgeMs(signal.computedAt);

@@ -70,7 +70,7 @@ export type CrowdFeel =
   | "mostly_male"
   | "mostly_female"
   | "balanced";
-export type BusynessSource = "live" | "forecast" | "crowd";
+export type BusynessSource = "live" | "forecast" | "crowd" | "unavailable";
 
 export interface VenueSignal {
   venueId: string;

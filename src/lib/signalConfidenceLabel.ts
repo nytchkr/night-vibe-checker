@@ -5,6 +5,10 @@ export function formatSignalConfidenceLabel(signal: Pick<VenueSignal, "busynessS
     return "BestTime forecast";
   }
 
+  if (signal.busynessSource === "unavailable") {
+    return "No live crowd source available";
+  }
+
   if (signal.busynessSource === "live" && signal.sampleSize <= 0) {
     return "Live venue data";
   }

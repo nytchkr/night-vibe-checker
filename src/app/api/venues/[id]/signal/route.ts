@@ -17,7 +17,7 @@ import type { APIResponse } from "@/types";
 export interface VenueSignalResponse {
   venueId: string;
   busyness: number | null;
-  busynessSource: "live" | "forecast" | "crowd" | null;
+  busynessSource: "live" | "forecast" | "crowd" | "unavailable" | null;
   mfRatio: number | null;
   confidence: number;
   sampleSize: number;

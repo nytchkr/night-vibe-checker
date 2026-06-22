@@ -8,6 +8,10 @@ describe("formatSignalConfidenceLabel", () => {
     expect(formatSignalConfidenceLabel(null)).toBe("BestTime forecast");
   });
 
+  it("labels unavailable live data", () => {
+    expect(formatSignalConfidenceLabel({ busynessSource: "unavailable", sampleSize: 0 })).toBe("No live crowd source available");
+  });
+
   it("labels small crowd samples as early data", () => {
     expect(formatSignalConfidenceLabel({ busynessSource: "crowd", sampleSize: 1 })).toBe("Early data (1 check-in)");
     expect(formatSignalConfidenceLabel({ busynessSource: "crowd", sampleSize: 4 })).toBe("Early data (4 check-ins)");

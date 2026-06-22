@@ -9,7 +9,7 @@ export type { ConsumerCheckIn, CrowdFeel, ReportedBusyness };
 export interface CheckInSummary {
   venueId: string;
   busyness0To100: number | null;
-  busynessSource: "live" | "forecast" | "crowd" | null;
+  busynessSource: "live" | "forecast" | "crowd" | "unavailable" | null;
   mfRatio: number | null;
   confidence0To1: number;
   sampleSize: number;

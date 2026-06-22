@@ -30,6 +30,7 @@ describe("signal freshness", () => {
     expect(getSignalLabel({ busynessSource: "forecast", computedAt: minutesAgo(10) })).toBe("forecast");
     expect(getSignalLabel(null)).toBeNull();
     expect(getSignalLabel({ busynessSource: null, computedAt: minutesAgo(10) })).toBeNull();
+    expect(getSignalLabel({ busynessSource: "unavailable", computedAt: minutesAgo(10) })).toBeNull();
   });
 
   it("formats signal age in minutes and hours", () => {
