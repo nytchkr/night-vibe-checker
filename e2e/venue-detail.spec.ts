@@ -7,8 +7,12 @@ type TestVenue = {
   placeId: string;
   name: string;
   address: string;
+  photoUrl?: string;
+  photoUrls?: string[];
+  besttimeVenueId?: string;
   signal: {
     busyness0To100: number | null;
+    busynessSource?: "live" | "forecast" | "crowd" | null;
     mfRatio: number | null;
   } | null;
 };
@@ -91,7 +95,7 @@ test.describe("NV-TEST-004 venue detail", () => {
 
     await page.goto("/explore");
     await page.waitForLoadState("domcontentloaded");
-    await page.getByRole("link", { name: `Open ${venue.name}` }).click();
+    await page.getByRole("link", { name: `Open ${venue.name}`, exact: true }).click();
 
     await expect(page).toHaveURL(`/venues/${venue.id}`);
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible();
@@ -108,6 +112,7 @@ test.describe("NV-TEST-004 venue detail", () => {
     await expect(page.getByText(/Right now|Capacity/i).first()).toBeVisible();
     // M/F split row: shows percent breakdown or the empty "No reads yet" state.
     await expect(page.getByText(/No reads yet|% M|% ·|check-ins/i).first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "BestTime forecast" })).toBeVisible();
   });
 
   test("venue detail page exposes the share button without invoking share", async ({ page, request }) => {
@@ -128,23 +133,23 @@ test.describe("NV-TEST-004 venue detail", () => {
     await expect(directions).toHaveAttribute("href", /google\.com\/maps/);
   });
 
-  test("venue detail page keeps the redesigned sticky report action", async ({ page, request }) => {
+  test("venue detail page keeps a gated report-vibe action", async ({ page, request }) => {
     const venue = await getTestVenue(request);
 
     await page.goto(`/venues/${venue.id}`);
 
-    const reportAction = page.getByRole("link", { name: /Check In|Report Vibe/i });
+    const reportAction = page.getByRole("link", { name: /Sign in to report the vibe/i }).first();
     await expect(reportAction).toBeVisible();
-    await expect(reportAction).toHaveAttribute("href", new RegExp(`/vibe-check\\?.*venueId=${venue.id}`));
+    await expect(reportAction).toHaveAttribute("href", /\/login\?return=/);
   });
 
-  test("unauthenticated heart button links to login", async ({ page, request }) => {
+  test("unauthenticated save button is visible and tappable", async ({ page, request }) => {
     const venue = await getTestVenue(request);
 
     await page.goto(`/venues/${venue.id}`);
 
-    const saveLink = page.getByRole("link", { name: "Save venue" });
-    await expect(saveLink).toBeVisible();
-    await expect(saveLink).toHaveAttribute("href", /\/login/);
+    const saveButton = page.getByRole("button", { name: "Save venue" });
+    await expect(saveButton).toBeVisible();
+    await expect(saveButton).toHaveAttribute("aria-pressed", "false");
   });
 });

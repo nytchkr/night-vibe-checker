@@ -9,6 +9,16 @@ type VenueRow = {
 };
 
 export type RefreshResult = { venueId: string; ok: boolean; reason?: string };
+export type BestTimeHourlyForecast = {
+  hour: number;
+  busyness: number;
+};
+export type BestTimeDayForecast = {
+  venueId: string;
+  dayInt: number | null;
+  updatedOn: string | null;
+  hours: BestTimeHourlyForecast[];
+};
 type BusynessSource = "live" | "forecast";
 type BestTimeRegistration = { venueId: string; currentForecast: number | null };
 const NO_BESTTIME_FORECAST_REASON = "No BestTime forecast available";
@@ -30,6 +40,10 @@ function readNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+function clampForecastScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function currentLocalDayAndHour(timeZone: string): { dayInt: number; hour: number } | null {
@@ -129,7 +143,7 @@ export function busynessLabel(score: number): "dead" | "moderate" | "packed" {
 }
 
 export function busynessScoreForStorage(score: number): number {
-  return Math.max(0, Math.min(100, Math.round(score)));
+  return clampForecastScore(score);
 }
 
 export function isBestTimeForecastUnavailable(message: string): boolean {
@@ -223,6 +237,42 @@ export async function refreshBusynessForVenue(venueId: string): Promise<RefreshR
 
   const [result] = await refreshVenueRows([venue as VenueRow]);
   return result ?? { venueId, ok: false, reason: "Venue refresh did not return a result." };
+}
+
+export async function fetchBestTimeDayRawForecast(besttimeVenueId: string): Promise<BestTimeDayForecast> {
+  const venueId = besttimeVenueId.trim();
+  if (!venueId) throw new Error("BestTime venue id is required.");
+
+  const params = new URLSearchParams({
+    api_key_public: apiKey(),
+    venue_id: venueId,
+  });
+  const res = await fetch(`https://besttime.app/api/v1/forecasts/day/raw?${params}`, {
+    cache: "no-store",
+  });
+  const data: unknown = await res.json().catch(() => null);
+  const payload = readObject(data);
+  if (!res.ok || payload?.status === "Error") {
+    const message = typeof payload?.message === "string" ? payload.message : `BestTime day forecast HTTP ${res.status}`;
+    throw new Error(message);
+  }
+
+  const analysis = readObject(payload?.analysis);
+  const dayRaw = Array.isArray(analysis?.day_raw) ? analysis.day_raw : [];
+  const hours = dayRaw
+    .map((value, index) => {
+      const busyness = readNumber(value);
+      if (busyness == null) return null;
+      return { hour: index, busyness: clampForecastScore(busyness) };
+    })
+    .filter((item): item is BestTimeHourlyForecast => item !== null);
+
+  return {
+    venueId,
+    dayInt: readNumber(payload?.day_int),
+    updatedOn: typeof payload?.forecast_updated_on === "string" ? payload.forecast_updated_on : null,
+    hours,
+  };
 }
 
 async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {

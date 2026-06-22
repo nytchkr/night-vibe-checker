@@ -107,6 +107,7 @@ export interface ConsumerVenue {
   website?: string;
   openingHours?: string[];
   openNow?: boolean;
+  besttimeVenueId?: string;
   hidden: boolean;
   signal: VenueSignal | null;
 }

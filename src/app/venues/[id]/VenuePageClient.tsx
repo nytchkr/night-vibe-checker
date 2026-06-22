@@ -47,6 +47,11 @@ type VenueCrowdNote = {
   createdAt: string;
 };
 
+type BestTimeHourlyForecast = {
+  hour: number;
+  busyness: number;
+};
+
 type VenueReportReason = "wrong_hours" | "wrong_location" | "permanently_closed" | "duplicate" | "other";
 
 type VibeBusynessOption = {
@@ -268,6 +273,19 @@ function getBusynessColor(percent: number): string {
   return "#5C6573";
 }
 
+function getBusynessLabel(percent: number): string {
+  if (percent >= 67) return "Packed";
+  if (percent >= 34) return "Moderate";
+  return "Quiet";
+}
+
+function formatHourLabel(hour: number): string {
+  if (hour === 0) return "12 AM";
+  if (hour < 12) return `${hour} AM`;
+  if (hour === 12) return "12 PM";
+  return `${hour - 12} PM`;
+}
+
 function busynessLevelLabel(level: number | null): string {
   if (level == null) return "Reported";
   if (level <= 15) return "Dead";
@@ -414,6 +432,99 @@ function CheckInFeed({ checkIns }: { checkIns: RecentCheckIn[] }) {
   );
 }
 
+function AuthRequiredReportAction({ venueId, venueName }: { venueId: string; venueName: string }) {
+  const returnTo = `/venues/${encodeURIComponent(venueId)}`;
+  return (
+    <a
+      href={`/login?return=${encodeURIComponent(returnTo)}`}
+      aria-label={`Sign in to report the vibe at ${venueName}`}
+      className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-5 text-base font-black text-[#F4F5F8] transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+    >
+      Sign in to report vibe
+    </a>
+  );
+}
+
+function BestTimeForecastSection({
+  hasBestTimeVenue,
+  forecast,
+  loading,
+  error,
+  updatedOn,
+}: {
+  hasBestTimeVenue: boolean;
+  forecast: BestTimeHourlyForecast[];
+  loading: boolean;
+  error: string | null;
+  updatedOn: string | null;
+}) {
+  return (
+    <section className="space-y-3" role="region" aria-label="BestTime forecast">
+      <div>
+        <h2 className="font-display text-lg font-semibold text-[#F4F5F8]">Tonight forecast</h2>
+        <p className="mt-1 text-xs font-semibold text-white/35">
+          BestTime hourly forecast for today
+        </p>
+      </div>
+
+      {!hasBestTimeVenue ? (
+        <EmptySignalState
+          icon={Clock}
+          message="No BestTime forecast is connected for this venue yet"
+        />
+      ) : loading ? (
+        <div className="space-y-2" role="status" aria-label="Loading BestTime forecast">
+          <Skeleton className="h-12 rounded-2xl bg-white/10" />
+          <Skeleton className="h-12 rounded-2xl bg-white/10" />
+        </div>
+      ) : error ? (
+        <EmptySignalState
+          icon={Clock}
+          message="BestTime forecast is unavailable right now"
+        />
+      ) : forecast.length === 0 ? (
+        <EmptySignalState
+          icon={Clock}
+          message="BestTime has no hourly forecast for today"
+        />
+      ) : (
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
+          <div className="grid max-h-72 gap-3 overflow-y-auto pr-1">
+            {forecast.map((hour) => {
+              const busyness = clampPercent(hour.busyness);
+              const color = getBusynessColor(busyness);
+              return (
+                <div key={hour.hour} className="grid grid-cols-[4rem_1fr_4.5rem] items-center gap-3">
+                  <span className="text-xs font-black text-white/55">{formatHourLabel(hour.hour)}</span>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-white/10"
+                    role="meter"
+                    aria-label={`${formatHourLabel(hour.hour)} BestTime forecast`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={busyness}
+                    aria-valuetext={`${busyness}% busy`}
+                  >
+                    <div className="h-full rounded-full" style={{ width: `${busyness}%`, backgroundColor: color }} />
+                  </div>
+                  <span className="text-right text-xs font-black" style={{ color }}>
+                    {busyness}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {updatedOn && (
+            <p className="mt-3 text-[11px] font-medium text-white/35">
+              Updated {timeAgo(updatedOn)}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function VenuePageClient({
   venueId,
   initialVenue,
@@ -435,6 +546,11 @@ export function VenuePageClient({
   const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
   const [crowdNotes, setCrowdNotes] = useState<VenueCrowdNote[]>([]);
   const [crowdNotesLoading, setCrowdNotesLoading] = useState(false);
+  const [bestTimeForecast, setBestTimeForecast] = useState<BestTimeHourlyForecast[]>([]);
+  const [bestTimeForecastLoading, setBestTimeForecastLoading] = useState(false);
+  const [bestTimeForecastError, setBestTimeForecastError] = useState<string | null>(null);
+  const [bestTimeForecastUpdatedOn, setBestTimeForecastUpdatedOn] = useState<string | null>(null);
+  const [heroImageFailed, setHeroImageFailed] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<VenueReportReason>("wrong_hours");
   const [reportNotes, setReportNotes] = useState("");
@@ -610,6 +726,50 @@ export function VenuePageClient({
     startVibeReport();
   }, [accessToken, consumePendingAction, venueId]);
 
+  useEffect(() => {
+    setHeroImageFailed(false);
+  }, [venue?.id, venue?.photoUrl, venue?.photoUrls]);
+
+  useEffect(() => {
+    const forecastVenueId = venue?.id ?? venueId;
+    if (!forecastVenueId || !venue?.besttimeVenueId) {
+      setBestTimeForecast([]);
+      setBestTimeForecastError(null);
+      setBestTimeForecastUpdatedOn(null);
+      setBestTimeForecastLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setBestTimeForecastLoading(true);
+    setBestTimeForecastError(null);
+
+    async function fetchBestTimeForecast() {
+      try {
+        const res = await fetch(`/api/venues/${encodeURIComponent(forecastVenueId)}/besttime-forecast`);
+        if (!res.ok) throw new Error(`${res.status}`);
+        const json = await res.json();
+        const hours = json?.data?.hours;
+        if (cancelled) return;
+        setBestTimeForecast(Array.isArray(hours) ? hours : []);
+        setBestTimeForecastUpdatedOn(json?.data?.updatedOn ?? null);
+      } catch {
+        if (!cancelled) {
+          setBestTimeForecast([]);
+          setBestTimeForecastUpdatedOn(null);
+          setBestTimeForecastError("BestTime forecast unavailable.");
+        }
+      } finally {
+        if (!cancelled) setBestTimeForecastLoading(false);
+      }
+    }
+
+    void fetchBestTimeForecast();
+    return () => {
+      cancelled = true;
+    };
+  }, [venue?.besttimeVenueId, venue?.id, venueId]);
+
   function currentPath() {
     if (typeof window === "undefined") return `/venues/${venueId}`;
     return `${window.location.pathname}${window.location.search}`;
@@ -618,13 +778,18 @@ export function VenuePageClient({
   async function getActiveAccessToken(): Promise<string | null> {
     if (accessToken) return accessToken;
     const client = createBrowserClient();
-    const { data } = await client.auth.getSession();
-    const token = data.session?.access_token ?? null;
-    if (token) {
-      setAccessToken(token);
+    try {
+      const { data } = await client.auth.getSession();
+      const token = data.session?.access_token ?? null;
+      if (token) {
+        setAccessToken(token);
+        setAuthChecked(true);
+      }
+      return token;
+    } catch {
       setAuthChecked(true);
+      return null;
     }
-    return token;
   }
 
   function startVibeReport() {
@@ -823,6 +988,19 @@ export function VenuePageClient({
   const reportCharactersRemaining = 200 - reportNotes.length;
   const selectedVibeBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
   const hoursPanelId = "venue-hours-list";
+  const canReportVibe = authChecked && Boolean(accessToken);
+  const statusText = hoursSummary.hasHours
+    ? hoursSummary.todayStatus
+    : venue?.openNow == null
+      ? "Hours not available"
+      : venue.openNow
+        ? "Open now"
+        : "Closed";
+  const statusClassName = statusText.startsWith("Open")
+    ? "text-[#8B6CFF]"
+    : statusText === "Hours not available"
+      ? "text-[#646B79]"
+      : "text-[#F0568C]";
 
   function goBackToMap() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -862,7 +1040,7 @@ export function VenuePageClient({
         <>
           <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
             <div className="sticky top-0 z-30 h-48 max-h-48 w-full overflow-hidden bg-gradient-to-b from-[#101017] to-[#0A0A0E]">
-              {heroPhotoUrl ? (
+              {heroPhotoUrl && !heroImageFailed ? (
                 <Image
                   src={heroPhotoUrl}
                   alt={`${venue.name} photo`}
@@ -870,6 +1048,7 @@ export function VenuePageClient({
                   sizes="100vw"
                   priority={false}
                   className="object-cover"
+                  onError={() => setHeroImageFailed(true)}
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center" aria-hidden="true">
@@ -917,15 +1096,22 @@ export function VenuePageClient({
                     </span>
                   </div>
                 )}
-                <button
-                  type="button"
-                  onClick={() => void openVibeReport()}
-                  disabled={!authChecked}
-                  aria-label="Report the vibe"
-                  className="mt-5 flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
-                >
-                  Report the vibe
-                </button>
+                <div className="mt-5">
+                  {canReportVibe ? (
+                    <button
+                      type="button"
+                      onClick={() => void openVibeReport()}
+                      aria-label="Report the vibe"
+                      className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                    >
+                      Report the vibe
+                    </button>
+                  ) : authChecked ? (
+                    <AuthRequiredReportAction venueId={venue.id} venueName={venue.name} />
+                  ) : (
+                    <div className="min-h-[54px] rounded-full bg-white/10" aria-hidden="true" />
+                  )}
+                </div>
                 <section className="mt-4" role="region" aria-label="Venue hours">
                   <button
                     type="button"
@@ -1023,8 +1209,8 @@ export function VenuePageClient({
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11.5px] font-semibold text-[#646B79]">Status</span>
-                  <p className={`mt-2 text-sm font-semibold ${venue.openNow ? "text-[#8B6CFF]" : "text-[#646B79]"}`}>
-                    {venue.openNow ? "Open now" : "Closed"}
+                  <p className={`mt-2 text-sm font-semibold ${statusClassName}`}>
+                    {statusText}
                   </p>
                 </div>
               </div>
@@ -1040,7 +1226,9 @@ export function VenuePageClient({
                 <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <span className="text-sm font-black text-white">Busyness</span>
-                    <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
+                    <span className="text-sm font-black" style={{ color: hasBusynessRead ? getBusynessColor(busynessPercent) : undefined }}>
+                      {hasBusynessRead ? `${getBusynessLabel(busynessPercent)} · ${busynessPercent}%` : "--"}
+                    </span>
                   </div>
                   {hasBusynessRead ? (
                     <BusynessMeter
@@ -1086,26 +1274,31 @@ export function VenuePageClient({
                   </p>
                 )}
                 <SignalFreshnessLabel signal={signal} />
-                <button
-                  type="button"
-                  onClick={() => void openVibeReport()}
-                  disabled={!authChecked}
-                  aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
-                  className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
-                    checkInConfirmed
-                      ? "bg-[#101017] text-[#F4F5F8] hover:bg-[#101017]"
-                      : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
-                  } disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35`}
-                >
-                  {checkInConfirmed ? (
-                    <>
-                      <Check size={20} strokeWidth={3} aria-hidden="true" />
-                      Recorded
-                    </>
-                  ) : (
-                    "Report the vibe"
-                  )}
-                </button>
+                {canReportVibe ? (
+                  <button
+                    type="button"
+                    onClick={() => void openVibeReport()}
+                    aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
+                    className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                      checkInConfirmed
+                        ? "bg-[#101017] text-[#F4F5F8] hover:bg-[#101017]"
+                        : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
+                    }`}
+                  >
+                    {checkInConfirmed ? (
+                      <>
+                        <Check size={20} strokeWidth={3} aria-hidden="true" />
+                        Recorded
+                      </>
+                    ) : (
+                      "Report the vibe"
+                    )}
+                  </button>
+                ) : authChecked ? (
+                  <AuthRequiredReportAction venueId={venue.id} venueName={venue.name} />
+                ) : (
+                  <div className="min-h-[54px] rounded-full bg-white/10" aria-hidden="true" />
+                )}
               </div>
               {!hasBusynessRead && !signal?.sampleSize && (
                 <p className="text-[13px] text-[#646B79]">
@@ -1115,6 +1308,14 @@ export function VenuePageClient({
             </section>
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
+
+            <BestTimeForecastSection
+              hasBestTimeVenue={Boolean(venue.besttimeVenueId)}
+              forecast={bestTimeForecast}
+              loading={bestTimeForecastLoading}
+              error={bestTimeForecastError}
+              updatedOn={bestTimeForecastUpdatedOn}
+            />
 
             {(crowdNotesLoading || crowdNotes.length > 0) && (
               <section className="space-y-4" role="region" aria-label="Recent crowd notes">
