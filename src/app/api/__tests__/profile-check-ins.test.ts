@@ -42,7 +42,7 @@ describe("GET /api/profile/check-ins", () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it("returns the current user's last 20 visible check-ins with venue names and notes", async () => {
+  it("returns the current user's visible check-ins with venue names and notes", async () => {
     mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
     const query = checkInsQuery({
       data: [
@@ -69,7 +69,6 @@ describe("GET /api/profile/check-ins", () => {
     expect(query.eq).toHaveBeenNthCalledWith(1, "user_id", "user-123");
     expect(query.eq).toHaveBeenNthCalledWith(2, "hidden", false);
     expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(query.limit).toHaveBeenCalledWith(20);
     await expect(res.json()).resolves.toEqual([
       {
         id: "check-in-1",
@@ -89,8 +88,7 @@ function checkInsQuery(result: { data: unknown; error: unknown }) {
   const query = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnValue(promise),
+    order: vi.fn().mockReturnValue(promise),
   };
 
   return query;

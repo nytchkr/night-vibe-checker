@@ -86,8 +86,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ProfileCheckIn
     .select("id,venue_id,busyness,crowd_feel,note,created_at,venues(name)")
     .eq("user_id", userId)
     .eq("hidden", false)
-    .order("created_at", { ascending: false })
-    .limit(20);
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error("[profile/check-ins GET] DB error:", error);
