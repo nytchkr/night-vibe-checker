@@ -37,6 +37,57 @@ async function addLocalSession(page: Page) {
   }, localSession);
 }
 
+async function mockEmptyProfile(page: Page) {
+  await page.route("**/api/profile/check-ins", (route) => {
+    expect(route.request().headers().authorization).toBe("Bearer valid-e2e-token");
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([]),
+    });
+  });
+
+  await page.route("**/api/profile/streak", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 }),
+  }));
+
+  await page.route("**/api/profile/gender", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ gender: null }),
+  }));
+
+  await page.route("**/api/saved-venues", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      status: "success",
+      data: { savedVenueIds: [] },
+      meta: {
+        cached: false,
+        generatedAt: new Date().toISOString(),
+        requestId: "nv-test-profile-saved-empty",
+      },
+    }),
+  }));
+
+  await page.route("**/api/venues", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      status: "success",
+      data: { venues: [] },
+      meta: {
+        cached: false,
+        generatedAt: new Date().toISOString(),
+        requestId: "nv-test-profile-venues-empty",
+      },
+    }),
+  }));
+}
+
 test.describe("Profile page", () => {
   test("You tab shows logged-out state for guests", async ({ page }) => {
     await page.goto("/profile");
@@ -60,54 +111,7 @@ test.describe("Profile page", () => {
       "uses a mocked Supabase session and is only valid against a local app server",
     );
     await addLocalSession(page);
-
-    await page.route("**/api/profile/check-ins", (route) => {
-      expect(route.request().headers().authorization).toBe("Bearer valid-e2e-token");
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify([]),
-      });
-    });
-
-    await page.route("**/api/profile/streak", (route) => route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 }),
-    }));
-    await page.route("**/api/profile/gender", (route) => route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ gender: null }),
-    }));
-
-    await page.route("**/api/saved-venues", (route) => route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { savedVenueIds: [] },
-        meta: {
-          cached: false,
-          generatedAt: new Date().toISOString(),
-          requestId: "nv-test-015-saved-empty",
-        },
-      }),
-    }));
-
-    await page.route("**/api/venues", (route) => route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { venues: [] },
-        meta: {
-          cached: false,
-          generatedAt: new Date().toISOString(),
-          requestId: "nv-test-015-venues-empty",
-        },
-      }),
-    }));
+    await mockEmptyProfile(page);
 
     await page.goto("/profile");
 
@@ -115,6 +119,26 @@ test.describe("Profile page", () => {
     await expect(page.getByRole("link", { name: "Find venues on the map" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Saved venues" })).toContainText("No saved spots yet");
     await expect(page.getByRole("link", { name: "Browse South End venues" })).toBeVisible();
+  });
+
+  test("profile welcome banner only appears for first sign-in URL", async ({ page }) => {
+    test.skip(
+      (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
+      "uses a mocked Supabase session and is only valid against a local app server",
+    );
+    await addLocalSession(page);
+    await mockEmptyProfile(page);
+
+    await page.goto("/profile?welcome=1");
+
+    const welcome = page.getByRole("region", { name: "Welcome" });
+    await expect(welcome).toContainText("Welcome to nytchkr");
+    await expect(welcome).toContainText("Find a spot on the map, tap it, and report the vibe. Your check-ins show up here.");
+    await expect(welcome.getByRole("link", { name: "Explore the map" })).toHaveAttribute("href", "/map");
+    await expect(page).toHaveURL(/\/profile$/);
+
+    await page.goto("/profile");
+    await expect(page.getByRole("region", { name: "Welcome" })).toBeHidden();
   });
 
   test("profile renders recent check-ins with busyness and notes", async ({ page }) => {

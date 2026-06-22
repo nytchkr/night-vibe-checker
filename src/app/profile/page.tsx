@@ -7,7 +7,6 @@ import { Bell, Bookmark, ChevronRight, Info, MapPin } from "lucide-react";
 import type { Session, User } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
 import { PushOptIn } from "@/components/PushOptIn";
-import { WELCOME_SEEN_STORAGE_KEY, WelcomeOverlay } from "@/components/WelcomeOverlay";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import type { APIResponse, ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
@@ -202,6 +201,23 @@ function LoggedOutState() {
       <p className="px-4 pb-2 text-[12px] font-medium text-[#9CA2AE]">
         Guest view — sign in to check in and save venues
       </p>
+    </section>
+  );
+}
+
+function WelcomeBanner() {
+  return (
+    <section className="rounded-2xl border border-[#8B6CFF]/30 bg-[#8B6CFF]/10 p-5" aria-label="Welcome">
+      <h2 className="text-xl font-bold text-white">Welcome to nytchkr</h2>
+      <p className="mt-2 text-sm leading-6 text-white/60">
+        Find a spot on the map, tap it, and report the vibe. Your check-ins show up here.
+      </p>
+      <Link
+        href="/map"
+        className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-[#8B6CFF] px-6 py-3 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+      >
+        Explore the map
+      </Link>
     </section>
   );
 }
@@ -492,20 +508,23 @@ function ProfileContent() {
   const searchParams = useSearchParams();
   const [authChecked, setAuthChecked] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
-  const [showWelcome, setShowWelcome] = useState(false);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(false);
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
   const [checkInCount, setCheckInCount] = useState(0);
   const [checkInsLoading, setCheckInsLoading] = useState(false);
+  const [checkInsLoaded, setCheckInsLoaded] = useState(false);
   const [checkInsError, setCheckInsError] = useState("");
   const [streak, setStreak] = useState<ProfileStreakResponse>({
     currentStreak: 0,
     longestStreak: 0,
     totalCheckIns: 0,
   });
+  const [streakLoaded, setStreakLoaded] = useState(false);
   const [savedVenueIds, setSavedVenueIds] = useState<string[]>([]);
   const [savedVenuesLoading, setSavedVenuesLoading] = useState(false);
   const [savedVenuesError, setSavedVenuesError] = useState("");
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
+  const totalCheckIns = streak.totalCheckIns || checkInCount;
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -516,14 +535,18 @@ function ProfileContent() {
       setAuthChecked(true);
 
       if (activeSession?.user.id) {
+        setCheckInsLoaded(false);
+        setStreakLoaded(false);
         void fetchCheckIns(activeSession);
         void fetchStreak(activeSession);
         void fetchSavedVenues(activeSession);
       } else {
         setCheckIns([]);
         setCheckInCount(0);
+        setCheckInsLoaded(false);
         setCheckInsError("");
         setStreak({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 });
+        setStreakLoaded(false);
         setSavedVenueIds([]);
         setSavedVenuesError("");
         setVenues([]);
@@ -540,17 +563,16 @@ function ProfileContent() {
   }, []);
 
   useEffect(() => {
-    if (searchParams.get("welcome") !== "1") {
-      setShowWelcome(false);
-      return;
-    }
+    if (searchParams.get("welcome") !== "1") return;
+    if (!checkInsLoaded || !streakLoaded || checkInsLoading || checkInsError || totalCheckIns !== 0) return;
 
-    try {
-      setShowWelcome(window.localStorage.getItem(WELCOME_SEEN_STORAGE_KEY) !== "1");
-    } catch {
-      setShowWelcome(true);
-    }
-  }, [searchParams]);
+    setShowWelcomeBanner(true);
+
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("welcome");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `/profile?${nextQuery}` : "/profile", { scroll: false });
+  }, [checkInsError, checkInsLoaded, checkInsLoading, router, searchParams, streakLoaded, totalCheckIns]);
 
   useEffect(() => {
     if (!session) return;
@@ -600,6 +622,7 @@ function ProfileContent() {
       setCheckInCount(0);
       setCheckInsError("Could not load your check-ins right now.");
     } finally {
+      setCheckInsLoaded(true);
       setCheckInsLoading(false);
     }
   }
@@ -623,6 +646,8 @@ function ProfileContent() {
       });
     } catch {
       setStreak({ currentStreak: 0, longestStreak: 0, totalCheckIns: 0 });
+    } finally {
+      setStreakLoaded(true);
     }
   }
 
@@ -668,23 +693,7 @@ function ProfileContent() {
     router.replace("/profile");
   }
 
-  function handleDismissWelcome() {
-    try {
-      window.localStorage.setItem(WELCOME_SEEN_STORAGE_KEY, "1");
-    } catch {
-      // Storage can be unavailable in private contexts. Dismiss for the current render either way.
-    }
-
-    const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.delete("welcome");
-    const nextQuery = nextParams.toString();
-
-    setShowWelcome(false);
-    router.replace(nextQuery ? `/profile?${nextQuery}` : "/profile", { scroll: false });
-  }
-
   const userEmail = getUserEmail(session?.user);
-  const totalCheckIns = streak.totalCheckIns || checkInCount;
 
   return (
     <PageTransition>
@@ -701,7 +710,7 @@ function ProfileContent() {
 
           {authChecked && session && (
             <div className="space-y-4">
-              {showWelcome && <WelcomeOverlay onDismiss={handleDismissWelcome} />}
+              {showWelcomeBanner && <WelcomeBanner />}
               <AccountHeader email={userEmail} onSignOut={() => void handleSignOut()} />
               <StatsRow
                 totalCheckIns={totalCheckIns}
