@@ -74,6 +74,10 @@ type VenueShareCardResponse = {
   text: string;
 };
 
+type VenuePhotosResponse = {
+  photos?: string[];
+};
+
 type VenueReportReason = "wrong_hours" | "wrong_location" | "permanently_closed" | "duplicate" | "other";
 
 type VibeBusynessOption = {
@@ -488,6 +492,116 @@ function AuthRequiredReportAction({ venueId, venueName }: { venueId: string; ven
   );
 }
 
+function VenuePhotoCarousel({ venueId, venueName }: { venueId: string; venueName: string }) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [shouldFetch, setShouldFetch] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const element = rootRef.current;
+    if (!element || shouldFetch) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setShouldFetch(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setShouldFetch(true);
+        observer.disconnect();
+      },
+      { rootMargin: "160px 0px" }
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [shouldFetch]);
+
+  useEffect(() => {
+    if (!shouldFetch || !venueId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setPhotos([]);
+    setFailedPhotos(new Set());
+
+    async function fetchPhotos() {
+      try {
+        const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}/photos`, {
+          credentials: "same-origin",
+        });
+        if (!response.ok) throw new Error(`${response.status}`);
+        const json = (await response.json()) as VenuePhotosResponse;
+        const nextPhotos = Array.isArray(json.photos)
+          ? json.photos.filter((photo): photo is string => typeof photo === "string" && photo.length > 0).slice(0, 5)
+          : [];
+        if (!cancelled) setPhotos(nextPhotos);
+      } catch {
+        if (!cancelled) setPhotos([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void fetchPhotos();
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldFetch, venueId]);
+
+  const visiblePhotos = photos.filter((photo) => !failedPhotos.has(photo));
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative h-[200px] w-full overflow-hidden bg-gradient-to-br from-[#1A1A2E] to-[#2A1A3E]"
+      aria-label={`${venueName} photos`}
+    >
+      {visiblePhotos.length > 0 ? (
+        <div className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {visiblePhotos.map((photo, index) => (
+            <div key={photo} className="relative h-[200px] min-w-full snap-center">
+              <Image
+                src={photo}
+                alt={`${venueName} photo ${index + 1}`}
+                fill
+                sizes="100vw"
+                className="object-cover"
+                loading={index === 0 ? "eager" : "lazy"}
+                onError={() => {
+                  setFailedPhotos((current) => new Set(current).add(photo));
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center" aria-hidden="true">
+          <span className="font-display text-6xl font-black text-white/28">{initialFor(venueName)}</span>
+        </div>
+      )}
+
+      {loading && visiblePhotos.length === 0 && (
+        <div className="absolute inset-x-0 bottom-0 h-1 overflow-hidden bg-white/10" aria-hidden="true">
+          <div className="h-full w-1/2 animate-pulse bg-[#00F5D4]/60" />
+        </div>
+      )}
+
+      {visiblePhotos.length > 1 && (
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5" aria-hidden="true">
+          {visiblePhotos.map((photo) => (
+            <span key={photo} className="h-1.5 w-1.5 rounded-full bg-white/70 shadow" />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BestTimeForecastSection({
   hasBestTimeVenue,
   forecast,
@@ -675,7 +789,6 @@ export function VenuePageClient({
   const [bestTimeForecastLoading, setBestTimeForecastLoading] = useState(false);
   const [bestTimeForecastError, setBestTimeForecastError] = useState<string | null>(null);
   const [bestTimeForecastUpdatedOn, setBestTimeForecastUpdatedOn] = useState<string | null>(null);
-  const [heroImageFailed, setHeroImageFailed] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<VenueReportReason>("wrong_hours");
   const [reportNotes, setReportNotes] = useState("");
@@ -853,10 +966,6 @@ export function VenuePageClient({
     if (!consumePendingAction(`report:${venueId}`)) return;
     startVibeReport();
   }, [accessToken, consumePendingAction, venueId]);
-
-  useEffect(() => {
-    setHeroImageFailed(false);
-  }, [venue?.id, venue?.photoUrl, venue?.photoUrls]);
 
   useEffect(() => {
     const forecastVenueId = venue?.id ?? venueId;
@@ -1152,10 +1261,6 @@ export function VenuePageClient({
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
   const phoneHref = venue?.phoneNumber || venue?.phone ? `tel:${(venue.phoneNumber ?? venue.phone ?? "").replace(/[^\d+]/g, "")}` : null;
-  const heroPhotoUrl = useMemo(() => {
-    if (!venue) return null;
-    return venue.photoUrl ?? venue.photoUrls?.find((url): url is string => typeof url === "string" && url.length > 0) ?? null;
-  }, [venue]);
   const reportCharactersRemaining = 200 - reportNotes.length;
   const selectedVibeBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
   const hoursPanelId = "venue-hours-list";
@@ -1210,22 +1315,8 @@ export function VenuePageClient({
       {!loading && !error && venue && (
         <>
           <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div className="relative h-auto aspect-video max-h-[52vh] min-h-48 w-full overflow-hidden bg-gradient-to-b from-[#101017] to-[#0A0A0E]">
-              {heroPhotoUrl && !heroImageFailed ? (
-                <Image
-                  src={heroPhotoUrl}
-                  alt={`${venue.name} photo`}
-                  fill
-                  sizes="100vw"
-                  priority
-                  className="object-cover"
-                  onError={() => setHeroImageFailed(true)}
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center" aria-hidden="true">
-                  <span className="font-display text-6xl font-black text-white/35">{initialFor(venue.name)}</span>
-                </div>
-              )}
+            <div className="relative h-[200px] w-full overflow-hidden">
+              <VenuePhotoCarousel venueId={venue.id} venueName={venue.name} />
               <button
                 type="button"
                 onClick={goBackToMap}
