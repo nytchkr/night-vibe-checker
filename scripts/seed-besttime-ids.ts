@@ -1,12 +1,20 @@
-import { config } from "dotenv";
+#!/usr/bin/env node
+
+import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 
-config({ path: ".env.local" });
+loadEnvConfig(process.cwd());
 
 type VenueRow = {
   id: string;
   name: string;
   address: string | null;
+};
+
+type SeedFailure = {
+  id: string;
+  name: string;
+  reason: string;
 };
 
 const BESTTIME_FORECAST_URL = "https://besttime.app/api/v1/forecasts";
@@ -24,24 +32,32 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function readObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
 function readVenueId(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const data = payload as Record<string, unknown>;
+  const data = readObject(payload);
+  if (!data) return null;
   if (typeof data.venue_id === "string") return data.venue_id;
 
-  const venueInfo = data.venue_info;
-  if (venueInfo && typeof venueInfo === "object") {
-    const venueId = (venueInfo as Record<string, unknown>).venue_id;
-    if (typeof venueId === "string") return venueId;
-  }
+  const venueInfo = readObject(data.venue_info);
+  if (typeof venueInfo?.venue_id === "string") return venueInfo.venue_id;
 
-  const venue = data.venue;
-  if (venue && typeof venue === "object") {
-    const venueId = (venue as Record<string, unknown>).venue_id;
-    if (typeof venueId === "string") return venueId;
-  }
+  const venue = readObject(data.venue);
+  if (typeof venue?.venue_id === "string") return venue.venue_id;
 
   return null;
+}
+
+function readBestTimeError(payload: unknown): string {
+  const data = readObject(payload);
+  if (!data) return "No JSON response body";
+  if (typeof data.message === "string") return data.message;
+  if (typeof data.error === "string") return data.error;
+  if ("message" in data) return JSON.stringify(data.message);
+  if ("error" in data) return JSON.stringify(data.error);
+  return "No response message";
 }
 
 async function getBestTimeVenueId(venue: VenueRow, apiKey: string): Promise<string> {
@@ -58,11 +74,7 @@ async function getBestTimeVenueId(venue: VenueRow, apiKey: string): Promise<stri
   const payload = (await response.json().catch(() => null)) as unknown;
 
   if (!response.ok) {
-    const message =
-      payload && typeof payload === "object" && "message" in payload
-        ? JSON.stringify((payload as Record<string, unknown>).message)
-        : "No response message";
-    throw new Error(`BestTime forecast HTTP ${response.status}: ${message}`);
+    throw new Error(`BestTime forecast HTTP ${response.status}: ${readBestTimeError(payload)}`);
   }
 
   const venueId = readVenueId(payload);
@@ -84,14 +96,19 @@ async function main(): Promise<void> {
   const { data, error } = await supabase
     .from("venues")
     .select("id, name, address")
+    .is("besttime_venue_id", null)
+    .eq("hidden", false)
     .order("name", { ascending: true });
 
   if (error) {
     throw new Error(`Failed to load venues: ${error.message}`);
   }
 
+  const venues = (data ?? []) as VenueRow[];
+  const failures: SeedFailure[] = [];
   let updated = 0;
-  for (const venue of (data ?? []) as VenueRow[]) {
+
+  for (const venue of venues) {
     try {
       const bestTimeVenueId = await getBestTimeVenueId(venue, bestTimeApiKey);
       const { error: updateError } = await supabase
@@ -104,15 +121,29 @@ async function main(): Promise<void> {
       }
 
       updated += 1;
+      console.log(`updated ${venue.name} (${venue.id})`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      console.warn(`BestTime ID seed failed for ${venue.name} (${venue.id}): ${message}`);
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      failures.push({ id: venue.id, name: venue.name, reason });
+      console.warn(`failed ${venue.name} (${venue.id}): ${reason}`);
     }
 
     await delay(REQUEST_DELAY_MS);
   }
 
-  console.log(`Updated ${updated} venues with BestTime IDs`);
+  console.log(
+    JSON.stringify(
+      {
+        status: failures.length ? "partial" : "success",
+        scanned: venues.length,
+        updated,
+        failed: failures.length,
+        failures,
+      },
+      null,
+      2
+    )
+  );
 }
 
 main().catch((err) => {
