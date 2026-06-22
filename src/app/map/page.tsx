@@ -14,7 +14,9 @@ export default function MapPage() {
       <p className="sr-only" data-smoke="map-zip-search">
         Search by zip for Charlotte ZIP lookup: 28202 28203 28209.
       </p>
-      <VenueMapClient />
+      <div className="mx-auto w-full md:max-w-lg">
+        <VenueMapClient />
+      </div>
     </PageTransition>
   );
 }
