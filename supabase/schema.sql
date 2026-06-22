@@ -42,7 +42,7 @@ create table if not exists public.venues (
   venue_type      text,                          -- "bar" | "night_club" etc.
   google_rating   numeric(2,1),                  -- 1.0–5.0
   total_ratings   integer,
-  price_level     smallint check (price_level between 1 and 4),
+  price_level     integer check (price_level between 1 and 4),
   photo_reference text,                          -- Google photo ref (not URL)
   photo_url       text,                          -- Google Place Photo URL only
   photo_urls      text[] default '{}',           -- Google Place Photo URLs for detail gallery
@@ -57,6 +57,12 @@ create table if not exists public.venues (
   last_busyness_refresh timestamptz,
   website         text,
   phone_number    text,
+  user_rating_count integer,
+  google_maps_uri text,
+  current_popularity integer check (current_popularity between 0 and 100),
+  current_popularity_updated_at timestamptz,
+  editorial_summary text,
+  opening_hours   jsonb,
   -- Cached aggregate of all vibe reports for this venue
   avg_vibe_score  numeric(3,1),
   report_count    integer not null default 0,
@@ -82,6 +88,15 @@ alter table public.venues add column if not exists crowd_feel text check (crowd_
 alter table public.venues add column if not exists busyness_0_100 integer check (busyness_0_100 between 0 and 100);
 alter table public.venues add column if not exists busyness_source text check (busyness_source in ('live','forecast','crowd'));
 alter table public.venues add column if not exists last_busyness_refresh timestamptz;
+alter table public.venues add column if not exists rating numeric(3,1);
+alter table public.venues add column if not exists user_rating_count integer;
+alter table public.venues add column if not exists website text;
+alter table public.venues add column if not exists phone_number text;
+alter table public.venues add column if not exists google_maps_uri text;
+alter table public.venues add column if not exists current_popularity integer check (current_popularity between 0 and 100);
+alter table public.venues add column if not exists current_popularity_updated_at timestamptz;
+alter table public.venues add column if not exists editorial_summary text;
+alter table public.venues add column if not exists opening_hours jsonb;
 
 -- ============================================================
 -- TABLE: vibe_reports

@@ -15,8 +15,8 @@ import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug, neighborhood,
-  rating, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, hidden,
-  phone, website, opening_hours, open_now,
+  rating, google_rating, total_ratings, user_rating_count, price_level, photo_reference, photo_url, photo_urls, hidden,
+  phone, phone_number, website, google_maps_uri, editorial_summary, opening_hours, open_now, besttime_venue_id,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -89,17 +89,22 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     lng: Number(row.lng),
     neighborhood: (row.neighborhood ?? undefined) as string | undefined,
     category: (row.category ?? row.venue_type ?? "establishment") as string,
-    rating: row.rating == null ? undefined : Number(row.rating),
+    rating: row.rating == null ? null : Number(row.rating),
     googleRating: row.google_rating == null ? undefined : Number(row.google_rating),
     totalRatings: row.total_ratings == null ? undefined : Number(row.total_ratings),
-    priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
+    userRatingCount: row.user_rating_count == null ? null : Number(row.user_rating_count),
+    priceLevel: row.price_level == null ? null : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
     photoUrls: mapPhotoUrls(row.photo_urls),
-    phone: (row.phone ?? undefined) as string | undefined,
+    phone: (row.phone ?? row.phone_number ?? undefined) as string | undefined,
+    phoneNumber: (row.phone_number ?? row.phone ?? undefined) as string | undefined,
     website: (row.website ?? undefined) as string | undefined,
+    googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
+    editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
     openNow: row.open_now == null ? undefined : Boolean(row.open_now),
+    besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal: mapSignal(signalRow),
   };
@@ -109,13 +114,23 @@ function isMissingContactColumn(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String((error as { message?: unknown } | null)?.message ?? "");
   return (
     message.includes("'phone' column") ||
+    message.includes("'phone_number' column") ||
     message.includes("'website' column") ||
+    message.includes("'google_maps_uri' column") ||
+    message.includes("'editorial_summary' column") ||
+    message.includes("'user_rating_count' column") ||
     message.includes("'photo_urls' column") ||
     message.includes("'neighborhood' column") ||
+    message.includes("'besttime_venue_id' column") ||
     message.includes("venues.phone") ||
+    message.includes("venues.phone_number") ||
     message.includes("venues.website") ||
+    message.includes("venues.google_maps_uri") ||
+    message.includes("venues.editorial_summary") ||
+    message.includes("venues.user_rating_count") ||
     message.includes("venues.photo_urls") ||
-    message.includes("venues.neighborhood")
+    message.includes("venues.neighborhood") ||
+    message.includes("venues.besttime_venue_id")
   );
 }
 
@@ -141,30 +156,62 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const primaryResult = await supabaseAdmin
-    .from("venues")
-    .select(VENUE_SELECT)
-    .eq("zone_id", LAUNCH_ZONE.id)
-    .eq("hidden", false)
-    .order("name", { ascending: true })
-    .limit(100);
-  let data = primaryResult.data as Record<string, unknown>[] | null;
-  let error = primaryResult.error;
-
-  if (error && isMissingContactColumn(error)) {
-    const legacyResult = await supabaseAdmin
+  try {
+    const primaryResult = await supabaseAdmin
       .from("venues")
-      .select(VENUE_SELECT_LEGACY)
+      .select(VENUE_SELECT)
       .eq("zone_id", LAUNCH_ZONE.id)
       .eq("hidden", false)
       .order("name", { ascending: true })
       .limit(100);
-    data = legacyResult.data as Record<string, unknown>[] | null;
-    error = legacyResult.error;
-  }
+    let data = primaryResult.data as Record<string, unknown>[] | null;
+    let error = primaryResult.error;
 
-  if (error) {
-    console.error("[venues] cached DB error:", error);
+    if (error && isMissingContactColumn(error)) {
+      const legacyResult = await supabaseAdmin
+        .from("venues")
+        .select(VENUE_SELECT_LEGACY)
+        .eq("zone_id", LAUNCH_ZONE.id)
+        .eq("hidden", false)
+        .order("name", { ascending: true })
+        .limit(100);
+      data = legacyResult.data as Record<string, unknown>[] | null;
+      error = legacyResult.error;
+    }
+
+    if (error) {
+      console.error("[venues] cached DB error:", error);
+      return NextResponse.json<APIResponse<never>>(
+        {
+          status: "error",
+          error: { code: "DB_ERROR", message: "Could not load cached venues." },
+          meta: { cached: true, generatedAt, requestId },
+        },
+        { status: 500, headers }
+      );
+    }
+
+    const venues = (data ?? [])
+      .map(mapVenue)
+      .filter((venue) => inZone(venue.lat, venue.lng))
+      .sort((a, b) => {
+        const aBusyness = a.signal?.busyness0To100;
+        const bBusyness = b.signal?.busyness0To100;
+
+        if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
+        if (aBusyness == null) return 1;
+        if (bBusyness == null) return -1;
+        if (bBusyness !== aBusyness) return bBusyness - aBusyness;
+        return a.name.localeCompare(b.name);
+      });
+
+    return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
+      status: "success",
+      data: { zone: LAUNCH_ZONE, venues },
+      meta: { cached: true, generatedAt, requestId },
+    }, { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } });
+  } catch (error) {
+    console.error("[venues] unexpected error:", error);
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
@@ -174,24 +221,4 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       { status: 500, headers }
     );
   }
-
-  const venues = (data ?? [])
-    .map(mapVenue)
-    .filter((venue) => inZone(venue.lat, venue.lng))
-    .sort((a, b) => {
-      const aBusyness = a.signal?.busyness0To100;
-      const bBusyness = b.signal?.busyness0To100;
-
-      if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
-      if (aBusyness == null) return 1;
-      if (bBusyness == null) return -1;
-      if (bBusyness !== aBusyness) return bBusyness - aBusyness;
-      return a.name.localeCompare(b.name);
-    });
-
-  return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
-    status: "success",
-    data: { zone: LAUNCH_ZONE, venues },
-    meta: { cached: true, generatedAt, requestId },
-  }, { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } });
 }

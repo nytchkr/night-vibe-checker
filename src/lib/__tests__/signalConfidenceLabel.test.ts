@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 
 describe("formatSignalConfidenceLabel", () => {
-  it("labels forecast and zero-sample signals as BestTime forecast", () => {
+  it("labels forecast signals as BestTime forecast and zero-sample live as venue data", () => {
     expect(formatSignalConfidenceLabel({ busynessSource: "forecast", sampleSize: 7 })).toBe("BestTime forecast");
-    expect(formatSignalConfidenceLabel({ busynessSource: "live", sampleSize: 0 })).toBe("BestTime forecast");
+    expect(formatSignalConfidenceLabel({ busynessSource: "live", sampleSize: 0 })).toBe("Live venue data");
     expect(formatSignalConfidenceLabel(null)).toBe("BestTime forecast");
   });
 

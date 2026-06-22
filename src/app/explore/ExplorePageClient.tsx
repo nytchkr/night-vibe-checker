@@ -515,7 +515,7 @@ function VenueFeedCard({
   const busyness = signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
-  const reviewCount = venue.totalRatings;
+  const reviewCount = venue.userRatingCount ?? venue.totalRatings;
   const reviewLabel = reviewCount == null || !Number.isFinite(reviewCount)
     ? null
     : `${Math.round(reviewCount).toLocaleString()} review${Math.round(reviewCount) === 1 ? "" : "s"}`;

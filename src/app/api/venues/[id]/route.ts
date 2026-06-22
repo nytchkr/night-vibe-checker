@@ -12,8 +12,8 @@ import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug,
-  rating, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls,
-  phone, website, opening_hours, open_now, besttime_venue_id, hidden,
+  rating, google_rating, total_ratings, user_rating_count, price_level, photo_reference, photo_url, photo_urls,
+  phone, phone_number, website, google_maps_uri, editorial_summary, opening_hours, open_now, besttime_venue_id, hidden,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -52,8 +52,13 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
 }
 
 function mapOpeningHours(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const hours = value.filter((item): item is string => typeof item === "string" && item.length > 0);
+  const rawHours =
+    value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekdayDescriptions?: unknown }).weekdayDescriptions)
+      ? (value as { weekdayDescriptions: unknown[] }).weekdayDescriptions
+      : value;
+
+  if (!Array.isArray(rawHours)) return undefined;
+  const hours = rawHours.filter((item): item is string => typeof item === "string" && item.length > 0);
   return hours.length ? hours : undefined;
 }
 
@@ -81,15 +86,19 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     lat: Number(row.lat),
     lng: Number(row.lng),
     category: (row.category ?? row.venue_type ?? "establishment") as string,
-    rating: row.rating == null ? undefined : Number(row.rating),
+    rating: row.rating == null ? null : Number(row.rating),
     googleRating: row.google_rating == null ? undefined : Number(row.google_rating),
     totalRatings: row.total_ratings == null ? undefined : Number(row.total_ratings),
-    priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
+    userRatingCount: row.user_rating_count == null ? null : Number(row.user_rating_count),
+    priceLevel: row.price_level == null ? null : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: (row.photo_url ?? undefined) as string | undefined,
     photoUrls: mapPhotoUrls(row.photo_urls),
-    phone: (row.phone ?? undefined) as string | undefined,
+    phone: (row.phone ?? row.phone_number ?? undefined) as string | undefined,
+    phoneNumber: (row.phone_number ?? row.phone ?? undefined) as string | undefined,
     website: (row.website ?? undefined) as string | undefined,
+    googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
+    editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
     openNow: row.open_now == null ? undefined : Boolean(row.open_now),
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
@@ -102,11 +111,19 @@ function isMissingContactColumn(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String((error as { message?: unknown } | null)?.message ?? "");
   return (
     message.includes("'phone' column") ||
+    message.includes("'phone_number' column") ||
     message.includes("'website' column") ||
+    message.includes("'google_maps_uri' column") ||
+    message.includes("'editorial_summary' column") ||
+    message.includes("'user_rating_count' column") ||
     message.includes("'photo_urls' column") ||
     message.includes("'besttime_venue_id' column") ||
     message.includes("venues.phone") ||
+    message.includes("venues.phone_number") ||
     message.includes("venues.website") ||
+    message.includes("venues.google_maps_uri") ||
+    message.includes("venues.editorial_summary") ||
+    message.includes("venues.user_rating_count") ||
     message.includes("venues.photo_urls") ||
     message.includes("venues.besttime_venue_id")
   );

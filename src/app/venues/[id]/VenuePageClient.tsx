@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Clock, MapPin, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Globe, MapPin, Phone, Users, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
@@ -250,7 +250,7 @@ function clampPercent(value: number | null | undefined): number {
 function sourceLabel(signal: ConsumerVenue["signal"], fallbackUpdatedAt: string | null | undefined): string {
   if (!signal || signal.busyness0To100 == null) return "";
   if (signal.busynessSource === "forecast") return "via BestTime forecast";
-  if (signal.busynessSource === "live") return "via BestTime live";
+  if (signal.busynessSource === "live") return "via live venue data";
   const sampleSize = signal.sampleSize ?? 0;
   return `from ${sampleSize} check-ins · ${timeAgo(fallbackUpdatedAt)}`;
 }
@@ -961,7 +961,7 @@ export function VenuePageClient({
   const crowdFeel = getCrowdFeel(hasEnoughMfSample ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
-  const googleReviewLabel = formatReviewCount(venue?.totalRatings);
+  const googleReviewLabel = formatReviewCount(venue?.userRatingCount ?? venue?.totalRatings);
   const hoursSummary = useMemo(() => {
     const openingHours = venue?.openingHours ?? [];
     const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -978,9 +978,11 @@ export function VenuePageClient({
   }, [venue?.openingHours]);
   const mapsHref = useMemo(() => {
     if (!venue) return "#";
+    if (venue.googleMapsUri) return venue.googleMapsUri;
     const query = venue.address || `${venue.lat},${venue.lng}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
+  const phoneHref = venue?.phoneNumber || venue?.phone ? `tel:${(venue.phoneNumber ?? venue.phone ?? "").replace(/[^\d+]/g, "")}` : null;
   const heroPhotoUrl = useMemo(() => {
     if (!venue) return null;
     return venue.photoUrl ?? venue.photoUrls?.find((url): url is string => typeof url === "string" && url.length > 0) ?? null;
@@ -1351,6 +1353,26 @@ export function VenuePageClient({
                 <MapPin size={17} aria-hidden="true" />
                 Get Directions
               </a>
+              {venue.website && (
+                <a
+                  href={venue.website}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                >
+                  <Globe size={17} aria-hidden="true" />
+                  Website
+                </a>
+              )}
+              {phoneHref && (
+                <a
+                  href={phoneHref}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                >
+                  <Phone size={17} aria-hidden="true" />
+                  {venue.phoneNumber ?? venue.phone}
+                </a>
+              )}
             </div>
 
             <div className="flex justify-center pt-4">
