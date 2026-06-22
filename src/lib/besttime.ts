@@ -19,6 +19,14 @@ export type BestTimeDayForecast = {
   updatedOn: string | null;
   hours: BestTimeHourlyForecast[];
 };
+export type BestTimeCrowdTrend = "rising" | "falling" | "stable";
+export type BestTimePrediction = {
+  peakHour: number;
+  peakBusyness: number;
+  bestArrivalHour: number;
+  crowdTrend: BestTimeCrowdTrend;
+  vibeLabel: string;
+};
 type BusynessSource = "live" | "forecast";
 type BestTimeRegistration = { venueId: string; currentForecast: number | null };
 const NO_BESTTIME_FORECAST_REASON = "No BestTime forecast available";
@@ -144,6 +152,53 @@ export function busynessLabel(score: number): "dead" | "moderate" | "packed" {
 
 export function busynessScoreForStorage(score: number): number {
   return clampForecastScore(score);
+}
+
+function normalizeHour(hour: number): number {
+  return ((Math.round(hour) % 24) + 24) % 24;
+}
+
+function trendFromHours(current: number | null, nextHours: number[]): BestTimeCrowdTrend {
+  if (current == null || nextHours.length === 0) return "stable";
+  const averageNext = nextHours.reduce((sum, value) => sum + value, 0) / nextHours.length;
+  if (averageNext >= current + 8) return "rising";
+  if (averageNext <= current - 8) return "falling";
+  return "stable";
+}
+
+function vibeLabelFor(busyness: number, trend: BestTimeCrowdTrend): string {
+  if (busyness >= 75) return "Peak Hours";
+  if (trend === "rising") return "Getting Busy";
+  if (trend === "falling") return "Winding Down";
+  if (busyness >= 55) return "Steady Crowd";
+  return "Easygoing";
+}
+
+export function buildBestTimePrediction(
+  forecast: BestTimeDayForecast,
+  currentHour = new Date().getHours()
+): BestTimePrediction | null {
+  const hours = forecast.hours.filter(
+    (hour) => Number.isInteger(hour.hour) && hour.hour >= 0 && hour.hour <= 23 && Number.isFinite(hour.busyness)
+  );
+  if (!hours.length) return null;
+
+  const peak = hours.reduce((best, hour) => (hour.busyness > best.busyness ? hour : best), hours[0]);
+  const currentNormalized = normalizeHour(currentHour);
+  const scoreByHour = new Map(hours.map((hour) => [normalizeHour(hour.hour), hour.busyness]));
+  const current = scoreByHour.get(currentNormalized) ?? null;
+  const nextScores = [1, 2]
+    .map((offset) => scoreByHour.get(normalizeHour(currentNormalized + offset)))
+    .filter((value): value is number => typeof value === "number");
+  const crowdTrend = trendFromHours(current, nextScores);
+
+  return {
+    peakHour: normalizeHour(peak.hour),
+    peakBusyness: clampForecastScore(peak.busyness),
+    bestArrivalHour: normalizeHour(peak.hour - 1),
+    crowdTrend,
+    vibeLabel: vibeLabelFor(peak.busyness, crowdTrend),
+  };
 }
 
 export function isBestTimeForecastUnavailable(message: string): boolean {

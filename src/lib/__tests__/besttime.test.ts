@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { busynessLabel, busynessScoreForStorage, isBestTimeForecastUnavailable } from "@/lib/besttime";
+import {
+  buildBestTimePrediction,
+  busynessLabel,
+  busynessScoreForStorage,
+  isBestTimeForecastUnavailable,
+} from "@/lib/besttime";
 
 describe("BestTime busyness mapping", () => {
   it("keeps raw 0-100 BestTime scores for storage", () => {
@@ -25,5 +30,34 @@ describe("BestTime busyness mapping", () => {
     expect(isBestTimeForecastUnavailable("BestTime register failed: could not forecast venue")).toBe(true);
     expect(isBestTimeForecastUnavailable("Venue is too new or not enough visitor volume")).toBe(true);
     expect(isBestTimeForecastUnavailable("BestTime live HTTP 500")).toBe(false);
+  });
+
+  it("builds a prediction from hourly BestTime forecast data", () => {
+    const prediction = buildBestTimePrediction(
+      {
+        venueId: "besttime-venue-1",
+        dayInt: 4,
+        updatedOn: "2026-06-22T20:00:00.000Z",
+        hours: [
+          { hour: 20, busyness: 30 },
+          { hour: 21, busyness: 50 },
+          { hour: 22, busyness: 78 },
+          { hour: 23, busyness: 92 },
+        ],
+      },
+      21
+    );
+
+    expect(prediction).toEqual({
+      peakHour: 23,
+      peakBusyness: 92,
+      bestArrivalHour: 22,
+      crowdTrend: "rising",
+      vibeLabel: "Peak Hours",
+    });
+  });
+
+  it("returns null when BestTime has no hourly forecast data", () => {
+    expect(buildBestTimePrediction({ venueId: "missing", dayInt: null, updatedOn: null, hours: [] })).toBeNull();
   });
 });
