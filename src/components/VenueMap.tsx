@@ -8,7 +8,7 @@ import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, RefreshCw, Search, X } from "lucide-react";
+import { Check, ChevronDown, MapPin, RefreshCw, Search, X } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
@@ -1116,17 +1116,12 @@ export function VenueMap({
       )}
 
       {showEmptyState && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-44 z-[999] flex justify-center px-4">
-          <div className="pointer-events-auto w-full max-w-xs rounded-[18px] border border-white/[0.08] bg-[#0A0A0E]/90 px-5 py-4 text-center text-[#F4F5F8] shadow-2xl backdrop-blur">
-            <p className="text-sm font-semibold">{city.name} — coming soon</p>
-            <p className="mt-1 text-xs font-semibold text-[#9CA2AE]">We&apos;re live in South End Charlotte right now.</p>
-            <button
-              type="button"
-              onClick={() => onCityChange("south-end-clt")}
-              className="mt-3 inline-flex items-center justify-center rounded-full bg-[#8B6CFF] px-4 py-2 text-xs font-black text-[#0A0A0E] shadow-[0_0_14px_rgba(139,108,255,0.28)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-            >
-              Go to South End
-            </button>
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[999] flex -translate-y-1/2 justify-center px-6">
+          <div className="w-full max-w-xs text-center text-white/60">
+            <MapPin aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
+            <p className="mt-3 text-sm font-semibold leading-5">
+              No spots found nearby. Try zooming out.
+            </p>
           </div>
         </div>
       )}

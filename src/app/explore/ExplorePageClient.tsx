@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
+import { SearchX } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
@@ -880,12 +881,6 @@ export function ExplorePageClient() {
     sortOption !== "Busiest first";
   const trimmedSearchQuery = debouncedSearchQuery.trim();
   const isSearchingVenues = isFetchingVenues && trimmedSearchQuery.length > 0;
-  const noResultsTitle = trimmedSearchQuery
-    ? `No venues found for "${trimmedSearchQuery}"`
-    : "No venues match your filters";
-  const noResultsDetail = hasActiveFilters
-    ? "Clear filters or choose another crowd level or category."
-    : "Try a different venue, category, or vibe.";
   function clearFilters() {
     setSearchQuery("");
     setBusynessFilter("All");
@@ -1133,17 +1128,17 @@ export function ExplorePageClient() {
         )}
 
         {venues !== null && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
-          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
-            <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
-              {noResultsTitle}
+          <div className="px-6 py-12 text-center text-white/60">
+            <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
+            <h2 className="mt-3 text-[15px] font-semibold leading-6">
+              No spots match this filter.
             </h2>
-            <p className="mt-2 text-sm font-semibold leading-5 text-[#9CA2AE]">{noResultsDetail}</p>
             <button
               type="button"
-              onClick={trimmedSearchQuery && !hasActiveFilters ? () => setSearchQuery("") : clearFilters}
+              onClick={clearFilters}
               className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
-              {trimmedSearchQuery && !hasActiveFilters ? "Clear search" : "Clear filters"}
+              Clear filters
             </button>
           </div>
         )}
@@ -1180,9 +1175,12 @@ export function ExplorePageClient() {
         </div>
 
         {activityLoaded && activityItems.length === 0 ? (
-          <p className="mt-3 rounded-[14px] bg-white/[0.035] px-3 py-2.5 text-sm font-semibold text-[#9CA2AE]">
-            No check-ins yet tonight. Be the first!
-          </p>
+          <div className="mt-4 px-4 py-8 text-center text-white/60">
+            <span aria-hidden="true" className="block text-2xl leading-none">👋</span>
+            <p className="mt-3 text-sm font-semibold leading-5">
+              Be the first to check in tonight.
+            </p>
+          </div>
         ) : (
           <div
             className="mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"

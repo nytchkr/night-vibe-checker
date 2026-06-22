@@ -272,17 +272,11 @@ export default function ProfileCheckInsPage() {
           )}
 
           {!loading && !error && checkIns.length === 0 && (
-            <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] px-4 py-9 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#8B6CFF]/15 text-[#8B6CFF] ring-1 ring-[#8B6CFF]/25">
-                <MapPin size={22} strokeWidth={2.4} aria-hidden="true" />
-              </div>
-              <h2 className="mt-4 text-[17px] font-semibold text-[#F4F5F8]">No check-ins yet</h2>
-              <Link
-                href="/map"
-                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-[13px] font-semibold text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
-              >
-                Find venues on the map
-              </Link>
+            <section className="px-4 py-12 text-center text-white/60">
+              <MapPin size={24} strokeWidth={1.9} aria-hidden="true" className="mx-auto" />
+              <h2 className="mt-3 text-[15px] font-semibold leading-6">
+                Check in at a spot to start your history.
+              </h2>
             </section>
           )}
 
