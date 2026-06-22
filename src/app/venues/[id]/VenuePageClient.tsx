@@ -10,10 +10,12 @@ import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { useOnboardingGate } from "@/components/OnboardingGate";
+import { ProGate } from "@/components/ProGate";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { Toast } from "@/components/Toast";
+import { Badge } from "@/components/ui/badge";
 import { VenueRating } from "@/components/VenueRating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { buildVenueShareData } from "@/lib/venueShare";
@@ -51,6 +53,20 @@ type VenueCrowdNote = {
 type BestTimeHourlyForecast = {
   hour: number;
   busyness: number;
+};
+
+type VenuePrediction = {
+  venueId: string;
+  generatedAt: string;
+  isStub: true;
+  prediction: {
+    peakHour: number;
+    peakBusyness: number;
+    bestArrivalHour: number;
+    crowdTrend: "rising" | "falling" | "stable";
+    confidenceScore: number;
+    summary: string;
+  };
 };
 
 type VenueReportReason = "wrong_hours" | "wrong_location" | "permanently_closed" | "duplicate" | "other";
@@ -549,6 +565,88 @@ function BestTimeForecastSection({
         </div>
       )}
     </section>
+  );
+}
+
+function AiPredictionCard({ venueId }: { venueId: string }) {
+  const [prediction, setPrediction] = useState<VenuePrediction | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!venueId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    async function fetchPrediction() {
+      try {
+        const res = await fetch(`/api/venues/${encodeURIComponent(venueId)}/prediction`, {
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`${res.status}`);
+
+        const json = await res.json();
+        if (!cancelled) setPrediction(json as VenuePrediction);
+      } catch {
+        if (!cancelled) {
+          setPrediction(null);
+          setError("Prediction unavailable right now.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void fetchPrediction();
+    return () => {
+      cancelled = true;
+    };
+  }, [venueId]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4" role="status" aria-label="Loading AI prediction">
+        <Skeleton className="h-5 w-1/2 rounded-full bg-white/10" />
+        <Skeleton className="h-16 rounded-2xl bg-white/10" />
+      </div>
+    );
+  }
+
+  if (error || !prediction) {
+    return <EmptySignalState icon={Clock} message={error ?? "Prediction unavailable right now."} />;
+  }
+
+  return (
+    <div className="rounded-2xl border border-violet-300/20 bg-violet-950/35 p-4 shadow-lg shadow-black/20">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Badge className="border-violet-300/25 bg-violet-300/10 text-violet-100 hover:bg-violet-300/10">
+          {prediction.prediction.crowdTrend}
+        </Badge>
+        <span className="text-[11px] font-black uppercase text-white/35">
+          Stub forecast
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-white/[0.055] p-3">
+          <p className="text-[11px] font-black uppercase text-white/35">Peak</p>
+          <p className="mt-1 font-display text-2xl font-black text-white">{formatHourLabel(prediction.prediction.peakHour)}</p>
+          <p className="mt-1 text-xs font-bold text-[#FF2D78]">{prediction.prediction.peakBusyness}% busy</p>
+        </div>
+        <div className="rounded-2xl bg-white/[0.055] p-3">
+          <p className="text-[11px] font-black uppercase text-white/35">Arrive by</p>
+          <p className="mt-1 font-display text-2xl font-black text-white">{formatHourLabel(prediction.prediction.bestArrivalHour)}</p>
+          <p className="mt-1 text-xs font-bold text-[#00F5D4]">
+            {Math.round(prediction.prediction.confidenceScore * 100)}% confidence
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-4 text-sm leading-relaxed text-white/72">{prediction.prediction.summary}</p>
+    </div>
   );
 }
 
@@ -1347,6 +1445,18 @@ export function VenuePageClient({
               error={bestTimeForecastError}
               updatedOn={bestTimeForecastUpdatedOn}
             />
+
+            <section className="space-y-3" role="region" aria-label="AI Prediction">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-[#F4F5F8]">AI Prediction</h2>
+                <p className="mt-1 text-xs font-semibold text-white/35">
+                  Pro preview using stubbed model output
+                </p>
+              </div>
+              <ProGate feature="AI crowd prediction">
+                <AiPredictionCard venueId={venue.id} />
+              </ProGate>
+            </section>
 
             {(crowdNotesLoading || crowdNotes.length > 0) && (
               <section className="space-y-4" role="region" aria-label="Recent crowd notes">
