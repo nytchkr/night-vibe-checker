@@ -4,11 +4,6 @@ import {
   fetchBestTimeDayRawForecast,
   type BestTimeCrowdTrend,
 } from "@/lib/besttime";
-import {
-  getRequestUserId,
-  getUserSubscriptionStatus,
-  isActiveProSubscription,
-} from "@/lib/subscription";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 
 export const dynamic = "force-dynamic";
@@ -175,16 +170,6 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const userId = await getRequestUserId(req);
-  if (!userId) {
-    return NextResponse.json({ error: "pro_required" }, { status: 403 });
-  }
-
-  const subscription = await getUserSubscriptionStatus(userId);
-  if (!isActiveProSubscription(subscription)) {
-    return NextResponse.json({ error: "pro_required" }, { status: 403 });
-  }
-
   const { id: rawId } = await params;
   const lookupId = normalizeVenueLookupId(rawId);
   if (!lookupId) {

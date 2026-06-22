@@ -1,17 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockGetRequestUserId = vi.fn();
-const mockGetUserSubscriptionStatus = vi.fn();
-const mockIsActiveProSubscription = vi.fn();
 const mockFindVisibleVenueByIdOrPlaceId = vi.fn();
 const mockFetchBestTimeDayRawForecast = vi.fn();
-
-vi.mock("@/lib/subscription", () => ({
-  getRequestUserId: mockGetRequestUserId,
-  getUserSubscriptionStatus: mockGetUserSubscriptionStatus,
-  isActiveProSubscription: mockIsActiveProSubscription,
-}));
 
 vi.mock("@/lib/venueLookup", async () => {
   const actual = await vi.importActual<typeof import("@/lib/venueLookup")>("@/lib/venueLookup");
@@ -57,9 +48,6 @@ function venue(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
-  mockGetRequestUserId.mockResolvedValue("user-1");
-  mockGetUserSubscriptionStatus.mockResolvedValue({ status: "active" });
-  mockIsActiveProSubscription.mockReturnValue(true);
 });
 
 describe("GET /api/venues/[id]/prediction", () => {
