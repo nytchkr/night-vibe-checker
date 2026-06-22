@@ -68,7 +68,7 @@ describe("GET /api/venue-ratings", () => {
     const { GET } = await import("../venue-ratings/route");
     const res = await GET(new NextRequest("http://localhost/api/venue-ratings"));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });
@@ -118,7 +118,7 @@ describe("POST /api/venue-ratings", () => {
     const { POST } = await import("../venue-ratings/route");
     const res = await POST(request("POST", "http://localhost/api/venue-ratings", { venueId: "venue-1", rating: "maybe" }));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });

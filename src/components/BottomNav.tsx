@@ -152,20 +152,24 @@ export function BottomNav() {
     }
 
     async function refreshYouBadge() {
-      const { data: sessionData } = await client.auth.getSession();
-      const userId = sessionData.session?.user.id;
+      try {
+        const { data: sessionData } = await client.auth.getSession();
+        const userId = sessionData.session?.user.id;
 
-      if (!userId) {
+        if (!userId) {
+          if (!cancelled) setShowYouBadge(false);
+          return;
+        }
+
+        const { count, error } = await client
+          .from("saved_venues")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
+
+        if (!cancelled) setShowYouBadge(!error && (count ?? 0) > 0);
+      } catch {
         if (!cancelled) setShowYouBadge(false);
-        return;
       }
-
-      const { count, error } = await client
-        .from("saved_venues")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId);
-
-      if (!cancelled) setShowYouBadge(!error && (count ?? 0) > 0);
     }
 
     void refreshYouBadge();

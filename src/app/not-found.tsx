@@ -11,7 +11,7 @@ export default function NotFound() {
         href="/map"
         className="mt-8 rounded-full border border-[#8B6CFF]/40 bg-[#8B6CFF] px-6 py-3 font-display text-sm font-black text-[#0A0A0E] shadow-[0_0_28px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#F0568C] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
-        Back to the map →
+        Go back to map
       </Link>
     </main>
   );

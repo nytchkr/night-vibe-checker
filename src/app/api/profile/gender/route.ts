@@ -72,7 +72,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<GenderResponse
   }
 
   const gender = GenderSchema.shape.gender.safeParse(data?.gender);
-  return NextResponse.json({ gender: gender.success ? gender.data : null });
+  const value = gender.success ? gender.data : null;
+  return NextResponse.json({ data: { gender: value }, gender: value });
 }
 
 export async function PATCH(req: NextRequest): Promise<NextResponse<OkResponse | ErrorResponse>> {
@@ -91,7 +92,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse<OkResponse |
 
   const parsed = GenderSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "gender must be male, female, or undisclosed." }, { status: 422 });
+    return NextResponse.json({ error: "gender must be male, female, or undisclosed." }, { status: 400 });
   }
 
   const { error } = await supabase
@@ -102,5 +103,5 @@ export async function PATCH(req: NextRequest): Promise<NextResponse<OkResponse |
     return NextResponse.json({ error: "Could not save profile gender." }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ data: { ok: true }, ok: true });
 }

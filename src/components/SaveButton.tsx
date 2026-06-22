@@ -24,9 +24,13 @@ export function SaveButton({ placeId, className }: SaveButtonProps) {
   const Icon = saved ? BookmarkCheck : Bookmark;
 
   async function hasSession() {
-    const client = createBrowserClient();
-    const { data } = await client.auth.getSession();
-    return Boolean(data.session);
+    try {
+      const client = createBrowserClient();
+      const { data } = await client.auth.getSession();
+      return Boolean(data.session);
+    } catch {
+      return false;
+    }
   }
 
   async function toggleSaved() {

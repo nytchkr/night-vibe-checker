@@ -126,9 +126,11 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     const client = createBrowserClient();
 
-    client.auth.getSession().then(({ data }) => {
-      void resumeAfterAuth(data.session);
-    });
+    client.auth.getSession()
+      .then(({ data }) => {
+        void resumeAfterAuth(data.session);
+      })
+      .catch(() => undefined);
 
     const {
       data: { subscription },
@@ -141,7 +143,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
 
   const requireAuth = useCallback(async (request: GateRequest) => {
     const client = createBrowserClient();
-    const { data } = await client.auth.getSession();
+    const { data } = await client.auth.getSession().catch(() => ({ data: { session: null } }));
 
     if (data.session) return true;
 

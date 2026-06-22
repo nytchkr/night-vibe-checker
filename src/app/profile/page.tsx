@@ -935,7 +935,9 @@ function ProfileContent() {
       }
     }
 
-    client.auth.getSession().then(({ data }) => applySession(data.session));
+    client.auth.getSession()
+      .then(({ data }) => applySession(data.session))
+      .catch(() => applySession(null));
 
     const {
       data: { subscription },

@@ -11,7 +11,7 @@ export default function Error({
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0E] px-6 text-center font-sans text-white">
       <p className="font-display text-sm font-black uppercase tracking-normal text-[#8B6CFF]">NightVibe</p>
       <h1 className="mt-4 font-display text-3xl font-black tracking-normal text-white">
-        Something went sideways.
+        Something went wrong.
       </h1>
       <p className="mt-3 max-w-sm text-sm font-medium leading-6 text-white/60">
         The vibe check hit an unexpected snag. Try again without losing your place.

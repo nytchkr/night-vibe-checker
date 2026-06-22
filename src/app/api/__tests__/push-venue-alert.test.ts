@@ -76,7 +76,7 @@ describe("/api/push/venue-alert", () => {
     const { POST } = await import("../push/venue-alert/route");
     const res = await POST(request("POST", { venueId: "" }));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });

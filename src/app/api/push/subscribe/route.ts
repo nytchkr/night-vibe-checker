@@ -54,7 +54,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "endpoint, keys.auth, and keys.p256dh are required." },
-      { status: 422 },
+      { status: 400 },
     );
   }
 
@@ -76,5 +76,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Could not save push subscription." }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ data: { ok: true }, ok: true });
 }

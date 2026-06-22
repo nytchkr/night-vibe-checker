@@ -68,7 +68,7 @@ describe("PATCH /api/profile/notification-prefs", () => {
     const { PATCH } = await import("../profile/notification-prefs/route");
     const res = await PATCH(patchRequest({ notificationPrefs: { pushEnabled: true } }));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
   });
 
   it("upserts notification prefs on the user preferences row", async () => {

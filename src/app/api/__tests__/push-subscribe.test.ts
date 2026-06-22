@@ -52,7 +52,7 @@ describe("POST /api/push/subscribe", () => {
     const { POST } = await import("../push/subscribe/route");
     const res = await POST(request({ endpoint: "not-a-url", keys: { auth: "", p256dh: "" } }));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toBe("endpoint, keys.auth, and keys.p256dh are required.");
   });
@@ -66,7 +66,7 @@ describe("POST /api/push/subscribe", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual({ ok: true });
+    expect(json).toEqual({ data: { ok: true }, ok: true });
     expect(mockFrom).toHaveBeenCalledWith("push_subscriptions");
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({

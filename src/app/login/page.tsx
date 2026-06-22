@@ -89,7 +89,9 @@ function LoginContent() {
       router.push(destination);
     }
 
-    client.auth.getSession().then(({ data }) => redirectAfterAuth(data.session));
+    client.auth.getSession()
+      .then(({ data }) => redirectAfterAuth(data.session))
+      .catch(() => undefined);
 
     const {
       data: { subscription },
