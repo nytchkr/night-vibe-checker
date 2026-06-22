@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Profile — nytchkr",
+  title: "You — nytchkr",
   description:
-    "View your Night Vibe profile, saved South End Charlotte venues, recent check-ins, and nightlife alert settings.",
+    "View your nytchkr check-ins, saved South End Charlotte venues, and nightlife alert settings.",
 };
 
 export default function ProfileLayout({ children }: { children: React.ReactNode }) {

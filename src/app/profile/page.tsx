@@ -273,7 +273,7 @@ function StatsRow({
   return (
     <section
       className="grid grid-cols-3 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.035]"
-      aria-label="Profile stats"
+      aria-label="You stats"
     >
       {stats.map((stat, index) => (
         <div

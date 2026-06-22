@@ -70,7 +70,7 @@ export default async function NotificationsPage() {
           className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-3 text-sm font-bold text-white/65 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           <ArrowLeft size={16} />
-          Back to profile
+          Back to You
         </Link>
 
         <header className="mt-7 mb-8">

@@ -917,7 +917,7 @@ export function ExplorePageClient() {
                   href="/profile"
                   className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 >
-                  Profile
+                  You
                 </Link>
               )}
             </div>

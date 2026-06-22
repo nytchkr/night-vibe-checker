@@ -229,8 +229,8 @@ test.describe("VibeCheck consumer check-in flow", () => {
 
     await page.goto("/profile");
 
-    // Profile h1 shows "Profile" (premium redesign — email shown in body, not heading)
-    await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
+    // Profile route renders the canonical You tab heading.
+    await expect(page.getByRole("heading", { name: "You" })).toBeVisible();
     await expect(page.getByText("Your Vibes")).toBeVisible();
     await expect(page.getByText("Profile Test Club")).toBeVisible();
     await expect(page.getByText("Packed")).toBeVisible();
