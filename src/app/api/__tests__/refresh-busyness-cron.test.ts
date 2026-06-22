@@ -90,7 +90,7 @@ describe("GET /api/cron/refresh-busyness", () => {
     const json = await res.json();
 
     expect(res.status).toBe(500);
-    expect(json).toEqual({ error: "BESTTIME_API_KEY is not set." });
+    expect(json).toEqual({ error: "Refresh busyness failed." });
     expect(refreshOpenNowMock).not.toHaveBeenCalled();
   });
 });

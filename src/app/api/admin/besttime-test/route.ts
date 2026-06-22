@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAuthorizedAdminRequest } from "@/lib/adminApiAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,17 +8,8 @@ const TEST_VENUE = {
   address: "Charlotte, NC",
 };
 
-function adminPassword(): string | null {
-  return process.env.ADMIN_PASSWORD?.trim() || null;
-}
-
 function bestTimeApiKey(): string | null {
   return process.env.BESTTIME_API_KEY?.trim() || null;
-}
-
-function isAuthorized(req: NextRequest): boolean {
-  const password = adminPassword();
-  return Boolean(password) && req.headers.get("authorization") === `Bearer ${password}`;
 }
 
 function sanitizeBestTimeResponse(data: unknown): unknown {
@@ -31,9 +23,9 @@ function sanitizeBestTimeResponse(data: unknown): unknown {
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  if (!isAuthorized(req)) {
+  if (!isAuthorizedAdminRequest(req)) {
     return NextResponse.json(
-      { status: "error", error: { code: "UNAUTHORIZED", message: "Missing or invalid ADMIN_PASSWORD Bearer token." } },
+      { status: "error", error: { code: "UNAUTHORIZED", message: "Missing or invalid admin session." } },
       { status: 401 }
     );
   }
@@ -70,9 +62,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       { status: response.ok ? 200 : 502 }
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown BestTime test error";
+    console.error("[admin/besttime-test] BestTime test failed:", err);
     return NextResponse.json(
-      { status: "error", error: { code: "BESTTIME_TEST_FAILED", message }, venue: TEST_VENUE },
+      { status: "error", error: { code: "BESTTIME_TEST_FAILED", message: "BestTime test failed." }, venue: TEST_VENUE },
       { status: 502 }
     );
   }

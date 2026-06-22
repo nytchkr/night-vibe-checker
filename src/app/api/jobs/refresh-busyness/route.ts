@@ -21,9 +21,9 @@ export async function POST(req: NextRequest) {
     const openNow = venueId ? undefined : await refreshOpenNow();
     return NextResponse.json({ status: "success", data: { results, openNow } });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown refresh error";
+    console.error("[jobs/refresh-busyness] Refresh failed:", err);
     return NextResponse.json(
-      { status: "error", error: { code: "REFRESH_BUSYNESS_FAILED", message } },
+      { status: "error", error: { code: "REFRESH_BUSYNESS_FAILED", message: "Refresh busyness failed." } },
       { status: 500 }
     );
   }

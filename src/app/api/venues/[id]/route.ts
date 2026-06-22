@@ -4,8 +4,8 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
@@ -13,7 +13,7 @@ const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug,
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls,
-  phone, website, opening_hours, open_now, hidden,
+  phone, website, opening_hours, open_now, besttime_venue_id, hidden,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -92,6 +92,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     website: (row.website ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
     openNow: row.open_now == null ? undefined : Boolean(row.open_now),
+    besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal: mapSignal(signalRow),
   };
@@ -103,9 +104,11 @@ function isMissingContactColumn(error: unknown): boolean {
     message.includes("'phone' column") ||
     message.includes("'website' column") ||
     message.includes("'photo_urls' column") ||
+    message.includes("'besttime_venue_id' column") ||
     message.includes("venues.phone") ||
     message.includes("venues.website") ||
-    message.includes("venues.photo_urls")
+    message.includes("venues.photo_urls") ||
+    message.includes("venues.besttime_venue_id")
   );
 }
 
@@ -135,7 +138,7 @@ export async function GET(
   }
 
   const { id: rawId } = await params;
-  const id = rawId?.trim();
+  const id = normalizeVenueLookupId(rawId);
   if (!id) {
     return NextResponse.json<APIResponse<never>>(
       {
@@ -147,45 +150,45 @@ export async function GET(
     );
   }
 
-  const primaryResult = await supabaseAdmin
-    .from("venues")
-    .select(VENUE_SELECT)
-    .or(`id.eq.${id},place_id.eq.${id}`)
-    .eq("hidden", false)
-    .limit(1)
-    .single();
-  let data = primaryResult.data as Record<string, unknown> | null;
-  let error = primaryResult.error;
+  try {
+    const primaryResult = await findVisibleVenueByIdOrPlaceId(id, VENUE_SELECT);
+    let data = primaryResult.data as Record<string, unknown> | null;
+    let error = primaryResult.error;
 
-  if (error && isMissingContactColumn(error)) {
-    const legacyResult = await supabaseAdmin
-      .from("venues")
-      .select(VENUE_SELECT_LEGACY)
-      .or(`id.eq.${id},place_id.eq.${id}`)
-      .eq("hidden", false)
-      .limit(1)
-      .single();
-    data = legacyResult.data as Record<string, unknown> | null;
-    error = legacyResult.error;
-  }
+    if (error && isMissingContactColumn(error)) {
+      const legacyResult = await findVisibleVenueByIdOrPlaceId(id, VENUE_SELECT_LEGACY);
+      data = legacyResult.data as Record<string, unknown> | null;
+      error = legacyResult.error;
+    }
 
-  if (error || !data) {
+    if (error || !data) {
+      return NextResponse.json<APIResponse<never>>(
+        {
+          status: "error",
+          error: { code: "VENUE_NOT_FOUND", message: "Venue was not found in the cached launch-zone database." },
+          meta: { cached: true, generatedAt, requestId },
+        },
+        { status: 404, headers }
+      );
+    }
+
+    return NextResponse.json<APIResponse<{ venue: ConsumerVenue }>>(
+      {
+        status: "success",
+        data: { venue: mapVenue(data as Record<string, unknown>) },
+        meta: { cached: true, generatedAt, requestId },
+      },
+      { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } }
+    );
+  } catch (error) {
+    console.error("[venues detail] unexpected error:", error);
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
-        error: { code: "VENUE_NOT_FOUND", message: "Venue was not found in the cached launch-zone database." },
+        error: { code: "DB_ERROR", message: "Could not load cached venue." },
         meta: { cached: true, generatedAt, requestId },
       },
-      { status: 404, headers }
+      { status: 500, headers }
     );
   }
-
-  return NextResponse.json<APIResponse<{ venue: ConsumerVenue }>>(
-    {
-      status: "success",
-      data: { venue: mapVenue(data as Record<string, unknown>) },
-      meta: { cached: true, generatedAt, requestId },
-    },
-    { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } }
-  );
 }

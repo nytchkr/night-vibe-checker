@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { supabaseAdmin } from "@/lib/supabase";
+import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 
 const CHECK_IN_LIMIT = 10;
 const RECENT_CHECK_IN_HOURS = 4;
@@ -67,12 +68,7 @@ function mapCheckIn(row: RecentCheckInRow): RecentVenueCheckIn {
 }
 
 async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> {
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, hidden")
-    .or(`id.eq.${venueIdOrPlaceId},place_id.eq.${venueIdOrPlaceId}`)
-    .limit(1)
-    .single();
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(venueIdOrPlaceId, "id, hidden");
 
   if (error || !data || data.hidden) return null;
   return data.id as string;
@@ -117,7 +113,7 @@ export async function GET(
 ): Promise<NextResponse> {
   const requestId = uuidv4();
   const { id: rawId } = await params;
-  const requestedVenueId = rawId?.trim();
+  const requestedVenueId = normalizeVenueLookupId(rawId);
 
   if (!requestedVenueId) {
     return NextResponse.json(

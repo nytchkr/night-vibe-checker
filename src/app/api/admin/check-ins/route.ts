@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
     .limit(200);
 
   if (error) {
+    console.error("[admin check-ins GET] DB error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch check-ins", details: error.message },
+      { error: "Failed to fetch check-ins" },
       { status: 500 }
     );
   }
@@ -44,5 +45,5 @@ export async function GET(req: NextRequest) {
     userId: (row.user_id ?? null) as string | null,
   }));
 
-  return NextResponse.json({ checkIns });
+  return NextResponse.json({ data: { checkIns }, checkIns });
 }

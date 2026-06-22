@@ -122,7 +122,7 @@ describe("POST /api/check-ins", () => {
   it("validates the new report payload", async () => {
     const { POST } = await import("../check-ins/route");
     const res = await POST(request("POST", "http://localhost/api/check-ins", { venueId: "v", busyness: "wild" }));
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });
@@ -187,7 +187,7 @@ describe("POST /api/check-ins", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(venueChain.or).toHaveBeenCalledWith("id.eq.place-123,place_id.eq.place-123");
+    expect(venueChain.eq).toHaveBeenCalledWith("place_id", "place-123");
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         busyness: "packed",
@@ -370,7 +370,7 @@ describe("POST /api/check-ins", () => {
       const res = await POST(
         request("POST", "http://localhost/api/check-ins", body, "token", { "x-forwarded-for": "203.0.113.10" })
       );
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
       expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
     }
 
@@ -398,7 +398,7 @@ describe("GET /api/check-ins", () => {
     expect(res.status).toBe(503);
     const json = await res.json();
     expect(json.error.code).toBe("MISSING_ENV");
-    expect(json.error.message).toBe("Missing NEXT_PUBLIC_SUPABASE_URL — add to .env.local");
+    expect(json.error.message).toBe("Server configuration is incomplete.");
   });
 
   it("returns recent public feed reports", async () => {

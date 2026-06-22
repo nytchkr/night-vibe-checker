@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { ADMIN_COOKIE_NAME, getAdminCookieToken } from "@/lib/adminPasswordAuth";
 
-function request(password?: string) {
+function request(authorized = true) {
   return new NextRequest("http://localhost/api/admin/besttime-test", {
     method: "GET",
-    headers: password ? { authorization: `Bearer ${password}` } : undefined,
+    headers: authorized ? { cookie: `${ADMIN_COOKIE_NAME}=${getAdminCookieToken()}` } : undefined,
   });
 }
 
@@ -22,9 +23,9 @@ describe("GET /api/admin/besttime-test", () => {
     delete process.env.BESTTIME_API_KEY;
   });
 
-  it("requires the ADMIN_PASSWORD Bearer token", async () => {
+  it("requires the admin session cookie", async () => {
     const { GET } = await import("../admin/besttime-test/route");
-    const response = await GET(request("wrong-secret"));
+    const response = await GET(request(false));
 
     expect(response.status).toBe(401);
     expect(fetch).not.toHaveBeenCalled();
@@ -43,7 +44,7 @@ describe("GET /api/admin/besttime-test", () => {
     );
 
     const { GET } = await import("../admin/besttime-test/route");
-    const response = await GET(request("admin-secret"));
+    const response = await GET(request());
     const json = await response.json();
 
     expect(response.status).toBe(200);
@@ -72,7 +73,7 @@ describe("GET /api/admin/besttime-test", () => {
     );
 
     const { GET } = await import("../admin/besttime-test/route");
-    const response = await GET(request("admin-secret"));
+    const response = await GET(request());
     const text = await response.text();
 
     expect(response.status).toBe(200);

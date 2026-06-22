@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ADMIN_COOKIE_NAME, getAdminCookieToken } from "@/lib/adminPasswordAuth";
 
 const mockRefreshOpenNow = vi.fn();
 
@@ -7,10 +8,10 @@ vi.mock("@/app/api/cron/refresh-signals/route", () => ({
   POST: mockRefreshOpenNow,
 }));
 
-function request(secret?: string) {
+function request(authorized = true) {
   return new NextRequest("http://localhost/api/admin/trigger-refresh", {
     method: "POST",
-    headers: secret ? { authorization: `Bearer ${secret}` } : undefined,
+    headers: authorized ? { cookie: `${ADMIN_COOKIE_NAME}=${getAdminCookieToken()}` } : undefined,
   });
 }
 
@@ -19,24 +20,26 @@ describe("POST /api/admin/trigger-refresh", () => {
     vi.resetModules();
     vi.clearAllMocks();
     process.env.CRON_SECRET = "test-secret";
+    process.env.ADMIN_PASSWORD = "admin-secret";
     mockRefreshOpenNow.mockResolvedValue(NextResponse.json({ status: "success" }));
   });
 
   afterEach(() => {
     delete process.env.CRON_SECRET;
+    delete process.env.ADMIN_PASSWORD;
   });
 
-  it("requires the cron secret header", async () => {
+  it("requires the admin session cookie", async () => {
     const { POST } = await import("../admin/trigger-refresh/route");
-    const res = await POST(request("wrong-secret"));
+    const res = await POST(request(false));
 
     expect(res.status).toBe(401);
     expect(mockRefreshOpenNow).not.toHaveBeenCalled();
   });
 
-  it("triggers signal refresh with the cron secret", async () => {
+  it("triggers signal refresh with the admin session cookie", async () => {
     const { POST } = await import("../admin/trigger-refresh/route");
-    const res = await POST(request("test-secret"));
+    const res = await POST(request());
     const json = await res.json();
 
     expect(res.status).toBe(200);
@@ -54,11 +57,11 @@ describe("POST /api/admin/trigger-refresh", () => {
     );
 
     const { POST } = await import("../admin/trigger-refresh/route");
-    const res = await POST(request("test-secret"));
+    const res = await POST(request());
     const json = await res.json();
 
     expect(res.status).toBe(502);
     expect(json.error.code).toBe("TRIGGER_REFRESH_FAILED");
-    expect(json.error.message).toContain("signals refresh failed with HTTP 500");
+    expect(json.error.message).toBe("Refresh trigger failed.");
   });
 });

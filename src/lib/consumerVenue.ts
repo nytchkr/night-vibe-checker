@@ -1,11 +1,11 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 export const CONSUMER_VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug, neighborhood,
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls,
-  phone, website, opening_hours, open_now, hidden,
+  phone, website, opening_hours, open_now, besttime_venue_id, hidden,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -86,6 +86,7 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     website: (row.website ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
     openNow: row.open_now == null ? undefined : Boolean(row.open_now),
+    besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal: mapSignal(signalRow),
   };
@@ -98,36 +99,26 @@ function isMissingContactColumn(error: unknown): boolean {
     message.includes("'website' column") ||
     message.includes("'photo_urls' column") ||
     message.includes("'neighborhood' column") ||
+    message.includes("'besttime_venue_id' column") ||
     message.includes("venues.phone") ||
     message.includes("venues.website") ||
     message.includes("venues.photo_urls") ||
-    message.includes("venues.neighborhood")
+    message.includes("venues.neighborhood") ||
+    message.includes("venues.besttime_venue_id")
   );
 }
 
 export async function getConsumerVenueById(id: string): Promise<ConsumerVenue | null> {
-  const venueId = decodeURIComponent(id).trim();
+  const venueId = normalizeVenueLookupId(id);
   if (!venueId) return null;
 
-  const primaryResult = await supabaseAdmin
-    .from("venues")
-    .select(CONSUMER_VENUE_SELECT)
-    .or(`id.eq.${venueId},place_id.eq.${venueId}`)
-    .eq("hidden", false)
-    .limit(1)
-    .maybeSingle();
+  const primaryResult = await findVisibleVenueByIdOrPlaceId(venueId, CONSUMER_VENUE_SELECT);
 
   let data = primaryResult.data as Record<string, unknown> | null;
   let error = primaryResult.error;
 
   if (error && isMissingContactColumn(error)) {
-    const legacyResult = await supabaseAdmin
-      .from("venues")
-      .select(CONSUMER_VENUE_SELECT_LEGACY)
-      .or(`id.eq.${venueId},place_id.eq.${venueId}`)
-      .eq("hidden", false)
-      .limit(1)
-      .maybeSingle();
+      const legacyResult = await findVisibleVenueByIdOrPlaceId(venueId, CONSUMER_VENUE_SELECT_LEGACY);
 
     data = legacyResult.data as Record<string, unknown> | null;
     error = legacyResult.error;

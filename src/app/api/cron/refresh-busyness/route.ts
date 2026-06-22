@@ -36,8 +36,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       openNow,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown refresh error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[cron/refresh-busyness] Refresh failed:", err);
+    return NextResponse.json({ error: "Refresh busyness failed." }, { status: 500 });
   }
 }
 

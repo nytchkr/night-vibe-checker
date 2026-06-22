@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { recomputeVenueSignal } from "@/lib/signals";
+import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const MAX_VENUE_ID_LENGTH = 160;
@@ -47,7 +48,7 @@ const PostBodySchema = z.object({
   busyness: BusynessSchema,
   crowd_feel: CrowdFeelSchema.optional(),
   crowdFeel: CrowdFeelSchema.optional(),
-  note: z.string().trim().max(200).optional(),
+  note: z.string().trim().max(500, "note must be 500 characters or less.").optional(),
   gender: GenderSelfReportSchema.optional(),
   gender_self_report: GenderSelfReportSchema.nullable().optional(),
   genderSelfReport: GenderSelfReportSchema.nullable().optional(),
@@ -102,7 +103,7 @@ function missingSupabaseConfigResponse(
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   console.error("[check-ins] Supabase configuration error:", error.message);
   return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
+    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
     { status: 503, headers }
   );
 }
@@ -163,12 +164,7 @@ function mapSignal(row: Record<string, unknown> | null | undefined): VenueSignal
 }
 
 async function resolveVenue(venueIdOrPlaceId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, place_id, hidden")
-    .or(`id.eq.${venueIdOrPlaceId},place_id.eq.${venueIdOrPlaceId}`)
-    .limit(1)
-    .single();
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(venueIdOrPlaceId, "id, place_id, hidden");
 
   if (error || !data || data.hidden) return null;
   return data as { id: string; place_id: string; hidden: boolean };
@@ -252,11 +248,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         error: { code: "VALIDATION_ERROR", message: parsed.error.errors.map((e) => e.message).join("; ") },
         meta,
       },
-      { status: 422, headers }
+      { status: 400, headers }
     );
   }
 
-  const venue = await resolveVenue(parsed.data.place_id ?? parsed.data.venueId ?? "");
+    const venue = await resolveVenue(normalizeVenueLookupId(parsed.data.place_id ?? parsed.data.venueId ?? ""));
   if (!venue) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },

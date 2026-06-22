@@ -20,9 +20,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[discover-zone] Places discovery failed:", error);
     const status = error instanceof PlacesApiError ? error.statusCode : 500;
-    const message = error instanceof Error ? error.message : "Places discovery failed.";
     return NextResponse.json(
-      { status: "error", error: { code: "PLACES_ERROR", message } },
+      { status: "error", error: { code: "PLACES_ERROR", message: "Places discovery failed." } },
       { status }
     );
   }

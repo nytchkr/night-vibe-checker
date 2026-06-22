@@ -26,7 +26,7 @@ function missingSupabaseConfigResponse(
 ): NextResponse<APIResponse<never>> | null {
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta: responseMeta },
+    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: responseMeta },
     { status: 503 },
   );
 }
@@ -51,7 +51,7 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VALIDATION_ERROR", message: "Tip id must be a UUID." }, meta: responseMeta },
-      { status: 422 },
+      { status: 400 },
     );
   }
 

@@ -16,9 +16,9 @@ async function refreshOpenNowFromCachedHours(req: NextRequest) {
     const data = await refreshOpenNow();
     return NextResponse.json({ status: "success", data });
   } catch (err) {
-    const message = err instanceof Error ? err.message : JSON.stringify(err);
+    console.error("[cron/refresh-open-now] Refresh failed:", err);
     return NextResponse.json(
-      { status: "error", error: { code: "REFRESH_OPEN_NOW_FAILED", message } },
+      { status: "error", error: { code: "REFRESH_OPEN_NOW_FAILED", message: "Refresh open-now failed." } },
       { status: 500 }
     );
   }

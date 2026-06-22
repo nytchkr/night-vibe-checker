@@ -61,13 +61,15 @@ export async function PATCH(
     .single();
 
   if (error || !data) {
+    console.error("[admin venue PATCH] DB error:", error);
     return NextResponse.json(
-      { error: "Failed to update venue", details: error?.message },
+      { error: "Failed to update venue" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ venue: mapVenue(data as Record<string, unknown>) });
+  const venue = mapVenue(data as Record<string, unknown>);
+  return NextResponse.json({ data: { venue }, venue });
 }
 
 export async function DELETE(
@@ -93,11 +95,13 @@ export async function DELETE(
     .single();
 
   if (error || !data) {
+    console.error("[admin venue DELETE] DB error:", error);
     return NextResponse.json(
-      { error: "Failed to hide venue", details: error?.message },
+      { error: "Failed to hide venue" },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ venue: mapVenue(data as Record<string, unknown>) });
+  const venue = mapVenue(data as Record<string, unknown>);
+  return NextResponse.json({ data: { venue }, venue });
 }

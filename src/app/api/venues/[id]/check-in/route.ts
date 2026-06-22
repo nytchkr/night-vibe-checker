@@ -8,9 +8,10 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { recomputeVenueSignal } from "@/lib/signals";
+import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { APIResponse, ConsumerCheckIn, VenueSignal } from "@/types";
 
-const VIBE_NOTE_MAX_LENGTH = 120;
+const VIBE_NOTE_MAX_LENGTH = 500;
 
 const CrowdFeelSchema = z.enum([
   "chill",
@@ -23,8 +24,13 @@ const CrowdFeelSchema = z.enum([
   "balanced",
 ]);
 
+const BusynessSchema = z.union([
+  z.enum(["dead", "moderate", "packed"]),
+  z.number().min(0).max(100),
+]);
+
 const CheckInBodySchema = z.object({
-  busyness: z.enum(["dead", "moderate", "packed"]),
+  busyness: BusynessSchema,
   crowd_feel: CrowdFeelSchema,
   note: z.string().trim().max(VIBE_NOTE_MAX_LENGTH).optional(),
   gender: z.enum(["m", "f", "nb", "man", "woman"]).nullable().optional(),
@@ -41,6 +47,13 @@ function genderToSelfReport(gender: "m" | "f" | "nb" | "man" | "woman" | null | 
 function selectedGenderSelfReport(data: z.infer<typeof CheckInBodySchema>): "m" | "f" | "nb" | null {
   if ("gender" in data) return genderToSelfReport(data.gender);
   return data.gender_self_report ?? null;
+}
+
+function normalizeBusyness(busyness: z.infer<typeof BusynessSchema>): "dead" | "moderate" | "packed" {
+  if (typeof busyness === "string") return busyness;
+  if (busyness <= 33) return "dead";
+  if (busyness >= 67) return "packed";
+  return "moderate";
 }
 
 function normalizeReporterGender(gender: unknown): "male" | "female" | null {
@@ -73,7 +86,7 @@ function missingSupabaseConfigResponse(
 ): NextResponse<APIResponse<never>> | null {
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta: responseMeta },
+    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: responseMeta },
     { status: 503 },
   );
 }
@@ -104,12 +117,7 @@ async function getReporterGender(userId: string): Promise<"male" | "female" | nu
 }
 
 async function resolveVenue(venueIdOrPlaceId: string): Promise<{ id: string; place_id: string | null } | null> {
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, place_id, hidden")
-    .or(`id.eq.${venueIdOrPlaceId},place_id.eq.${venueIdOrPlaceId}`)
-    .limit(1)
-    .single();
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(venueIdOrPlaceId, "id, place_id, hidden");
 
   if (error || !data || data.hidden) return null;
   return {
@@ -170,7 +178,7 @@ export async function POST(
   }
 
   const { id: rawId } = await params;
-  const requestedVenueId = rawId?.trim();
+    const requestedVenueId = normalizeVenueLookupId(rawId);
   if (!requestedVenueId) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "MISSING_ID", message: "Venue id is required." }, meta: responseMeta },
@@ -192,7 +200,7 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VALIDATION_ERROR", message: "Choose a busyness and crowd feel." }, meta: responseMeta },
-      { status: 422 },
+      { status: 400 },
     );
   }
 
@@ -210,7 +218,7 @@ export async function POST(
     venue_id: venue.id,
     place_id: venue.place_id,
     user_id: userId,
-    busyness: parsed.data.busyness,
+    busyness: normalizeBusyness(parsed.data.busyness),
     crowd_feel: parsed.data.crowd_feel,
     reporter_gender: reporterGender,
     gender_self_report: selectedGenderSelfReport(parsed.data),

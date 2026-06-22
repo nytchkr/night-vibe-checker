@@ -45,7 +45,7 @@ async function getBearerUserId(authHeader: string | null): Promise<string | null
 function missingConfigResponse(error: unknown, headers?: HeadersInit): NextResponse<APIResponse<never>> | null {
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   return json<never>(
-    { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta: meta() },
+    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: meta() },
     { status: 503, headers },
   );
 }
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         error: { code: "VALIDATION_ERROR", message: "venueId query parameter is required." },
         meta: meta(),
       },
-      { status: 422, headers: PRIVATE_CACHE_HEADERS },
+      { status: 400, headers: PRIVATE_CACHE_HEADERS },
     );
   }
 
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         error: { code: "VALIDATION_ERROR", message: "venueId and rating ('up' or 'down') are required." },
         meta: meta(),
       },
-      { status: 422 },
+      { status: 400 },
     );
   }
 

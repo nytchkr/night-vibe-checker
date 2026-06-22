@@ -7,8 +7,7 @@ const TRIGGERED = ["signals"] as const;
 type RefreshHandler = (req: NextRequest) => Response | Promise<Response>;
 
 function isAuthorized(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  return Boolean(secret) && (isAuthorizedAdminRequest(req) || req.headers.get("authorization") === `Bearer ${secret}`);
+  return isAuthorizedAdminRequest(req);
 }
 
 function internalCronRequest(req: NextRequest, path: string, secret: string) {
@@ -44,7 +43,7 @@ export async function POST(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret || !isAuthorized(req)) {
     return NextResponse.json(
-      { status: "error", error: { code: "UNAUTHORIZED", message: "Missing or invalid CRON_SECRET header." } },
+      { status: "error", error: { code: "UNAUTHORIZED", message: "Missing or invalid admin session." } },
       { status: 401 }
     );
   }
@@ -57,9 +56,9 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown refresh trigger error";
+    console.error("[admin/trigger-refresh] Refresh trigger failed:", err);
     return NextResponse.json(
-      { status: "error", error: { code: "TRIGGER_REFRESH_FAILED", message } },
+      { status: "error", error: { code: "TRIGGER_REFRESH_FAILED", message: "Refresh trigger failed." } },
       { status: 502 }
     );
   }

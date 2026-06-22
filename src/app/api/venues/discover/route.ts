@@ -46,12 +46,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     discovered = await discoverZone(LAUNCH_ZONE);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown Places API error.";
-    console.error("[venues/discover] Places API error:", message);
+    console.error("[venues/discover] Places API error:", err);
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
-        error: { code: "PLACES_ERROR", message },
+        error: { code: "PLACES_ERROR", message: "Places discovery failed." },
         meta: { cached: false, generatedAt, requestId },
       },
       { status: 502 }

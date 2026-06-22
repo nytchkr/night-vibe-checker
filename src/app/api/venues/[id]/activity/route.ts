@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse } from "@/types";
 
@@ -76,7 +77,7 @@ export async function GET(
   const meta = { cached: true, generatedAt, requestId };
 
   const { id: rawId } = await params;
-  const id = rawId?.trim();
+  const id = normalizeVenueLookupId(rawId);
   if (!id) {
     return NextResponse.json<APIResponse<never>>(
       {
@@ -88,13 +89,7 @@ export async function GET(
     );
   }
 
-  const { data: venue, error: venueError } = await supabaseAdmin
-    .from("venues")
-    .select("id")
-    .or(`id.eq.${id},place_id.eq.${id}`)
-    .eq("hidden", false)
-    .limit(1)
-    .single();
+  const { data: venue, error: venueError } = await findVisibleVenueByIdOrPlaceId(id, "id");
 
   if (venueError || !venue) {
     return NextResponse.json<APIResponse<never>>(

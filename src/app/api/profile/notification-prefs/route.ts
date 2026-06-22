@@ -32,7 +32,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     if (error instanceof MissingSupabaseEnvError) {
       return json<never>(
-        { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
+        { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
         { status: 503 },
       );
     }
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   if (!parsed.success) {
     return json<never>(
       { status: "error", error: { code: "VALIDATION_ERROR", message: "notificationPrefs is invalid." }, meta },
-      { status: 422 },
+      { status: 400 },
     );
   }
 

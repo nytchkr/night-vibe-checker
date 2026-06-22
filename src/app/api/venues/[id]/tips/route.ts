@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { APIResponse } from "@/types";
 
 const TIP_LIMIT = 3;
@@ -33,7 +34,7 @@ function missingSupabaseConfigResponse(
 ): NextResponse<APIResponse<never>> | null {
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta: responseMeta },
+    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: responseMeta },
     { status: 503 },
   );
 }
@@ -49,12 +50,7 @@ async function getBearerUserId(authHeader: string | null): Promise<string | null
 }
 
 async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> {
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, hidden")
-    .or(`id.eq.${venueIdOrPlaceId},place_id.eq.${venueIdOrPlaceId}`)
-    .limit(1)
-    .single();
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(venueIdOrPlaceId, "id, hidden");
 
   if (error || !data || data.hidden) return null;
   return data.id as string;
@@ -87,7 +83,7 @@ export async function GET(
   }
 
   const { id: rawId } = await params;
-  const requestedVenueId = rawId?.trim();
+  const requestedVenueId = normalizeVenueLookupId(rawId);
   if (!requestedVenueId) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "MISSING_ID", message: "Venue id is required." }, meta: responseMeta },
@@ -157,7 +153,7 @@ export async function POST(
   }
 
   const { id: rawId } = await params;
-  const requestedVenueId = rawId?.trim();
+  const requestedVenueId = normalizeVenueLookupId(rawId);
   if (!requestedVenueId) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "MISSING_ID", message: "Venue id is required." }, meta: responseMeta },
@@ -179,7 +175,7 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VALIDATION_ERROR", message: "Tip must be 10 to 200 characters." }, meta: responseMeta },
-      { status: 422 },
+      { status: 400 },
     );
   }
 

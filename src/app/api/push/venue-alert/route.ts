@@ -76,7 +76,7 @@ function missingSupabaseConfigResponse(
   if (!(error instanceof MissingSupabaseEnvError)) return null;
   console.error("[push venue-alert] Supabase configuration error:", error.message);
   return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
+    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
     { status: 503, headers },
   );
 }
@@ -91,7 +91,7 @@ function unauthorized(meta: ResponseMeta, headers?: HeadersInit) {
 function validationError(meta: ResponseMeta, headers?: HeadersInit) {
   return NextResponse.json<APIResponse<never>>(
     { status: "error", error: { code: "VALIDATION_ERROR", message: "venueId is required." }, meta },
-    { status: 422, headers },
+    { status: 400, headers },
   );
 }
 

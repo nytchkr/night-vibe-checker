@@ -35,7 +35,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (error) {
     if (error instanceof MissingSupabaseEnvError) {
       console.error("[track] Supabase configuration error:", error.message);
-      return jsonError(error.message, 503);
+      return jsonError("Server configuration is incomplete.", 503);
     }
     throw error;
   }
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const parsed = TrackBodySchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.errors.map((error) => error.message).join("; ") }, { status: 422, headers });
+    return NextResponse.json({ error: parsed.error.errors.map((error) => error.message).join("; ") }, { status: 400, headers });
   }
 
   const { error } = await supabaseAdmin.from("analytics_events").insert({

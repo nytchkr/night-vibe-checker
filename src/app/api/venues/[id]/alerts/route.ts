@@ -29,7 +29,7 @@ export async function DELETE(
   } catch (error) {
     if (error instanceof MissingSupabaseEnvError) {
       return json<never>(
-        { status: "error", error: { code: "MISSING_ENV", message: error.message }, meta },
+        { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
         { status: 503 },
       );
     }
@@ -49,7 +49,7 @@ export async function DELETE(
   if (!venueId) {
     return json<never>(
       { status: "error", error: { code: "VALIDATION_ERROR", message: "Venue id is required." }, meta },
-      { status: 422 },
+      { status: 400 },
     );
   }
 

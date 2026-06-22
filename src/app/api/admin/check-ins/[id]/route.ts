@@ -45,8 +45,9 @@ export async function PATCH(
     .single();
 
   if (error || !data) {
+    console.error("[admin check-in PATCH] DB error:", error);
     return NextResponse.json(
-      { error: "Failed to update check-in", details: error?.message },
+      { error: "Failed to update check-in" },
       { status: 500 }
     );
   }
@@ -73,7 +74,7 @@ export async function PATCH(
     userId: (data.user_id ?? null) as string | null,
   };
 
-  return NextResponse.json({ checkIn });
+  return NextResponse.json({ data: { checkIn }, checkIn });
 }
 
 // --------------- DELETE /api/admin/check-ins/[id] ------------
@@ -101,8 +102,9 @@ export async function DELETE(
     .eq("id", id);
 
   if (error) {
+    console.error("[admin check-in DELETE] DB error:", error);
     return NextResponse.json(
-      { error: "Failed to delete check-in", details: error.message },
+      { error: "Failed to delete check-in" },
       { status: 500 }
     );
   }
