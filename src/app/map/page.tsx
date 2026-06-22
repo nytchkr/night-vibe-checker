@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import TonightStats from "@/components/TonightStats";
 import VenueMapClient from "@/components/VenueMapClient";
 import { PageTransition } from "@/components/PageTransition";
 
@@ -15,6 +16,7 @@ export default function MapPage() {
         Search by zip for Charlotte ZIP lookup: 28202 28203 28209.
       </p>
       <div className="mx-auto h-[calc(100dvh-4rem)] min-h-[520px] w-full bg-[#0A0A0E] md:max-w-lg">
+        <TonightStats />
         <VenueMapClient />
       </div>
     </PageTransition>
