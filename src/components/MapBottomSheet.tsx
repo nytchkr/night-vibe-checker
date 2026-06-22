@@ -7,6 +7,7 @@ import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
+import { StarRating } from "@/components/StarRating";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -35,7 +36,7 @@ function NoDataChip() {
   );
 }
 
-function OpenNowDot({ openNow }: { openNow: boolean | undefined }) {
+function OpenNowDot({ openNow }: { openNow: boolean | null | undefined }) {
   const status = openNow === true ? "Open now" : openNow === false ? "Closed now" : "Hours pending";
   const dotClass =
     openNow === true
@@ -105,6 +106,8 @@ function VenueRow({
   venue: ConsumerVenue;
 }) {
   const neighborhood = getNeighborhood(venue.lat, venue.lng);
+  const rating = venue.rating ?? venue.googleRating;
+  const reviewCount = venue.userRatingCount ?? venue.totalRatings;
 
   return (
     <div className="relative">
@@ -121,6 +124,11 @@ function VenueRow({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-black text-white">{venue.name}</h3>
+            {rating != null && reviewCount != null ? (
+              <div className="mt-1 text-xs">
+                <StarRating rating={rating} count={reviewCount} />
+              </div>
+            ) : null}
             <p className="mt-1 truncate text-xs font-semibold text-white/55">{neighborhood}</p>
             <p className="mt-0.5 truncate text-xs font-semibold text-white/40">{venue.category}</p>
           </div>

@@ -14,6 +14,7 @@ import { ProGate } from "@/components/ProGate";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
+import { StarRating } from "@/components/StarRating";
 import { Toast } from "@/components/Toast";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { Badge } from "@/components/ui/badge";
@@ -229,12 +230,6 @@ function formatWeekHours(hoursEntry: string): { day: string; hours: string; clos
     hours: isClosedHours(hours) ? "Closed" : hours.split(/\s*[–-]\s*/).map(formatShortTime).join(" – "),
     closed: isClosedHours(hours),
   };
-}
-
-function formatReviewCount(count: number | null | undefined): string | null {
-  if (count == null || !Number.isFinite(count)) return null;
-  const rounded = Math.round(count);
-  return `${rounded.toLocaleString()} review${rounded === 1 ? "" : "s"}`;
 }
 
 function LoadingSkeleton() {
@@ -1257,8 +1252,7 @@ export function VenuePageClient({
   const hasEnoughMfSample = mfSampleSize >= 3 && mfPercents !== null;
   const crowdFeel = getCrowdFeel(hasEnoughMfSample ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
-  const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
-  const googleReviewLabel = formatReviewCount(venue?.userRatingCount ?? venue?.totalRatings);
+  const googleReviewCount = venue?.userRatingCount ?? venue?.totalRatings;
   const neighborhood = venue ? getNeighborhood(venue.lat, venue.lng) : "Charlotte";
   const hoursSummary = useMemo(() => {
     const openingHours = venue?.openingHours ?? [];
@@ -1373,17 +1367,11 @@ export function VenuePageClient({
                   <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
                 )}
                 <p className="mt-1 text-sm font-semibold text-white/45">{neighborhood}</p>
-                {googleRatingLabel && (
-                  <div
-                    className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-3"
-                    aria-label={googleReviewLabel ? `${googleRatingLabel} star rating from ${googleReviewLabel}` : `${googleRatingLabel} star rating`}
-                  >
-                    <span className="text-2xl font-black leading-none text-amber-300">★ {googleRatingLabel}</span>
-                    <span className="text-sm font-semibold text-white/45">
-                      {googleReviewLabel ?? "Google rating"}
-                    </span>
+                {googleRating != null && googleReviewCount != null ? (
+                  <div className="mt-3 text-sm">
+                    <StarRating rating={googleRating} count={googleReviewCount} />
                   </div>
-                )}
+                ) : null}
                 <div className="mt-5">
                   {canReportVibe ? (
                     <button

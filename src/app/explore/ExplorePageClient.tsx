@@ -12,6 +12,7 @@ import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { TrendingStrip } from "@/components/TrendingStrip";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
+import { StarRating } from "@/components/StarRating";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { getNeighborhood } from "@/lib/neighborhood";
@@ -437,8 +438,8 @@ function MFRatioPill({ malePercent, femalePercent }: { malePercent: number; fema
   );
 }
 
-function OpenStatusBadge({ openNow }: { openNow: boolean | undefined }) {
-  if (openNow === undefined) {
+function OpenStatusBadge({ openNow }: { openNow: boolean | null | undefined }) {
+  if (openNow == null) {
     return (
       <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[11px] font-semibold text-[#9CA2AE]">
         Hours unavailable
@@ -520,12 +521,7 @@ function VenueFeedCard({
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
-  const ratingLabel = rating?.toFixed(1);
   const reviewCount = venue.userRatingCount ?? venue.totalRatings;
-  const reviewLabel = reviewCount == null || !Number.isFinite(reviewCount)
-    ? null
-    : `${Math.round(reviewCount).toLocaleString()} review${Math.round(reviewCount) === 1 ? "" : "s"}`;
-  const googleRatingLabel = ratingLabel ? `★ ${ratingLabel}${reviewLabel ? ` · ${reviewLabel}` : ""}` : null;
   const hasBusyness = busyness !== null && Number.isFinite(busyness);
   const signalConfidenceLabel = hasBusyness ? formatSignalConfidenceLabel(signal) : null;
   const hasMfReading =
@@ -580,15 +576,12 @@ function VenueFeedCard({
               <h2 className="min-w-0 flex-1 truncate text-[16px] font-semibold leading-tight text-white">
                 <HighlightText text={venue.name} query={searchQuery} />
               </h2>
-              {googleRatingLabel ? (
-                <span
-                  className="max-w-[6rem] shrink-0 truncate rounded-full border border-white/[0.08] bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[#F4F5F8]"
-                  aria-label={reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`}
-                >
-                  {googleRatingLabel}
-                </span>
-              ) : null}
             </div>
+            {rating != null && reviewCount != null ? (
+              <div className="text-xs">
+                <StarRating rating={rating} count={reviewCount} />
+              </div>
+            ) : null}
             <p className="truncate text-xs font-semibold text-[#9CA2AE]">{neighborhood}</p>
             <div className="flex min-w-0 items-center gap-2">
               <CategoryBadge category={venue.category} className="max-w-[8.5rem] shrink truncate" />

@@ -21,6 +21,7 @@ import { SaveVenueButton } from "./SaveVenueButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
+import { StarRating } from "./StarRating";
 
 // --------------- Crowd types --------------------------------
 
@@ -50,8 +51,10 @@ interface VenueShape {
   placeId: string;
   name: string;
   photoUrl?: string | null;
+  rating?: number | null;
   googleRating?: number;
   totalRatings?: number;
+  userRatingCount?: number | null;
   priceLevel?: number;
 }
 
@@ -75,23 +78,11 @@ interface VenueCardProps {
 
 // --------------- Compact card (map popup) -------------------
 
-function formatReviewCount(count?: number): string | null {
-  if (count == null || !Number.isFinite(count)) return null;
-  return `${Math.round(count).toLocaleString()} review${Math.round(count) === 1 ? "" : "s"}`;
-}
-
-function GoogleRating({ rating, totalRatings }: { rating?: number; totalRatings?: number }) {
-  if (rating == null) return null;
-  const ratingLabel = rating.toFixed(1);
-  const reviewLabel = formatReviewCount(totalRatings);
-  const label = reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`;
-
-  return (
-    <span className="text-amber-400/80 text-xs font-semibold" aria-label={label}>
-      ★ {ratingLabel}
-      {reviewLabel ? <span className="text-white/55"> · {reviewLabel}</span> : null}
-    </span>
-  );
+function getGoogleRatingData(venue: VenueShape): { rating: number; count: number } | null {
+  const rating = venue.rating ?? venue.googleRating;
+  const count = venue.userRatingCount ?? venue.totalRatings;
+  if (rating == null || count == null) return null;
+  return { rating, count };
 }
 
 function PriceLevel({ level }: { level?: number }) {
@@ -113,6 +104,8 @@ function CompactCard({
   accessToken,
   onSaveToggle,
 }: Omit<VenueCardProps, "variant" | "className">) {
+  const googleRatingData = getGoogleRatingData(venue);
+
   return (
     <Card
       className="relative w-56 overflow-hidden rounded-[18px] border-white/[0.08] text-[#F4F5F8] shadow-2xl"
@@ -148,8 +141,8 @@ function CompactCard({
           ) : null}
           <div className="min-w-0 pr-10">
             <p className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</p>
-            <div className="flex items-center gap-2 mt-0.5">
-              <GoogleRating rating={venue.googleRating} totalRatings={venue.totalRatings} />
+            <div className="mt-1 flex min-w-0 items-center gap-2 text-xs">
+              {googleRatingData ? <StarRating {...googleRatingData} /> : null}
               <PriceLevel level={venue.priceLevel} />
             </div>
           </div>
@@ -192,11 +185,7 @@ function FullCard({
 }: Omit<VenueCardProps, "variant">) {
   const crowd = crowdBadge ? CROWD_CFG[crowdBadge] : null;
   const meta: string[] = [];
-  const googleRating = venue.googleRating;
-  const reviewLabel = formatReviewCount(venue.totalRatings);
-  if (googleRating != null) {
-    meta.push(`★ ${googleRating.toFixed(1)}${reviewLabel ? ` · ${reviewLabel}` : ""}`);
-  }
+  const googleRatingData = getGoogleRatingData(venue);
   if (lastReportedAt) meta.push(timeAgo(lastReportedAt));
   if (reportCount != null && reportCount > 0) meta.push(`${reportCount} report${reportCount === 1 ? "" : "s"}`);
 
@@ -235,8 +224,13 @@ function FullCard({
         <div className="flex-1 min-w-0">
           {/* Venue name */}
           <p className="font-display truncate text-[19px] font-semibold leading-snug text-[#F4F5F8]">{venue.name}</p>
-          {/* Vibe score + meta */}
-          <div className="flex items-baseline gap-1.5 mt-0.5">
+          {googleRatingData ? (
+            <div className="mt-1 text-xs">
+              <StarRating {...googleRatingData} />
+            </div>
+          ) : null}
+          {/* Meta */}
+          <div className="mt-1 flex items-baseline gap-1.5">
             {meta.length > 0 && (
               <span className="text-[13px] font-medium text-[#9CA2AE]">{meta.join(" · ")}</span>
             )}

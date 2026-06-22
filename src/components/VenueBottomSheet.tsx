@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Clock3, MapPin, Star, X } from "lucide-react";
+import { Clock3, MapPin, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
+import { StarRating } from "@/components/StarRating";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
@@ -67,12 +68,6 @@ function formatBusyness(value: number | null | undefined) {
 function formatPriceLevel(priceLevel: ConsumerVenue["priceLevel"]) {
   if (!priceLevel) return null;
   return "$".repeat(priceLevel);
-}
-
-function formatRating(venue: ConsumerVenue) {
-  const rating = venue.googleRating ?? venue.rating;
-  if (rating == null || !Number.isFinite(rating)) return null;
-  return rating.toFixed(1);
 }
 
 function getOpenStatus(venue: ConsumerVenue) {
@@ -278,7 +273,8 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   const busyness = formatBusyness(signal?.busyness0To100);
   const category = formatCategory(venue.category);
   const isPeek = snap === "peek";
-  const rating = formatRating(venue);
+  const rating = venue.rating ?? venue.googleRating;
+  const reviewCount = venue.userRatingCount ?? venue.totalRatings;
   const priceLevel = formatPriceLevel(venue.priceLevel);
   const photoUrl = venue.photoUrl ?? venue.photoUrls?.[0] ?? null;
   const openStatus = getOpenStatus(venue);
@@ -350,6 +346,11 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 pr-1">
                 <h2 className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</h2>
+                {rating != null && reviewCount != null ? (
+                  <div className="mt-1 text-xs">
+                    <StarRating rating={rating} count={reviewCount} />
+                  </div>
+                ) : null}
                 <p className="mt-1 truncate text-xs font-semibold text-white/45">{neighborhood}</p>
                 <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
                   <span className="rounded-full bg-[#5C6573]/35 px-2.5 py-1 text-[11px] font-semibold text-white/66">
@@ -401,14 +402,8 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             {!isPeek && (
               <div className="mt-5 space-y-4 pb-4">
                 <div className="flex flex-wrap items-center gap-3 text-[13px] font-semibold text-white/62">
-                  {rating && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Star className="h-4 w-4 fill-[#FFB020] text-[#FFB020]" aria-hidden="true" />
-                      {rating}
-                    </span>
-                  )}
                   {priceLevel && <span>{priceLevel}</span>}
-                  {!rating && !priceLevel && <span>Venue details pending</span>}
+                  {!priceLevel && <span>Venue details pending</span>}
                 </div>
 
                 <p className="flex min-w-0 items-center gap-2 truncate text-[13px] font-medium text-white/55">
