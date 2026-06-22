@@ -8,6 +8,7 @@ import { track } from "@vercel/analytics";
 import { Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
+import { CheckInButton } from "@/components/CheckInButton";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
@@ -919,6 +920,26 @@ export function VenuePageClient({
   }, [fetchRecentCheckIns, venue?.id, venueId]);
 
   useEffect(() => {
+    function handleCheckInCreated(event: Event) {
+      const detail = (event as CustomEvent<{ venueId?: string }>).detail;
+      const checkedVenueId = detail?.venueId;
+      const currentVenueId = venue?.id ?? venueId;
+      if (checkedVenueId !== currentVenueId) return;
+
+      void fetchRecentCheckIns(currentVenueId);
+      void fetch(`/api/venues/${encodeURIComponent(currentVenueId)}`)
+        .then((response) => response.ok ? response.json() : null)
+        .then((json) => {
+          if (json?.data?.venue) setVenue(json.data.venue);
+        })
+        .catch(() => undefined);
+    }
+
+    window.addEventListener("nightvibe:check-in-created", handleCheckInCreated);
+    return () => window.removeEventListener("nightvibe:check-in-created", handleCheckInCreated);
+  }, [fetchRecentCheckIns, venue?.id, venueId]);
+
+  useEffect(() => {
     const notesVenueId = venue?.id ?? venueId;
     if (!notesVenueId) return;
 
@@ -1338,13 +1359,14 @@ export function VenuePageClient({
                     </span>
                   </div>
                 )}
-                <div className="mt-5">
+                <div className="mt-5 space-y-3">
+                  <CheckInButton venueId={venue.id} venueName={venue.name} />
                   {canReportVibe ? (
                     <button
                       type="button"
                       onClick={() => void openVibeReport()}
                       aria-label="Report the vibe"
-                      className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                      className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.06] px-5 text-sm font-black text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                     >
                       Report the vibe
                     </button>
@@ -1637,31 +1659,7 @@ export function VenuePageClient({
 
           <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl sm:hidden">
             <div className="mx-auto grid max-w-lg grid-cols-[minmax(0,1fr)_4rem] gap-3">
-              {canReportVibe ? (
-                <button
-                  type="button"
-                  onClick={() => void openVibeReport()}
-                  aria-label={checkInConfirmed ? "Check-in recorded" : "Check in"}
-                  className={`flex min-h-[52px] items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
-                    checkInConfirmed
-                      ? "bg-[#101017] text-[#F4F5F8]"
-                      : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
-                  }`}
-                >
-                  {checkInConfirmed ? (
-                    <>
-                      <Check size={20} strokeWidth={3} aria-hidden="true" />
-                      Recorded
-                    </>
-                  ) : (
-                    "Check In"
-                  )}
-                </button>
-              ) : authChecked ? (
-                <AuthRequiredReportAction venueId={venue.id} venueName={venue.name} />
-              ) : (
-                <div className="min-h-[52px] rounded-full bg-white/10" aria-hidden="true" />
-              )}
+              <CheckInButton venueId={venue.id} venueName={venue.name} />
               <SaveButton
                 placeId={venue.id}
                 requirePro

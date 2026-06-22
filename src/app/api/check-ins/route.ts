@@ -2,14 +2,14 @@
 // POST /api/check-ins — submit a consumer crowd report
 // GET  /api/check-ins — fetch recent public reports or one venue summary
 //
-// POST body: { venueId, busyness, crowdFeel, note?, genderSelfReport? }
+// POST body: { venue_id } or { venueId, busyness, crowdFeel, note?, genderSelfReport? }
 // Auth: required for POST via Supabase Bearer token
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { recomputeVenueSignal } from "@/lib/signals";
@@ -17,7 +17,7 @@ import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/ven
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const MAX_VENUE_ID_LENGTH = 160;
-const DUPLICATE_WINDOW_MINUTES = 10;
+const DUPLICATE_WINDOW_MINUTES = 60;
 const POST_RATE_LIMIT_MAX = 10;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const PRIVATE_GET_CACHE_HEADERS = {
@@ -43,21 +43,50 @@ const CrowdFeelSchema = z.enum([
 const GenderSelfReportSchema = z.enum(["m", "f", "nb"]);
 
 const PostBodySchema = z.object({
+  venue_id: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH).optional(),
   place_id: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH).optional(),
   venueId: z.string().trim().min(1).max(MAX_VENUE_ID_LENGTH).optional(),
-  busyness: BusynessSchema,
+  busyness: BusynessSchema.optional(),
   crowd_feel: CrowdFeelSchema.optional(),
   crowdFeel: CrowdFeelSchema.optional(),
   note: z.string().trim().max(500, "note must be 500 characters or less.").optional(),
   gender: GenderSelfReportSchema.optional(),
   gender_self_report: GenderSelfReportSchema.nullable().optional(),
   genderSelfReport: GenderSelfReportSchema.nullable().optional(),
-}).refine((data) => data.place_id || data.venueId, {
-  message: "place_id is required.",
-  path: ["place_id"],
-}).refine((data) => data.crowd_feel || data.crowdFeel, {
-  message: "crowd_feel is required.",
-  path: ["crowd_feel"],
+}).superRefine((data, ctx) => {
+  if (!data.venue_id && !data.place_id && !data.venueId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "venue_id is required.",
+      path: ["venue_id"],
+    });
+  }
+
+  const hasDetailedReportFields = Boolean(
+    data.busyness ||
+    data.crowd_feel ||
+    data.crowdFeel ||
+    data.note ||
+    data.gender ||
+    data.gender_self_report ||
+    data.genderSelfReport
+  );
+  if (!hasDetailedReportFields) return;
+
+  if (!data.busyness) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "busyness is required.",
+      path: ["busyness"],
+    });
+  }
+  if (!data.crowd_feel && !data.crowdFeel) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "crowd_feel is required.",
+      path: ["crowd_feel"],
+    });
+  }
 });
 
 function normalizeBusyness(busyness: z.infer<typeof BusynessSchema>): "dead" | "moderate" | "packed" {
@@ -69,6 +98,14 @@ function normalizeBusyness(busyness: z.infer<typeof BusynessSchema>): "dead" | "
 
 function selectedCrowdFeel(data: z.infer<typeof PostBodySchema>) {
   return data.crowd_feel ?? data.crowdFeel ?? "mixed";
+}
+
+function selectedVenueId(data: z.infer<typeof PostBodySchema>): string {
+  return data.venue_id ?? data.place_id ?? data.venueId ?? "";
+}
+
+function isSimpleCheckIn(data: z.infer<typeof PostBodySchema>): boolean {
+  return !data.busyness && !data.crowd_feel && !data.crowdFeel && !data.note && !data.gender && !data.gender_self_report && !data.genderSelfReport;
 }
 
 function selectedGenderSelfReport(data: z.infer<typeof PostBodySchema>): "m" | "f" | "nb" | null {
@@ -106,25 +143,6 @@ function missingSupabaseConfigResponse(
     { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
     { status: 503, headers }
   );
-}
-
-async function getUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-
-  const client = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-
-  const { data, error } = await client.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user.id;
 }
 
 function getClientIp(req: NextRequest): string {
@@ -170,18 +188,26 @@ async function resolveVenue(venueIdOrPlaceId: string) {
   return data as { id: string; place_id: string; hidden: boolean };
 }
 
-async function hasRecentDuplicate(venueId: string, userId: string) {
+async function getRecentDuplicate(venueId: string, userId: string): Promise<{ id: string; created_at: string } | null> {
   const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_MINUTES * 60_000).toISOString();
   const { data, error } = await supabaseAdmin
     .from("check_ins")
-    .select("id")
+    .select("id, created_at")
     .eq("venue_id", venueId)
     .eq("user_id", userId)
     .gte("created_at", cutoff)
+    .order("created_at", { ascending: false })
     .limit(1);
 
   if (error) throw error;
-  return Boolean(data?.length);
+  return (data?.[0] as { id: string; created_at: string } | undefined) ?? null;
+}
+
+function retryAfterSeconds(createdAt: string): number {
+  const createdMs = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdMs)) return DUPLICATE_WINDOW_MINUTES * 60;
+  const retryMs = DUPLICATE_WINDOW_MINUTES * 60_000 - (Date.now() - createdMs);
+  return Math.max(1, Math.ceil(retryMs / 1000));
 }
 
 async function getReporterGender(userId: string): Promise<"male" | "female" | null> {
@@ -222,7 +248,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const userId = await getUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to report." }, meta },
@@ -252,7 +278,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-    const venue = await resolveVenue(normalizeVenueLookupId(parsed.data.place_id ?? parsed.data.venueId ?? ""));
+  const venue = await resolveVenue(normalizeVenueLookupId(selectedVenueId(parsed.data)));
   if (!venue) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },
@@ -261,17 +287,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    if (await hasRecentDuplicate(venue.id, userId)) {
+    const duplicate = await getRecentDuplicate(venue.id, userId);
+    if (duplicate) {
       return NextResponse.json<APIResponse<never>>(
         {
           status: "error",
           error: {
             code: "RATE_LIMITED",
-            message: "You already reported this venue recently. Try again in a few minutes.",
+            message: "You already checked in at this venue. Try again in an hour.",
           },
           meta,
         },
-        { status: 429, headers }
+        { status: 429, headers: { ...headers, "Retry-After": String(retryAfterSeconds(duplicate.created_at)) } }
       );
     }
   } catch (error) {
@@ -282,13 +309,36 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  if (isSimpleCheckIn(parsed.data)) {
+    const { data, error } = await supabaseAdmin
+      .from("check_ins")
+      .insert({
+        venue_id: venue.id,
+        place_id: venue.place_id,
+        user_id: userId,
+        created_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      console.error("[check-ins POST] simple insert failed:", error);
+      return NextResponse.json<APIResponse<never>>(
+        { status: "error", error: { code: "DB_ERROR", message: "Could not save check-in." }, meta },
+        { status: 500, headers }
+      );
+    }
+
+    return NextResponse.json({ success: true, id: (data as { id: string }).id }, { status: 200, headers });
+  }
+
   const reporterGender = await getReporterGender(userId);
 
   const insertPayload = {
     venue_id: venue.id,
     place_id: venue.place_id,
     user_id: userId,
-    busyness: normalizeBusyness(parsed.data.busyness),
+    busyness: normalizeBusyness(parsed.data.busyness as z.infer<typeof BusynessSchema>),
     crowd_feel: selectedCrowdFeel(parsed.data),
     reporter_gender: reporterGender,
     gender_self_report: selectedGenderSelfReport(parsed.data),

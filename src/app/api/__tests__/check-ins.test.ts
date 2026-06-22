@@ -6,6 +6,7 @@ const mockFrom = vi.fn();
 const mockRpc = vi.fn();
 const mockRecomputeVenueSignal = vi.fn();
 const mockAssertSupabaseServerEnv = vi.fn();
+const mockGetAuthenticatedUserId = vi.fn();
 
 class MockMissingSupabaseEnvError extends Error {
   constructor(public readonly variableName: string) {
@@ -24,6 +25,10 @@ vi.mock("@/lib/supabase", () => ({
   assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
   MissingSupabaseEnvError: MockMissingSupabaseEnvError,
   supabaseAdmin: { from: mockFrom, rpc: mockRpc, auth: { getUser: mockGetUser } },
+}));
+
+vi.mock("@/lib/apiAuth", () => ({
+  getAuthenticatedUserId: mockGetAuthenticatedUserId,
 }));
 
 vi.mock("@/lib/signals", () => ({
@@ -106,6 +111,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
   mockAssertSupabaseServerEnv.mockReturnValue(undefined);
+  mockGetAuthenticatedUserId.mockResolvedValue("user-123");
   mockAuth("user-123");
   mockRpc.mockResolvedValue({ data: null, error: null });
   mockRecomputeVenueSignal.mockResolvedValue(SIGNAL);
@@ -113,7 +119,7 @@ beforeEach(() => {
 
 describe("POST /api/check-ins", () => {
   it("requires login", async () => {
-    mockAuth(null);
+    mockGetAuthenticatedUserId.mockResolvedValueOnce(null);
     const { POST } = await import("../check-ins/route");
     const res = await POST(request("POST", "http://localhost/api/check-ins", {}, ""));
     expect(res.status).toBe(401);
@@ -163,6 +169,36 @@ describe("POST /api/check-ins", () => {
       })
     );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
+  });
+
+  it("accepts a lightweight venue_id check-in and returns the button response shape", async () => {
+    const venueChain = chain({ data: VENUE });
+    const duplicateChain = chain({ data: [] });
+    const insertChain = chain({ data: { id: "simple-check-in-1" } });
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        venue_id: VENUE.id,
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ success: true, id: "simple-check-in-1" });
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        venue_id: VENUE.id,
+        place_id: VENUE.place_id,
+        user_id: "user-123",
+      })
+    );
+    expect(insertChain.select).toHaveBeenCalledWith("id");
+    expect(mockRecomputeVenueSignal).not.toHaveBeenCalled();
   });
 
   it("accepts the canonical place_id, numeric busyness, crowd_feel, and nb gender payload", async () => {
@@ -347,7 +383,7 @@ describe("POST /api/check-ins", () => {
   });
 
   it("rate limits duplicate reports by user and venue", async () => {
-    mockFrom.mockReturnValueOnce(chain({ data: VENUE })).mockReturnValueOnce(chain({ data: [{ id: "recent" }] }));
+    mockFrom.mockReturnValueOnce(chain({ data: VENUE })).mockReturnValueOnce(chain({ data: [{ id: "recent", created_at: new Date().toISOString() }] }));
     const { POST } = await import("../check-ins/route");
     const res = await POST(
       request("POST", "http://localhost/api/check-ins", {
@@ -357,9 +393,10 @@ describe("POST /api/check-ins", () => {
       })
     );
     expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBeTruthy();
     const json = await res.json();
     expect(json.error.code).toBe("RATE_LIMITED");
-    expect(json.error.message).toBe("You already reported this venue recently. Try again in a few minutes.");
+    expect(json.error.message).toBe("You already checked in at this venue. Try again in an hour.");
   });
 
   it("rate limits authenticated check-in attempts by IP", async () => {

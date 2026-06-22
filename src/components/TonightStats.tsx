@@ -48,10 +48,19 @@ export default function TonightStats() {
 
     loadStats();
     const intervalId = window.setInterval(loadStats, REFRESH_INTERVAL_MS);
+    const handleCheckInCreated = () => {
+      setStats((current) => ({
+        checkInsTonight: (current?.checkInsTonight ?? 0) + 1,
+        venuesActive: Math.max(current?.venuesActive ?? 1, 1),
+      }));
+    };
+
+    window.addEventListener("nightvibe:check-in-created", handleCheckInCreated);
 
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
+      window.removeEventListener("nightvibe:check-in-created", handleCheckInCreated);
     };
   }, []);
 
