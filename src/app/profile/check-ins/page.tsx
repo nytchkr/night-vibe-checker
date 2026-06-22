@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPin, UsersRound } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -44,6 +44,12 @@ function formatCrowdFeel(value: CrowdFeel): string {
   if (value === "mostly_female") return "More women";
   if (value === "balanced") return "Balanced";
   return "Mixed";
+}
+
+function getBusynessChipClass(value: ReportedBusyness): string {
+  if (value === "dead") return "bg-white/[0.08] text-[#D1D5DB] ring-white/[0.12]";
+  if (value === "moderate") return "bg-yellow-400/15 text-yellow-200 ring-yellow-300/20";
+  return "bg-red-500/15 text-red-200 ring-red-400/25";
 }
 
 function formatRelativeTime(value: string): string {
@@ -113,27 +119,58 @@ function LoadingRows() {
 }
 
 function CheckInRow({ item }: { item: CheckInItem }) {
-  return (
-    <li className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4">
+  const cardContent = (
+    <>
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 truncate text-[15px] font-semibold text-[#F4F5F8]">{item.venueName}</p>
-        <time className="shrink-0 text-[12px] font-medium text-[#9CA2AE]" dateTime={item.createdAt}>
+        <p className="min-w-0 truncate text-[15px] font-bold text-[#F4F5F8]">{item.venueName}</p>
+        <time
+          className="shrink-0 text-right text-[12px] font-medium text-[#9CA2AE]"
+          dateTime={item.createdAt}
+        >
           {formatRelativeTime(item.createdAt)}
         </time>
       </div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {item.busyness && (
-          <span className="rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-[12px] font-medium text-[#B7A8FF]">
+
+      {item.busyness && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span
+            className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ring-1 ${getBusynessChipClass(item.busyness)}`}
+          >
             {formatBusyness(item.busyness)}
           </span>
-        )}
-        {item.crowdFeel && (
-          <span className="rounded-full bg-white/[0.055] px-2.5 py-1 text-[12px] font-medium text-[#9CA2AE]">
-            {formatCrowdFeel(item.crowdFeel)}
-          </span>
-        )}
-      </div>
-      {item.note && <p className="mt-2 text-[13px] font-medium leading-5 text-[#9CA2AE]">{item.note}</p>}
+        </div>
+      )}
+
+      {item.crowdFeel && (
+        <p className="mt-2 flex items-center gap-1.5 text-[12px] font-medium text-[#9CA2AE]">
+          {item.crowdFeel === "balanced" && (
+            <UsersRound className="h-3.5 w-3.5 text-[#8B6CFF]" strokeWidth={2.3} aria-hidden="true" />
+          )}
+          <span>{formatCrowdFeel(item.crowdFeel)}</span>
+        </p>
+      )}
+
+      {item.note && (
+        <p className="mt-2 text-[13px] font-medium italic leading-5 text-[#D6DAE2]">{item.note}</p>
+      )}
+    </>
+  );
+
+  const cardClassName =
+    "block rounded-[18px] border border-white/10 bg-white/5 p-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60";
+
+  if (!item.venueId) {
+    return <li className={cardClassName}>{cardContent}</li>;
+  }
+
+  return (
+    <li>
+      <Link
+        href={`/venues/${encodeURIComponent(item.venueId)}`}
+        className={`${cardClassName} hover:border-[#8B6CFF]/35 hover:bg-white/[0.07]`}
+      >
+        {cardContent}
+      </Link>
     </li>
   );
 }
