@@ -89,13 +89,6 @@ function formatRelativeTime(value: string): string {
   return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(date);
 }
 
-function formatJoinedDate(value: string | undefined): string {
-  if (!value) return "Tonight";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Tonight";
-  return new Intl.DateTimeFormat("en", { month: "short", year: "numeric" }).format(date);
-}
-
 function getUserEmail(user: User | undefined): string {
   return user?.email ?? "Signed in";
 }
@@ -283,27 +276,32 @@ function AccountHeader({
 function StatsRow({
   totalCheckIns,
   savedCount,
-  joinedDate,
+  currentStreak,
+  longestStreak,
 }: {
   totalCheckIns: number;
   savedCount: number;
-  joinedDate: string;
+  currentStreak: number;
+  longestStreak: number;
 }) {
   const stats = [
     { label: "Check-ins", value: totalCheckIns.toLocaleString() },
     { label: "Saved", value: savedCount.toLocaleString() },
-    { label: "Joined", value: joinedDate },
+    { label: "Streak", value: currentStreak.toLocaleString() },
+    { label: "Best", value: longestStreak.toLocaleString() },
   ];
 
   return (
     <section
-      className="grid grid-cols-3 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.035]"
+      className="grid grid-cols-2 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.035]"
       aria-label="You stats"
     >
       {stats.map((stat, index) => (
         <div
           key={stat.label}
-          className={`min-w-0 px-3 py-4 text-center ${index > 0 ? "border-l border-white/[0.08]" : ""}`}
+          className={`min-w-0 px-3 py-4 text-center ${index % 2 === 1 ? "border-l border-white/[0.08]" : ""} ${
+            index >= 2 ? "border-t border-white/[0.08]" : ""
+          }`}
         >
           <p className="truncate font-display text-[19px] font-semibold leading-tight text-[#F4F5F8]">
             {stat.value}
@@ -372,33 +370,41 @@ function CheckInsSection({
       )}
 
       {!loading && !error && recentCheckIns.length > 0 && (
-        <ul className="mt-5 divide-y divide-white/[0.08]">
-          {recentCheckIns.map((item) => (
-            <li key={item.id} className="py-3 first:pt-0 last:pb-0">
-              <div className="flex items-start justify-between gap-3">
-                <p className="min-w-0 truncate text-[15px] font-semibold text-[#F4F5F8]">{item.venueName}</p>
-                <time className="shrink-0 text-[12px] font-medium text-[#9CA2AE]" dateTime={item.createdAt}>
-                  {formatRelativeTime(item.createdAt)}
-                </time>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {item.busyness && (
-                  <span className="rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-[12px] font-medium text-[#B7A8FF]">
-                    {formatBusyness(item.busyness)}
-                  </span>
+        <>
+          <ul className="mt-5 divide-y divide-white/[0.08]">
+            {recentCheckIns.map((item) => (
+              <li key={item.id} className="py-3 first:pt-0 last:pb-0">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 truncate text-[15px] font-semibold text-[#F4F5F8]">{item.venueName}</p>
+                  <time className="shrink-0 text-[12px] font-medium text-[#9CA2AE]" dateTime={item.createdAt}>
+                    {formatRelativeTime(item.createdAt)}
+                  </time>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {item.busyness && (
+                    <span className="rounded-full bg-[#8B6CFF]/14 px-2.5 py-1 text-[12px] font-medium text-[#B7A8FF]">
+                      {formatBusyness(item.busyness)}
+                    </span>
+                  )}
+                  {item.crowdFeel && (
+                    <span className="rounded-full bg-white/[0.055] px-2.5 py-1 text-[12px] font-medium text-[#9CA2AE]">
+                      {formatCrowdFeel(item.crowdFeel)}
+                    </span>
+                  )}
+                </div>
+                {item.note && (
+                  <p className="mt-2 text-[13px] font-medium leading-5 text-[#9CA2AE]">{item.note}</p>
                 )}
-                {item.crowdFeel && (
-                  <span className="rounded-full bg-white/[0.055] px-2.5 py-1 text-[12px] font-medium text-[#9CA2AE]">
-                    {formatCrowdFeel(item.crowdFeel)}
-                  </span>
-                )}
-              </div>
-              {item.note && (
-                <p className="mt-2 text-[13px] font-medium leading-5 text-[#9CA2AE]">{item.note}</p>
-              )}
-            </li>
-          ))}
-        </ul>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/profile/check-ins"
+            className="mt-4 inline-flex min-h-11 items-center rounded-full px-1 text-[13px] font-semibold text-[#8B6CFF] transition-colors hover:text-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          >
+            See all {count.toLocaleString()} check-ins &rarr;
+          </Link>
+        </>
       )}
     </section>
   );
@@ -469,22 +475,30 @@ function SavedVenuesSection({
       )}
 
       {!loading && !error && savedVenueIds.length > 0 && (
-        <ul className="mt-5 divide-y divide-white/[0.08]">
-          {savedVenues.map((venue) => (
-            <li key={venue.id} className="py-3 first:pt-0 last:pb-0">
-              <Link
-                href={`/venues/${encodeURIComponent(venue.id)}`}
-                className="group flex items-center justify-between gap-4 rounded-[14px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>
-                  <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">{venue.category}</span>
-                </span>
-                <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE] transition-colors group-hover:text-[#F4F5F8]" aria-hidden="true" />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-5 divide-y divide-white/[0.08]">
+            {savedVenues.map((venue) => (
+              <li key={venue.id} className="py-3 first:pt-0 last:pb-0">
+                <Link
+                  href={`/venues/${encodeURIComponent(venue.id)}`}
+                  className="group flex items-center justify-between gap-4 rounded-[14px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>
+                    <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">{venue.category}</span>
+                  </span>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE] transition-colors group-hover:text-[#F4F5F8]" aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/profile/saved"
+            className="mt-4 inline-flex min-h-11 items-center rounded-full px-1 text-[13px] font-semibold text-[#8B6CFF] transition-colors hover:text-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          >
+            See all {savedVenueIds.length.toLocaleString()} saved &rarr;
+          </Link>
+        </>
       )}
     </section>
   );
@@ -742,7 +756,8 @@ function ProfileContent() {
               <StatsRow
                 totalCheckIns={totalCheckIns}
                 savedCount={savedVenueIds.length}
-                joinedDate={formatJoinedDate(session.user.created_at)}
+                currentStreak={streak.currentStreak}
+                longestStreak={streak.longestStreak}
               />
               <CheckInsSection
                 checkIns={checkIns}
