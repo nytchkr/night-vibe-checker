@@ -637,27 +637,119 @@ function SavedVenuesSection({
   );
 }
 
-function SettingsSection() {
+type PreferenceKey = "push_enabled" | "private_checkins";
+type SavingPreference = PreferenceKey | null;
+
+function PreferenceToggleRow({
+  icon,
+  label,
+  subLabel,
+  enabled,
+  saving,
+  onToggle,
+}: {
+  icon: ReactNode;
+  label: string;
+  subLabel: string;
+  enabled: boolean;
+  saving: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex min-h-[72px] items-center justify-between gap-4 py-3">
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-[#9CA2AE]">
+          {icon}
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[15px] font-medium text-[#F4F5F8]">{label}</span>
+          <span className="mt-0.5 block text-[12px] font-medium leading-4 text-[#9CA2AE]">{subLabel}</span>
+          {saving && <span className="mt-1 block text-[11px] font-semibold text-[#8B6CFF]">Saving...</span>}
+        </span>
+      </span>
+      <button
+        type="button"
+        aria-label={`${label} ${enabled ? "enabled" : "disabled"}`}
+        aria-pressed={enabled}
+        disabled={saving}
+        onClick={onToggle}
+        className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-wait disabled:opacity-70 ${
+          enabled ? "border-[#8B6CFF]/70 bg-[#8B6CFF]" : "border-white/[0.08] bg-[#2E333D]"
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+            enabled ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+function SettingsSection({
+  user,
+  onSignOut,
+}: {
+  user: User;
+  onSignOut: () => void;
+}) {
+  const [preferences, setPreferences] = useState({
+    push_enabled: user.user_metadata?.push_enabled === true,
+    private_checkins: user.user_metadata?.private_checkins === true,
+  });
+  const [savingPreference, setSavingPreference] = useState<SavingPreference>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setPreferences({
+      push_enabled: user.user_metadata?.push_enabled === true,
+      private_checkins: user.user_metadata?.private_checkins === true,
+    });
+  }, [user.id, user.user_metadata?.push_enabled, user.user_metadata?.private_checkins]);
+
+  async function updatePreference(key: PreferenceKey, value: boolean) {
+    setSavingPreference(key);
+    setError("");
+
+    const previousPreferences = preferences;
+    const nextPreferences = { ...preferences, [key]: value };
+
+    try {
+      const { error: updateError } = await createBrowserClient().auth.updateUser({
+        data: nextPreferences,
+      });
+
+      if (updateError) throw updateError;
+      setPreferences(nextPreferences);
+    } catch {
+      setPreferences(previousPreferences);
+      setError("Could not save setting. Try again.");
+    } finally {
+      setSavingPreference(null);
+    }
+  }
+
   return (
     <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4" aria-label="Settings">
       <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Settings</h2>
       <div className="mt-4 divide-y divide-white/[0.08] border-y border-white/[0.08]">
-        <div className="flex min-h-14 items-center justify-between gap-4 py-3">
-          <span className="flex min-w-0 items-center gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.055] text-[#9CA2AE]">
-              <Bell size={17} strokeWidth={2.2} aria-hidden="true" />
-            </span>
-            <span className="truncate text-[15px] font-medium text-[#F4F5F8]">Notifications</span>
-          </span>
-          <button
-            type="button"
-            aria-label="Notifications toggle placeholder"
-            aria-pressed="false"
-            className="relative h-7 w-12 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.055] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
-          >
-            <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-[#646B79]" />
-          </button>
-        </div>
+        <PreferenceToggleRow
+          icon={<Bell size={17} strokeWidth={2.2} aria-hidden="true" />}
+          label="Push notifications"
+          subLabel="Get notified when saved venues get packed"
+          enabled={preferences.push_enabled}
+          saving={savingPreference === "push_enabled"}
+          onToggle={() => void updatePreference("push_enabled", !preferences.push_enabled)}
+        />
+        <PreferenceToggleRow
+          icon={<Lock size={17} strokeWidth={2.2} aria-hidden="true" />}
+          label="Private check-ins"
+          subLabel="Your check-ins won't appear in public vibe data"
+          enabled={preferences.private_checkins}
+          saving={savingPreference === "private_checkins"}
+          onToggle={() => void updatePreference("private_checkins", !preferences.private_checkins)}
+        />
         <Link
           href="/about"
           className="flex min-h-14 items-center justify-between gap-4 py-3 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
@@ -670,11 +762,26 @@ function SettingsSection() {
           </span>
           <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE]" aria-hidden="true" />
         </Link>
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="flex min-h-14 w-full items-center justify-between gap-4 py-3 text-left transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        >
+          <span className="truncate text-[15px] font-medium text-[#9CA2AE]">Sign out</span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-[#9CA2AE]" aria-hidden="true" />
+        </button>
       </div>
+      {error && (
+        <p
+          className="mt-3 rounded-[14px] border border-[#F0568C]/25 bg-[#F0568C]/10 px-3 py-2 text-[12px] font-medium text-[#F0568C]"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
     </section>
   );
 }
-
 function ProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -938,8 +1045,7 @@ function ProfileContent() {
                 loading={savedVenuesLoading}
                 error={savedVenuesError}
               />
-              <SettingsSection />
-              <PushOptIn />
+              <SettingsSection user={session.user} onSignOut={() => void handleSignOut()} />
             </div>
           )}
         </div>
