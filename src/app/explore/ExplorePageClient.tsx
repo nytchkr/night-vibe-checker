@@ -354,6 +354,7 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
             width={40}
             height={40}
             sizes="40px"
+            loading="lazy"
             className="h-10 w-10 shrink-0 rounded-full object-cover"
           />
         ) : (

@@ -5,6 +5,7 @@ const nextConfig = {
   // react-leaflet is incompatible with React 18 StrictMode's double-invoke in dev
   reactStrictMode: false,
   compress: true,
+  poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
   env: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? "",
@@ -21,7 +22,15 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "maps.gstatic.com",
+      },
+      {
+        protocol: "https",
         hostname: "places.googleapis.com",
+      },
+      {
+        protocol: "https",
+        hostname: "storage.googleapis.com",
       },
       {
         protocol: "https",
@@ -29,7 +38,15 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "**.googleusercontent.com",
+      },
+      {
+        protocol: "https",
         hostname: "accounts.google.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
       },
     ],
   },

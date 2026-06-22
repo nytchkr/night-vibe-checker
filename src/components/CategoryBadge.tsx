@@ -1,5 +1,3 @@
-"use client";
-
 type CategoryBadgeProps = {
   category: string | null | undefined;
   className?: string;
