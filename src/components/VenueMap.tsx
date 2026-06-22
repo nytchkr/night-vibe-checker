@@ -105,10 +105,12 @@ function matchesCategoryFilter(venue: ConsumerVenue, filter: MapCategoryFilter) 
   if (filter === "All") return true;
 
   const category = venue.category.toLowerCase();
-  if (filter === "Bars") return category.includes("bar");
+  const nameLower = venue.name.toLowerCase();
+  if (filter === "Bars") return category.includes("bar") && !nameLower.includes("lounge") && !nameLower.includes("rooftop") && !nameLower.includes("sky bar");
   if (filter === "Clubs") return category.includes("club") || category.includes("night_club");
   if (filter === "Restaurants") return category.includes("restaurant") || category.includes("food");
-  return category.includes("lounge");
+  // Lounges: category says "lounge", OR bar venue with lounge/rooftop in name
+  return category.includes("lounge") || nameLower.includes("lounge") || nameLower.includes("rooftop") || nameLower.includes("sky bar");
 }
 
 function matchesBusynessFilter(venue: ConsumerVenue, filter: BusynessMapFilter) {
@@ -158,7 +160,7 @@ function RecenterButton({ center }: { center: [number, number] }) {
   return (
     <button
       type="button"
-      aria-label="Recenter map"
+      aria-label="Recenter to South End"
       onClick={() => map.flyTo(center, MAP_DEFAULT_ZOOM)}
       className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 text-xs font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
     >
@@ -167,7 +169,7 @@ function RecenterButton({ center }: { center: [number, number] }) {
         <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
         <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
       </svg>
-      Recenter
+      South End
     </button>
   );
 }
@@ -185,15 +187,15 @@ function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | n
   const isSelected = selectedVenueId === venue.id;
   const busyness = venue.signal?.busyness0To100 ?? null;
   const color = getBusynessColor(busyness);
-  const size = isSelected ? 18 : 14;
+  const dotSize = isSelected ? 18 : 14;
   const pulse = hasLivePinPulse(venue);
 
   return L.divIcon({
-    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="--venue-pin-color:${color}; background:${color};"></span>`,
+    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="--venue-pin-color:${color}; --venue-pin-dot-size:${dotSize}px; background:${color};"></span>`,
     className: `venue-cluster-pin${isSelected ? " venue-cluster-pin-selected" : ""}`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    tooltipAnchor: [0, -(size / 2 + 8)],
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    tooltipAnchor: [0, -30],
   });
 }
 
@@ -1218,13 +1220,15 @@ export function VenueMap({
           border-radius: 9999px;
           display: flex;
           justify-content: center;
+          min-height: 44px;
+          min-width: 44px;
         }
 
         .venue-cluster-pin > span {
           border-radius: 9999px;
           display: block;
-          height: 100%;
-          width: 100%;
+          height: var(--venue-pin-dot-size, 14px);
+          width: var(--venue-pin-dot-size, 14px);
         }
 
         .venue-cluster-pin-selected {

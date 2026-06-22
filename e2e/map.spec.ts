@@ -37,6 +37,15 @@ function makeVenue({
     lng,
     category,
     photoUrl: null,
+    openingHours: [
+      "Monday: 4:00 PM - 2:00 AM",
+      "Tuesday: 4:00 PM - 2:00 AM",
+      "Wednesday: 4:00 PM - 2:00 AM",
+      "Thursday: 4:00 PM - 2:00 AM",
+      "Friday: 4:00 PM - 2:00 AM",
+      "Saturday: 4:00 PM - 2:00 AM",
+      "Sunday: 4:00 PM - 12:00 AM",
+    ],
     openNow,
     hidden: false,
     signal: {
@@ -203,13 +212,14 @@ test.describe("Map tab", () => {
     await expect(page.getByText(/Packed|Moderate|Quiet/i).first()).toBeVisible({ timeout: 25000 });
     await expect(page.getByRole("group", { name: "Map busyness filter" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Filter venues" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Recenter to South End" })).toBeVisible();
   });
 
   test("Report Vibe FAB is visible on /map", async ({ page }) => {
     await page.goto("/map");
     // FAB is inside dynamic VenueMap — wait for Leaflet before checking FAB
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
-    await expect(page.getByRole("link", { name: /Report Vibe/ })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("link", { name: /Report vibe/i })).toBeVisible({ timeout: 10000 });
   });
 
   test("redesigned bottom sheet lists venue previews", async ({ page }) => {
@@ -284,32 +294,25 @@ test.describe("Map tab", () => {
     await expect.poll(() => page.locator(".venue-cluster-pin").count()).toBe(venues.length);
   });
 
-  test("zip recenter control validates Charlotte-area zip codes and clears input", async ({ page }) => {
+  test("zip recenter control validates launch-area zip codes", async ({ page }) => {
     await openMap(page);
 
-    const zipInput = page.getByLabel("Charlotte zip");
+    const zipInput = page.getByLabel("Search by zip");
     await expect(zipInput).toBeVisible();
 
     await zipInput.fill("99999");
-    await page.getByRole("button", { name: "Go" }).click();
-    await expect(page.getByText("Enter a Charlotte zip code")).toBeVisible();
+    await page.getByRole("button", { name: "Search zip" }).click();
+    await expect(page.getByText("Not live in your area yet")).toBeVisible();
 
-    await zipInput.fill("28277");
+    await zipInput.fill("28203");
     await zipInput.press("Enter");
-    await expect(page.getByText("Enter a Charlotte zip code")).toHaveCount(0);
-
-    await zipInput.fill("28105");
-    await zipInput.press("Enter");
-    await expect(page.getByText("Enter a Charlotte zip code")).toHaveCount(0);
-
-    await page.getByRole("button", { name: "Clear zip code" }).click();
-    await expect(zipInput).toHaveValue("");
+    await expect(page.getByText("Not live in your area yet")).toHaveCount(0);
   });
 
   test("FAB links to /vibe-check", async ({ page }) => {
     await page.goto("/map");
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
-    const fab = page.getByRole("link", { name: /Report Vibe/ });
+    const fab = page.getByRole("link", { name: /Report vibe/i });
     await expect(fab).toBeVisible({ timeout: 10000 });
     // /vibe-check requires auth — guests land on /login. Verify link href, not navigation.
     const href = await fab.getAttribute("href");
@@ -411,5 +414,22 @@ test.describe("Map bottom sheet", () => {
     await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeLessThan(340);
     await expect.poll(() => selectedPinCount(page), { timeout: 10000 }).toBeGreaterThanOrEqual(1);
     await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("pin taps meet mobile target size and detail sheet shows real hours status", async ({ page }) => {
+    await openMap(page);
+
+    const pin = page.getByRole("button", { name: "Open Map Test Speakeasy details" });
+    const pinBox = await pin.boundingBox();
+    expect(pinBox).not.toBeNull();
+    expect(pinBox!.width).toBeGreaterThanOrEqual(44);
+    expect(pinBox!.height).toBeGreaterThanOrEqual(44);
+
+    await pin.click();
+
+    const detailSheet = page.getByRole("dialog", { name: "Map Test Speakeasy details" });
+    await expect(detailSheet).toBeVisible();
+    await expect(detailSheet.getByText("Closed now")).toBeVisible();
+    await expect(detailSheet.getByText(/PM/)).toBeVisible();
   });
 });

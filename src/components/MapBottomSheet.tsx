@@ -35,13 +35,18 @@ function NoDataChip() {
 }
 
 function OpenNowDot({ openNow }: { openNow: boolean | undefined }) {
+  const status = openNow === true ? "Open now" : openNow === false ? "Closed now" : "Hours pending";
+  const dotClass =
+    openNow === true
+      ? "bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.75)]"
+      : openNow === false
+        ? "bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.55)]"
+        : "bg-white/25";
+
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white/55">
-      <span
-        aria-hidden="true"
-        className={`h-2 w-2 rounded-full ${openNow ? "bg-white/55 shadow-[0_0_10px_rgba(255,255,255,0.35)]" : "bg-white/25"}`}
-      />
-      {openNow ? "Open now" : "Hours pending"}
+      <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dotClass}`} />
+      {status}
     </span>
   );
 }

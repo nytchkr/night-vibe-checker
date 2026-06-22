@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Star, X } from "lucide-react";
+import { Clock3, MapPin, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
@@ -72,6 +72,57 @@ function formatRating(venue: ConsumerVenue) {
   const rating = venue.googleRating ?? venue.rating;
   if (rating == null || !Number.isFinite(rating)) return null;
   return rating.toFixed(1);
+}
+
+function getOpenStatus(venue: ConsumerVenue) {
+  if (venue.openNow === true) {
+    return {
+      label: "Open now",
+      detail: getTodayHours(venue.openingHours),
+      dotClass: "bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.75)]",
+      toneClass: "border-[#22C55E]/35 bg-[#22C55E]/12 text-[#86EFAC]",
+    };
+  }
+
+  if (venue.openNow === false) {
+    return {
+      label: "Closed now",
+      detail: getTodayHours(venue.openingHours),
+      dotClass: "bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.55)]",
+      toneClass: "border-[#F0568C]/35 bg-[#F0568C]/12 text-[#FDA4C4]",
+    };
+  }
+
+  return {
+    label: "Hours pending",
+    detail: getTodayHours(venue.openingHours),
+    dotClass: "bg-white/30",
+    toneClass: "border-white/[0.08] bg-white/[0.05] text-white/58",
+  };
+}
+
+function getTodayHours(openingHours: string[] | undefined) {
+  if (!openingHours?.length) return null;
+
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "long",
+  }).format(new Date());
+  return openingHours.find((line) => line.toLowerCase().startsWith(`${weekday.toLowerCase()}:`)) ?? openingHours[0];
+}
+
+function OpenStatusChip({ venue, compact = false }: { venue: ConsumerVenue; compact?: boolean }) {
+  const status = getOpenStatus(venue);
+
+  return (
+    <span
+      className={`inline-flex min-w-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.toneClass}`}
+      title={status.detail ?? status.label}
+    >
+      <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${status.dotClass}`} />
+      <span className="truncate">{compact ? status.label : status.detail ? `${status.label} · ${status.detail}` : status.label}</span>
+    </span>
+  );
 }
 
 function SourceChip({ source }: { source: BusynessSource | null | undefined }) {
@@ -222,6 +273,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   const rating = formatRating(venue);
   const priceLevel = formatPriceLevel(venue.priceLevel);
   const photoUrl = venue.photoUrl ?? venue.photoUrls?.[0] ?? null;
+  const openStatus = getOpenStatus(venue);
 
   return (
     <>
@@ -299,6 +351,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   >
                     {busyness.label}
                   </span>
+                  <OpenStatusChip venue={venue} compact={isPeek} />
                   <SourceChip source={signal?.busynessSource} />
                 </div>
               </div>
@@ -352,6 +405,16 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   <MapPin className="h-4 w-4 shrink-0 text-white/55" aria-hidden="true" />
                   <span className="truncate">{venue.address}</span>
                 </p>
+
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-3">
+                  <div className="flex items-center gap-2 text-[13px] font-semibold text-[#F4F5F8]">
+                    <Clock3 className="h-4 w-4 shrink-0 text-white/55" aria-hidden="true" />
+                    <span>{openStatus.label}</span>
+                  </div>
+                  <p className="mt-1 truncate text-xs font-semibold text-[#9CA2AE]">
+                    {openStatus.detail ?? "Real Google hours are not available for this venue yet."}
+                  </p>
+                </div>
 
                 <Link
                   href={`/venues/${encodeURIComponent(venue.id)}`}
