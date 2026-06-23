@@ -1,5 +1,5 @@
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
-import { isOpenNow } from "@/lib/openNow";
+import { inferOpenNow, getCharlotteTimeParts } from "@/lib/openNow";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 export const CONSUMER_VENUE_SELECT = `
@@ -93,7 +93,9 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
     editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
-    openNow: isOpenNow(row.opening_hours),
+    openNow: row.open_now != null
+      ? Boolean(row.open_now)
+      : inferOpenNow(row.category as string | null ?? row.venue_type as string | null, getCharlotteTimeParts(), row.opening_hours),
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,
