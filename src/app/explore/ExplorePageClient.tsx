@@ -16,7 +16,7 @@ import {
   type ExploreFilterOption,
   type ExploreSortOption,
 } from "@/components/ExploreSortFilter";
-import { TrendingStrip } from "@/components/TrendingStrip";
+import { TrendingRow } from "@/components/TrendingRow";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
@@ -844,15 +844,15 @@ export function ExplorePageClient() {
           </h1>
           <p className="mt-1 text-sm text-white/55">{venuesCount} spots tracked tonight</p>
 
+          <div className="mt-5">
+            <TrendingRow />
+          </div>
+
           {hottestVenues.length > 0 && (
             <div className="mt-5">
               <HottestRightNow venues={hottestVenues} />
             </div>
           )}
-
-          <div className="mt-5">
-            <TrendingStrip />
-          </div>
 
           <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
             <div className="relative">
