@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ data: { ok: true }, ok: true });
   setAdminCookie(response);
 
   return response;

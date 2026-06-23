@@ -39,9 +39,11 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
   const builder = {
     select: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
     single: vi.fn().mockReturnValue(promise),
+    maybeSingle: vi.fn().mockReturnValue(promise),
     then: promise.then.bind(promise),
     catch: promise.catch.bind(promise),
   };
@@ -60,7 +62,7 @@ describe("POST /api/venues/[id]/report", () => {
     const res = await POST(request({ reason: "bad_reason" }), params());
     const json = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(json.error.code).toBe("VALIDATION_ERROR");
     expect(mockFrom).not.toHaveBeenCalled();
   });
