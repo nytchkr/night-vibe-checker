@@ -93,9 +93,14 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
     editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
-    openNow: row.open_now != null
-      ? Boolean(row.open_now)
-      : inferOpenNow(row.category as string | null ?? row.venue_type as string | null, getCharlotteTimeParts(), row.opening_hours),
+    openNow: (() => {
+      if (row.open_now != null) return Boolean(row.open_now);
+      try {
+        return inferOpenNow((row.category ?? row.venue_type) as string | null, getCharlotteTimeParts(), row.opening_hours);
+      } catch {
+        return null;
+      }
+    })(),
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,
@@ -145,5 +150,9 @@ export async function getConsumerVenueById(id: string): Promise<ConsumerVenue | 
   }
 
   if (error || !data) return null;
-  return mapConsumerVenue(data);
+  try {
+    return mapConsumerVenue(data);
+  } catch {
+    return null;
+  }
 }
