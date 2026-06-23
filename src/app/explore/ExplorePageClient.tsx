@@ -10,6 +10,7 @@ import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
+import SkeletonCard from "@/components/SkeletonCard";
 import {
   ExploreSortFilter,
   type ExploreFilterOption,
@@ -454,37 +455,13 @@ function VenueFeedCard({
   );
 }
 
-function CardSkeleton() {
-  return (
-    <div className="mb-3 flex w-full animate-pulse flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/10 bg-white/[0.04] p-3 last:mb-0 sm:h-[126px] sm:flex-row sm:items-center">
-      <div className="aspect-video w-full shrink-0 rounded-xl bg-white/10 sm:h-[72px] sm:w-[72px] sm:aspect-auto" />
-      <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-        <div className="space-y-2">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-36 rounded bg-white/10" />
-              <div className="h-4 w-24 rounded-full bg-white/[0.08]" />
-            </div>
-            <div className="h-5 w-14 rounded-full bg-white/[0.08]" />
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-white/[0.08]" />
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <div className="h-3 w-28 rounded bg-white/[0.08]" />
-          <div className="h-3 w-16 rounded bg-white/[0.08]" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ExplorePageClient() {
   const trackPageView = useTrack();
   const prefersReduced =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [session, setSession] = useState<Session | null>(null);
-  const [venues, setVenues] = useState<ConsumerVenue[] | null>(null);
+  const [venues, setVenues] = useState<ConsumerVenue[] | undefined>(undefined);
   const [isFetchingVenues, setIsFetchingVenues] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -509,7 +486,7 @@ export function ExplorePageClient() {
     searchTerm?: string;
     signal?: AbortSignal;
   } = {}) => {
-    if (reset) setVenues(null);
+    if (reset) setVenues(undefined);
     setIsFetchingVenues(true);
     setError(null);
     try {
@@ -622,7 +599,7 @@ export function ExplorePageClient() {
   }, []);
 
   useEffect(() => {
-    if (venues === null) return;
+    if (venues === undefined) return;
 
     const venueIds = venues
       .map((venue) => venue.id)
@@ -677,7 +654,7 @@ export function ExplorePageClient() {
   const effectiveExploreSort = exploreSort === "nearby" && !userLocation ? DEFAULT_EXPLORE_SORT : exploreSort;
 
   const sortedVenues = useMemo(() => {
-    if (venues === null) return [];
+    if (venues === undefined) return [];
 
     const activeNeighborhoodFilters = NEIGHBORHOOD_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
 
@@ -728,7 +705,7 @@ export function ExplorePageClient() {
   }, [effectiveExploreSort, exploreFilters, trendingVenueIds, userLocation, venues]);
 
   const hottestVenues = useMemo(() => {
-    if (venues === null) return [];
+    if (venues === undefined) return [];
 
     return venues
       .filter((venue) => {
@@ -744,7 +721,7 @@ export function ExplorePageClient() {
   }, [venues]);
 
   const venueDistances = useMemo(() => {
-    if (!userLocation || venues === null) return new Map<string, number>();
+    if (!userLocation || venues === undefined) return new Map<string, number>();
 
     return new Map(
       venues.map((venue) => [
@@ -791,6 +768,14 @@ export function ExplorePageClient() {
   const timeLabel = useMemo(() => (
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
   ), [now]);
+
+  if (!venues) {
+    return (
+      <div className="space-y-3 p-4">
+        {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0E]">
@@ -948,16 +933,16 @@ export function ExplorePageClient() {
           </div>
         )}
 
-        {(venues === null || isSearchingVenues) && !error && (
+        {(venues === undefined || isSearchingVenues) && !error && (
           <div role="status" aria-label={isSearchingVenues ? "Searching venues" : "Loading venues"}>
             <p className="mb-3 text-sm font-semibold text-white/55">
               {isSearchingVenues ? "Searching..." : "Loading venues..."}
             </p>
-            {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         )}
 
-        {venues !== null && !error && !isSearchingVenues && venues.length === 0 && (
+        {venues !== undefined && !error && !isSearchingVenues && venues.length === 0 && (
           <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
             <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
               {trimmedSearchQuery ? `No venues found for "${trimmedSearchQuery}"` : "No venues in this area yet. Check back soon."}
@@ -981,7 +966,7 @@ export function ExplorePageClient() {
           </div>
         )}
 
-        {venues !== null && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
+        {venues !== undefined && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
           <div className="px-6 py-12 text-center text-white/60">
             <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
             <h2 className="mt-3 text-[15px] font-semibold leading-6">
@@ -997,7 +982,7 @@ export function ExplorePageClient() {
           </div>
         )}
 
-        {venues !== null && !error && !isSearchingVenues && sortedVenues.length > 0 && (
+        {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && (
           <div className="pr-1">
             <ul>
               {sortedVenues.map((venue, index) => (

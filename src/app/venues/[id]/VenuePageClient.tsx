@@ -16,6 +16,7 @@ import { ProGate } from "@/components/ProGate";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
+import { SkeletonVenueDetail } from "@/components/SkeletonVenueDetail";
 import { Toast } from "@/components/Toast";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { Badge } from "@/components/ui/badge";
@@ -231,19 +232,6 @@ function formatReviewCount(count: number | null | undefined): string | null {
   if (count == null || !Number.isFinite(count)) return null;
   const rounded = Math.round(count);
   return `${rounded.toLocaleString()} review${rounded === 1 ? "" : "s"}`;
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className="space-y-4" role="status" aria-label="Loading venue">
-      <Skeleton className="aspect-video w-full rounded-none bg-white/10" />
-      <div className="px-4">
-        <Skeleton className="h-8 w-2/3 bg-white/10" />
-        <Skeleton className="mt-3 h-4 w-4/5 bg-white/10" />
-        <Skeleton className="mt-5 h-28 rounded-2xl bg-white/10" />
-      </div>
-    </div>
-  );
 }
 
 function EmptySignalState({
@@ -774,7 +762,7 @@ export function VenuePageClient({
   const { consumePendingAction, requireAuth } = useOnboardingGate();
   const haptic = useHaptic();
   const trackedVenueView = useRef(false);
-  const [venue, setVenue] = useState<ConsumerVenue | null>(initialVenue);
+  const [venue, setVenue] = useState<ConsumerVenue | null | undefined>(initialVenue ?? undefined);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -1292,7 +1280,7 @@ export function VenuePageClient({
         />
       )}
 
-      {loading && <LoadingSkeleton />}
+      {(loading || venue === undefined) && <SkeletonVenueDetail />}
 
       {!loading && error && (
         <div className="mx-auto max-w-lg px-4 py-6 pb-36">
