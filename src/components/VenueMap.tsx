@@ -610,7 +610,7 @@ function VenueSearchControl({
         <div
           role="listbox"
           aria-label="Venue suggestions"
-          className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#101017] shadow-xl"
+          className="absolute top-full z-50 mt-2 w-full overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#0A0A0E] shadow-xl"
           onClick={(event) => event.stopPropagation()}
           onMouseDown={(event) => event.stopPropagation()}
         >
@@ -654,7 +654,7 @@ function BusynessFilterBar({
   return (
     <div
       aria-label="Map busyness filter"
-      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 overflow-x-auto whitespace-nowrap rounded-[14px] border border-white/[0.08] bg-[#101017]/90 p-1 shadow-2xl backdrop-blur [scrollbar-width:none] sm:top-16 [&::-webkit-scrollbar]:hidden"
+      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 overflow-x-auto whitespace-nowrap rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 p-1 shadow-2xl backdrop-blur [scrollbar-width:none] sm:top-16 [&::-webkit-scrollbar]:hidden"
       role="group"
     >
       {BUSYNESS_FILTERS.map((filter) => {
@@ -798,7 +798,7 @@ function VenueFilterSheet({
         className="absolute inset-0 h-full w-full cursor-default bg-black/40"
       />
       <div
-        className="absolute inset-x-0 bottom-0 max-h-[60vh] touch-pan-y overflow-y-auto overscroll-contain rounded-t-[18px] bg-[#101017] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]"
+        className="absolute inset-x-0 bottom-0 max-h-[60vh] touch-pan-y overflow-y-auto overscroll-contain rounded-t-[18px] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]"
         {...swipeHandlers}
       >
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />

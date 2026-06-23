@@ -67,7 +67,7 @@ export default function TonightStats() {
   if (!stats || stats.checkInsTonight < 1) return null;
 
   return (
-    <div className="fixed left-1/2 top-3 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#8B6CFF]/30 bg-[#1A1A2E]/80 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-black/20 backdrop-blur">
+    <div className="fixed left-1/2 top-3 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-[#8B6CFF]/30 bg-[#0A0A0E]/80 px-3 py-1.5 text-sm font-medium text-white shadow-lg shadow-black/20 backdrop-blur">
       🔥 {stats.checkInsTonight} check-ins tonight across {stats.venuesActive} spots
     </div>
   );

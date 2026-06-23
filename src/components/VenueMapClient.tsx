@@ -80,7 +80,7 @@ export default function VenueMapClient() {
   }
 
   return (
-    <section role="region" aria-label="Venue map">
+    <section className="min-h-screen bg-[#0A0A0E] text-white" role="region" aria-label="Venue map">
       <VenueMap city={selectedCity} onCityChange={handleCityChange} />
       <OnboardingGate />
     </section>

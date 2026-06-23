@@ -1276,7 +1276,7 @@ export function VenuePageClient({
           message={toast}
           durationMs={toast === "Copied!" ? 2000 : 2500}
           onDone={() => setToast(null)}
-        className="bottom-[calc(env(safe-area-inset-bottom)+8.75rem)] rounded-[14px] border-white/[0.08] bg-[#101017] px-5 py-3 font-semibold text-[#F4F5F8] shadow-2xl shadow-black/30"
+        className="bottom-[calc(env(safe-area-inset-bottom)+8.75rem)] rounded-[14px] border-white/[0.08] bg-[#0A0A0E] px-5 py-3 font-semibold text-[#F4F5F8] shadow-2xl shadow-black/30"
         />
       )}
 
@@ -1527,7 +1527,7 @@ export function VenuePageClient({
                     aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
                     className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
                       checkInConfirmed
-                        ? "bg-[#101017] text-[#F4F5F8] hover:bg-[#101017]"
+                        ? "bg-[#0A0A0E] text-[#F4F5F8] hover:bg-[#0A0A0E]"
                         : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
                     }`}
                   >
@@ -1676,7 +1676,7 @@ export function VenuePageClient({
             }}
           />
           <div
-            className="relative mx-auto w-full max-w-lg touch-pan-y rounded-[18px] border border-white/[0.08] bg-[#101017] p-4 shadow-2xl"
+            className="relative mx-auto w-full max-w-lg touch-pan-y rounded-[18px] border border-white/[0.08] bg-[#0A0A0E] p-4 shadow-2xl"
             {...reportSwipeHandlers}
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
@@ -1773,7 +1773,7 @@ export function VenuePageClient({
             onClick={closeVibeReport}
           />
           <div
-            className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg touch-pan-y rounded-t-[18px] border border-white/[0.08] bg-[#101017] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg touch-pan-y rounded-t-[18px] border border-white/[0.08] bg-[#0A0A0E] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl"
             {...vibeSwipeHandlers}
           >
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />

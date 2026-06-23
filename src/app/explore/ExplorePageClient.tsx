@@ -771,7 +771,7 @@ export function ExplorePageClient() {
 
   if (!venues) {
     return (
-      <div className="space-y-3 p-4">
+      <div className="min-h-screen space-y-3 bg-[#0A0A0E] p-4 text-white">
         {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
       </div>
     );

@@ -228,7 +228,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
             className="absolute inset-0 cursor-default"
             onClick={closeGate}
           />
-          <section className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-[18px] border border-white/[0.08] bg-[#101017] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
+          <section className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg rounded-t-[18px] border border-white/[0.08] bg-[#0A0A0E] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11.5px] font-semibold text-[#8B6CFF]">nytchkr</p>
