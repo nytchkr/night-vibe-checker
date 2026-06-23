@@ -781,6 +781,14 @@ function VenueFilterSheet({
   if (!isOpen) return null;
 
   const openNowActiveClass = draftOpenNow ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/65";
+  const closeWithHaptic = () => {
+    haptic.light();
+    onClose();
+  };
+  const applyWithHaptic = () => {
+    haptic.light();
+    onApply(draftCategory, draftOpenNow);
+  };
 
   return (
     <div
@@ -794,7 +802,7 @@ function VenueFilterSheet({
       <button
         type="button"
         aria-label="Close filters"
-        onClick={onClose}
+        onClick={closeWithHaptic}
         className="absolute inset-0 h-full w-full cursor-default bg-black/40"
       />
       <div
@@ -810,7 +818,7 @@ function VenueFilterSheet({
             <button
               type="button"
               aria-label="Close filters"
-              onClick={onClose}
+              onClick={closeWithHaptic}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               <X aria-hidden="true" className="h-4 w-4" />
@@ -854,7 +862,10 @@ function VenueFilterSheet({
               <button
                 type="button"
                 aria-pressed={draftOpenNow}
-                onClick={() => setDraftOpenNow((current) => !current)}
+                onClick={() => {
+                  haptic.light();
+                  setDraftOpenNow((current) => !current);
+                }}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${openNowActiveClass}`}
               >
                 Open now
@@ -864,7 +875,7 @@ function VenueFilterSheet({
 
           <button
             type="button"
-            onClick={() => onApply(draftCategory, draftOpenNow)}
+            onClick={applyWithHaptic}
             className="mt-6 h-12 w-full rounded-[14px] bg-[#8B6CFF] text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.32)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101017]"
           >
             Apply
@@ -1111,7 +1122,13 @@ export function VenueMap({
       <CitySelector city={city} onCityChange={onCityChange} />
       <BusynessFilterBar activeFilter={activeBusynessFilter} onFilterChange={setActiveBusynessFilter} />
       <CategoryFilterPills activeFilter={activeCategoryFilter} onFilterChange={setActiveCategoryFilter} />
-      <FilterFab hasActiveFilters={hasActiveFilters} onClick={() => setIsFilterSheetOpen(true)} />
+      <FilterFab
+        hasActiveFilters={hasActiveFilters}
+        onClick={() => {
+          haptic.light();
+          setIsFilterSheetOpen(true);
+        }}
+      />
 
       <VenueFilterSheet
         activeCategoryFilter={activeCategoryFilter}

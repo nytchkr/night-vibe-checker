@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useHaptic } from "@/hooks/useHaptic";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
 type VenueTip = {
@@ -42,6 +43,7 @@ function formatTipDate(iso: string): string {
 }
 
 export function VenueTips({ venueId }: { venueId: string }) {
+  const haptic = useHaptic();
   const [tips, setTips] = useState<VenueTip[]>([]);
   const [tipText, setTipText] = useState("");
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -107,6 +109,7 @@ export function VenueTips({ venueId }: { venueId: string }) {
   async function submitTip() {
     if (!canSubmit || !accessToken) return;
 
+    haptic.light();
     setSubmitting(true);
     setError(null);
     try {

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useHaptic } from "@/hooks/useHaptic";
 
 export type ExploreSortOption = "hottest" | "top-rated" | "trending" | "nearby";
 export type ExploreFilterOption = "open-now" | "South End" | "Uptown" | "NoDa" | "Dilworth";
@@ -67,6 +68,8 @@ export function ExploreSortFilter({
   onSortChange,
   onFilterToggle,
 }: ExploreSortFilterProps) {
+  const haptic = useHaptic();
+
   return (
     <div className="space-y-2" role="group" aria-label="Explore sort and filters">
       <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -77,7 +80,10 @@ export function ExploreSortFilter({
             active={selectedSort === option.value}
             pressed={selectedSort === option.value}
             disabled={option.value === "nearby" && !nearbyEnabled}
-            onClick={() => onSortChange(option.value)}
+            onClick={() => {
+              haptic.light();
+              onSortChange(option.value);
+            }}
           />
         ))}
       </div>
@@ -88,7 +94,10 @@ export function ExploreSortFilter({
             label={option.label}
             active={selectedFilters.has(option.value)}
             pressed={selectedFilters.has(option.value)}
-            onClick={() => onFilterToggle(option.value)}
+            onClick={() => {
+              haptic.light();
+              onFilterToggle(option.value);
+            }}
           />
         ))}
       </div>

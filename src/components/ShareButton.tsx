@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useHaptic } from "@/hooks/useHaptic";
 
 type ShareButtonProps = {
   venueId: string;
@@ -31,11 +32,13 @@ export function createVenueShareData(venueName: string, shareCard: VenueShareCar
 }
 
 export function ShareButton(props: ShareButtonProps) {
+  const haptic = useHaptic();
   const [toastVisible, setToastVisible] = useState(false);
   const [sharing, setSharing] = useState(false);
 
   async function handleShare() {
     if (sharing) return;
+    haptic.light();
     setSharing(true);
 
     try {

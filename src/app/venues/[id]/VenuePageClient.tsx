@@ -1050,6 +1050,12 @@ export function VenuePageClient({
     }
   }
 
+  function closeReportFormWithHaptic() {
+    if (reportSubmitting) return;
+    haptic.light();
+    setReportOpen(false);
+  }
+
   async function openVibeReport() {
     if (!authChecked) return;
     haptic.light();
@@ -1075,6 +1081,12 @@ export function VenuePageClient({
     setVibeCrowdFeel(null);
     setVibeGenderSelfReport(null);
     setVibeError(null);
+  }
+
+  function closeVibeReportWithHaptic() {
+    if (vibeSubmitting) return;
+    haptic.light();
+    closeVibeReport();
   }
 
   function chooseVibeBusyness(option: VibeBusynessOption) {
@@ -1598,9 +1610,7 @@ export function VenuePageClient({
             type="button"
             aria-label="Close report form"
             className="absolute inset-0 cursor-default"
-            onClick={() => {
-              if (!reportSubmitting) setReportOpen(false);
-            }}
+            onClick={closeReportFormWithHaptic}
           />
           <div
             className="relative mx-auto w-full max-w-lg touch-pan-y rounded-[18px] border border-white/[0.08] bg-[#0A0A0E] p-4 shadow-2xl"
@@ -1614,9 +1624,7 @@ export function VenuePageClient({
               <button
                 type="button"
                 aria-label="Close report form"
-                onClick={() => {
-                  if (!reportSubmitting) setReportOpen(false);
-                }}
+                onClick={closeReportFormWithHaptic}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
                 disabled={reportSubmitting}
               >
@@ -1697,7 +1705,7 @@ export function VenuePageClient({
             type="button"
             aria-label="Close vibe report"
             className="absolute inset-0 cursor-default"
-            onClick={closeVibeReport}
+            onClick={closeVibeReportWithHaptic}
           />
           <div
             className="fixed bottom-0 left-0 right-0 mx-auto w-full max-w-lg touch-pan-y rounded-t-[18px] border border-white/[0.08] bg-[#0A0A0E] px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-2xl"
@@ -1724,7 +1732,7 @@ export function VenuePageClient({
               <button
                 type="button"
                 aria-label="Close vibe report"
-                onClick={closeVibeReport}
+                onClick={closeVibeReportWithHaptic}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
                 disabled={vibeSubmitting}
               >

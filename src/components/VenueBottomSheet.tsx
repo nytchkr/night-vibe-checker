@@ -10,6 +10,7 @@ import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useHaptic } from "@/hooks/useHaptic";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
 import type { BusynessSource, ConsumerVenue } from "@/types";
@@ -187,6 +188,7 @@ function VenueBottomSheetSkeleton({
 }
 
 export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBottomSheetProps) {
+  const haptic = useHaptic();
   const sheetRef = useRef<HTMLElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragRef = useRef({ pointerId: -1, startY: 0, startHeight: 120, currentHeight: 120 });
@@ -211,6 +213,11 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   function handleClose() {
     setIsVisible(false);
     closeTimeoutRef.current = setTimeout(onClose, 200);
+  }
+
+  function handleCloseTap() {
+    haptic.light();
+    handleClose();
   }
 
   useFocusTrap(Boolean(loading || venue), sheetRef, handleClose);
@@ -257,7 +264,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
     setDragHeight(null);
   }
 
-  if (loading) return <VenueBottomSheetSkeleton onClose={handleClose} sheetRef={sheetRef} />;
+  if (loading) return <VenueBottomSheetSkeleton onClose={handleCloseTap} sheetRef={sheetRef} />;
   if (!venue) return null;
 
   const signal = venue.signal;
@@ -277,7 +284,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
           type="button"
           aria-label="Close venue details"
           className="fixed inset-0 z-[1190] cursor-default bg-transparent"
-          onClick={handleClose}
+          onClick={handleCloseTap}
         />
       ) : (
         <div className="fixed inset-0 z-[1190] bg-black/40" aria-hidden="true" />
@@ -358,7 +365,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                 <button
                   type="button"
                   aria-label="Close venue details"
-                  onClick={handleClose}
+                  onClick={handleCloseTap}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   <X aria-hidden="true" className="h-4 w-4" />
