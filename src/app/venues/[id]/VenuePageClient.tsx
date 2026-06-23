@@ -1230,6 +1230,15 @@ export function VenuePageClient({
     router.push("/map");
   }
 
+  function handleVenueSavedChange(saved: boolean) {
+    setToast(saved ? "Saved!" : "Removed");
+    if (saved) {
+      haptic.success();
+    } else {
+      haptic.light();
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#0A0A0E] pb-56">
       {toast && (
@@ -1271,7 +1280,7 @@ export function VenuePageClient({
               <div className="absolute right-4 top-4 flex items-center gap-2">
                 <SaveButton
                   placeId={venue.id}
-                  requirePro
+                  onSavedChange={handleVenueSavedChange}
                   className="h-11 w-11 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55"
                 />
                 <ShareButton
@@ -1589,7 +1598,7 @@ export function VenuePageClient({
               <CheckInButton venueId={venue.id} venueName={venue.name} />
               <SaveButton
                 placeId={venue.id}
-                requirePro
+                onSavedChange={handleVenueSavedChange}
                 className="h-[52px] w-full rounded-full border border-white/[0.08] bg-white/[0.06] text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
               />
             </div>

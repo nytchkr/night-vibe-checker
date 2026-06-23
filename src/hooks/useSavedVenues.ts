@@ -18,6 +18,15 @@ type SavedVenuesResponse = {
   };
 };
 
+type SavedVenueStateResponse = {
+  venueId?: string;
+  saved?: boolean;
+  data?: {
+    venueId?: string;
+    saved?: boolean;
+  };
+};
+
 function readSavedIds(json: SavedVenuesResponse): string[] {
   const ids = [
     ...(json.place_ids ?? []),
@@ -106,6 +115,42 @@ export function useSavedVenues() {
 
   const isSaved = useCallback((placeId: string) => savedIds.has(placeId), [savedIds]);
 
+  const refreshVenueSavedState = useCallback(async (placeId: string) => {
+    const token = await getAccessToken();
+    if (!token) {
+      setSavedIds((current) => {
+        const next = new Set(current);
+        next.delete(placeId);
+        return next;
+      });
+      return false;
+    }
+
+    const res = await fetch(`/api/venues/${encodeURIComponent(placeId)}/save`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return null;
+
+    const json = (await res.json()) as SavedVenueStateResponse;
+    const saved = json.saved ?? json.data?.saved ?? false;
+    const canonicalVenueId = json.venueId ?? json.data?.venueId ?? placeId;
+
+    setSavedIds((current) => {
+      const next = new Set(current);
+      if (saved) {
+        next.add(placeId);
+        next.add(canonicalVenueId);
+      } else {
+        next.delete(placeId);
+        next.delete(canonicalVenueId);
+      }
+      return next;
+    });
+
+    return saved;
+  }, [getAccessToken]);
+
   const toggle = useCallback(async (placeId: string) => {
     const token = await getAccessToken();
     if (!token) {
@@ -126,7 +171,7 @@ export function useSavedVenues() {
 
     try {
       const res = await fetch(`/api/venues/${encodeURIComponent(placeId)}/save`, {
-        method: nextSaved ? "POST" : "DELETE",
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -135,9 +180,23 @@ export function useSavedVenues() {
       });
 
       if (!res.ok) throw new Error(`${res.status}`);
-      if (nextSaved) void savePushSubscription(token);
+      const json = (await res.json()) as SavedVenueStateResponse;
+      const saved = json.saved ?? json.data?.saved ?? nextSaved;
+      const canonicalVenueId = json.venueId ?? json.data?.venueId ?? placeId;
+      setSavedIds((current) => {
+        const next = new Set(current);
+        if (saved) {
+          next.add(placeId);
+          next.add(canonicalVenueId);
+        } else {
+          next.delete(placeId);
+          next.delete(canonicalVenueId);
+        }
+        return next;
+      });
+      if (saved) void savePushSubscription(token);
       window.dispatchEvent(new CustomEvent(SAVED_VENUES_EVENT));
-      return nextSaved;
+      return saved;
     } catch (error) {
       setSavedIds((current) => {
         const next = new Set(current);
@@ -152,5 +211,5 @@ export function useSavedVenues() {
     }
   }, [getAccessToken, savedIds]);
 
-  return { isSaved, toggle, loading };
+  return { isSaved, savedIds, refreshVenueSavedState, toggle, loading };
 }

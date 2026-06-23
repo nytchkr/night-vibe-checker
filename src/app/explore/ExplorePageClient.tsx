@@ -26,6 +26,7 @@ import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { inZone } from "@/lib/zone";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
@@ -473,6 +474,7 @@ export function ExplorePageClient() {
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
+  const { savedIds } = useSavedVenues();
   const hasLoadedVenuesRef = useRef(false);
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
@@ -663,9 +665,13 @@ export function ExplorePageClient() {
 
       const neighborhoodName = getVenueNeighborhoodName(venue);
       const matchesOpenNow = !exploreFilters.has("open-now") || getVenueOpenNow(venue) === true;
+      const matchesSaved =
+        !exploreFilters.has("saved") ||
+        savedIds.has(venue.id) ||
+        Boolean(venue.placeId && savedIds.has(venue.placeId));
       const matchesExploreNeighborhood =
         activeNeighborhoodFilters.length === 0 || activeNeighborhoodFilters.includes(neighborhoodName as ExploreFilterOption);
-      return matchesOpenNow && matchesExploreNeighborhood;
+      return matchesOpenNow && matchesSaved && matchesExploreNeighborhood;
     }).sort((a, b) => {
       if (effectiveExploreSort === "top-rated") {
         const aRating = getVenueRating(a);
@@ -702,7 +708,7 @@ export function ExplorePageClient() {
 
       return a.name.localeCompare(b.name);
     });
-  }, [effectiveExploreSort, exploreFilters, trendingVenueIds, userLocation, venues]);
+  }, [effectiveExploreSort, exploreFilters, savedIds, trendingVenueIds, userLocation, venues]);
 
   const hottestVenues = useMemo(() => {
     if (venues === undefined) return [];
@@ -737,6 +743,7 @@ export function ExplorePageClient() {
     ? !inZone(searchedLocationCenter[0], searchedLocationCenter[1])
     : false;
   const activeExploreNeighborhoods = NEIGHBORHOOD_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
+  const savedCount = savedIds.size;
   const resultAreaLabel = activeExploreNeighborhoods.length > 0
     ? activeExploreNeighborhoods.join(", ")
     : "all areas";
@@ -901,6 +908,7 @@ export function ExplorePageClient() {
               selectedSort={effectiveExploreSort}
               selectedFilters={exploreFilters}
               nearbyEnabled={userLocation !== null}
+              savedCount={savedCount}
               onSortChange={selectExploreSort}
               onFilterToggle={toggleExploreFilter}
             />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { ProGate } from "@/components/ProGate";
@@ -11,6 +11,7 @@ type SaveButtonProps = {
   placeId: string;
   className?: string;
   requirePro?: boolean;
+  onSavedChange?: (saved: boolean) => void;
 };
 
 function currentPath() {
@@ -18,8 +19,8 @@ function currentPath() {
   return `${window.location.pathname}${window.location.search}`;
 }
 
-function SaveButtonInner({ placeId, className }: SaveButtonProps) {
-  const { isSaved, toggle, loading } = useSavedVenues();
+function SaveButtonInner({ placeId, className, onSavedChange }: SaveButtonProps) {
+  const { isSaved, refreshVenueSavedState, toggle, loading } = useSavedVenues();
   const { requireAuth } = useOnboardingGate();
   const [pending, setPending] = useState(false);
   const saved = isSaved(placeId);
@@ -35,11 +36,26 @@ function SaveButtonInner({ placeId, className }: SaveButtonProps) {
     }
   }
 
+  useEffect(() => {
+    async function loadSavedState() {
+      try {
+        await refreshVenueSavedState(placeId);
+      } catch {
+        // Keep the list-derived state if the per-venue state check fails.
+      }
+    }
+
+    void loadSavedState();
+  }, [placeId, refreshVenueSavedState]);
+
   async function toggleSaved() {
     if (pending) return;
     setPending(true);
     try {
-      await toggle(placeId);
+      const nextSaved = await toggle(placeId);
+      if (typeof nextSaved === "boolean") {
+        onSavedChange?.(nextSaved);
+      }
     } finally {
       setPending(false);
     }

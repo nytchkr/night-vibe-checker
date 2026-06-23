@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
-import { getUserSubscriptionStatus, isActiveProSubscription } from "@/lib/subscription";
 import { findVisibleVenueByIdOrPlaceId } from "@/lib/venueLookup";
 import { MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 
@@ -51,14 +50,37 @@ export async function POST(
   const user = await requireUser(req);
   if (typeof user !== "string") return user;
 
-  const subscription = await getUserSubscriptionStatus(user);
-  if (!isActiveProSubscription(subscription)) {
-    return NextResponse.json({ error: "NightVibe Pro is required to save venue alerts." }, { status: 403 });
-  }
-
   const { id } = await params;
   const venueId = await getCanonicalVenueId(id);
   if (!venueId) return NextResponse.json({ error: "Venue not found." }, { status: 404 });
+
+  const existing = await supabaseAdmin
+    .from("saved_venues")
+    .select("id")
+    .eq("user_id", user)
+    .eq("venue_id", venueId)
+    .limit(1);
+
+  if (existing.error) {
+    console.error("[venues save POST] DB error:", existing.error);
+    return NextResponse.json({ error: "Could not read saved venue." }, { status: 500 });
+  }
+
+  const existingRows = Array.isArray(existing.data) ? existing.data : [];
+  if (existingRows.length > 0) {
+    const { error } = await supabaseAdmin
+      .from("saved_venues")
+      .delete()
+      .eq("user_id", user)
+      .eq("venue_id", venueId);
+
+    if (error) {
+      console.error("[venues save POST] DB error:", error);
+      return NextResponse.json({ error: "Could not unsave venue." }, { status: 500 });
+    }
+
+    return NextResponse.json({ data: { venueId, saved: false }, venueId, saved: false });
+  }
 
   const body = await readBody(req);
   const { error } = await supabaseAdmin.from("saved_venues").upsert(
@@ -77,6 +99,32 @@ export async function POST(
   }
 
   return NextResponse.json({ data: { venueId, saved: true }, venueId, saved: true });
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<NextResponse> {
+  const user = await requireUser(req);
+  if (typeof user !== "string") return user;
+
+  const { id } = await params;
+  const venueId = await getCanonicalVenueId(id);
+  if (!venueId) return NextResponse.json({ error: "Venue not found." }, { status: 404 });
+
+  const { data, error } = await supabaseAdmin
+    .from("saved_venues")
+    .select("id")
+    .eq("user_id", user)
+    .eq("venue_id", venueId)
+    .limit(1);
+
+  if (error) {
+    console.error("[venues save GET] DB error:", error);
+    return NextResponse.json({ error: "Could not read saved venue." }, { status: 500 });
+  }
+
+  return NextResponse.json({ data: { venueId, saved: (data ?? []).length > 0 }, venueId, saved: (data ?? []).length > 0 });
 }
 
 export async function PATCH(
