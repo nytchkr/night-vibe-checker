@@ -61,6 +61,7 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
     limit: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
     single: vi.fn().mockReturnValue(promise),
+    maybeSingle: vi.fn().mockReturnValue(promise),
     then: promise.then.bind(promise),
     catch: promise.catch.bind(promise),
   };
@@ -75,15 +76,15 @@ beforeEach(() => {
 });
 
 describe("GET /api/venues/[id]/tips", () => {
-  it("returns the 3 most recent visible check-in notes", async () => {
+  it("returns the 5 most recent venue tips", async () => {
     const venueChain = chain({ data: { id: "venue-uuid", hidden: false } });
     const tipsChain = chain({
       data: [
         {
-          id: "check-in-1",
+          id: "tip-1",
           venue_id: "venue-uuid",
           user_id: "user-1",
-          note: "Sit near the back patio after 10.",
+          tip_text: "Sit near the back patio after 10.",
           created_at: "2026-06-21T00:00:00.000Z",
         },
       ],
@@ -94,20 +95,15 @@ describe("GET /api/venues/[id]/tips", () => {
     const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
 
     expect(res.status).toBe(200);
-    expect(tipsChain.eq).toHaveBeenCalledWith("hidden", false);
-    expect(tipsChain.not).toHaveBeenCalledWith("note", "is", null);
-    expect(tipsChain.neq).toHaveBeenCalledWith("note", "");
+    expect(tipsChain.eq).toHaveBeenCalledWith("venue_id", "venue-uuid");
     expect(tipsChain.order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(tipsChain.limit).toHaveBeenCalledWith(3);
+    expect(tipsChain.limit).toHaveBeenCalledWith(5);
     const json = await res.json();
-    expect(json.data.tips).toEqual([
+    expect(json).toEqual([
       {
-        id: "check-in-1",
-        venueId: "venue-uuid",
-        userId: "user-1",
-        tip: "Sit near the back patio after 10.",
-        helpfulCount: 0,
-        createdAt: "2026-06-21T00:00:00.000Z",
+        id: "tip-1",
+        tip_text: "Sit near the back patio after 10.",
+        created_at: "2026-06-21T00:00:00.000Z",
       },
     ]);
   });
@@ -125,11 +121,11 @@ describe("POST /api/venues/[id]/tips", () => {
     expect(json.error.code).toBe("UNAUTHORIZED");
   });
 
-  it("validates tip length", async () => {
+  it("validates tip text", async () => {
     const { POST } = await import("../venues/[id]/tips/route");
-    const res = await POST(request("POST", "http://localhost/api/venues/venue-1/tips", { tip: "short" }), params());
+    const res = await POST(request("POST", "http://localhost/api/venues/venue-1/tips", { tip_text: "" }), params());
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });
@@ -141,8 +137,7 @@ describe("POST /api/venues/[id]/tips", () => {
         id: "tip-1",
         venue_id: "venue-uuid",
         user_id: "user-123",
-        tip: "Go before 10 if you want a shorter line.",
-        helpful_count: 0,
+        tip_text: "Go before 10 if you want a shorter line.",
         created_at: "2026-06-21T00:00:00.000Z",
       },
     });
@@ -160,7 +155,14 @@ describe("POST /api/venues/[id]/tips", () => {
     expect(insertChain.insert).toHaveBeenCalledWith({
       venue_id: "venue-uuid",
       user_id: "user-123",
+      tip_text: "Go before 10 if you want a shorter line.",
       tip: "Go before 10 if you want a shorter line.",
+    });
+    const json = await res.json();
+    expect(json).toEqual({
+      id: "tip-1",
+      tip_text: "Go before 10 if you want a shorter line.",
+      created_at: "2026-06-21T00:00:00.000Z",
     });
   });
 });
@@ -186,7 +188,7 @@ describe("POST /api/tips/[id]/helpful", () => {
     const { POST } = await import("../tips/[id]/helpful/route");
     const res = await POST(request("POST", "http://localhost/api/tips/not-a-uuid/helpful", undefined, ""), params("not-a-uuid"));
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });

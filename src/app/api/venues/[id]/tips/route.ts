@@ -1,6 +1,6 @@
 // ============================================================
 // GET/POST /api/venues/[id]/tips
-// Public recent crowd-note feed plus authenticated legacy tip creation.
+// Public venue tips feed plus authenticated tip creation.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,20 +12,26 @@ import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import type { APIResponse } from "@/types";
 
-const TIP_LIMIT = 3;
+const TIP_LIMIT = 5;
 const TIP_POST_RATE_LIMIT_MAX = 5;
 const TIP_POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const TipBodySchema = z.object({
-  tip: z.string().trim().min(10).max(200),
+  tip_text: z.string().trim().max(200).optional(),
+  tip: z.string().trim().max(200).optional(),
+}).transform((body) => ({ tip_text: body.tip_text ?? body.tip ?? "" })).pipe(z.object({
+  tip_text: z.string().trim().min(1).max(200),
+}));
+
+const RawVenueTipSchema = z.object({
+  id: z.string(),
+  tip_text: z.string(),
+  created_at: z.string(),
 });
 
 export type VenueTip = {
   id: string;
-  venueId: string;
-  userId: string | null;
-  tip: string;
-  helpfulCount: number;
-  createdAt: string;
+  tip_text: string;
+  created_at: string;
 };
 
 function meta(requestId: string, cached = false) {
@@ -61,14 +67,11 @@ async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> 
 }
 
 function mapTip(row: Record<string, unknown>): VenueTip {
-  return {
+  return RawVenueTipSchema.parse({
     id: row.id as string,
-    venueId: row.venue_id as string,
-    userId: (row.user_id ?? null) as string | null,
-    tip: String(row.note ?? row.tip ?? "").trim(),
-    helpfulCount: Number(row.helpful_count ?? 0),
-    createdAt: row.created_at as string,
-  };
+    tip_text: String(row.tip_text ?? row.tip ?? "").trim(),
+    created_at: row.created_at as string,
+  });
 }
 
 export async function GET(
@@ -104,12 +107,9 @@ export async function GET(
   }
 
   const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, venue_id, user_id, note, created_at")
+    .from("venue_tips")
+    .select("id, venue_id, user_id, tip_text, created_at")
     .eq("venue_id", venueId)
-    .eq("hidden", false)
-    .not("note", "is", null)
-    .neq("note", "")
     .order("created_at", { ascending: false })
     .limit(TIP_LIMIT);
 
@@ -121,16 +121,12 @@ export async function GET(
     );
   }
 
-  return NextResponse.json<APIResponse<{ tips: VenueTip[] }>>({
-    status: "success",
-    data: {
-      tips: ((data ?? []) as Record<string, unknown>[])
-        .map(mapTip)
-        .filter((tip) => tip.tip.length > 0)
-        .slice(0, TIP_LIMIT),
-    },
-    meta: responseMeta,
-  });
+  return NextResponse.json(
+    ((data ?? []) as Record<string, unknown>[])
+      .map(mapTip)
+      .filter((tip) => tip.tip_text.length > 0)
+      .slice(0, TIP_LIMIT),
+  );
 }
 
 export async function POST(
@@ -188,7 +184,7 @@ export async function POST(
   const parsed = TipBodySchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "VALIDATION_ERROR", message: "Tip must be 10 to 200 characters." }, meta: responseMeta },
+      { status: "error", error: { code: "VALIDATION_ERROR", message: "Tip must be 200 characters or less." }, meta: responseMeta },
       { status: 400 },
     );
   }
@@ -203,8 +199,8 @@ export async function POST(
 
   const { data, error } = await supabaseAdmin
     .from("venue_tips")
-    .insert({ venue_id: venueId, user_id: userId, tip: parsed.data.tip })
-    .select("id, venue_id, user_id, tip, helpful_count, created_at")
+    .insert({ venue_id: venueId, user_id: userId, tip_text: parsed.data.tip_text, tip: parsed.data.tip_text })
+    .select("id, venue_id, user_id, tip_text, created_at")
     .single();
 
   if (error || !data) {
@@ -215,8 +211,5 @@ export async function POST(
     );
   }
 
-  return NextResponse.json<APIResponse<{ tip: VenueTip }>>(
-    { status: "success", data: { tip: mapTip(data as Record<string, unknown>) }, meta: responseMeta },
-    { status: 201, headers },
-  );
+  return NextResponse.json(mapTip(data as Record<string, unknown>), { status: 201, headers });
 }

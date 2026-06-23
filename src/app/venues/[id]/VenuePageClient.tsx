@@ -21,6 +21,7 @@ import { Toast } from "@/components/Toast";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { Badge } from "@/components/ui/badge";
 import { VenueRating } from "@/components/VenueRating";
+import { VenueTips } from "@/components/VenueTips";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -43,15 +44,6 @@ type RecentCheckIn = {
   busynessLevel: number | null;
   crowdFeel: string | null;
   gender: "M" | "F" | null;
-  createdAt: string;
-};
-
-type VenueCrowdNote = {
-  id: string;
-  venueId: string;
-  userId: string | null;
-  tip: string;
-  helpfulCount: number;
   createdAt: string;
 };
 
@@ -770,8 +762,6 @@ export function VenuePageClient({
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
   const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
-  const [crowdNotes, setCrowdNotes] = useState<VenueCrowdNote[]>([]);
-  const [crowdNotesLoading, setCrowdNotesLoading] = useState(false);
   const [bestTimeForecast, setBestTimeForecast] = useState<BestTimeHourlyForecast[]>([]);
   const [bestTimeForecastLoading, setBestTimeForecastLoading] = useState(false);
   const [bestTimeForecastError, setBestTimeForecastError] = useState<string | null>(null);
@@ -926,33 +916,6 @@ export function VenuePageClient({
     window.addEventListener("nightvibe:check-in-created", handleCheckInCreated);
     return () => window.removeEventListener("nightvibe:check-in-created", handleCheckInCreated);
   }, [fetchRecentCheckIns, venue?.id, venueId]);
-
-  useEffect(() => {
-    const notesVenueId = venue?.id ?? venueId;
-    if (!notesVenueId) return;
-
-    let cancelled = false;
-    setCrowdNotesLoading(true);
-
-    async function fetchCrowdNotes() {
-      try {
-        const res = await fetch(`/api/venues/${encodeURIComponent(notesVenueId)}/tips`);
-        if (!res.ok) throw new Error(`${res.status}`);
-        const json = await res.json();
-        const nextNotes = json?.data?.tips;
-        if (!cancelled) setCrowdNotes(Array.isArray(nextNotes) ? nextNotes.slice(0, 3) : []);
-      } catch {
-        if (!cancelled) setCrowdNotes([]);
-      } finally {
-        if (!cancelled) setCrowdNotesLoading(false);
-      }
-    }
-
-    void fetchCrowdNotes();
-    return () => {
-      cancelled = true;
-    };
-  }, [venue?.id, venueId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1160,21 +1123,7 @@ export function VenuePageClient({
         const json = await res.json().catch(() => ({}));
         throw new Error(json?.error?.message ?? "Could not submit vibe.");
       }
-      const json = await res.json();
-      const savedCheckIn = json?.data?.checkIn;
-      if (savedCheckIn?.note && savedCheckIn?.createdAt && savedCheckIn?.id) {
-        setCrowdNotes((current) => [
-          {
-            id: savedCheckIn.id,
-            venueId: savedCheckIn.venueId,
-            userId: null,
-            tip: savedCheckIn.note,
-            helpfulCount: 0,
-            createdAt: savedCheckIn.createdAt,
-          },
-          ...current,
-        ].slice(0, 3));
-      }
+      await res.json();
 
       setVibeReportOpen(false);
       setVibeStep(1);
@@ -1555,6 +1504,8 @@ export function VenuePageClient({
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
 
+            <VenueTips venueId={venue.id} />
+
             <BestTimeForecastSection
               hasBestTimeVenue={Boolean(venue.besttimeVenueId)}
               forecast={bestTimeForecast}
@@ -1574,30 +1525,6 @@ export function VenuePageClient({
                 <AiPredictionCard venueId={venue.id} />
               </ProGate>
             </section>
-
-            {(crowdNotesLoading || crowdNotes.length > 0) && (
-              <section className="space-y-4" role="region" aria-label="Recent crowd notes">
-                <h2 className="font-display text-lg font-bold text-white">Recent crowd notes</h2>
-
-                {crowdNotesLoading ? (
-                  <div className="space-y-3" role="status" aria-label="Loading crowd notes">
-                    <Skeleton className="h-20 rounded-2xl bg-white/10" />
-                    <Skeleton className="h-20 rounded-2xl bg-white/10" />
-                  </div>
-                ) : (
-                  <ul className="space-y-3">
-                    {crowdNotes.map((note) => (
-                      <li key={note.id} className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4 shadow-lg shadow-black/20">
-                        <blockquote className="text-sm leading-relaxed text-white">
-                          &ldquo;{note.tip}&rdquo;
-                        </blockquote>
-                        <p className="mt-3 text-xs font-semibold text-white/40">{timeAgo(note.createdAt)}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )}
 
             <div className="grid gap-3" role="group" aria-label="Venue sharing and directions">
               <a
