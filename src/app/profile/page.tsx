@@ -330,7 +330,7 @@ export default function ProfilePage() {
 
   async function handleGoogleSignIn() {
     setSigningIn(true);
-    const redirectTo = `${window.location.origin}/auth/callback?return=/profile`;
+    const redirectTo = `${window.location.origin}/auth/callback`;
     const { error } = await supabaseBrowser.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
