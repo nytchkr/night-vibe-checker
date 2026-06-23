@@ -13,6 +13,7 @@ import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { ProGate } from "@/components/ProGate";
+import { RatingPrompt } from "@/components/RatingPrompt";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
@@ -780,6 +781,7 @@ export function VenuePageClient({
   const [vibeError, setVibeError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
+  const [ratingPromptOpen, setRatingPromptOpen] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
   const vibeDialogRef = useRef<HTMLDivElement | null>(null);
@@ -904,6 +906,8 @@ export function VenuePageClient({
       const currentVenueId = venue?.id ?? venueId;
       if (checkedVenueId !== currentVenueId) return;
 
+      setCheckInConfirmed(true);
+      setRatingPromptOpen(true);
       void fetchRecentCheckIns(currentVenueId);
       void fetch(`/api/venues/${encodeURIComponent(currentVenueId)}`)
         .then((response) => response.ok ? response.json() : null)
@@ -1144,6 +1148,7 @@ export function VenuePageClient({
       setVibeGenderSelfReport(null);
       setToast("Check-in recorded! Thanks for the vibe.");
       setCheckInConfirmed(true);
+      setRatingPromptOpen(true);
       haptic.success();
       trackAnalytics("vibe_check_submitted", {
         venue_id: reportVenueId,
@@ -1865,6 +1870,23 @@ export function VenuePageClient({
             )}
           </div>
         </div>
+      )}
+
+      {venue && (
+        <RatingPrompt
+          accessToken={accessToken}
+          isOpen={ratingPromptOpen}
+          onSkip={() => {
+            setRatingPromptOpen(false);
+            haptic.light();
+          }}
+          onSubmitted={() => {
+            setRatingPromptOpen(false);
+            setToast("Rating submitted!");
+            haptic.success();
+          }}
+          venueId={venue.id}
+        />
       )}
 
     </div>

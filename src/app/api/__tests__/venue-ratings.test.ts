@@ -75,8 +75,8 @@ describe("GET /api/venue-ratings", () => {
 
   it("returns aggregate counts and the authenticated user's rating", async () => {
     mockFrom
-      .mockReturnValueOnce(chain({ data: [{ rating: "up" }, { rating: "up" }, { rating: "down" }] }))
-      .mockReturnValueOnce(chain({ data: { rating: "down" } }));
+      .mockReturnValueOnce(chain({ data: [{ rating: 5 }, { rating: 4 }, { rating: 1 }, { rating: 3 }] }))
+      .mockReturnValueOnce(chain({ data: { rating: 1 } }));
 
     const { GET } = await import("../venue-ratings/route");
     const res = await GET(request("GET", "http://localhost/api/venue-ratings?venueId=venue-1"));
@@ -90,7 +90,7 @@ describe("GET /api/venue-ratings", () => {
   });
 
   it("lets guests read counts without a user rating", async () => {
-    mockFrom.mockReturnValueOnce(chain({ data: [{ rating: "up" }] }));
+    mockFrom.mockReturnValueOnce(chain({ data: [{ rating: 5 }] }));
 
     const { GET } = await import("../venue-ratings/route");
     const res = await GET(request("GET", "http://localhost/api/venue-ratings?venueId=venue-1", undefined, ""));
@@ -134,7 +134,7 @@ describe("POST /api/venue-ratings", () => {
 
     expect(res.status).toBe(200);
     expect(upsertChain.upsert).toHaveBeenCalledWith(
-      { venue_id: "venue-1", user_id: "user-123", rating: "up" },
+      { venue_id: "venue-1", user_id: "user-123", rating: 5 },
       { onConflict: "venue_id,user_id" },
     );
     const json = await res.json();

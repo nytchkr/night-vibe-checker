@@ -53,12 +53,26 @@ function missingConfigResponse(error: unknown, headers?: HeadersInit): NextRespo
 function countRatings(rows: Array<{ rating: unknown }>): Pick<VenueRatingsData, "upCount" | "downCount"> {
   return rows.reduce(
     (counts, row) => {
-      if (row.rating === "up") counts.upCount += 1;
-      if (row.rating === "down") counts.downCount += 1;
+      const rating = normalizeStoredRating(row.rating);
+      if (rating === "up") counts.upCount += 1;
+      if (rating === "down") counts.downCount += 1;
       return counts;
     },
     { upCount: 0, downCount: 0 },
   );
+}
+
+function normalizeStoredRating(rating: unknown): VenueRatingValue | null {
+  if (rating === "up" || rating === "down") return rating;
+  const numericRating = Number(rating);
+  if (!Number.isFinite(numericRating)) return null;
+  if (numericRating >= 4) return "up";
+  if (numericRating <= 2) return "down";
+  return null;
+}
+
+function ratingToStoredValue(rating: VenueRatingValue): number {
+  return rating === "up" ? 5 : 1;
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -112,7 +126,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    userRating = userRow?.rating === "up" || userRow?.rating === "down" ? userRow.rating : null;
+    userRating = normalizeStoredRating(userRow?.rating);
   }
 
   const counts = countRatings((data ?? []) as Array<{ rating: unknown }>);
@@ -170,7 +184,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const { venueId, rating } = parsed.data;
   const { error } = await supabaseAdmin
     .from("venue_ratings")
-    .upsert({ venue_id: venueId, user_id: userId, rating }, { onConflict: "venue_id,user_id" });
+    .upsert({ venue_id: venueId, user_id: userId, rating: ratingToStoredValue(rating) }, { onConflict: "venue_id,user_id" });
 
   if (error) {
     return json<never>(
