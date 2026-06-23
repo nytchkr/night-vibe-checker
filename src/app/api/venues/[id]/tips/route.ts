@@ -106,7 +106,7 @@ export async function GET(
     );
   }
 
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from("venue_tips")
     .select("id, venue_id, user_id, tip_text, created_at")
     .eq("venue_id", venueId)
@@ -114,11 +114,24 @@ export async function GET(
     .limit(TIP_LIMIT);
 
   if (error) {
-    console.error("[venue-tips GET] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch venue tips." }, meta: responseMeta },
-      { status: 500 },
-    );
+    const msg = error instanceof Error ? error.message : String((error as { message?: unknown } | null)?.message ?? "");
+    if (msg.includes("tip_text") || msg.includes("column")) {
+      const fallback = await supabaseAdmin
+        .from("venue_tips")
+        .select("id, venue_id, user_id, tip, created_at")
+        .eq("venue_id", venueId)
+        .order("created_at", { ascending: false })
+        .limit(TIP_LIMIT);
+      data = (fallback.data ?? []).map((r) => ({ ...r, tip_text: r.tip ?? "" })) as typeof data;
+      error = fallback.error;
+    }
+    if (error) {
+      console.error("[venue-tips GET] DB error:", error);
+      return NextResponse.json<APIResponse<never>>(
+        { status: "error", error: { code: "DB_ERROR", message: "Could not fetch venue tips." }, meta: responseMeta },
+        { status: 500 },
+      );
+    }
   }
 
   return NextResponse.json(
