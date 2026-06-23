@@ -9,7 +9,7 @@ import { Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { CheckInButton } from "@/components/CheckInButton";
-import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
+import { MFRatioBar, MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { ProGate } from "@/components/ProGate";
@@ -87,7 +87,7 @@ type VibeCrowdFeelOption = {
   label: string;
 };
 
-type GenderSelfReport = "m" | "f" | "nb" | null;
+type GenderSelfReport = "M" | "F" | "prefer_not";
 
 const VENUE_REPORT_REASONS: Array<{ value: VenueReportReason; label: string }> = [
   { value: "wrong_hours", label: "Wrong hours" },
@@ -112,10 +112,10 @@ const VIBE_CROWD_FEEL_OPTIONS: VibeCrowdFeelOption[] = [
   { value: "packed", label: "Packed" },
 ];
 
-const GENDER_SELF_REPORT_OPTIONS: Array<{ value: Exclude<GenderSelfReport, null>; label: string }> = [
-  { value: "m", label: "M" },
-  { value: "f", label: "F" },
-  { value: "nb", label: "Non-binary" },
+const GENDER_SELF_REPORT_OPTIONS: Array<{ value: GenderSelfReport; label: string }> = [
+  { value: "M", label: "Man" },
+  { value: "F", label: "Woman" },
+  { value: "prefer_not", label: "Rather not say" },
 ];
 
 function timeAgo(iso: string | null | undefined): string {
@@ -776,7 +776,7 @@ export function VenuePageClient({
   const [vibeStep, setVibeStep] = useState<1 | 2 | 3>(1);
   const [vibeBusynessOptionId, setVibeBusynessOptionId] = useState<VibeBusynessOption["id"] | null>(null);
   const [vibeCrowdFeel, setVibeCrowdFeel] = useState<VibeCrowdFeelOption["value"] | null>(null);
-  const [vibeGenderSelfReport, setVibeGenderSelfReport] = useState<GenderSelfReport>(null);
+  const [vibeGenderSelfReport, setVibeGenderSelfReport] = useState<GenderSelfReport>("prefer_not");
   const [vibeSubmitting, setVibeSubmitting] = useState(false);
   const [vibeError, setVibeError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -1083,7 +1083,7 @@ export function VenuePageClient({
     setVibeStep(1);
     setVibeBusynessOptionId(null);
     setVibeCrowdFeel(null);
-    setVibeGenderSelfReport(null);
+    setVibeGenderSelfReport("prefer_not");
     setVibeError(null);
   }
 
@@ -1107,7 +1107,7 @@ export function VenuePageClient({
     haptic.light();
   }
 
-  async function submitVibeReport(genderSelfReport: Exclude<GenderSelfReport, null>) {
+  async function submitVibeReport(genderSelfReport: GenderSelfReport) {
     const selectedBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
     if (vibeSubmitting || !selectedBusynessOption || !vibeCrowdFeel || !accessToken) return;
 
@@ -1145,7 +1145,7 @@ export function VenuePageClient({
       setVibeStep(1);
       setVibeBusynessOptionId(null);
       setVibeCrowdFeel(null);
-      setVibeGenderSelfReport(null);
+      setVibeGenderSelfReport("prefer_not");
       setToast("Check-in recorded! Thanks for the vibe.");
       setCheckInConfirmed(true);
       setRatingPromptOpen(true);
@@ -1181,7 +1181,7 @@ export function VenuePageClient({
   const busynessSource = signal?.busynessSource ?? null;
   const mfSampleSize = signal?.sampleSize ?? 0;
   const mfPercents = getMFRatioPercents(signal?.mfRatio);
-  const hasEnoughMfSample = mfSampleSize >= 3 && mfPercents !== null;
+  const hasEnoughMfSample = mfSampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO && mfPercents !== null;
   const crowdFeel = getCrowdFeel(hasEnoughMfSample ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
@@ -1424,7 +1424,18 @@ export function VenuePageClient({
                       className="mt-3"
                     />
                   </div>
-                ) : null}
+                ) : (
+                  <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
+                    <span className="text-[11.5px] font-semibold text-[#646B79]">M/F ratio</span>
+                    <div className="mt-3">
+                      <EmptySignalState
+                        compact
+                        icon={Clock}
+                        message="Not enough data yet"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11.5px] font-semibold text-[#646B79]">Status</span>
@@ -1485,7 +1496,17 @@ export function VenuePageClient({
                       sampleSize={mfSampleSize}
                     />
                   </div>
-                ) : null}
+                ) : (
+                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <span className="text-sm font-black text-white">M/F ratio</span>
+                    </div>
+                    <EmptySignalState
+                      icon={Clock}
+                      message="Not enough data yet"
+                    />
+                  </div>
+                )}
 
                 <CheckInFeed checkIns={recentCheckIns} />
 
@@ -1733,14 +1754,14 @@ export function VenuePageClient({
                     ? "How busy is it?"
                     : vibeStep === 2
                       ? "What is the crowd feel?"
-                      : "How are you presenting tonight?"}
+                      : "Your M/F signal"}
                 </h2>
                 <p className="mt-1 text-xs font-medium text-white/40">
                   {vibeStep === 1
                     ? "Tap the crowd level you see right now."
                     : vibeStep === 2
                       ? "Choose the closest read from the room."
-                      : "Required for the M/F signal."}
+                      : "Choose one, or keep the default."}
                 </p>
               </div>
               <button
@@ -1823,10 +1844,10 @@ export function VenuePageClient({
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-white/10 bg-black/25 p-4">
                   <p className="text-sm font-black text-white">
-                    How are you presenting tonight?
+                    How should this check-in count?
                   </p>
                   <p className="mt-1 text-xs font-semibold text-white/40">
-                    This is required and only used to update the venue signal.
+                    This only updates the venue M/F signal.
                   </p>
                 </div>
 

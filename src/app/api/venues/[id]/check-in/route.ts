@@ -33,24 +33,38 @@ const BusynessSchema = z.union([
   z.number().min(0).max(100),
 ]);
 
+const GenderSchema = z.enum(["M", "F", "prefer_not", "m", "f", "nb", "man", "woman"]);
+
 const CheckInBodySchema = z.object({
   busyness: BusynessSchema,
   crowd_feel: CrowdFeelSchema,
   note: z.string().trim().max(VIBE_NOTE_MAX_LENGTH).optional(),
-  gender: z.enum(["m", "f", "nb", "man", "woman"]).nullable().optional(),
+  gender: GenderSchema.nullable().optional(),
   gender_self_report: z.enum(["m", "f", "nb"]).nullable().optional(),
 });
 
-function genderToSelfReport(gender: "m" | "f" | "nb" | "man" | "woman" | null | undefined): "m" | "f" | "nb" | null {
+function genderToSelfReport(gender: z.infer<typeof GenderSchema> | null | undefined): "m" | "f" | "nb" | null {
   if (gender === "m" || gender === "f" || gender === "nb") return gender;
+  if (gender === "M") return "m";
+  if (gender === "F") return "f";
   if (gender === "man") return "m";
   if (gender === "woman") return "f";
   return null;
 }
 
+function genderToCanonical(gender: z.infer<typeof GenderSchema> | null | undefined): "M" | "F" | "prefer_not" {
+  if (gender === "M" || gender === "m" || gender === "man") return "M";
+  if (gender === "F" || gender === "f" || gender === "woman") return "F";
+  return "prefer_not";
+}
+
 function selectedGenderSelfReport(data: z.infer<typeof CheckInBodySchema>): "m" | "f" | "nb" | null {
   if ("gender" in data) return genderToSelfReport(data.gender);
   return data.gender_self_report ?? null;
+}
+
+function selectedGender(data: z.infer<typeof CheckInBodySchema>): "M" | "F" | "prefer_not" {
+  return genderToCanonical(data.gender ?? data.gender_self_report ?? null);
 }
 
 function normalizeBusyness(busyness: z.infer<typeof BusynessSchema>): "dead" | "moderate" | "packed" {
@@ -75,8 +89,23 @@ function isMissingGenderSelfReportColumn(error: unknown): boolean {
   );
 }
 
+function isMissingGenderColumn(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string } | null | undefined;
+  const message = candidate?.message?.toLowerCase() ?? "";
+  return (
+    candidate?.code === "42703" ||
+    candidate?.code === "PGRST204" ||
+    (message.includes("gender") && message.includes("column"))
+  );
+}
+
 async function ensureGenderSelfReportColumn(): Promise<void> {
   const { error } = await supabaseAdmin.rpc("ensure_check_ins_gender_self_report_column");
+  if (error) throw error;
+}
+
+async function ensureGenderColumn(): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("ensure_check_ins_gender_column");
   if (error) throw error;
 }
 
@@ -234,6 +263,7 @@ export async function POST(
     user_id: userId,
     busyness: normalizeBusyness(parsed.data.busyness),
     crowd_feel: parsed.data.crowd_feel,
+    gender: selectedGender(parsed.data),
     reporter_gender: reporterGender,
     gender_self_report: selectedGenderSelfReport(parsed.data),
     note: parsed.data.note?.trim() || null,
@@ -250,6 +280,22 @@ export async function POST(
   if (error && isMissingGenderSelfReportColumn(error)) {
     try {
       await ensureGenderSelfReportColumn();
+      await ensureGenderColumn();
+      const retry = await supabaseAdmin
+        .from("check_ins")
+        .insert(insertPayload)
+        .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at")
+        .single();
+      data = retry.data;
+      error = retry.error;
+    } catch (ensureError) {
+      error = ensureError;
+    }
+  }
+
+  if (error && isMissingGenderColumn(error)) {
+    try {
+      await ensureGenderColumn();
       const retry = await supabaseAdmin
         .from("check_ins")
         .insert(insertPayload)

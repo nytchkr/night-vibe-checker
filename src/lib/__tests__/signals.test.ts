@@ -8,6 +8,7 @@ function row(
   ageMinutes: number,
   reporterGender: "male" | "female" | null = null,
   genderSelfReport: "m" | "f" | "nb" | null = null,
+  gender: "M" | "F" | "prefer_not" | null = null,
 ) {
   return {
     id: `${crowdFeel}-${ageMinutes}`,
@@ -15,6 +16,7 @@ function row(
     place_id: "place-1",
     busyness: "moderate" as const,
     crowd_feel: crowdFeel,
+    gender,
     reporter_gender: reporterGender,
     gender_self_report: genderSelfReport,
     created_at: new Date(NOW - ageMinutes * 60_000).toISOString(),
@@ -22,85 +24,123 @@ function row(
 }
 
 describe("computeSignalFromCheckIns", () => {
-  it("computes the M/F ratio from recent reporter gender counts", () => {
+  it("computes the M/F ratio from 7-day M/F check-in counts", () => {
     const signal = computeSignalFromCheckIns(
       [
-        row("mostly_female", 0, "male"),
-        row("mostly_female", 0, "male"),
-        row("mostly_male", 45, "female"),
+        row("mostly_female", 0, null, null, "M"),
+        row("mostly_female", 90, null, null, "M"),
+        row("mostly_female", 241, null, null, "M"),
+        row("mostly_male", 1_000, null, null, "F"),
+        row("mostly_male", 9_000, null, null, "F"),
       ],
       NOW
     );
 
-    expect(signal.mfRatio).toBeCloseTo((2 / 3) * 100, 5);
-    expect(signal.confidence0To1).toBeCloseTo(3 / 6, 5);
-    expect(signal.sampleSize).toBe(3);
+    expect(signal.mfRatio).toBeCloseTo((3 / 5) * 100, 5);
+    expect(signal.confidence0To1).toBeCloseTo(5 / 8, 5);
+    expect(signal.sampleSize).toBe(5);
+    expect(signal.busyness0To100).toBe(50);
   });
 
-  it("keeps mfRatio empty when fewer than 2 recent gendered reports exist", () => {
-    const signal = computeSignalFromCheckIns([row("mostly_male", 0, "male")], NOW);
+  it("keeps mfRatio empty when fewer than 5 M/F reports exist", () => {
+    const signal = computeSignalFromCheckIns(
+      [
+        row("mostly_male", 0, null, null, "M"),
+        row("mostly_male", 0, null, null, "M"),
+        row("mostly_female", 0, null, null, "F"),
+        row("mostly_female", 0, null, null, "F"),
+      ],
+      NOW
+    );
 
     expect(signal.mfRatio).toBeNull();
-    expect(signal.confidence0To1).toBeCloseTo(1 / 4, 5);
-    expect(signal.sampleSize).toBe(1);
+    expect(signal.confidence0To1).toBeCloseTo(4 / 7, 5);
+    expect(signal.sampleSize).toBe(4);
   });
 
-  it("ignores crowd feel and undisclosed reporters for M/F ratio", () => {
+  it("ignores crowd feel, non-binary, and prefer-not reports for M/F ratio", () => {
     const signal = computeSignalFromCheckIns(
       [
-        row("mostly_male", 0, null),
-        row("mostly_female", 0, "male"),
-        row("mostly_female", 0, "female"),
+        row("mostly_male", 0, null, null, "prefer_not"),
+        row("mostly_male", 0, null, "nb"),
+        row("mostly_female", 0, null, null, "M"),
+        row("mostly_female", 0, null, null, "M"),
+        row("mostly_female", 0, null, null, "M"),
+        row("mostly_female", 0, null, null, "F"),
+        row("mostly_female", 0, null, null, "F"),
       ],
       NOW
     );
 
-    expect(signal.mfRatio).toBe(50);
-    expect(signal.sampleSize).toBe(3);
+    expect(signal.mfRatio).toBe(60);
+    expect(signal.sampleSize).toBe(5);
   });
 
-  it("uses gender self-report before profile gender for the M/F ratio", () => {
+  it("uses canonical gender before legacy profile gender for the M/F ratio", () => {
+    const signal = computeSignalFromCheckIns(
+      [
+        row("balanced", 0, "female", "f", "M"),
+        row("balanced", 0, "female", "f", "M"),
+        row("balanced", 0, "female", "f", "M"),
+        row("balanced", 0, "female", "f", "M"),
+        row("balanced", 0, "male", "m", "F"),
+      ],
+      NOW
+    );
+
+    expect(signal.mfRatio).toBe(80);
+    expect(signal.sampleSize).toBe(5);
+  });
+
+  it("uses legacy self-report before profile gender when canonical gender is absent", () => {
     const signal = computeSignalFromCheckIns(
       [
         row("balanced", 0, "female", "m"),
         row("balanced", 0, "female", "m"),
+        row("balanced", 0, "female", "m"),
+        row("balanced", 0, "male", "f"),
+        row("balanced", 0, "male", "f"),
       ],
       NOW
     );
 
-    expect(signal.mfRatio).toBe(100);
-    expect(signal.sampleSize).toBe(2);
+    expect(signal.mfRatio).toBe(60);
+    expect(signal.confidence0To1).toBeCloseTo(5 / 8, 5);
+    expect(signal.sampleSize).toBe(5);
   });
 
-  it("counts non-binary self-reports in the recent denominator without adding male count", () => {
+  it("keeps 7-day M/F reports but ignores old rows for busyness", () => {
     const signal = computeSignalFromCheckIns(
       [
-        row("balanced", 0, "male", "m"),
-        row("balanced", 0, "male", "nb"),
-        row("balanced", 0, "female", "f"),
+        row("balanced", 0, null, null, "F"),
+        row("balanced", 0, null, null, "F"),
+        row("balanced", 241, null, null, "M"),
+        row("balanced", 300, null, null, "M"),
+        row("balanced", 9_000, null, null, "M"),
+        row("balanced", 10_000, null, null, "M"),
       ],
       NOW
     );
 
-    expect(signal.mfRatio).toBeCloseTo((1 / 3) * 100, 5);
-    expect(signal.confidence0To1).toBeCloseTo(3 / 6, 5);
-    expect(signal.sampleSize).toBe(3);
+    expect(signal.sampleSize).toBe(6);
+    expect(signal.mfRatio).toBeCloseTo((4 / 6) * 100, 5);
+    expect(signal.confidence0To1).toBeCloseTo(6 / 9, 5);
+    expect(signal.busyness0To100).toBe(50);
   });
 
-  it("ignores check-ins older than 4 hours", () => {
+  it("ignores M/F check-ins older than 7 days", () => {
     const signal = computeSignalFromCheckIns(
       [
-        row("balanced", 0, "female"),
-        row("balanced", 0, "female"),
-        row("balanced", 0, "male"),
-        row("balanced", 241, "male"),
-        row("balanced", 300, "male"),
+        row("balanced", 0, null, null, "F"),
+        row("balanced", 0, null, null, "F"),
+        row("balanced", 0, null, null, "M"),
+        row("balanced", 0, null, null, "M"),
+        row("balanced", 10_081, null, null, "M"),
       ],
       NOW
     );
 
-    expect(signal.sampleSize).toBe(3);
-    expect(signal.mfRatio).toBeCloseTo(100 / 3, 5);
-    expect(signal.confidence0To1).toBeCloseTo(3 / 6, 5);
+    expect(signal.sampleSize).toBe(4);
+    expect(signal.mfRatio).toBeNull();
   });
 });

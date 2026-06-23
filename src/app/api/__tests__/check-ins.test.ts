@@ -89,6 +89,7 @@ const CHECK_IN = {
   venues: { name: "Trio" },
   busyness: "packed",
   crowd_feel: "mostly_male",
+  gender: "F",
   reporter_gender: "female",
   gender_self_report: "f",
   note: "Line is moving",
@@ -164,6 +165,7 @@ describe("POST /api/check-ins", () => {
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: "user-123",
+        gender: "F",
         reporter_gender: "female",
         gender_self_report: "f",
       })
@@ -201,11 +203,11 @@ describe("POST /api/check-ins", () => {
     expect(mockRecomputeVenueSignal).not.toHaveBeenCalled();
   });
 
-  it("accepts the canonical place_id, numeric busyness, crowd_feel, and nb gender payload", async () => {
+  it("accepts the canonical place_id, numeric busyness, crowd_feel, and prefer-not gender payload", async () => {
     const venueChain = chain({ data: VENUE });
     const duplicateChain = chain({ data: [] });
     const profileChain = chain({ data: { gender: "male" } });
-    const insertChain = chain({ data: { ...CHECK_IN, busyness: "packed", crowd_feel: "hyped", gender_self_report: "nb" } });
+    const insertChain = chain({ data: { ...CHECK_IN, busyness: "packed", crowd_feel: "hyped", gender: "prefer_not", gender_self_report: null } });
     mockFrom
       .mockReturnValueOnce(venueChain)
       .mockReturnValueOnce(duplicateChain)
@@ -218,7 +220,7 @@ describe("POST /api/check-ins", () => {
         place_id: "place-123",
         busyness: 82,
         crowd_feel: "hyped",
-        gender: "nb",
+        gender: "prefer_not",
       })
     );
 
@@ -228,7 +230,8 @@ describe("POST /api/check-ins", () => {
       expect.objectContaining({
         busyness: "packed",
         crowd_feel: "hyped",
-        gender_self_report: "nb",
+        gender: "prefer_not",
+        gender_self_report: null,
       })
     );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
@@ -258,6 +261,7 @@ describe("POST /api/check-ins", () => {
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         reporter_gender: null,
+        gender: "prefer_not",
         gender_self_report: null,
       })
     );
@@ -321,8 +325,10 @@ describe("POST /api/check-ins", () => {
 
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith("ensure_check_ins_gender_self_report_column");
+    expect(mockRpc).toHaveBeenCalledWith("ensure_check_ins_gender_column");
     expect(retryInsertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
+        gender: "F",
         gender_self_report: "f",
       })
     );
@@ -339,7 +345,7 @@ describe("POST /api/check-ins", () => {
       request("POST", `http://localhost/api/venues/${VENUE.id}/check-in`, {
         busyness: "moderate",
         crowd_feel: "balanced",
-        gender: "man",
+        gender: "M",
       }),
       { params: Promise.resolve({ id: VENUE.id }) }
     );
@@ -348,6 +354,7 @@ describe("POST /api/check-ins", () => {
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: "user-123",
+        gender: "M",
         reporter_gender: "male",
         gender_self_report: "m",
       })
@@ -355,10 +362,10 @@ describe("POST /api/check-ins", () => {
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
   });
 
-  it("accepts new crowd feel pills and nb on venue-scoped check-ins", async () => {
+  it("accepts new crowd feel pills and prefer-not on venue-scoped check-ins", async () => {
     const venueChain = chain({ data: VENUE });
     const profileChain = chain({ data: { gender: "female" } });
-    const insertChain = chain({ data: { ...CHECK_IN, crowd_feel: "chill", gender_self_report: "nb" } });
+    const insertChain = chain({ data: { ...CHECK_IN, crowd_feel: "chill", gender: "prefer_not", gender_self_report: null } });
     mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(profileChain).mockReturnValueOnce(insertChain);
 
     const { POST } = await import("../venues/[id]/check-in/route");
@@ -366,7 +373,7 @@ describe("POST /api/check-ins", () => {
       request("POST", `http://localhost/api/venues/${VENUE.id}/check-in`, {
         busyness: "dead",
         crowd_feel: "chill",
-        gender: "nb",
+        gender: "prefer_not",
       }),
       { params: Promise.resolve({ id: VENUE.id }) }
     );
@@ -376,7 +383,8 @@ describe("POST /api/check-ins", () => {
       expect.objectContaining({
         busyness: "dead",
         crowd_feel: "chill",
-        gender_self_report: "nb",
+        gender: "prefer_not",
+        gender_self_report: null,
       })
     );
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);

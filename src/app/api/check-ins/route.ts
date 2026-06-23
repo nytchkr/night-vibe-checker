@@ -2,7 +2,7 @@
 // POST /api/check-ins — submit a consumer crowd report
 // GET  /api/check-ins — fetch recent public reports or one venue summary
 //
-// POST body: { venue_id } or { venueId, busyness, crowdFeel, note?, genderSelfReport? }
+// POST body: { venue_id } or { venueId, busyness, crowdFeel, note?, gender? }
 // Auth: required for POST via Supabase Bearer token
 // ============================================================
 
@@ -40,6 +40,7 @@ const CrowdFeelSchema = z.enum([
   "balanced",
 ]);
 
+const GenderSchema = z.enum(["M", "F", "prefer_not", "m", "f", "nb", "man", "woman"]);
 const GenderSelfReportSchema = z.enum(["m", "f", "nb"]);
 
 const PostBodySchema = z.object({
@@ -50,7 +51,7 @@ const PostBodySchema = z.object({
   crowd_feel: CrowdFeelSchema.optional(),
   crowdFeel: CrowdFeelSchema.optional(),
   note: z.string().trim().max(500, "note must be 500 characters or less.").optional(),
-  gender: GenderSelfReportSchema.optional(),
+  gender: GenderSchema.optional(),
   gender_self_report: GenderSelfReportSchema.nullable().optional(),
   genderSelfReport: GenderSelfReportSchema.nullable().optional(),
 }).superRefine((data, ctx) => {
@@ -108,8 +109,28 @@ function isSimpleCheckIn(data: z.infer<typeof PostBodySchema>): boolean {
   return !data.busyness && !data.crowd_feel && !data.crowdFeel && !data.note && !data.gender && !data.gender_self_report && !data.genderSelfReport;
 }
 
+function genderToSelfReport(gender: z.infer<typeof GenderSchema> | null | undefined): "m" | "f" | "nb" | null {
+  if (gender === "m" || gender === "f" || gender === "nb") return gender;
+  if (gender === "M") return "m";
+  if (gender === "F") return "f";
+  if (gender === "man") return "m";
+  if (gender === "woman") return "f";
+  return null;
+}
+
+function genderToCanonical(gender: z.infer<typeof GenderSchema> | "m" | "f" | "nb" | null | undefined): "M" | "F" | "prefer_not" {
+  if (gender === "M" || gender === "m" || gender === "man") return "M";
+  if (gender === "F" || gender === "f" || gender === "woman") return "F";
+  return "prefer_not";
+}
+
 function selectedGenderSelfReport(data: z.infer<typeof PostBodySchema>): "m" | "f" | "nb" | null {
-  return data.gender ?? data.gender_self_report ?? data.genderSelfReport ?? null;
+  if ("gender" in data) return genderToSelfReport(data.gender);
+  return data.gender_self_report ?? data.genderSelfReport ?? null;
+}
+
+function selectedGender(data: z.infer<typeof PostBodySchema>): "M" | "F" | "prefer_not" {
+  return genderToCanonical(data.gender ?? data.gender_self_report ?? data.genderSelfReport ?? null);
 }
 
 function normalizeReporterGender(gender: unknown): "male" | "female" | null {
@@ -127,8 +148,23 @@ function isMissingGenderSelfReportColumn(error: unknown): boolean {
   );
 }
 
+function isMissingGenderColumn(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string } | null | undefined;
+  const message = candidate?.message?.toLowerCase() ?? "";
+  return (
+    candidate?.code === "42703" ||
+    candidate?.code === "PGRST204" ||
+    (message.includes("gender") && message.includes("column"))
+  );
+}
+
 async function ensureGenderSelfReportColumn(): Promise<void> {
   const { error } = await supabaseAdmin.rpc("ensure_check_ins_gender_self_report_column");
+  if (error) throw error;
+}
+
+async function ensureGenderColumn(): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("ensure_check_ins_gender_column");
   if (error) throw error;
 }
 
@@ -340,6 +376,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     user_id: userId,
     busyness: normalizeBusyness(parsed.data.busyness as z.infer<typeof BusynessSchema>),
     crowd_feel: selectedCrowdFeel(parsed.data),
+    gender: selectedGender(parsed.data),
     reporter_gender: reporterGender,
     gender_self_report: selectedGenderSelfReport(parsed.data),
     note: parsed.data.note ?? null,
@@ -356,6 +393,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (error && isMissingGenderSelfReportColumn(error)) {
     try {
       await ensureGenderSelfReportColumn();
+      await ensureGenderColumn();
+      const retry = await supabaseAdmin
+        .from("check_ins")
+        .insert(insertPayload)
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    } catch (ensureError) {
+      error = ensureError;
+    }
+  }
+
+  if (error && isMissingGenderColumn(error)) {
+    try {
+      await ensureGenderColumn();
       const retry = await supabaseAdmin
         .from("check_ins")
         .insert(insertPayload)

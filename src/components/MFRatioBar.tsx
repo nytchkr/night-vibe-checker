@@ -15,7 +15,7 @@ interface MFRatioBarProps {
   className?: string;
 }
 
-export const MIN_SAMPLE_SIZE_FOR_RATIO = 3;
+export const MIN_SAMPLE_SIZE_FOR_RATIO = 5;
 
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));

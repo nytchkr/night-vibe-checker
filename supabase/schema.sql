@@ -170,6 +170,8 @@ create table if not exists public.check_ins (
   user_id       uuid not null references auth.users(id) on delete cascade,
   busyness      text not null check (busyness in ('dead','moderate','packed')),
   crowd_feel    text not null check (crowd_feel in ('chill','hyped','mixed','dead','packed','mostly_male','mostly_female','balanced')),
+  gender        text check (gender in ('M','F','prefer_not')),
+  reporter_gender text check (reporter_gender in ('male','female')),
   gender_self_report text check (gender_self_report in ('m','f','nb')),
   note          text check (char_length(note) <= 200),
   hidden        boolean not null default false,
@@ -180,12 +182,16 @@ create index if not exists check_ins_user_id_idx on public.check_ins(user_id);
 create index if not exists check_ins_venue_id_idx on public.check_ins(venue_id);
 create index if not exists check_ins_place_id_idx on public.check_ins(place_id);
 create index if not exists check_ins_created_at_idx on public.check_ins(created_at desc);
+create index if not exists check_ins_gender_idx on public.check_ins(gender) where gender in ('M','F');
+create index if not exists idx_check_ins_reporter_gender on public.check_ins(reporter_gender) where reporter_gender is not null;
 
 -- Existing installs may have the old anonymous/vibe-score columns. The
 -- guarded ALTER statements let Supabase migrate the shape in-place.
 alter table public.check_ins add column if not exists place_id text;
 alter table public.check_ins add column if not exists busyness text check (busyness in ('dead','moderate','packed'));
 alter table public.check_ins add column if not exists crowd_feel text check (crowd_feel in ('chill','hyped','mixed','dead','packed','mostly_male','mostly_female','balanced'));
+alter table public.check_ins add column if not exists gender text check (gender in ('M','F','prefer_not'));
+alter table public.check_ins add column if not exists reporter_gender text check (reporter_gender in ('male','female'));
 alter table public.check_ins add column if not exists gender_self_report text check (gender_self_report in ('m','f','nb'));
 alter table public.check_ins add column if not exists hidden boolean not null default false;
 alter table public.check_ins drop column if exists venue_name;
@@ -205,7 +211,7 @@ create table if not exists public.venue_signals (
   place_id              text not null unique,
   busyness_0_100        integer check (busyness_0_100 between 0 and 100),
   busyness_source       text check (busyness_source in ('live','forecast','crowd','unavailable')),
-  mf_ratio              integer check (mf_ratio between 0 and 100),
+  mf_ratio              double precision check (mf_ratio between 0 and 100),
   confidence_0_1        numeric(5,4) not null default 0 check (confidence_0_1 between 0 and 1),
   sample_size           numeric(8,2) not null default 0,
   computed_at           timestamptz not null default now(),
