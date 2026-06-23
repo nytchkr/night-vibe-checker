@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
-import { isValidAdminPassword } from "@/lib/adminPasswordAuth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +23,7 @@ const JOBS: Array<{ name: JobName; expectedIntervalMinutes: number }> = [
 ];
 
 function isAuthorized(req: NextRequest): boolean {
-  return isAuthorizedCronRequest(req) || isValidAdminPassword(req.headers.get("x-admin-password"));
+  return isAuthorizedCronRequest(req);
 }
 
 function minutesSince(value: string): number {

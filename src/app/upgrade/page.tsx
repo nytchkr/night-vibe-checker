@@ -4,9 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { WaitlistForm } from "./WaitlistForm";
 
 const FEATURES = [
-  "AI crowd prediction",
+  "Full-week BestTime crowd forecast",
   "Best time to arrive alerts",
-  "Vibe forecast 12hrs ahead",
+  "Vibe summary from real Google reviews",
   "Early access to new Pro signals",
 ];
 

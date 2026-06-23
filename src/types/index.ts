@@ -3,4 +3,3 @@
 // NOTE: vibe.ts removed in NV-076 teardown — types now live in consumer.ts and checkIn.ts
 export * from "./checkIn";
 export * from "./consumer";
-export * from "./admin";
