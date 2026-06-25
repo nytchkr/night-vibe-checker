@@ -7,10 +7,10 @@ on:
     branches: [main, dev]
 
 jobs:
-  ci:
-    name: Type-check · Unit tests · E2E
+  check:
+    name: Type-check · Unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
@@ -30,13 +30,30 @@ jobs:
       - name: Unit tests
         run: npm test -- --run
         env:
-          # Unit tests use mocked AI — no real API keys needed
           OPENAI_API_KEY: sk-test-placeholder
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder
           SUPABASE_SERVICE_ROLE_KEY: placeholder
           GOOGLE_PLACES_API_KEY: placeholder
           NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: placeholder
+
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: check
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
