@@ -122,6 +122,7 @@ test.use({ serviceWorkers: "block" });
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("nv_onboarded", "1");
+    window.sessionStorage.setItem("nightvibe:desktop-warning-dismissed", "true");
   });
 }
 
@@ -259,9 +260,16 @@ test.describe("Map tab", () => {
 
     await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
 
-    await page.locator(".leaflet-control-zoom-out").click();
-
     const cluster = page.locator(".venue-cluster-icon").first();
+    const zoomOut = page.locator(".leaflet-control-zoom-out");
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await zoomOut.click();
+      await page.waitForTimeout(500);
+      if (await cluster.isVisible()) {
+        break;
+      }
+    }
+
     await expect(cluster).toBeVisible({ timeout: 10000 });
     await expect(cluster).toContainText(String(venues.length));
     await expect(cluster).toHaveCSS("background-color", "rgb(139, 108, 255)");
