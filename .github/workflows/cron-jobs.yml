@@ -1,0 +1,80 @@
+name: Cron Jobs
+
+on:
+  schedule:
+    # refresh-busyness: evening/night hours UTC (21:00–05:00 = 5pm–1am ET)
+    - cron: '0 21 * * *'
+    - cron: '0 22 * * *'
+    - cron: '0 23 * * *'
+    - cron: '0 0 * * *'
+    - cron: '0 1 * * *'
+    - cron: '0 2 * * *'
+    - cron: '0 3 * * *'
+    - cron: '0 4 * * *'
+    - cron: '0 5 * * *'
+    # discover-zone: daily at 18:00 UTC
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run'
+        required: true
+        default: 'refresh-busyness'
+        type: choice
+        options:
+          - refresh-busyness
+          - refresh-open-now
+          - discover-zone
+          - all
+
+jobs:
+  refresh-busyness:
+    name: Refresh busyness
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'refresh-busyness' || github.event.inputs.job == 'all') ||
+      github.event_name == 'schedule' && (
+        github.event.schedule == '0 21 * * *' || github.event.schedule == '0 22 * * *' ||
+        github.event.schedule == '0 23 * * *' || github.event.schedule == '0 0 * * *'  ||
+        github.event.schedule == '0 1 * * *'  || github.event.schedule == '0 2 * * *'  ||
+        github.event.schedule == '0 3 * * *'  || github.event.schedule == '0 4 * * *'  ||
+        github.event.schedule == '0 5 * * *'
+      )
+    steps:
+      - name: Trigger refresh-busyness cron
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://nytchkr.com/api/cron/refresh-busyness)
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+  refresh-open-now:
+    name: Refresh open/closed status
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'refresh-open-now' || github.event.inputs.job == 'all') ||
+      github.event_name == 'schedule' && github.event.schedule == '0 2 * * *'
+    steps:
+      - name: Trigger refresh-open-now cron
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://nytchkr.com/api/cron/refresh-open-now)
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+  discover-zone:
+    name: Discover zone venues
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'discover-zone' || github.event.inputs.job == 'all') ||
+      github.event_name == 'schedule' && github.event.schedule == '0 18 * * *'
+    steps:
+      - name: Trigger discover-zone job
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://nytchkr.com/api/jobs/discover-zone)
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
