@@ -11,13 +11,13 @@ describe("ShareButton share-card helpers", () => {
   it("creates native share data from the share-card response", () => {
     expect(
       createVenueShareData("Test Bar", {
-        shareUrl: "https://night-vibe-checker.vercel.app/venues/test-bar?ref=share",
+        shareUrl: "https://nytchkr.com/venues/test-bar?ref=share",
         text: "Test Bar is Packed right now on NightVibe",
       }),
     ).toEqual({
       title: "Test Bar on NightVibe",
       text: "Test Bar is Packed right now on NightVibe",
-      url: "https://night-vibe-checker.vercel.app/venues/test-bar?ref=share",
+      url: "https://nytchkr.com/venues/test-bar?ref=share",
     });
   });
 });

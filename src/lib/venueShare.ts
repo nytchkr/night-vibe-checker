@@ -1,7 +1,7 @@
 import type { ConsumerVenue } from "@/types";
 import { getBusynessState } from "@/lib/busyness";
 
-const siteUrl = "https://night-vibe-checker.vercel.app";
+const siteUrl = "https://nytchkr.com";
 
 export type VenueShareData = {
   title: string;

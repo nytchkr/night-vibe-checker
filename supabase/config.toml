@@ -22,8 +22,8 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "https://night-vibe-checker.vercel.app"
-additional_redirect_urls = ["https://night-vibe-checker.vercel.app", "https://night-vibe-checker.vercel.app/**", "http://localhost:3000"]
+site_url = "https://nytchkr.com"
+additional_redirect_urls = ["https://nytchkr.com", "https://nytchkr.com/**", "http://localhost:3000"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10

@@ -26,7 +26,7 @@
   "regions": ["iad1"],
   "env": {
     "NODE_ENV": "production",
-    "NEXT_PUBLIC_SITE_URL": "https://night-vibe-checker.vercel.app"
+    "NEXT_PUBLIC_SITE_URL": "https://nytchkr.com"
   },
   "headers": [
     {

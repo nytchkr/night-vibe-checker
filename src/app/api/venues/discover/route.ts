@@ -7,7 +7,7 @@
 // Protected by x-cron-secret header. Call this from a Vercel
 // cron job or manually with:
 //   curl -H "x-cron-secret: $CRON_SECRET" \
-//        https://night-vibe-checker.vercel.app/api/venues/discover
+//        https://nytchkr.com/api/venues/discover
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

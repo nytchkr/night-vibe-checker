@@ -107,7 +107,7 @@ test.describe("Profile page", () => {
 
   test("profile shows empty state for new user", async ({ page }) => {
     test.skip(
-      (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
+      (process.env.BASE_URL ?? "").includes("nytchkr.com"),
       "uses a mocked Supabase session and is only valid against a local app server",
     );
     await addLocalSession(page);
@@ -123,7 +123,7 @@ test.describe("Profile page", () => {
 
   test("profile welcome banner only appears for first sign-in URL", async ({ page }) => {
     test.skip(
-      (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
+      (process.env.BASE_URL ?? "").includes("nytchkr.com"),
       "uses a mocked Supabase session and is only valid against a local app server",
     );
     await addLocalSession(page);
@@ -143,7 +143,7 @@ test.describe("Profile page", () => {
 
   test("profile renders recent check-ins with busyness and notes", async ({ page }) => {
     test.skip(
-      (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
+      (process.env.BASE_URL ?? "").includes("nytchkr.com"),
       "uses a mocked Supabase session and is only valid against a local app server",
     );
     await addLocalSession(page);
@@ -200,7 +200,7 @@ test.describe("Profile page", () => {
 
   test("sign out clears the session and protects authenticated-only routes", async ({ page }) => {
     test.skip(
-      (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app"),
+      (process.env.BASE_URL ?? "").includes("nytchkr.com"),
       "uses a mocked Supabase session and is only valid against a local app server",
     );
     await addLocalSession(page);

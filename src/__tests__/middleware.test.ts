@@ -41,7 +41,7 @@ describe("middleware route protection", () => {
     const body = new URLSearchParams({
       title: "Tonight",
       text: "Try this spot",
-      url: "https://night-vibe-checker.vercel.app/map",
+      url: "https://nytchkr.com/map",
     });
     const response = await middleware(
       new NextRequest("http://localhost/share", {
@@ -55,7 +55,18 @@ describe("middleware route protection", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "http://localhost/share?title=Tonight&text=Try+this+spot&url=https%3A%2F%2Fnight-vibe-checker.vercel.app%2Fmap",
+      "http://localhost/share?title=Tonight&text=Try+this+spot&url=https%3A%2F%2Fnytchkr.com%2Fmap",
+    );
+  });
+
+  it("redirects legacy Vercel auth callbacks to the canonical domain", async () => {
+    const response = await middleware(
+      new NextRequest("https://night-vibe-checker.vercel.app/auth/callback?code=abc123&return=%2Fprofile"),
+    );
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(
+      "https://nytchkr.com/auth/callback?code=abc123&return=%2Fprofile",
     );
   });
 });

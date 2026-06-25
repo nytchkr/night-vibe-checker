@@ -48,7 +48,7 @@ describe("GET /api/venues/[id]/share-card", () => {
 
     expect(res.status).toBe(200);
     expect(json).toEqual({
-      shareUrl: "https://night-vibe-checker.vercel.app/venues/venue-1?ref=share",
+      shareUrl: "https://nytchkr.com/venues/venue-1?ref=share",
       text: "Bar X is Packed right now on NightVibe",
     });
   });

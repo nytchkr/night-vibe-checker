@@ -6,7 +6,7 @@ import { PageTransition } from "@/components/PageTransition";
 import type { ConsumerVenue } from "@/types";
 import { VenuePageClient } from "./VenuePageClient";
 
-const siteUrl = "https://night-vibe-checker.vercel.app";
+const siteUrl = "https://nytchkr.com";
 const defaultOgImage = "/og-default.png";
 const genericMetadata: Metadata = {
   title: {

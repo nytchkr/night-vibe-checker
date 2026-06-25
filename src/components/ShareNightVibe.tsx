@@ -4,7 +4,7 @@ import { useState } from "react";
 import { track } from "@vercel/analytics";
 import { Toast } from "@/components/Toast";
 
-const NIGHTVIBE_SHARE_URL = "https://night-vibe-checker.vercel.app";
+const NIGHTVIBE_SHARE_URL = "https://nytchkr.com";
 const NIGHTVIBE_SHARE_DATA = {
   title: "NightVibe",
   text: "Real-time nightlife intel for South End Charlotte. Know before you go.",

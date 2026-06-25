@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { supabaseAdmin } from "@/lib/supabase";
 
-const BASE_URL = "https://night-vibe-checker.vercel.app";
+const BASE_URL = "https://nytchkr.com";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();

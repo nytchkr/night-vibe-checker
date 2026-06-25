@@ -7,7 +7,7 @@ const meta = {
 };
 
 function isProductionBaseUrl() {
-  return (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app");
+  return (process.env.BASE_URL ?? "").includes("nytchkr.com");
 }
 
 const feedVenue = {

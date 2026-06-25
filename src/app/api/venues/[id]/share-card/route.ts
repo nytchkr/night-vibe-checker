@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getBusynessState } from "@/lib/busyness";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 
-const siteUrl = "https://night-vibe-checker.vercel.app";
+const siteUrl = "https://nytchkr.com";
 
 type ShareCardResponse = {
   shareUrl: string;

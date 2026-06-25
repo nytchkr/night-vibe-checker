@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 function isProductionBaseUrl() {
-  return (process.env.BASE_URL ?? "").includes("night-vibe-checker.vercel.app");
+  return (process.env.BASE_URL ?? "").includes("nytchkr.com");
 }
 
 async function addLocalSession(page: Page) {

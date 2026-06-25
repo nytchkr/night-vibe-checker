@@ -9,6 +9,8 @@ const PROTECTED_API_ROUTES = [
   "/api/push/subscribe",
   "/api/push/venue-alert",
 ] as const;
+const LEGACY_HOSTS = new Set(["night-vibe-checker.vercel.app"]);
+const CANONICAL_HOST = "nytchkr.com";
 
 type MiddlewareResponse = NextResponse<unknown>;
 
@@ -69,6 +71,14 @@ async function shareRedirect(req: NextRequest): Promise<MiddlewareResponse> {
 }
 
 export async function middleware(req: NextRequest): Promise<MiddlewareResponse> {
+  if (LEGACY_HOSTS.has(req.nextUrl.hostname)) {
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.protocol = "https:";
+    redirectUrl.hostname = CANONICAL_HOST;
+    redirectUrl.port = "";
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
   const requestHeaders = new Headers(req.headers);
   let response = NextResponse.next({
     request: {

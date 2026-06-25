@@ -9,11 +9,11 @@ import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
 import "./globals.css";
 
-const siteUrl = "https://night-vibe-checker.vercel.app";
+const siteUrl = "https://nytchkr.com";
 const title = "NightVibe";
 const description = "Find the hottest spots in Charlotte tonight";
 const themeColor = "#8B6CFF";
-const canonicalUrl = "https://night-vibe-checker.vercel.app";
+const canonicalUrl = "https://nytchkr.com";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
@@ -33,7 +33,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://night-vibe-checker.vercel.app"),
+  metadataBase: new URL("https://nytchkr.com"),
   title: {
     default: title,
     template: "%s — NightVibe",
