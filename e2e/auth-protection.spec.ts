@@ -38,7 +38,8 @@ test.describe("Auth protection middleware", () => {
     await page.goto("/profile");
 
     await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByText("Sign in to see your profile")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sign in to track your nights" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
   });
 
   test("unauthenticated: POST /api/check-ins returns 401", async ({ page }) => {

@@ -102,7 +102,7 @@ test.describe("VibeCheck consumer check-in flow", () => {
     expect(decodeURIComponent(page.url())).toContain(
       "/vibe-check?venueId=venue-feed-1&venueName=Feed+Test+Club",
     );
-    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "nytchkr" })).toBeVisible();
   });
 
   test("guests hitting /vibe-check are redirected to login before the form renders", async ({ page }) => {
