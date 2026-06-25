@@ -8,10 +8,11 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { v4 as uuidv4 } from "uuid";
-import { LAUNCH_ZONE } from "@/lib/launchZone";
+import { LAUNCH_ZONES } from "@/lib/launchZone";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
 const TRENDING_LIMIT = 5;
+const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
@@ -143,7 +144,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     .from("venues")
     .select(VENUE_SELECT)
     .eq("hidden", false)
-    .eq("zone_id", LAUNCH_ZONE.id)
+    .in("zone_id", LAUNCH_ZONE_IDS)
     .limit(100);
   let venuesData = primaryResult.data as Record<string, unknown>[] | null;
   let venuesError = primaryResult.error;
@@ -153,7 +154,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .from("venues")
       .select(VENUE_SELECT_LEGACY)
       .eq("hidden", false)
-      .eq("zone_id", LAUNCH_ZONE.id)
+      .in("zone_id", LAUNCH_ZONE_IDS)
       .limit(100);
     venuesData = legacyResult.data as Record<string, unknown>[] | null;
     venuesError = legacyResult.error;

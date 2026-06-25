@@ -7,11 +7,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
-import { LAUNCH_ZONE } from "@/lib/launchZone";
+import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { inZone } from "@/lib/zone";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
+
+const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
@@ -189,7 +191,7 @@ async function loadVenueRows(
   let query = supabaseAdmin
     .from("venues")
     .select(select)
-    .eq("zone_id", LAUNCH_ZONE.id)
+    .in("zone_id", LAUNCH_ZONE_IDS)
     .eq("hidden", false);
 
   if (params.category) {
@@ -248,7 +250,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (searchQuery) {
       const { data: searchRows, error: searchError } = await supabaseAdmin.rpc("search_venue_ids", {
         search_query: searchQuery,
-        search_zone_id: LAUNCH_ZONE.id,
+        search_zone_id: null,
         search_category: category,
         center_lat: hasRadiusFilter ? lat : null,
         center_lng: hasRadiusFilter ? lng : null,

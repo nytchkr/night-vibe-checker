@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { LAUNCH_ZONE } from "@/lib/launchZone";
+import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { discoverZone, PlacesApiError } from "@/lib/places";
 import { supabaseAdmin } from "@/lib/supabase";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
+import type { DiscoveredVenue } from "@/lib/places";
 
 function isAuthorized(req: NextRequest) {
   return isAuthorizedCronRequest(req);
@@ -13,9 +14,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "error", error: { code: "UNAUTHORIZED" } }, { status: 401 });
   }
 
-  let venues;
+  const venuesByPlaceId = new Map<string, DiscoveredVenue>();
   try {
-    venues = await discoverZone(LAUNCH_ZONE);
+    for (const zone of LAUNCH_ZONES) {
+      const venues = await discoverZone(zone);
+      for (const venue of venues.map((item) => ({ ...item, zoneId: zone.id }))) {
+        if (!venuesByPlaceId.has(venue.placeId)) {
+          venuesByPlaceId.set(venue.placeId, venue);
+        }
+      }
+    }
   } catch (error) {
     console.error("[discover-zone] Places discovery failed:", error);
     const status = error instanceof PlacesApiError ? error.statusCode : 500;
@@ -25,6 +33,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const venues = Array.from(venuesByPlaceId.values());
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin.from("venues").upsert(
     venues.map((venue) => ({
@@ -52,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "error", error: { code: "DB_ERROR" } }, { status: 500 });
   }
 
-  return NextResponse.json({ status: "success", data: { zone: LAUNCH_ZONE, discovered: venues.length } });
+  return NextResponse.json({ status: "success", data: { zones: LAUNCH_ZONES, discovered: venues.length } });
 }
 
 export const GET = POST;

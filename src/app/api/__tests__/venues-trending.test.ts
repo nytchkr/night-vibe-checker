@@ -15,6 +15,7 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
   const builder = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     then: promise.then.bind(promise),
     catch: promise.catch.bind(promise),
@@ -120,7 +121,7 @@ describe("GET /api/venues/trending", () => {
     ]);
     expect(mockFrom).toHaveBeenNthCalledWith(1, "venues");
     expect(query.eq).toHaveBeenCalledWith("hidden", false);
-    expect(query.eq).toHaveBeenCalledWith("zone_id", "south-end-charlotte");
+    expect(query.in).toHaveBeenCalledWith("zone_id", ["south-end-charlotte", "dilworth-charlotte"]);
     expect(query.limit).toHaveBeenCalledWith(100);
   });
 

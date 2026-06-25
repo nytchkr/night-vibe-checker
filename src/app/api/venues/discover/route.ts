@@ -11,12 +11,13 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { LAUNCH_ZONE } from "@/lib/launchZone";
+import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { discoverZone } from "@/lib/places";
 import { supabaseAdmin } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue } from "@/types";
+import type { DiscoveredVenue } from "@/lib/places";
 
 const PUBLIC_CACHE_HEADERS = {
   "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
@@ -43,9 +44,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let discovered;
+  const discoveredByPlaceId = new Map<string, DiscoveredVenue>();
   try {
-    discovered = await discoverZone(LAUNCH_ZONE);
+    for (const zone of LAUNCH_ZONES) {
+      const venues = await discoverZone(zone);
+      for (const venue of venues.map((item) => ({ ...item, zoneId: zone.id }))) {
+        if (!discoveredByPlaceId.has(venue.placeId)) {
+          discoveredByPlaceId.set(venue.placeId, venue);
+        }
+      }
+    }
   } catch (err) {
     console.error("[venues/discover] Places API error:", err);
     return NextResponse.json<APIResponse<never>>(
@@ -58,6 +66,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const discovered = Array.from(discoveredByPlaceId.values());
   const now = generatedAt;
   const rows = discovered.map((venue) => ({
     place_id: venue.placeId,
@@ -99,7 +108,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const { data: venueRows, error: fetchError } = await supabaseAdmin
     .from("venues")
     .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, updated_at, hidden")
-    .eq("zone_id", LAUNCH_ZONE.id)
+    .in("zone_id", LAUNCH_ZONES.map((zone) => zone.id))
     .eq("hidden", false)
     .order("name", { ascending: true })
     .limit(100);

@@ -81,7 +81,7 @@ describe("GET /api/venues search", () => {
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
       search_query: "rooftop",
-      search_zone_id: "south-end-charlotte",
+      search_zone_id: null,
       search_category: null,
       center_lat: null,
       center_lng: null,
@@ -105,7 +105,7 @@ describe("GET /api/venues search", () => {
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
       search_query: "lounge",
-      search_zone_id: "south-end-charlotte",
+      search_zone_id: null,
       search_category: "bar",
       center_lat: 35.21,
       center_lng: -80.86,
