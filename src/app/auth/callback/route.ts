@@ -57,7 +57,8 @@ function retryGoogleOAuth(origin: string, returnUrl: string): NextResponse {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = new URL(req.url);
+  const { searchParams, origin: reqOrigin } = new URL(req.url);
+  const origin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? reqOrigin;
   const code = searchParams.get("code");
   const rawReturnUrl = searchParams.get("return");
   const returnUrl = safeReturnUrl(rawReturnUrl);
