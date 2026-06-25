@@ -252,7 +252,7 @@ export default function ProfileCheckInsPage() {
           <div className="mx-auto max-w-lg py-4">
             <Link
               href="/profile"
-              className="inline-flex min-h-9 items-center text-[13px] font-semibold text-[#9CA2AE] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              className="inline-flex min-h-11 items-center text-[13px] font-semibold text-[#9CA2AE] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
             >
               &larr; You
             </Link>

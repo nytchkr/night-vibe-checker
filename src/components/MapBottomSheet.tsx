@@ -124,7 +124,7 @@ function VenueRow({
         venueId={venue.id}
         venueName={venue.name}
         includeVenueNameInLabel={false}
-        className="absolute right-3 top-3 h-9 w-9"
+        className="absolute right-3 top-3 h-11 w-11"
       />
     </div>
   );

@@ -119,7 +119,7 @@ function CompactCard({
             accessToken={accessToken}
             initialSaved={isSaved}
             onSavedChange={onSaveToggle}
-            className="absolute right-2 top-2 h-9 w-9"
+            className="absolute right-2 top-2 h-11 w-11"
           />
         )}
         <div className="flex items-center gap-3">
@@ -160,7 +160,7 @@ function CompactCard({
           type="button"
           onClick={() => onVibeCheck?.(venue)}
           disabled={isChecking}
-          className="mt-3 h-9 w-full rounded-full bg-[#8B6CFF] text-[13px] font-semibold text-[#0A0A0E] hover:bg-[#8B6CFF]"
+          className="mt-3 min-h-11 w-full rounded-full bg-[#8B6CFF] text-[13px] font-semibold text-[#0A0A0E] hover:bg-[#8B6CFF]"
         >
           {isChecking ? "Checking..." : "Check vibe"}
         </Button>
@@ -201,7 +201,7 @@ function FullCard({
           accessToken={accessToken}
           initialSaved={isSaved}
           onSavedChange={onSaveToggle}
-          className="absolute right-2 top-2 z-10 h-9 w-9"
+          className="absolute right-2 top-2 z-10 h-11 w-11"
         />
       )}
 

@@ -241,7 +241,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                 type="button"
                 aria-label="Close sign-in prompt"
                 onClick={closeGate}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
                 <X size={17} aria-hidden="true" />
               </button>

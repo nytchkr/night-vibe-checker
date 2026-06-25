@@ -1160,7 +1160,7 @@ export function VenuePageClient({
   const statusClassName = statusText.startsWith("Open")
     ? "text-[#8B6CFF]"
     : statusText === "Hours not available"
-      ? "text-[#646B79]"
+      ? "text-[#9CA2AE]"
       : "text-[#F0568C]";
   const isTrending = venue ? trendingVenueIds.has(venue.id) : false;
 
@@ -1202,7 +1202,7 @@ export function VenuePageClient({
             className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-5 text-center"
           >
             <p className="font-medium text-[#F4F5F8]">Could not load venue</p>
-            <p className="mt-1 text-sm text-[#646B79]">{error}</p>
+            <p className="mt-1 text-sm text-[#9CA2AE]">{error}</p>
           </div>
         </div>
       )}
@@ -1481,7 +1481,7 @@ export function VenuePageClient({
                 )}
               </div>
               {!hasBusynessRead && !signal?.sampleSize && (
-                <p className="text-[13px] text-[#646B79]">
+                <p className="text-[13px] text-[#9CA2AE]">
                   No live reads yet — be the first to report
                 </p>
               )}
@@ -1588,7 +1588,7 @@ export function VenuePageClient({
                 type="button"
                 aria-label="Close report form"
                 onClick={closeReportFormWithHaptic}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
                 disabled={reportSubmitting}
               >
                 <X size={17} aria-hidden="true" />
@@ -1633,7 +1633,7 @@ export function VenuePageClient({
                 maxLength={200}
                 rows={3}
                 placeholder="What should we correct?"
-                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-base text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/60"
+                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-base text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               />
               <div className="flex items-center justify-between gap-3">
                 <span className={`text-xs ${reportCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
@@ -1696,7 +1696,7 @@ export function VenuePageClient({
                 type="button"
                 aria-label="Close vibe report"
                 onClick={closeVibeReportWithHaptic}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
                 disabled={vibeSubmitting}
               >
                 <X size={17} aria-hidden="true" />

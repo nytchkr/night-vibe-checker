@@ -82,7 +82,7 @@ export function ShareButton(props: ShareButtonProps) {
         title="Share venue"
         className={[
           `
-          h-8 w-8 rounded-full p-0
+          h-11 w-11 rounded-full p-0
           text-gray-300 hover:bg-white/10 hover:text-white
           focus-visible:text-white focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:opacity-60
         `,

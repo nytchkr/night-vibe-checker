@@ -379,7 +379,7 @@ function CitySelector({
                 type="button"
                 aria-label="Close city selector"
                 onClick={() => setOpen(false)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 <X aria-hidden="true" className="h-4 w-4" />
               </button>
@@ -820,7 +820,7 @@ function VenueFilterSheet({
               type="button"
               aria-label="Close filters"
               onClick={closeWithHaptic}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               <X aria-hidden="true" className="h-4 w-4" />
             </button>

@@ -367,7 +367,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   type="button"
                   aria-label="Close venue details"
                   onClick={handleCloseTap}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                  className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   <X aria-hidden="true" className="h-4 w-4" />
                 </button>
@@ -379,12 +379,12 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
               <div className="flex shrink-0 items-center gap-2">
                 <SaveButton
                   placeId={venue.placeId}
-                  className="h-9 w-9 text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
+                  className="h-11 w-11 text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
                 />
                 <ShareButton
                   venueId={venue.id}
                   venueName={venue.name}
-                  className="h-9 w-9 text-white/75 hover:text-white focus-visible:ring-[#8B6CFF]/70"
+                  className="h-11 w-11 text-white/75 hover:text-white focus-visible:ring-[#8B6CFF]/70"
                 />
                 <Link
                   href={`/venues/${encodeURIComponent(venue.id)}`}

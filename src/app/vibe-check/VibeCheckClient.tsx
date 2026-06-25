@@ -586,7 +586,7 @@ export default function VibeCheckClient({
                 placeholder="Search South End venues"
                 aria-describedby={venuesError ? "venue-search-error" : undefined}
                 aria-invalid={venuesError ? "true" : "false"}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/60 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/30"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               />
 
               <div className="scroll-touch max-h-64 space-y-2 overflow-y-auto pr-1 [will-change:scroll-position]">
@@ -715,7 +715,7 @@ export default function VibeCheckClient({
             maxLength={NOTE_MAX_LENGTH}
             rows={4}
             placeholder="Add a vibe note (optional)..."
-            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none"
+            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
           />
           <p className="mt-1 text-right text-[11px] text-white/35">{note.length} / {NOTE_MAX_LENGTH}</p>
         </section>

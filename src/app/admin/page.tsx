@@ -106,7 +106,7 @@ function RemoveButton({ label }: { label: string }) {
   return (
     <button
       type="submit"
-      className="min-h-9 rounded-md border border-red-400/40 px-3 text-xs font-bold text-red-200 transition-colors hover:bg-red-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+      className="min-h-11 rounded-md border border-red-400/40 px-3 text-xs font-bold text-red-200 transition-colors hover:bg-red-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
     >
       {label}
     </button>

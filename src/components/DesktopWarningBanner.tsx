@@ -45,7 +45,7 @@ export default function DesktopWarningBanner() {
         <button
           type="button"
           onClick={dismiss}
-          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-xs font-black text-[#0A0A0E] shadow-[0_0_18px_rgba(240,86,140,0.24)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-xs font-black text-[#0A0A0E] shadow-[0_0_18px_rgba(240,86,140,0.24)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
         >
           Dismiss
         </button>

@@ -241,9 +241,7 @@ export function OnboardingOverlay() {
                 }}
                 aria-label={`Show ${item.title}`}
                 aria-current={index === activeSlide ? "step" : undefined}
-                className={`group flex h-6 items-center justify-center rounded-full transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF] ${
-                  index === activeSlide ? "w-8" : "w-6"
-                }`}
+                className="group flex min-h-11 min-w-11 items-center justify-center rounded-full px-1 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]"
               >
                 <span
                   aria-hidden="true"

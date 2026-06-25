@@ -52,12 +52,12 @@ function Toggle({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`relative min-h-11 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-60 ${
         checked ? "border-[#8B6CFF]/60 bg-[#8B6CFF]/28" : "border-white/15 bg-white/[0.06]"
       }`}
     >
       <span
-        className={`absolute top-1 h-6 w-6 rounded-full border border-gray-500 bg-gray-800 shadow-lg transition-transform ${
+        className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-gray-500 bg-gray-800 shadow-lg transition-transform ${
           checked ? "translate-x-6" : "translate-x-1"
         }`}
       />
