@@ -70,7 +70,23 @@ async function shareRedirect(req: NextRequest): Promise<MiddlewareResponse> {
   return NextResponse.redirect(redirectUrl, 303);
 }
 
+function rootAuthCodeRedirect(req: NextRequest): MiddlewareResponse | null {
+  if (req.nextUrl.pathname !== "/" || !req.nextUrl.searchParams.has("code")) {
+    return null;
+  }
+
+  const redirectUrl = req.nextUrl.clone();
+  redirectUrl.protocol = "https:";
+  redirectUrl.hostname = CANONICAL_HOST;
+  redirectUrl.port = "";
+  redirectUrl.pathname = "/auth/callback";
+  return NextResponse.redirect(redirectUrl, 308);
+}
+
 export async function middleware(req: NextRequest): Promise<MiddlewareResponse> {
+  const authCodeRedirect = rootAuthCodeRedirect(req);
+  if (authCodeRedirect) return authCodeRedirect;
+
   if (LEGACY_HOSTS.has(req.nextUrl.hostname)) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.protocol = "https:";

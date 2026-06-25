@@ -69,4 +69,22 @@ describe("middleware route protection", () => {
       "https://nytchkr.com/auth/callback?code=abc123&return=%2Fprofile",
     );
   });
+
+  it("moves root auth code redirects to the canonical callback route", async () => {
+    const legacyResponse = await middleware(
+      new NextRequest("https://night-vibe-checker.vercel.app/?code=abc123"),
+    );
+    const canonicalResponse = await middleware(
+      new NextRequest("https://nytchkr.com/?code=abc123"),
+    );
+
+    expect(legacyResponse.status).toBe(308);
+    expect(legacyResponse.headers.get("location")).toBe(
+      "https://nytchkr.com/auth/callback?code=abc123",
+    );
+    expect(canonicalResponse.status).toBe(308);
+    expect(canonicalResponse.headers.get("location")).toBe(
+      "https://nytchkr.com/auth/callback?code=abc123",
+    );
+  });
 });
