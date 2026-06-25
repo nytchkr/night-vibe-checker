@@ -119,6 +119,6 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.svg$).*)",
+    "/((?!\\.swa|_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.svg$).*)",
   ],
 };
