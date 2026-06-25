@@ -19,6 +19,7 @@ import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { SkeletonVenueDetail } from "@/components/SkeletonVenueDetail";
 import { Toast } from "@/components/Toast";
 import { TrendingBadge } from "@/components/TrendingBadge";
+import { VenuePredictionCard } from "@/components/VenuePredictionCard";
 import { VenueRating } from "@/components/VenueRating";
 import { VenueTips } from "@/components/VenueTips";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -1484,6 +1485,8 @@ export function VenuePageClient({
                 </p>
               )}
             </section>
+
+            <VenuePredictionCard venueId={venue.id} />
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
 
