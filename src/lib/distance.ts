@@ -17,3 +17,7 @@ export function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: nu
 
   return Math.round(EARTH_RADIUS_MILES * c * 10) / 10;
 }
+
+export function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  return distanceMiles(lat1, lng1, lat2, lng2) * 1609.344;
+}
