@@ -2,8 +2,6 @@ import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { BottomNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
@@ -121,8 +119,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
         </OnboardingGateProvider>
-        <Analytics />
-        <SpeedInsights />
         <PWAInstallVisitTracker>
           <PWAInstallBanner />
         </PWAInstallVisitTracker>
