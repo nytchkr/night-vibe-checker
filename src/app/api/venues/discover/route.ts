@@ -12,7 +12,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
-import { isOpenNow } from "@/lib/openNow";
+import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { discoverZone } from "@/lib/places";
 import { supabaseAdmin } from "@/lib/supabase";
 import { v4 as uuidv4 } from "uuid";
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Return the venues we just upserted from the DB to confirm persisted state
   const { data: venueRows, error: fetchError } = await supabaseAdmin
     .from("venues")
-    .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, hidden")
+    .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, updated_at, hidden")
     .eq("zone_id", LAUNCH_ZONE.id)
     .eq("hidden", false)
     .order("name", { ascending: true })
@@ -137,7 +137,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       : row.opening_hours && typeof row.opening_hours === "object" && !Array.isArray(row.opening_hours) && Array.isArray((row.opening_hours as { weekday_text?: unknown }).weekday_text)
         ? (row.opening_hours as { weekday_text: unknown[] }).weekday_text.filter((item): item is string => typeof item === "string" && item.length > 0)
         : undefined,
-    openNow: isOpenNow(row.opening_hours),
+    openNow: inferCanonicalOpenNow({
+      category: (row.category ?? row.venue_type) as string | null,
+      openingHours: row.opening_hours,
+      refreshedAt: row.updated_at,
+    }),
     hidden: Boolean(row.hidden),
     signal: null,
   }));

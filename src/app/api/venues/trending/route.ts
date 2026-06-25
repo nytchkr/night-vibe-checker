@@ -176,7 +176,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       openNow: inferCanonicalOpenNow({
         category: (row.category ?? row.venue_type) as string | null,
         openingHours: row.opening_hours,
-        storedOpenNow: row.open_now,
         refreshedAt: row.updated_at,
       }),
     }))

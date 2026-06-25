@@ -60,6 +60,7 @@ function venue(
     hidden: false,
     photo_url: `https://example.com/${id}.jpg`,
     open_now: true,
+    updated_at: "2026-06-23T01:30:00.000Z",
     opening_hours: openingHours,
     venue_signals: [
       {
@@ -161,6 +162,27 @@ describe("GET /api/venues/trending", () => {
           venue("venue-open", "Open Bar", 60),
           venue("venue-missing-hours", "Missing Hours", 99, null),
           venue("venue-unparsable-hours", "Unparsable Hours", 98, { periods: [] }),
+        ],
+      })
+    );
+
+    const { GET } = await import("../venues/trending/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open"]);
+  });
+
+  it("excludes venues with stale hours even when cached open_now is true", async () => {
+    mockFrom.mockReturnValueOnce(
+      chain({
+        data: [
+          venue("venue-open", "Open Bar", 60),
+          {
+            ...venue("venue-stale", "Stale Bar", 99),
+            updated_at: "2026-06-21T01:30:00.000Z",
+          },
         ],
       })
     );

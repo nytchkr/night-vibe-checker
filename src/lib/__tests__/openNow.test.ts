@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inferOpenNow, isOpenNow, isOpenNowFromGoogleHours } from "@/lib/openNow";
+import { inferCanonicalOpenNow, inferOpenNow, isOpenNow, isOpenNowFresh, isOpenNowFromGoogleHours } from "@/lib/openNow";
 
 const sampleHours = {
   periods: [
@@ -61,8 +61,54 @@ describe("inferOpenNow", () => {
     expect(inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, sampleHours)).toBe(true);
   });
 
-  it("falls back to the category heuristic when Google hours are unavailable", () => {
-    expect(inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, null)).toBe(false);
-    expect(inferOpenNow("restaurant", { day: 1, hour: 12, minute: 0 }, null)).toBe(true);
+  it("returns null instead of guessing when Google hours are unavailable", () => {
+    expect(inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, null)).toBeNull();
+    expect(inferOpenNow("restaurant", { day: 1, hour: 12, minute: 0 }, null)).toBeNull();
+  });
+});
+
+describe("inferCanonicalOpenNow", () => {
+  const now = new Date("2026-06-22T22:00:00.000-04:00");
+
+  it("uses fresh Google periods in Charlotte local time", () => {
+    expect(
+      inferCanonicalOpenNow({
+        category: "bar",
+        openingHours: sampleHours,
+        refreshedAt: "2026-06-22T21:30:00.000-04:00",
+        now,
+      })
+    ).toBe(true);
+  });
+
+  it("does not show open status when the hours refresh is stale", () => {
+    expect(
+      inferCanonicalOpenNow({
+        category: "bar",
+        openingHours: sampleHours,
+        refreshedAt: "2026-06-20T21:30:00.000-04:00",
+        now,
+      })
+    ).toBeNull();
+  });
+
+  it("returns null for fresh Places hours without parseable periods", () => {
+    expect(
+      inferCanonicalOpenNow({
+        category: "bar",
+        openingHours: { weekdayDescriptions: ["Monday: 5:00 PM - 2:00 AM"] },
+        refreshedAt: "2026-06-22T21:30:00.000-04:00",
+        now,
+      })
+    ).toBeNull();
+  });
+});
+
+describe("isOpenNowFresh", () => {
+  it("requires a refresh timestamp within 24 hours", () => {
+    const now = new Date("2026-06-23T22:00:00.000-04:00");
+    expect(isOpenNowFresh("2026-06-22T22:01:00.000-04:00", now)).toBe(true);
+    expect(isOpenNowFresh("2026-06-22T21:59:00.000-04:00", now)).toBe(false);
+    expect(isOpenNowFresh(null, now)).toBe(false);
   });
 });

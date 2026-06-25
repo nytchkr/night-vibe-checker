@@ -1,9 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase";
 
 const TIME_ZONE = "America/New_York";
-const BAR_DAYS = new Set([0, 4, 5, 6]);
-const WEEKEND_BAR_DAYS = new Set([5, 6]);
 const UPDATE_BATCH_SIZE = 100;
+const OPEN_NOW_FRESH_MS = 24 * 60 * 60 * 1000;
 
 type CharlotteTime = {
   day: number;
@@ -16,6 +15,13 @@ type VenueOpenNowRow = {
   category: string | null;
   opening_hours: unknown;
   [key: string]: unknown;
+};
+
+type CanonicalOpenNowInput = {
+  category?: string | null;
+  openingHours?: unknown;
+  refreshedAt?: unknown;
+  now?: Date;
 };
 
 type GoogleHoursEndpoint = {
@@ -52,37 +58,6 @@ export function getCharlotteTimeParts(date = new Date()): CharlotteTime {
   }
 
   return { day, hour, minute };
-}
-
-function previousDay(day: number) {
-  return (day + 6) % 7;
-}
-
-function isBarCategory(category: string | null) {
-  const normalized = String(category ?? "").toLowerCase();
-  return (
-    normalized.includes("bar") ||
-    normalized.includes("night_club") ||
-    normalized.includes("nightclub") ||
-    normalized.includes("night club")
-  );
-}
-
-function isRestaurantCategory(category: string | null) {
-  return String(category ?? "").toLowerCase().includes("restaurant");
-}
-
-function isBarOpen({ day, hour }: CharlotteTime) {
-  if (hour < 2) {
-    return BAR_DAYS.has(previousDay(day));
-  }
-
-  if (!BAR_DAYS.has(day)) {
-    return false;
-  }
-
-  const openingHour = WEEKEND_BAR_DAYS.has(day) ? 16 : 17;
-  return hour >= openingHour;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -151,21 +126,41 @@ export function isOpenNow(opening_hours: any): boolean | null {
   return opening_hours?.open_now ?? null;
 }
 
-export function inferOpenNow(category: string | null, charlotteTime: CharlotteTime, openingHours?: unknown) {
+export function inferOpenNow(category: string | null, charlotteTime: CharlotteTime, openingHours?: unknown): boolean | null {
+  void category;
   if (openingHours != null) {
     const googleOpenNow = isOpenNowFromGoogleHours(openingHours, charlotteTime);
     if (googleOpenNow != null) return googleOpenNow;
   }
 
-  if (isBarCategory(category)) {
-    return isBarOpen(charlotteTime);
-  }
+  return null;
+}
 
-  if (isRestaurantCategory(category)) {
-    return charlotteTime.hour >= 11 && charlotteTime.hour < 23;
-  }
+function parseRefreshTime(value: unknown): number | null {
+  if (typeof value !== "string" && typeof value !== "number" && !(value instanceof Date)) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
 
-  return charlotteTime.hour >= 10 && charlotteTime.hour < 22;
+export function isOpenNowFresh(refreshedAt: unknown, now = new Date()): boolean {
+  const refreshedTime = parseRefreshTime(refreshedAt);
+  if (refreshedTime == null) return false;
+  return now.getTime() - refreshedTime <= OPEN_NOW_FRESH_MS;
+}
+
+export function inferCanonicalOpenNow({
+  category = null,
+  openingHours,
+  refreshedAt,
+  now = new Date(),
+}: CanonicalOpenNowInput): boolean | null {
+  if (!isOpenNowFresh(refreshedAt, now)) return null;
+
+  const charlotteTime = getCharlotteTimeParts(now);
+  const inferredOpenNow = inferOpenNow(category, charlotteTime, openingHours);
+  if (inferredOpenNow != null) return inferredOpenNow;
+
+  return null;
 }
 
 export async function refreshOpenNow() {

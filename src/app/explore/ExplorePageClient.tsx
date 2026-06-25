@@ -92,7 +92,7 @@ function getVenueRating(venue: ConsumerVenue): number | null {
 }
 
 function getVenueOpenNow(venue: ConsumerVenue): boolean | null {
-  return venue.openNow ?? venue.open_now ?? venue.opening_hours?.open_now ?? null;
+  return venue.openNow ?? null;
 }
 
 function getVenueNeighborhoodName(venue: ConsumerVenue): string {

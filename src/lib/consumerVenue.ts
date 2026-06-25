@@ -1,5 +1,5 @@
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
-import { inferOpenNow, getCharlotteTimeParts } from "@/lib/openNow";
+import { inferCanonicalOpenNow } from "@/lib/openNow";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 export const CONSUMER_VENUE_SELECT = `
@@ -7,6 +7,7 @@ export const CONSUMER_VENUE_SELECT = `
   slug, neighborhood,
   rating, google_rating, total_ratings, user_rating_count, price_level, photo_reference, photo_url, photo_urls,
   phone, phone_number, website, google_maps_uri, editorial_summary, opening_hours, open_now, besttime_venue_id, hidden,
+  updated_at,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -17,7 +18,7 @@ const CONSUMER_VENUE_SELECT_LEGACY = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug,
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url,
-  open_now, hidden,
+  open_now, hidden, updated_at,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -93,14 +94,11 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
     editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
-    openNow: (() => {
-      if (row.open_now != null) return Boolean(row.open_now);
-      try {
-        return inferOpenNow((row.category ?? row.venue_type) as string | null, getCharlotteTimeParts(), row.opening_hours);
-      } catch {
-        return null;
-      }
-    })(),
+    openNow: inferCanonicalOpenNow({
+      category: (row.category ?? row.venue_type) as string | null,
+      openingHours: row.opening_hours,
+      refreshedAt: row.updated_at,
+    }),
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,
