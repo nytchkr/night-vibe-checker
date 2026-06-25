@@ -287,10 +287,12 @@ export async function GET(
 
     return NextResponse.json(body, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err) {
-    const message = err instanceof Error && err.message.includes("ANTHROPIC_API_KEY")
+    const isKeyMissing = err instanceof Error && err.message.includes("ANTHROPIC_API_KEY");
+    console.error("[predict] error:", err instanceof Error ? err.message : String(err));
+    const message = isKeyMissing
       ? "Server prediction configuration is incomplete."
       : "Could not generate venue prediction.";
-    const status = err instanceof Error && err.message.includes("ANTHROPIC_API_KEY") ? 503 : 502;
+    const status = isKeyMissing ? 503 : 502;
     return NextResponse.json(
       { status: "error", error: { code: "PREDICTION_UNAVAILABLE", message } },
       { status },
