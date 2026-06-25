@@ -143,7 +143,7 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0E] px-4 py-10 text-white">
+    <div className="min-h-screen-safe bg-[#0A0A0E] px-4 py-10 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center justify-center">
         <section className="w-full space-y-8">
           <div className="space-y-2 text-center">
@@ -238,7 +238,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0A0A0E]" />}>
+    <Suspense fallback={<div className="min-h-screen-safe bg-[#0A0A0E]" />}>
       <LoginContent />
     </Suspense>
   );

@@ -63,7 +63,7 @@ export default async function NotificationsPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#0A0A0E] text-white">
+    <main className="min-h-screen-safe bg-[#0A0A0E] text-white">
       <div className="mx-auto max-w-lg px-4 pb-36 pt-5">
         <Link
           href="/profile"

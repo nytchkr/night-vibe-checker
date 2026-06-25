@@ -130,7 +130,7 @@ export default function ProfileSavedPage() {
 
   return (
     <PageTransition>
-      <div className="min-h-screen bg-[#0A0A0E] text-white">
+      <div className="min-h-screen-safe bg-[#0A0A0E] text-white">
         <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0E]/92 px-4 backdrop-blur-xl">
           <div className="mx-auto max-w-lg py-4">
             <Link

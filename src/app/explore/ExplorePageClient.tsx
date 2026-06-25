@@ -373,7 +373,7 @@ function VenueFeedCard({
 
   return (
     <motion.li
-      className="mb-3 h-auto sm:h-[126px]"
+      className="h-auto sm:h-[126px]"
       role="article"
       initial={prefersReduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -397,7 +397,8 @@ function VenueFeedCard({
               alt={venue.name}
               fill
               sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
-              loading={index === 0 ? "eager" : "lazy"}
+              loading={index === 0 ? undefined : "lazy"}
+              priority={index === 0}
               placeholder="blur"
               blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
               onError={() => setPhotoFailed(true)}
@@ -778,14 +779,14 @@ export function ExplorePageClient() {
 
   if (!venues) {
     return (
-      <div className="min-h-screen space-y-3 bg-[#0A0A0E] p-4 text-white">
+      <div className="min-h-screen-safe space-y-3 bg-[#0A0A0E] p-4 text-white">
         {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0E]">
+    <div className="min-h-screen-safe bg-[#0A0A0E]">
       {(pulling || refreshing) && (
         <div
           className="fixed left-0 right-0 top-0 z-50 flex justify-center px-4 pt-3"
@@ -887,7 +888,7 @@ export function ExplorePageClient() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                   aria-label="Clear search"
                 >
                   ×
@@ -991,8 +992,8 @@ export function ExplorePageClient() {
         )}
 
         {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && (
-          <div className="pr-1">
-            <ul>
+          <div className="scroll-touch pr-1 [will-change:scroll-position]">
+            <ul className="venue-card-grid grid grid-cols-1 gap-3 lg:grid-cols-3">
               {sortedVenues.map((venue, index) => (
                 <VenueFeedCard
                   key={venue.id}
@@ -1031,7 +1032,7 @@ export function ExplorePageClient() {
           </div>
         ) : (
           <div
-            className="mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="scroll-touch mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden"
             aria-live="polite"
           >
             {activityItems.map((item) => (

@@ -419,7 +419,7 @@ export default function VibeCheckClient({
 
   if (done) {
     return (
-      <div className="min-h-screen bg-[#0A0A0E] px-4 py-10 text-white">
+      <div className="min-h-screen-safe bg-[#0A0A0E] px-4 py-10 text-white">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-sm items-center">
           <section className="w-full rounded-2xl border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-6 py-8 text-center shadow-[0_0_32px_rgba(139,108,255,0.16)]">
             <p className="mb-3 truncate text-[17px] font-medium text-white/80">
@@ -504,7 +504,7 @@ export default function VibeCheckClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0E]">
+    <div className="min-h-screen-safe bg-[#0A0A0E]">
       <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#0A0A0E]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-sm items-center gap-3 px-4">
           <Link href="/explore" className="text-sm font-semibold text-white/55 hover:text-white">
@@ -589,7 +589,7 @@ export default function VibeCheckClient({
                 className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/60 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/30"
               />
 
-              <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+              <div className="scroll-touch max-h-64 space-y-2 overflow-y-auto pr-1 [will-change:scroll-position]">
                 {venuesLoading && (
                   <p className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white/40">
                     Loading venues...

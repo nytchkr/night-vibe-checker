@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
-import { BottomNav } from "@/components/BottomNav";
+import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
 import "./globals.css";
@@ -77,7 +77,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover",
   themeColor,
 };
@@ -88,6 +87,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+  (function() {
+    function setVh() {
+      document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
+    }
+    setVh();
+    window.addEventListener('resize', setVh, { passive: true });
+  })();
+`,
+          }}
+        />
         <meta name="theme-color" content={themeColor} />
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="manifest" href="/manifest.json" />
@@ -100,7 +112,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://a.tile.openstreetmap.org" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="bg-[#0A0A0E] text-white font-sans antialiased min-h-screen">
+      <body className="h-screen-safe bg-[#0A0A0E] text-white font-sans antialiased">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10000] focus:rounded-full focus:bg-[#8B6CFF] focus:px-4 focus:py-2 focus:text-[13px] focus:font-medium focus:text-[#0A0A0E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
@@ -116,11 +128,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </span>
           </div>
         )}
-        <OnboardingGateProvider>
-          <main id="main-content" tabIndex={-1} className={isDev ? "pb-20 pt-5" : "pb-20"}>
-            {children}
-          </main>
-        </OnboardingGateProvider>
+        <div className="app-shell h-screen-safe">
+          <SidebarNav />
+          <OnboardingGateProvider>
+            <main
+              id="main-content"
+              tabIndex={-1}
+              className={`app-content scroll-touch ${isDev ? "pb-20 pt-5 lg:pb-0 lg:pt-0" : "pb-20 lg:pb-0"}`}
+            >
+              {children}
+            </main>
+          </OnboardingGateProvider>
+        </div>
         <PWAInstallVisitTracker>
           <PWAInstallBanner />
         </PWAInstallVisitTracker>

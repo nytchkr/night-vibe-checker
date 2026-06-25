@@ -9,7 +9,7 @@ export default function ExploreError({
   reset: () => void;
 }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#0A0A0E] px-6 text-center font-sans text-white">
+    <main className="flex min-h-screen-safe flex-col items-center justify-center bg-[#0A0A0E] px-6 text-center font-sans text-white">
       <p className="font-display text-sm font-black uppercase tracking-normal text-[#8B6CFF]">Explore</p>
       <h1 className="mt-4 font-display text-3xl font-black tracking-normal text-white">
         Something went wrong.

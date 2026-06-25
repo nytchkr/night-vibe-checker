@@ -95,7 +95,7 @@ export function TrendingStrip() {
   return (
     <section className="space-y-3" aria-label="Trending Now">
       <h2 className="font-display text-sm font-black text-white">Trending Now</h2>
-      <div className="flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="scroll-touch flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
         {venues.map((venue) => (
           <TrendingCard key={venue.id} venue={venue} />
         ))}

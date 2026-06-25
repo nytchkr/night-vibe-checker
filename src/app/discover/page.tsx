@@ -157,7 +157,7 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0E]">
+    <div className="min-h-screen-safe bg-[#0A0A0E]">
       {/* Toast */}
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 

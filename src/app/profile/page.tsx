@@ -463,7 +463,7 @@ export default function ProfilePage() {
 
   return (
     <PageTransition>
-      <main className="mx-auto min-h-screen w-full max-w-lg bg-[#0A0A0E] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 text-white">
+      <main className="mx-auto min-h-screen-safe w-full max-w-lg bg-[#0A0A0E] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 text-white">
         {!authChecked && <YouSkeleton />}
         {authChecked && !session && <LoggedOutState onSignIn={handleGoogleSignIn} signingIn={signingIn} />}
         {authChecked && session && (

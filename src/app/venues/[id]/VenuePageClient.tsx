@@ -558,7 +558,7 @@ function VenuePhotoCarousel({ venueId, venueName }: { venueId: string; venueName
       aria-label={`${venueName} photos`}
     >
       {visiblePhotos.length > 0 ? (
-        <div className="flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="scroll-touch flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
           {visiblePhotos.map((photo, index) => (
             <div key={photo} className="relative h-[200px] min-w-full snap-center">
               <Image
@@ -567,7 +567,8 @@ function VenuePhotoCarousel({ venueId, venueName }: { venueId: string; venueName
                 fill
                 sizes="100vw"
                 className="object-cover"
-                loading={index === 0 ? "eager" : "lazy"}
+                loading={index === 0 ? undefined : "lazy"}
+                priority={index === 0}
                 onError={() => {
                   setFailedPhotos((current) => new Set(current).add(photo));
                 }}
@@ -641,8 +642,8 @@ function BestTimeForecastSection({
           message="BestTime has no hourly forecast for today"
         />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="grid max-h-72 min-w-[28rem] gap-3 overflow-y-auto overscroll-contain pr-1">
+        <div className="scroll-touch overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
+          <div className="scroll-touch grid max-h-72 min-w-[28rem] gap-3 overflow-y-auto overscroll-contain pr-1 [will-change:scroll-position]">
             {forecast.map((hour) => {
               const busyness = clampPercent(hour.busyness);
               const color = getBusynessColor(busyness);
@@ -1182,7 +1183,7 @@ export function VenuePageClient({
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0E] pb-56">
+    <div className="min-h-screen-safe bg-[#0A0A0E] pb-56">
       {toast && (
         <Toast
           message={toast}

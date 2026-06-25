@@ -182,7 +182,7 @@ export function OnboardingOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex min-h-screen bg-[#0A0A0E]/95 text-white backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex min-h-screen-safe bg-[#0A0A0E]/95 text-white backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
@@ -201,7 +201,7 @@ export function OnboardingOverlay() {
       </button>
 
       <div
-        className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-7 pt-16"
+        className="mx-auto flex min-h-screen-safe w-full max-w-md flex-col px-5 pb-7 pt-16"
       >
         <div className="flex flex-1 flex-col justify-center text-center">
           <AnimatePresence mode="wait">

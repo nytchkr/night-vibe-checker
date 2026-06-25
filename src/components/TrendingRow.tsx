@@ -101,7 +101,7 @@ export function TrendingRow() {
       {venues === null ? (
         <TrendingSkeleton />
       ) : (
-        <div className="flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="scroll-touch flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
           {venues.map((venue) => (
             <TrendingVenueCard key={venue.id} venue={venue} />
           ))}

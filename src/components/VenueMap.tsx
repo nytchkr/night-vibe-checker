@@ -18,6 +18,7 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
+import { useDevice } from "@/lib/useDevice";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap } from "@/components/MapBottomSheet";
@@ -191,7 +192,7 @@ function RecenterButton({ center }: { center: [number, number] }) {
       type="button"
       aria-label="Recenter to South End"
       onClick={() => map.flyTo(center, MAP_DEFAULT_ZOOM)}
-      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 text-xs font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 text-xs font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 lg:bottom-6"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="7" />
@@ -480,7 +481,7 @@ function ZipRecenterControl() {
         <button
           type="submit"
           aria-label="Search zip"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] text-[#F4F5F8] transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] text-[#F4F5F8] transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           <Search aria-hidden="true" className="h-4 w-4" />
         </button>
@@ -601,7 +602,7 @@ function VenueSearchControl({
             setIsDropdownOpen(false);
           }}
           onMouseDown={(event) => event.stopPropagation()}
-          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-lg leading-none text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+          className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-lg leading-none text-white/65 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           ×
         </button>
@@ -654,7 +655,7 @@ function BusynessFilterBar({
   return (
     <div
       aria-label="Map busyness filter"
-      className="absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 overflow-x-auto whitespace-nowrap rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 p-1 shadow-2xl backdrop-blur [scrollbar-width:none] sm:top-16 [&::-webkit-scrollbar]:hidden"
+      className="scroll-touch absolute right-4 top-28 z-[1000] flex max-w-[calc(100vw-2rem)] gap-1 overflow-x-auto whitespace-nowrap rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 p-1 shadow-2xl backdrop-blur [scrollbar-width:none] sm:top-16 [&::-webkit-scrollbar]:hidden"
       role="group"
     >
       {BUSYNESS_FILTERS.map((filter) => {
@@ -689,7 +690,7 @@ function CategoryFilterPills({
     <div className="pointer-events-none absolute inset-x-0 top-[7.5rem] z-[1000] sm:top-[6.25rem]">
       <div
         aria-label="Map category filter"
-        className="pointer-events-auto flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="scroll-touch pointer-events-auto flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         role="group"
       >
         {CATEGORY_FILTERS.map((filter) => {
@@ -806,7 +807,7 @@ function VenueFilterSheet({
         className="absolute inset-0 h-full w-full cursor-default bg-black/40"
       />
       <div
-        className="absolute inset-x-0 bottom-0 max-h-[60vh] touch-pan-y overflow-y-auto overscroll-contain rounded-t-[18px] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]"
+        className="bottom-sheet scroll-touch gpu-layer absolute inset-x-0 bottom-0 max-h-[60vh] touch-pan-y overflow-y-auto overscroll-contain rounded-t-[18px] bg-[#0A0A0E] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-22px_70px_rgba(0,0,0,0.68)]"
         {...swipeHandlers}
       >
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" aria-hidden="true" />
@@ -829,7 +830,7 @@ function VenueFilterSheet({
             <h3 id="venue-filter-category" className="text-[11.5px] font-semibold text-[#9CA2AE]">
               Category
             </h3>
-            <div className="-mx-4 mt-3 flex overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="scroll-touch -mx-4 mt-3 flex overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {CATEGORY_FILTERS.map((filter) => {
                 const isActive = draftCategory === filter;
 
@@ -894,6 +895,7 @@ export function VenueMap({
   onCityChange: (cityId: CityId) => void;
 }) {
   const haptic = useHaptic();
+  const { isDesktop } = useDevice();
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
   const [detailVenueId, setDetailVenueId] = useState<string | null>(null);
@@ -909,7 +911,7 @@ export function VenueMap({
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const mapRef = useRef<LeafletMap | null>(null);
-  const mapViewportStyle = getMapViewportStyle();
+  const mapViewportStyle = isDesktop ? { height: "100vh", minHeight: "0" } : getMapViewportStyle();
   const cityCenter = useMemo<[number, number]>(
     () => (city.id === "south-end-clt" ? SOUTH_END_MAP_CENTER : [city.lat, city.lng]),
     [city.id, city.lat, city.lng],
@@ -1035,6 +1037,15 @@ export function VenueMap({
     setDetailVenueId(null);
   }, [filteredVenues, selectedVenueId]);
 
+  useEffect(() => {
+    function invalidateVisibleMap() {
+      window.setTimeout(() => mapRef.current?.invalidateSize({ pan: false }), 150);
+    }
+
+    window.addEventListener("resize", invalidateVisibleMap, { passive: true });
+    return () => window.removeEventListener("resize", invalidateVisibleMap);
+  }, []);
+
   const selectVenueFromList = useCallback((venue: ConsumerVenue) => {
     haptic.light();
     setSelectedVenueId(venue.id);
@@ -1062,7 +1073,7 @@ export function VenueMap({
 
   return (
     <main
-      className="relative w-full overflow-hidden bg-[#0A0A0E]"
+      className="relative w-full overflow-hidden bg-[#0A0A0E] lg:h-screen"
       style={mapViewportStyle}
     >
       {(pulling || refreshing) && (
@@ -1091,7 +1102,7 @@ export function VenueMap({
           zoom={MAP_DEFAULT_ZOOM}
           scrollWheelZoom={false}
           style={{ ...mapViewportStyle, width: "100%" }}
-          className="z-0"
+          className="gpu-layer z-0"
           whenReady={() => {
             if (mapRef.current) resetMapView(mapRef.current, cityCenter);
           }}
@@ -1208,7 +1219,7 @@ export function VenueMap({
 
       <Link
         href="/vibe-check"
-        className="fixed bottom-28 right-4 z-[1000] rounded-full bg-[#8B6CFF] px-5 py-3 font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+        className="fixed bottom-28 right-4 z-[1000] rounded-full bg-[#8B6CFF] px-5 py-3 font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 lg:bottom-6"
       >
         + Report vibe
       </Link>

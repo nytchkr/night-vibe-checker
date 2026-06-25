@@ -168,7 +168,7 @@ function VenueBottomSheetSkeleton({
 
       <aside
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[1200] h-24 translate-y-0 overflow-hidden rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] transition-transform duration-200 ease-out"
+        className="bottom-sheet gpu-layer fixed bottom-0 left-0 right-0 z-[1200] h-24 translate-y-0 overflow-hidden rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] shadow-[0_-20px_60px_rgba(0,0,0,0.5)] transition-transform duration-200 ease-out"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         role="dialog"
         aria-modal="true"
@@ -293,7 +293,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
       <aside
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-[1200] overflow-hidden overscroll-contain rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] shadow-[0_-24px_70px_rgba(0,0,0,0.62)]"
+        className="bottom-sheet gpu-layer fixed bottom-0 left-0 right-0 z-[1200] overflow-hidden overscroll-contain rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E] shadow-[0_-24px_70px_rgba(0,0,0,0.62)]"
         style={{
           height: dragHeight == null ? SNAP_HEIGHTS[snap] : `${dragHeight}px`,
           maxHeight: "90dvh",
@@ -318,7 +318,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             <div className="h-1 w-10 rounded-full bg-white" />
           </div>
 
-          <div className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="scroll-touch mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
             {!isPeek && (
               <div className="mb-4 overflow-hidden rounded-[14px] border border-white/[0.08] bg-white/[0.035]">
                 {photoUrl ? (

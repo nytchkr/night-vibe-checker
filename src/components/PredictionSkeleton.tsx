@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export function PredictionSkeleton() {
   return (
     <section
-      className="rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4"
+      className="gpu-layer rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4"
       role="status"
       aria-label="Loading AI forecast"
     >

@@ -36,7 +36,7 @@ export function WelcomeOverlay({ onDismiss }: WelcomeOverlayProps) {
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-black/80 px-4 py-8 text-white backdrop-blur-sm transition-opacity duration-300 ${
+      className={`fixed inset-0 z-50 flex min-h-screen-safe items-center justify-center bg-black/80 px-4 py-8 text-white backdrop-blur-sm transition-opacity duration-300 ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
       role="dialog"

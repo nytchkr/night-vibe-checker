@@ -2,9 +2,7 @@ import type { CSSProperties } from "react";
 
 export function getMapViewportStyle(): CSSProperties {
   return {
-    height: process.env.NEXT_PUBLIC_ENV === "development"
-      ? "calc(100dvh - 5.25rem - env(safe-area-inset-bottom))"
-      : "calc(100dvh - 4rem - env(safe-area-inset-bottom))",
+    height: "calc(100dvh - 4rem - env(safe-area-inset-bottom))",
     minHeight: "420px",
   };
 }

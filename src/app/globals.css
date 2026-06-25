@@ -13,6 +13,8 @@
 
 @layer base {
   :root {
+    --vh: 1vh;
+
     /* shadcn/ui dark overrides — always dark for this app */
     --background: 240 17% 5%;     /* #0A0A0E */
     --foreground: 225 22% 96%;    /* #F4F5F8 */
@@ -55,6 +57,12 @@
     --bg-deep: #0A0A0E;
     --bg-card: rgba(255,255,255,0.035);
     --bg-elevated: #101017;
+  }
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --vh: 1dvh;
   }
 }
 
@@ -158,6 +166,37 @@
 /* --------------- Utility classes ---------------------------- */
 
 @layer utilities {
+  .scroll-touch {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .gpu-layer {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .h-screen-safe {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100);
+  }
+
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+
+  .no-bounce {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   /* Neon glow helpers */
   .glow-cyan {
     text-shadow: 0 0 12px var(--violet), 0 0 24px rgba(139, 108, 255, 0.4);
@@ -242,6 +281,62 @@
   pointer-events: none;
   transform-box: fill-box;
   transform-origin: center;
+}
+
+.live-pin,
+.venue-pin-live-pulse,
+[class*="bottom-sheet"],
+[class*="BottomSheet"] {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .backdrop-blur-xl {
+    backdrop-filter: none;
+    background: rgba(10, 10, 14, 0.98);
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 100vh;
+    overflow: hidden;
+  }
+
+  .app-sidebar {
+    display: flex;
+  }
+
+  .app-bottom-nav {
+    display: none;
+  }
+
+  .app-content {
+    overflow-y: auto;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-sidebar {
+    display: none;
+  }
+
+  .app-bottom-nav {
+    display: flex;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .venue-card-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
 }
 
 /* vibeScoreReveal kept for VibeReport component use */

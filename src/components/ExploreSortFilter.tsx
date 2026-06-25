@@ -88,7 +88,7 @@ export function ExploreSortFilter({
 
   return (
     <div className="space-y-2" role="group" aria-label="Explore sort and filters">
-      <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
         {SORT_OPTIONS.map((option) => (
           <Chip
             key={option.value}
@@ -103,7 +103,7 @@ export function ExploreSortFilter({
           />
         ))}
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
         {FILTER_OPTIONS.map((option) => (
           <Chip
             key={option.value}

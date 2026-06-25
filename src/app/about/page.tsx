@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#0A0A0E] px-4 py-8 pb-32 text-white">
+    <div className="min-h-screen-safe bg-[#0A0A0E] px-4 py-8 pb-32 text-white">
       <section className="mx-auto max-w-lg">
         <p className="font-display text-[34px] font-semibold tracking-normal text-white">
           nyt<span className="text-[#8B6CFF]">chkr</span>

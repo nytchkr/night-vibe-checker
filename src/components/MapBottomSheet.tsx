@@ -307,7 +307,7 @@ export default function MapBottomSheet({
     <section
       ref={sheetRef}
       aria-label={`${cityName} venues`}
-      className="absolute inset-x-0 bottom-0 z-[1100] h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] max-h-[85dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
+      className="bottom-sheet scroll-touch gpu-layer absolute inset-x-0 bottom-0 z-[1100] h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] max-h-[85dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -337,7 +337,7 @@ export default function MapBottomSheet({
         </button>
       </div>
 
-      <div className="h-[calc(100%-120px)] overflow-y-auto overscroll-contain px-4 pb-6 [scrollbar-width:none]">
+      <div className="scroll-touch h-[calc(100%-120px)] overflow-y-auto overscroll-contain px-4 pb-6 [scrollbar-width:none] [will-change:scroll-position]">
         <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
           {launchZoneNotice && (
             <div className="rounded-2xl border border-[#8B6CFF]/20 bg-[#8B6CFF]/10 px-4 py-3 text-sm font-semibold leading-5 text-white/70">

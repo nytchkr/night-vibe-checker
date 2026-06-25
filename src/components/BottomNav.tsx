@@ -132,13 +132,35 @@ function NavItem({
   );
 }
 
+const navItems = [
+  { href: "/map", label: "Map", Icon: MapIcon },
+  { href: "/explore", label: "Explore", Icon: ExploreIcon },
+  { href: "/profile", label: "You", Icon: YouIcon },
+];
+
+function shouldHideNavigation(pathname: string): boolean {
+  return (
+    pathname.startsWith("/internal") ||
+    pathname.startsWith("/agent-board") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/widget")
+  );
+}
+
+function getActiveStates(pathname: string) {
+  return {
+    mapActive: pathname.startsWith("/map") || pathname === "/",
+    exploreActive: pathname.startsWith("/explore"),
+    youActive: pathname.startsWith("/profile"),
+  };
+}
+
 export function BottomNav() {
   const pathname = usePathname();
   const [showYouBadge, setShowYouBadge] = useState(false);
   const [showExploreBadge, setShowExploreBadge] = useState(false);
-  const mapActive = pathname.startsWith("/map") || pathname === "/";
-  const exploreActive = pathname.startsWith("/explore");
-  const youActive = pathname.startsWith("/profile");
+  const { mapActive, exploreActive, youActive } = getActiveStates(pathname);
 
   useEffect(() => {
     let cancelled = false;
@@ -237,13 +259,7 @@ export function BottomNav() {
     setShowExploreBadge(false);
   }, [exploreActive]);
 
-  if (
-    pathname.startsWith("/internal") ||
-    pathname.startsWith("/agent-board") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/widget")
-  ) {
+  if (shouldHideNavigation(pathname)) {
     return null;
   }
 
@@ -251,7 +267,7 @@ export function BottomNav() {
     <nav
       role="navigation"
       aria-label="Main navigation"
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+      className="app-bottom-nav tap-highlight-none fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <div className="mx-auto flex h-16 w-full max-w-lg items-stretch px-3">
         <NavItem href="/map" label="Map" active={mapActive}>
@@ -266,6 +282,46 @@ export function BottomNav() {
           <YouIcon filled={youActive} />
         </NavItem>
       </div>
+    </nav>
+  );
+}
+
+export function SidebarNav() {
+  const pathname = usePathname();
+  const { mapActive, exploreActive, youActive } = getActiveStates(pathname);
+  const activeByHref: Record<string, boolean> = {
+    "/map": mapActive,
+    "/explore": exploreActive,
+    "/profile": youActive,
+  };
+
+  if (shouldHideNavigation(pathname)) {
+    return null;
+  }
+
+  return (
+    <nav className="app-sidebar tap-highlight-none hidden lg:flex flex-col fixed left-0 top-0 h-full w-60 bg-[#101017] border-r border-white/[0.06] z-50 py-8 px-4 gap-1" aria-label="Main navigation">
+      <div className="mb-8 px-2">
+        <span className="font-display text-[22px] font-semibold text-white tracking-tight">nytchkr</span>
+      </div>
+      {navItems.map(({ href, label, Icon }) => {
+        const active = activeByHref[href];
+        return (
+          <Link
+            key={href}
+            href={href}
+            aria-current={active ? "page" : undefined}
+            className={`flex min-h-[48px] items-center gap-3 border-l-2 px-4 py-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+              active
+                ? "border-[#8B6CFF] text-[#8B6CFF]"
+                : "border-transparent text-[#9CA2AE] hover:border-white/[0.08] hover:text-[#F4F5F8]"
+            }`}
+          >
+            <Icon filled={active} />
+            <span>{label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }
