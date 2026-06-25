@@ -303,7 +303,7 @@ export async function fetchBestTimeDayRawForecast(besttimeVenueId: string): Prom
   const dayInt = jsDow === 0 ? 6 : jsDow - 1;
 
   const params = new URLSearchParams({
-    api_key_private: apiKey(),
+    api_key_public: apiKey(),
     venue_id: venueId,
     day_int: String(dayInt),
   });
