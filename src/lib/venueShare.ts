@@ -1,5 +1,6 @@
 import type { ConsumerVenue } from "@/types";
 import { getBusynessState } from "@/lib/busyness";
+import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 
 const siteUrl = "https://nytchkr.com";
 
@@ -10,7 +11,7 @@ export type VenueShareData = {
 };
 
 function getVenueShareMfText(signal: ConsumerVenue["signal"]): string | null {
-  if (!signal || signal.sampleSize < 3 || signal.mfRatio == null || !Number.isFinite(signal.mfRatio)) return null;
+  if (!signal || signal.sampleSize < MIN_SAMPLE_SIZE_FOR_RATIO || signal.mfRatio == null || !Number.isFinite(signal.mfRatio)) return null;
 
   const male = Math.min(100, Math.max(0, Math.round(signal.mfRatio)));
   return `${male}% M / ${100 - male}% F`;

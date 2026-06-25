@@ -62,6 +62,26 @@ describe("venue share data", () => {
     );
   });
 
+  it("does not share an M/F split below the minimum sample floor", () => {
+    const shareData = buildVenueShareData({
+      ...baseVenue,
+      signal: {
+        venueId: baseVenue.id,
+        placeId: baseVenue.placeId,
+        busyness0To100: 72,
+        busynessSource: "crowd",
+        mfRatio: 50,
+        confidence0To1: 0.5,
+        sampleSize: 4,
+        computedAt: "2026-06-21T00:00:00.000Z",
+        lastBusynessRefresh: "2026-06-21T00:00:00.000Z",
+        updatedAt: "2026-06-21T00:00:00.000Z",
+      },
+    });
+
+    expect(shareData.text).toBe("Check out Bar X on nytchkr: packed right now. https://nytchkr.com/venues/bar-x");
+  });
+
   it("does not invent a packed percentage when no signal is available", () => {
     expect(buildVenueShareData(baseVenue)).toEqual({
       title: "Bar X on nytchkr",

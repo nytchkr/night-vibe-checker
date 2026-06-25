@@ -5,11 +5,12 @@
 // Response shape:
 //   { venueId, busyness, busynessSource, mfRatio, confidence, sampleSize, computedAt }
 //
-// mfRatio is null when sampleSize < 3 (not enough crowd reports).
+// mfRatio is null when sampleSize < 5 (not enough crowd reports).
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse } from "@/types";
@@ -23,10 +24,6 @@ export interface VenueSignalResponse {
   sampleSize: number;
   computedAt: string | null;
 }
-
-// Minimum sample size (effective weight) before we surface mf_ratio to callers.
-// Even if the DB has a value, we hide it until there is credible crowd depth.
-const MIN_SAMPLE_FOR_RATIO = 3;
 
 export async function GET(
   req: NextRequest,
@@ -91,7 +88,7 @@ export async function GET(
     busyness: signal?.busyness_0_100 != null ? Number(signal.busyness_0_100) : null,
     busynessSource: (signal?.busyness_source ?? null) as VenueSignalResponse["busynessSource"],
     // Only expose mf_ratio when there is enough crowd depth
-    mfRatio: sampleSize >= MIN_SAMPLE_FOR_RATIO ? (signal?.mf_ratio != null ? Number(signal.mf_ratio) : null) : null,
+    mfRatio: sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO ? (signal?.mf_ratio != null ? Number(signal.mf_ratio) : null) : null,
     confidence: Number(signal?.confidence_0_1 ?? 0),
     sampleSize,
     computedAt: (signal?.computed_at ?? null) as string | null,

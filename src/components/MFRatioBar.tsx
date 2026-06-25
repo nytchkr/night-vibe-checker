@@ -7,6 +7,7 @@
 // ============================================================
 
 import { cn } from "@/lib/utils";
+import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 
 interface MFRatioBarProps {
   mfRatio: number | null | undefined;
@@ -15,7 +16,7 @@ interface MFRatioBarProps {
   className?: string;
 }
 
-export const MIN_SAMPLE_SIZE_FOR_RATIO = 5;
+export { MIN_SAMPLE_SIZE_FOR_RATIO };
 
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));

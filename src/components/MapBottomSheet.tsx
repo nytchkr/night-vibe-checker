@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { Info } from "lucide-react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
-import { getMFRatioPercents } from "@/components/MFRatioBar";
+import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
@@ -68,7 +68,7 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
 function MfRatioChip({ venue }: { venue: ConsumerVenue }) {
   const signal = venue.signal;
   const sampleSize = signal?.sampleSize ?? 0;
-  const percents = sampleSize >= 3 ? getMFRatioPercents(signal?.mfRatio) : null;
+  const percents = sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO ? getMFRatioPercents(signal?.mfRatio) : null;
 
   if (!percents) return null;
 

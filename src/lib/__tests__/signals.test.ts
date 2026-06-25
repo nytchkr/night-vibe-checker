@@ -9,6 +9,7 @@ function row(
   reporterGender: "male" | "female" | null = null,
   genderSelfReport: "m" | "f" | "nb" | null = null,
   gender: "M" | "F" | "prefer_not" | null = null,
+  trustWeight: number | null = null,
 ) {
   return {
     id: `${crowdFeel}-${ageMinutes}`,
@@ -19,6 +20,7 @@ function row(
     gender,
     reporter_gender: reporterGender,
     gender_self_report: genderSelfReport,
+    trust_weight: trustWeight,
     created_at: new Date(NOW - ageMinutes * 60_000).toISOString(),
   };
 }
@@ -56,6 +58,23 @@ describe("computeSignalFromCheckIns", () => {
     expect(signal.mfRatio).toBeNull();
     expect(signal.confidence0To1).toBeCloseTo(4 / 7, 5);
     expect(signal.sampleSize).toBe(4);
+  });
+
+  it("keeps mfRatio empty when effective M/F sample weight is below 2", () => {
+    const signal = computeSignalFromCheckIns(
+      [
+        row("balanced", 0, null, null, "M", 0.25),
+        row("balanced", 0, null, null, "M", 0.25),
+        row("balanced", 0, null, null, "M", 0.25),
+        row("balanced", 0, null, null, "F", 0.25),
+        row("balanced", 0, null, null, "F", 0.25),
+        row("balanced", 0, null, null, "F", 0.25),
+      ],
+      NOW
+    );
+
+    expect(signal.sampleSize).toBe(6);
+    expect(signal.mfRatio).toBeNull();
   });
 
   it("ignores crowd feel, non-binary, and prefer-not reports for M/F ratio", () => {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Clock3, MapPin, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
-import { getMFRatioPercents } from "@/components/MFRatioBar";
+import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
@@ -116,21 +116,22 @@ function getTodayHours(openingHours: string[] | undefined) {
 function SourceChip({ source }: { source: BusynessSource | null | undefined }) {
   if (source !== "live" && source !== "crowd" && source !== "forecast") return null;
 
-  const isLive = source === "live" || source === "crowd";
+  const isLive = source === "live";
+  const label = source === "forecast" ? "FORECAST" : source === "crowd" ? "CROWD" : "LIVE";
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/55">
       <span
         aria-hidden="true"
         className={`h-2 w-2 rounded-full ${isLive ? "bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.75)]" : "bg-[#646B79]"}`}
       />
-      {isLive ? "LIVE" : "FORECAST"}
+      {label}
     </span>
   );
 }
 
 function MiniMFRatio({ venue }: { venue: ConsumerVenue }) {
   const sampleSize = venue.signal?.sampleSize ?? 0;
-  const percents = sampleSize >= 3 ? getMFRatioPercents(venue.signal?.mfRatio) : null;
+  const percents = sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO ? getMFRatioPercents(venue.signal?.mfRatio) : null;
 
   if (!percents) {
     return null;

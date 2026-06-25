@@ -4,7 +4,7 @@ import { useId } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 type MFBarSource = "live" | "forecast" | null;
-const MIN_SAMPLE_SIZE_FOR_RATIO = 3;
+const MIN_SAMPLE_SIZE_FOR_RATIO = 5;
 
 interface MFBarProps {
   malePercent: number | null;

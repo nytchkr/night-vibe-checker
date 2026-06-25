@@ -8,7 +8,7 @@ import { SearchX } from "lucide-react";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
-import { getMFRatioPercents } from "@/components/MFRatioBar";
+import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import SkeletonCard from "@/components/SkeletonCard";
 import {
@@ -255,7 +255,7 @@ function BusynessChip({
 
   const percent = clampPercent(value);
   const state = getBusynessState(percent);
-  const badge = source === "live" || source === "crowd" ? "LIVE" : source === "forecast" ? "FORECAST" : null;
+  const badge = source === "live" ? "LIVE" : source === "forecast" ? "FORECAST" : source === "crowd" ? "CROWD" : null;
 
   return (
     <span
@@ -367,7 +367,7 @@ function VenueFeedCard({
   const hasMfReading =
     signal?.mfRatio !== null &&
     signal?.mfRatio !== undefined &&
-    signal.sampleSize >= 3;
+    signal.sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
   const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
   const neighborhood = getNeighborhood(venue.lat, venue.lng);
 

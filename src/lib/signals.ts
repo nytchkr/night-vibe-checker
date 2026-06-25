@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import type { CrowdFeel, ReportedBusyness } from "@/types";
 
 export const SIGNAL_LOOKBACK_HOURS = 4;
@@ -6,7 +7,7 @@ export const MF_RATIO_LOOKBACK_DAYS = 7;
 const BUSYNESS_LOOKBACK_MINUTES = SIGNAL_LOOKBACK_HOURS * 60;
 const MF_RATIO_LOOKBACK_MINUTES = MF_RATIO_LOOKBACK_DAYS * 24 * 60;
 const HALF_LIFE_MINUTES = 45;
-const MIN_GENDERED_REPORTS_FOR_RATIO = 5;
+const MIN_EFFECTIVE_GENDERED_REPORTS_FOR_RATIO = 2;
 
 type SignalCheckInRow = {
   id: string;
@@ -48,12 +49,13 @@ function rowToBinaryGender(
 // Busyness:      weighted average from recent check-ins
 // M/F ratio:     male_count / (male_count + female_count) * 100 from 7-day check-ins
 // Confidence:    gendered_count / (gendered_count + 3)
-// gendered_count < 5: mf_ratio stays null (not enough signal to publish a ratio)
+// gendered_count < 5 or effective gendered weight < 2: mf_ratio stays null
 // sample_size:   M+F self-reported check-ins in the last 7 days
 export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date.now()) {
   let nEff = 0;
   let weightedBusyness = 0;
   let genderedCount = 0;
+  let genderedEffectiveCount = 0;
   let maleCount = 0;
 
   const busynessRows = rows.filter((row) => {
@@ -78,12 +80,15 @@ export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date
     const selfReport = rowToBinaryGender(row.gender, row.reporter_gender, row.gender_self_report);
     if (selfReport != null) {
       genderedCount += 1;
+      genderedEffectiveCount += row.trust_weight ?? 1.0;
       if (selfReport === "m") maleCount += 1;
     }
   }
 
   const busyness0To100 = nEff > 0 ? Math.round(weightedBusyness / nEff) : null;
-  const mfRatio = genderedCount >= MIN_GENDERED_REPORTS_FOR_RATIO ? (maleCount / genderedCount) * 100 : null;
+  const mfRatio = genderedCount >= MIN_SAMPLE_SIZE_FOR_RATIO && genderedEffectiveCount >= MIN_EFFECTIVE_GENDERED_REPORTS_FOR_RATIO
+    ? (maleCount / genderedCount) * 100
+    : null;
   const confidence0To1 = genderedCount > 0 ? genderedCount / (genderedCount + 3) : 0;
 
   return {

@@ -7,6 +7,7 @@ import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { APIResponse, ConsumerVenue, CrowdFeel, ReportedBusyness, VenueSignal } from "@/types";
 
@@ -104,7 +105,7 @@ function SignalPreview({ signal }: { signal: VenueSignal | null }) {
   }
 
   const busynessPercent = signal.busyness0To100 == null ? null : clampPercent(signal.busyness0To100);
-  const malePercent = signal.sampleSize >= 3 && signal.mfRatio != null ? clampPercent(signal.mfRatio) : null;
+  const malePercent = signal.sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO && signal.mfRatio != null ? clampPercent(signal.mfRatio) : null;
   const femalePercent = malePercent == null ? null : 100 - malePercent;
 
   return (
