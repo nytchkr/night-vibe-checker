@@ -11,6 +11,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 2 : undefined,
+  grep: process.env.E2E_SMOKE === "true" ? /@smoke/ : undefined,
   timeout: 30_000,
   expect: { timeout: 10_000 },
 

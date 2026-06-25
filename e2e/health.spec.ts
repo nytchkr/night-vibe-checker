@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("NV-TEST-004 health endpoint", () => {
-  test("GET /api/health returns a valid health status", async ({ request }) => {
+  test("@smoke GET /api/health returns a valid health status", async ({ request }) => {
     const response = await request.get("/api/health");
 
     expect(response.status()).toBe(200);

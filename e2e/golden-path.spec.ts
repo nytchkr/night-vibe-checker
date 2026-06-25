@@ -75,7 +75,7 @@ async function getSeededVenues(request: APIRequestContext): Promise<GoldenPathVe
 }
 
 test.describe("golden path", () => {
-  test("map loads with venue pins", async ({ page }) => {
+  test("@smoke map loads with venue pins", async ({ page }) => {
     await markOnboarded(page);
     await mockVenueList(page);
 
