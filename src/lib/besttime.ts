@@ -37,13 +37,6 @@ function apiKey(): string {
   return key;
 }
 
-// BestTime paired public key — explicit env var or derived by swapping pri_ prefix.
-function publicApiKey(): string {
-  if (process.env.BESTTIME_API_KEY_PUBLIC) return process.env.BESTTIME_API_KEY_PUBLIC;
-  const priv = apiKey();
-  if (priv.startsWith("pri_")) return "pub_" + priv.slice(4);
-  throw new Error("Cannot derive BESTTIME public key. Set BESTTIME_API_KEY_PUBLIC.");
-}
 
 function readObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;

@@ -97,12 +97,11 @@ export async function GET(
       },
       { headers }
     );
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : "unknown";
+  } catch {
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
-        error: { code: "BESTTIME_FORECAST_UNAVAILABLE", message: "BestTime forecast unavailable.", details: detail },
+        error: { code: "BESTTIME_FORECAST_UNAVAILABLE", message: "BestTime forecast unavailable." },
         meta: { cached: false, generatedAt, requestId },
       },
       { status: 502, headers }
