@@ -280,9 +280,9 @@ test.describe("Explore tab", () => {
   test("empty filtered results can clear filters", async ({ page }) => {
     await page.goto("/explore");
 
-    await page.getByRole("button", { name: /Restaurant/ }).click();
+    await page.getByRole("button", { name: "Uptown" }).click();
 
-    await expect(page.getByText("No venues match your filters")).toBeVisible();
+    await expect(page.getByText("No spots match this filter.")).toBeVisible();
 
     await page.getByRole("button", { name: "Clear filters" }).click();
 
