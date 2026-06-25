@@ -194,6 +194,16 @@ export default function VibeCheckClient({
   const [submitError, setSubmitError] = useState<{ type: "duplicate" | "generic"; msg: string } | null>(null);
   const [submittedSignal, setSubmittedSignal] = useState<VenueSignal | null>(null);
 
+  // Client-side auth gate — redirect unauthenticated users to login.
+  useEffect(() => {
+    const client = createBrowserClient();
+    client.auth.getSession().then(({ data }) => {
+      if (!data.session?.access_token) {
+        router.replace(`/login?return=${encodeURIComponent(returnPath)}`);
+      }
+    });
+  }, [router, returnPath]);
+
   useEffect(() => {
     if (venueId) return;
     let active = true;
