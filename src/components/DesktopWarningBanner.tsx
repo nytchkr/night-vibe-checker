@@ -32,21 +32,22 @@ export default function DesktopWarningBanner() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-[#0A0A0E]/96 px-6 text-white backdrop-blur-md">
-      <div className="w-full max-w-md rounded-[24px] border border-white/[0.08] bg-[#0A0A0E] px-6 py-7 text-center shadow-[0_0_48px_rgba(139,108,255,0.24)]">
-        <div className="mx-auto mb-5 h-1.5 w-24 rounded-full bg-gradient-to-r from-[#8B6CFF] to-[#F0568C]" />
-        <p className="font-display text-2xl font-semibold leading-tight text-white">
-          nytchkr is built for mobile.
-        </p>
-        <p className="mt-3 text-sm font-semibold leading-6 text-white/70">
-          Open on your phone for the best experience.
-        </p>
+    <div className="pointer-events-none fixed inset-x-4 top-4 z-[10000] flex justify-center text-white">
+      <div className="pointer-events-auto flex w-full max-w-xl items-center justify-between gap-4 rounded-2xl border border-white/[0.08] bg-[#0A0A0E]/92 px-4 py-3 shadow-[0_0_28px_rgba(139,108,255,0.2)] backdrop-blur-md">
+        <div className="min-w-0">
+          <p className="font-display text-sm font-semibold leading-tight text-white">
+            nytchkr is optimized for mobile.
+          </p>
+          <p className="mt-1 text-xs font-semibold leading-5 text-white/60">
+            Desktop access is available.
+          </p>
+        </div>
         <button
           type="button"
           onClick={dismiss}
-          className="mt-7 inline-flex h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-6 text-sm font-black text-[#0A0A0E] shadow-[0_0_22px_rgba(240,86,140,0.28)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+          className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-xs font-black text-[#0A0A0E] shadow-[0_0_18px_rgba(240,86,140,0.24)] transition hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
         >
-          Continue anyway
+          Dismiss
         </button>
       </div>
     </div>
