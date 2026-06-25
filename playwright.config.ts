@@ -30,7 +30,9 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // Override viewport to mobile width so DesktopWarningBanner never blocks tests.
+      // The app is mobile-first; tests that need desktop width set it explicitly.
+      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
     },
     {
       name: "mobile-safari",

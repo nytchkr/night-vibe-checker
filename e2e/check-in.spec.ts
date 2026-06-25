@@ -51,6 +51,7 @@ async function mockFeed(page: Page, venues = [feedVenue]) {
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("nv_onboarded", "1");
+    window.sessionStorage.setItem("nightvibe:desktop-warning-dismissed", "true");
   });
 }
 
@@ -90,8 +91,14 @@ async function addLocalSession(page: Page) {
 }
 
 test.describe("VibeCheck consumer check-in flow", () => {
-  test("routes mobile guest report CTA from the feed to login", async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("nightvibe:desktop-warning-dismissed", "true");
+    });
+  });
+
+  test("routes mobile guest report CTA from the feed to login", async ({ page }) => {
     await markOnboarded(page);
 
     // Premium redesign: explore cards no longer carry inline "Sign in" links.
