@@ -1,5 +1,6 @@
 const RUNTIME_CACHE = "nightvibe-v1";
-const STATIC_URLS = ["/", "/map", "/explore"];
+const OFFLINE_URL = "/offline";
+const STATIC_URLS = ["/", "/map", "/explore", OFFLINE_URL];
 const CACHE_FIRST_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cartocdn.com"];
 const VENUE_DETAIL_TIMEOUT_MS = 5000;
 
@@ -42,7 +43,7 @@ self.addEventListener("fetch", (event) => {
   const acceptsHtml = request.headers.get("accept")?.includes("text/html");
   const staticAsset = ["script", "style"].includes(request.destination);
   if (acceptsHtml || staticAsset) {
-    event.respondWith(caches.match(request).then((hit) => hit || fetchAndCache(request)));
+    event.respondWith(handleDocumentOrStaticRequest(request, acceptsHtml));
   }
 });
 
@@ -88,6 +89,21 @@ async function fetchAndCache(request, cachePromise) {
   const cache = cachePromise || (await caches.open(RUNTIME_CACHE));
   const response = await fetch(request);
   return putAndReturn(cache, request, response);
+}
+
+async function handleDocumentOrStaticRequest(request, acceptsHtml) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  try {
+    return await fetchAndCache(request);
+  } catch (error) {
+    if (acceptsHtml) {
+      const offline = await caches.match(OFFLINE_URL);
+      if (offline) return offline;
+    }
+    throw error;
+  }
 }
 
 async function putAndReturn(cache, request, response) {
