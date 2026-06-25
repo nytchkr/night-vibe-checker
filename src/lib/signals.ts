@@ -12,11 +12,13 @@ type SignalCheckInRow = {
   id: string;
   venue_id: string;
   place_id: string;
+  user_id?: string | null;
   busyness: ReportedBusyness;
   crowd_feel: CrowdFeel;
   gender?: "M" | "F" | "prefer_not" | null;
   reporter_gender: "male" | "female" | null;
   gender_self_report?: "m" | "f" | "nb" | null;
+  trust_weight?: number | null;
   created_at: string;
 };
 
@@ -62,7 +64,8 @@ export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date
 
   for (const row of busynessRows) {
     const ageMinutes = Math.max(0, (nowMs - new Date(row.created_at).getTime()) / 60_000);
-    const w = Math.pow(0.5, ageMinutes / HALF_LIFE_MINUTES);
+    const tw = row.trust_weight ?? 1.0;
+    const w = Math.pow(0.5, ageMinutes / HALF_LIFE_MINUTES) * tw;
 
     nEff += w;
     weightedBusyness += busynessToScore(row.busyness) * w;
@@ -107,7 +110,18 @@ export async function recomputeVenueSignal(venueId: string) {
   const [{ data: rows, error }, { data: existingSignal, error: signalError }] = await Promise.all([
     supabaseAdmin
       .from("check_ins")
-      .select("id, venue_id, place_id, busyness, crowd_feel, gender, reporter_gender, gender_self_report, created_at")
+      .select(`
+        id,
+        venue_id,
+        place_id,
+        busyness,
+        crowd_feel,
+        user_id,
+        gender,
+        reporter_gender,
+        gender_self_report,
+        created_at
+      `)
       .eq("venue_id", venueId)
       .eq("hidden", false)
       .gte("created_at", cutoff)
@@ -122,7 +136,12 @@ export async function recomputeVenueSignal(venueId: string) {
   if (error) throw error;
   if (signalError) throw signalError;
 
-  const computed = computeSignalFromCheckIns((rows ?? []) as SignalCheckInRow[]);
+  const scoreByUserId = await getScoreByUserId((rows ?? []) as Array<SignalCheckInRow>);
+  const signalRows = ((rows ?? []) as SignalCheckInRow[]).map((row) => ({
+    ...row,
+    trust_weight: trustWeightFromScore(row.user_id ? scoreByUserId.get(row.user_id) : null),
+  }));
+  const computed = computeSignalFromCheckIns(signalRows);
   const hasCrowdRead = computed.busyness0To100 != null;
   const computedAt = new Date().toISOString();
   const payload = {
@@ -145,4 +164,29 @@ export async function recomputeVenueSignal(venueId: string) {
 
   if (upsertError) throw upsertError;
   return data;
+}
+
+function trustWeightFromScore(score: { trusted_reporter?: boolean; confirmed_checkins?: number } | null | undefined): number {
+  if (score?.trusted_reporter) return 1.2;
+  if ((score?.confirmed_checkins ?? 0) >= 1) return 1.0;
+  return 0.5;
+}
+
+async function getScoreByUserId(rows: SignalCheckInRow[]): Promise<Map<string, { trusted_reporter: boolean; confirmed_checkins: number }>> {
+  const userIds = [...new Set(rows.map((row) => row.user_id).filter((value): value is string => Boolean(value)))];
+  if (userIds.length === 0) return new Map();
+
+  const { data, error } = await supabaseAdmin
+    .from("user_scores")
+    .select("user_id, trusted_reporter, confirmed_checkins")
+    .in("user_id", userIds);
+
+  if (error) throw error;
+
+  return new Map(
+    ((data ?? []) as Array<{ user_id: string; trusted_reporter: boolean; confirmed_checkins: number }>).map((score) => [
+      score.user_id,
+      score,
+    ]),
+  );
 }

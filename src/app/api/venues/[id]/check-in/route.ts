@@ -11,11 +11,24 @@ import { recomputeVenueSignal } from "@/lib/signals";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { distanceMeters } from "@/lib/distance";
+import {
+  checkAbuseSoftSignals,
+  checkFirstReportOfNight,
+  checkStreakBonus,
+  flagUserForReview,
+  getUserScore,
+  refreshStreakCount,
+  updateUserScore,
+} from "@/lib/rewards";
 import type { APIResponse, ConsumerCheckIn, VenueSignal } from "@/types";
 
 const VIBE_NOTE_MAX_LENGTH = 500;
 const POST_RATE_LIMIT_MAX = 5;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
+const PROXIMITY_GATE_METERS = 150;
+const VENUE_REPEAT_WINDOW_MINUTES = 90;
+const NIGHTLY_REPORT_LIMIT = 6;
 
 const CrowdFeelSchema = z.enum([
   "chill",
@@ -41,6 +54,8 @@ const CheckInBodySchema = z.object({
   note: z.string().trim().max(VIBE_NOTE_MAX_LENGTH).optional(),
   gender: GenderSchema.nullable().optional(),
   gender_self_report: z.enum(["m", "f", "nb"]).nullable().optional(),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
 });
 
 function genderToSelfReport(gender: z.infer<typeof GenderSchema> | null | undefined): "m" | "f" | "nb" | null {
@@ -149,14 +164,105 @@ async function getReporterGender(userId: string): Promise<"male" | "female" | nu
   return normalizeReporterGender(data?.gender);
 }
 
-async function resolveVenue(venueIdOrPlaceId: string): Promise<{ id: string; place_id: string | null } | null> {
-  const { data, error } = await findVisibleVenueByIdOrPlaceId(venueIdOrPlaceId, "id, place_id, hidden");
+async function resolveVenue(
+  venueIdOrPlaceId: string,
+): Promise<{ id: string; place_id: string | null; lat: number | null; lng: number | null } | null> {
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(venueIdOrPlaceId, "id, place_id, lat, lng, hidden");
 
   if (error || !data || data.hidden) return null;
   return {
     id: data.id as string,
     place_id: (data.place_id ?? null) as string | null,
+    lat: typeof data.lat === "number" ? data.lat : data.lat == null ? null : Number(data.lat),
+    lng: typeof data.lng === "number" ? data.lng : data.lng == null ? null : Number(data.lng),
   };
+}
+
+async function getRecentVenueCheckIn(venueId: string, userId: string): Promise<{ id: string; created_at: string } | null> {
+  const cutoff = new Date(Date.now() - VENUE_REPEAT_WINDOW_MINUTES * 60_000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("check_ins")
+    .select("id, created_at")
+    .eq("venue_id", venueId)
+    .eq("user_id", userId)
+    .gte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return (data?.[0] as { id: string; created_at: string } | undefined) ?? null;
+}
+
+async function getNightlyCheckInCount(userId: string): Promise<number> {
+  const { start, end } = getNewYorkDayWindow();
+  const { count, error } = await supabaseAdmin
+    .from("check_ins")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", start.toISOString())
+    .lt("created_at", end.toISOString());
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
+function getNewYorkDayWindow(now = new Date()): { start: Date; end: Date } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  const start = zonedDateTimeToUtc(year, month, day, 0, 0, 0, "America/New_York");
+  const end = zonedDateTimeToUtc(year, month, day + 1, 0, 0, 0, "America/New_York");
+  return { start, end };
+}
+
+function zonedDateTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  timeZone: string,
+): Date {
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  const offset = getTimeZoneOffsetMs(utcGuess, timeZone);
+  return new Date(utcGuess.getTime() - offset);
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const asUtc = Date.UTC(
+    Number(values.year),
+    Number(values.month) - 1,
+    Number(values.day),
+    Number(values.hour),
+    Number(values.minute),
+    Number(values.second),
+  );
+  return asUtc - date.getTime();
+}
+
+function retryAfterSeconds(createdAt: string): number {
+  const createdMs = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdMs)) return VENUE_REPEAT_WINDOW_MINUTES * 60;
+  const retryMs = VENUE_REPEAT_WINDOW_MINUTES * 60_000 - (Date.now() - createdMs);
+  return Math.max(1, Math.ceil(retryMs / 1000));
 }
 
 function mapCheckIn(row: Record<string, unknown>): ConsumerCheckIn {
@@ -255,6 +361,47 @@ export async function POST(
     );
   }
 
+  try {
+    const duplicate = await getRecentVenueCheckIn(venue.id, userId);
+    if (duplicate) {
+      return NextResponse.json<APIResponse<never>>(
+        { status: "error", error: { code: "RATE_LIMITED", message: "You've already reported this venue recently" }, meta: responseMeta },
+        { status: 429, headers: { ...headers, "Retry-After": String(retryAfterSeconds(duplicate.created_at)) } },
+      );
+    }
+
+    const nightlyCount = await getNightlyCheckInCount(userId);
+    if (nightlyCount >= NIGHTLY_REPORT_LIMIT) {
+      return NextResponse.json<APIResponse<never>>(
+        { status: "error", error: { code: "RATE_LIMITED", message: "You've hit your report limit for tonight" }, meta: responseMeta },
+        { status: 429, headers },
+      );
+    }
+  } catch (error) {
+    console.error("[venue-check-in POST] rate guard failed:", error);
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "DB_ERROR", message: "Could not validate report limits." }, meta: responseMeta },
+      { status: 500, headers },
+    );
+  }
+
+  const hasReportedLocation = parsed.data.lat != null && parsed.data.lng != null;
+  const reportedDistanceMeters =
+    hasReportedLocation && venue.lat != null && venue.lng != null
+      ? distanceMeters(parsed.data.lat as number, parsed.data.lng as number, venue.lat, venue.lng)
+      : null;
+
+  if (reportedDistanceMeters != null && reportedDistanceMeters > PROXIMITY_GATE_METERS) {
+    return NextResponse.json<APIResponse<never>>(
+      {
+        status: "error",
+        error: { code: "PROXIMITY_REQUIRED", message: "You'll need to be closer to the venue to report the vibe" },
+        meta: responseMeta,
+      },
+      { status: 403, headers },
+    );
+  }
+
   const reporterGender = await getReporterGender(userId);
 
   const insertPayload = {
@@ -267,6 +414,9 @@ export async function POST(
     reporter_gender: reporterGender,
     gender_self_report: selectedGenderSelfReport(parsed.data),
     note: parsed.data.note?.trim() || null,
+    lat_reported: parsed.data.lat ?? null,
+    lng_reported: parsed.data.lng ?? null,
+    distance_from_venue_m: reportedDistanceMeters,
   };
 
   const insertResult = await supabaseAdmin
@@ -316,6 +466,47 @@ export async function POST(
     );
   }
 
+  const events: string[] = [];
+  let pointsAwarded = 0;
+  try {
+    if (hasReportedLocation) {
+      await updateUserScore(userId, 5, "checkin", "Verified proximity check-in", data.id as string);
+      pointsAwarded += 5;
+      events.push("checkin");
+    } else {
+      await updateUserScore(userId, 0, "checkin", "Check-in accepted without location permission", data.id as string);
+      events.push("checkin_no_location");
+    }
+
+    if (await checkFirstReportOfNight(venue.id, userId)) {
+      await updateUserScore(userId, 5, "first_report", "First report for this venue tonight", data.id as string);
+      pointsAwarded += 5;
+      events.push("first_report");
+    }
+
+    if (await checkStreakBonus(userId)) {
+      await updateUserScore(userId, 20, "streak", "Three-night reporting streak", data.id as string);
+      pointsAwarded += 20;
+      events.push("streak");
+    }
+    await refreshStreakCount(userId);
+
+    if (hasReportedLocation) {
+      const abuseSignals = await checkAbuseSoftSignals(userId, venue.id, parsed.data.lat as number, parsed.data.lng as number);
+      if (abuseSignals.shouldFlag) {
+        await flagUserForReview(userId);
+        events.push("flagged_for_review");
+      }
+    }
+  } catch (error) {
+    console.error("[venue-check-in POST] rewards update failed:", error);
+  }
+
+  const userScore = await getUserScore(userId).catch((error) => {
+    console.error("[venue-check-in POST] score lookup failed:", error);
+    return null;
+  });
+
   let signal: VenueSignal | undefined;
   try {
     signal = mapSignal((await recomputeVenueSignal(venue.id)) as Record<string, unknown>);
@@ -323,8 +514,19 @@ export async function POST(
     console.error("[venue-check-in POST] signal recompute failed:", error);
   }
 
-  return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
-    { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta: responseMeta },
+  return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal; pointsAwarded: number; events: string[]; newTotal: number; level: string }>>(
+    {
+      status: "success",
+      data: {
+        checkIn: mapCheckIn(data as Record<string, unknown>),
+        signal,
+        pointsAwarded,
+        events,
+        newTotal: userScore?.points_total ?? pointsAwarded,
+        level: userScore?.level ?? "newcomer",
+      },
+      meta: responseMeta,
+    },
     { status: 200, headers },
   );
 }

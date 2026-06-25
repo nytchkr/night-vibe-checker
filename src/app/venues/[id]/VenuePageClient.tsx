@@ -73,6 +73,17 @@ type VibeCrowdFeelOption = {
 
 type GenderSelfReport = "M" | "F" | "prefer_not";
 
+type CheckInRewardResponse = {
+  status?: string;
+  data?: {
+    pointsAwarded?: number;
+    events?: string[];
+  };
+  error?: {
+    message?: string;
+  };
+};
+
 const VENUE_REPORT_REASONS: Array<{ value: VenueReportReason; label: string }> = [
   { value: "wrong_hours", label: "Wrong hours" },
   { value: "wrong_location", label: "Wrong location" },
@@ -137,6 +148,26 @@ function formatShortTime(time: string): string {
     .replace(/\s+/g, " ")
     .replace(/:00\s*/i, " ")
     .replace(/\b(am|pm)\b/i, (period) => period.toUpperCase());
+}
+
+function getCurrentPositionForReport(): Promise<{ lat: number; lng: number } | null> {
+  if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 60_000 },
+    );
+  });
+}
+
+function rewardToast(pointsAwarded: number, events: string[]): string {
+  if (pointsAwarded <= 0) return "Check-in recorded!";
+  const parts = [`+${pointsAwarded} pts`];
+  if (events.includes("first_report")) parts.push("first report tonight +5");
+  if (events.includes("streak")) parts.push("streak +20");
+  return parts.join(" · ");
 }
 
 function parseTimeToMinutes(time: string): number | null {
@@ -1018,6 +1049,7 @@ export function VenuePageClient({
 
     try {
       const reportVenueId = venue?.id ?? venueId;
+      const position = await getCurrentPositionForReport();
       const res = await fetch(`/api/venues/${encodeURIComponent(reportVenueId)}/check-in`, {
         method: "POST",
         credentials: "include",
@@ -1029,26 +1061,28 @@ export function VenuePageClient({
           busyness: selectedBusynessOption.value,
           crowd_feel: vibeCrowdFeel,
           gender: genderSelfReport,
+          lat: position?.lat,
+          lng: position?.lng,
         }),
       });
 
+      const json = (await res.json().catch(() => ({}))) as CheckInRewardResponse;
       if (!res.ok) {
         if (res.status === 401) {
           setVibeReportOpen(false);
           router.push(`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`);
           return;
         }
-        const json = await res.json().catch(() => ({}));
+        if (res.status === 403) throw new Error("Get closer to the venue to report the vibe.");
         throw new Error(json?.error?.message ?? "Could not submit vibe.");
       }
-      await res.json();
 
       setVibeReportOpen(false);
       setVibeStep(1);
       setVibeBusynessOptionId(null);
       setVibeCrowdFeel(null);
       setVibeGenderSelfReport("prefer_not");
-      setToast("Check-in recorded! Thanks for the vibe.");
+      setToast(rewardToast(Number(json.data?.pointsAwarded ?? 0), json.data?.events ?? []));
       setCheckInConfirmed(true);
       setRatingPromptOpen(true);
       haptic.success();

@@ -6,6 +6,7 @@
       "path": "/api/cron/refresh-open-now",
       "schedule": "0 2 * * *"
     },
+    { "path": "/api/cron/check-agreement", "schedule": "*/15 * * * *" },
     { "path": "/api/cron/refresh-busyness", "schedule": "0 21 * * *" },
     { "path": "/api/cron/refresh-busyness", "schedule": "0 22 * * *" },
     { "path": "/api/cron/refresh-busyness", "schedule": "0 23 * * *" },

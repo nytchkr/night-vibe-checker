@@ -7,6 +7,13 @@ const mockRpc = vi.fn();
 const mockRecomputeVenueSignal = vi.fn();
 const mockAssertSupabaseServerEnv = vi.fn();
 const mockGetAuthenticatedUserId = vi.fn();
+const mockCheckAbuseSoftSignals = vi.fn();
+const mockCheckFirstReportOfNight = vi.fn();
+const mockCheckStreakBonus = vi.fn();
+const mockFlagUserForReview = vi.fn();
+const mockGetUserScore = vi.fn();
+const mockRefreshStreakCount = vi.fn();
+const mockUpdateUserScore = vi.fn();
 
 class MockMissingSupabaseEnvError extends Error {
   constructor(public readonly variableName: string) {
@@ -33,6 +40,16 @@ vi.mock("@/lib/apiAuth", () => ({
 
 vi.mock("@/lib/signals", () => ({
   recomputeVenueSignal: mockRecomputeVenueSignal,
+}));
+
+vi.mock("@/lib/rewards", () => ({
+  checkAbuseSoftSignals: mockCheckAbuseSoftSignals,
+  checkFirstReportOfNight: mockCheckFirstReportOfNight,
+  checkStreakBonus: mockCheckStreakBonus,
+  flagUserForReview: mockFlagUserForReview,
+  getUserScore: mockGetUserScore,
+  refreshStreakCount: mockRefreshStreakCount,
+  updateUserScore: mockUpdateUserScore,
 }));
 
 function request(method: string, url: string, body?: unknown, token = "token", extraHeaders?: Record<string, string>) {
@@ -62,8 +79,13 @@ function chain(resolved: { data?: unknown; error?: unknown; count?: number }) {
   const builder = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     gte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -116,6 +138,13 @@ beforeEach(() => {
   mockAuth("user-123");
   mockRpc.mockResolvedValue({ data: null, error: null });
   mockRecomputeVenueSignal.mockResolvedValue(SIGNAL);
+  mockCheckAbuseSoftSignals.mockResolvedValue({ shouldFlag: false, reasons: [] });
+  mockCheckFirstReportOfNight.mockResolvedValue(false);
+  mockCheckStreakBonus.mockResolvedValue(false);
+  mockFlagUserForReview.mockResolvedValue(undefined);
+  mockGetUserScore.mockResolvedValue({ points_total: 5, level: "newcomer" });
+  mockRefreshStreakCount.mockResolvedValue(1);
+  mockUpdateUserScore.mockResolvedValue(undefined);
 });
 
 describe("POST /api/check-ins", () => {
@@ -336,9 +365,16 @@ describe("POST /api/check-ins", () => {
 
   it("accepts gender on venue-scoped check-ins", async () => {
     const venueChain = chain({ data: VENUE });
+    const recentVenueChain = chain({ data: [] });
+    const nightlyChain = chain({ count: 0 });
     const profileChain = chain({ data: { gender: "male" } });
     const insertChain = chain({ data: { ...CHECK_IN, reporter_gender: "male" } });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(profileChain).mockReturnValueOnce(insertChain);
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(recentVenueChain)
+      .mockReturnValueOnce(nightlyChain)
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(insertChain);
 
     const { POST } = await import("../venues/[id]/check-in/route");
     const res = await POST(
@@ -364,9 +400,16 @@ describe("POST /api/check-ins", () => {
 
   it("accepts new crowd feel pills and prefer-not on venue-scoped check-ins", async () => {
     const venueChain = chain({ data: VENUE });
+    const recentVenueChain = chain({ data: [] });
+    const nightlyChain = chain({ count: 0 });
     const profileChain = chain({ data: { gender: "female" } });
     const insertChain = chain({ data: { ...CHECK_IN, crowd_feel: "chill", gender: "prefer_not", gender_self_report: null } });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(profileChain).mockReturnValueOnce(insertChain);
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(recentVenueChain)
+      .mockReturnValueOnce(nightlyChain)
+      .mockReturnValueOnce(profileChain)
+      .mockReturnValueOnce(insertChain);
 
     const { POST } = await import("../venues/[id]/check-in/route");
     const res = await POST(

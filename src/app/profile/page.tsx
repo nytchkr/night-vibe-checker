@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronRight, LogOut, MapPin, Moon, Settings } from "lucide-react";
+import { Bell, ChevronRight, Flame, LogOut, MapPin, Moon, Settings } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,24 @@ type CheckIn = {
   venue_id: string | null;
   created_at: string;
   venues?: { name?: string | null } | { name?: string | null }[] | null;
+};
+
+type RewardLevel = "newcomer" | "regular" | "local" | "insider";
+
+type RewardScore = {
+  points_total: number;
+  level: RewardLevel;
+  streak_count: number;
+  trusted_reporter: boolean;
+  confirmed_checkins: number;
+};
+
+const DEFAULT_REWARD_SCORE: RewardScore = {
+  points_total: 0,
+  level: "newcomer",
+  streak_count: 0,
+  trusted_reporter: false,
+  confirmed_checkins: 0,
 };
 
 const YOU_TAB_LIMIT = 5;
@@ -44,6 +62,27 @@ function formatDate(value: string): string {
 
 function initialFor(email: string): string {
   return email.trim().charAt(0).toUpperCase() || "Y";
+}
+
+function levelLabel(level: RewardLevel): string {
+  if (level === "regular") return "Regular";
+  if (level === "local") return "Local";
+  if (level === "insider") return "Insider";
+  return "Newcomer";
+}
+
+function levelClassName(level: RewardLevel): string {
+  if (level === "regular") return "bg-[#8B6CFF]/15 text-[#8B6CFF] border border-[#8B6CFF]/35";
+  if (level === "local") return "bg-[#F0568C]/15 text-[#F0568C] border border-[#F0568C]/35";
+  if (level === "insider") return "bg-[#FFB020]/15 text-[#FFB020] border border-[#FFB020]/35";
+  return "bg-white/10 text-white/70 border border-white/15";
+}
+
+function nextLevelProgress(level: RewardLevel, confirmedCheckins: number): { level: RewardLevel; threshold: number } | null {
+  if (level === "newcomer") return { level: "regular", threshold: 5 };
+  if (level === "regular") return { level: "local", threshold: 20 };
+  if (level === "local") return { level: "insider", threshold: 50 };
+  return null;
 }
 
 function YouSkeleton() {
@@ -84,7 +123,7 @@ function LoggedOutState({ onSignIn, signingIn }: { onSignIn: () => void; signing
   );
 }
 
-function ProfileHeader({ email }: { email: string }) {
+function ProfileHeader({ email, trustedReporter }: { email: string; trustedReporter: boolean }) {
   return (
     <section className="flex items-center gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4">
       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] text-xl font-black text-white">
@@ -93,6 +132,11 @@ function ProfileHeader({ email }: { email: string }) {
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#F0568C]">You</p>
         <h1 className="truncate text-lg font-bold text-white">{email}</h1>
+        {trustedReporter && (
+          <span className="mt-2 inline-flex rounded-full border border-[#FFB020]/35 bg-[#FFB020]/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#FFB020]">
+            Trusted reporter
+          </span>
+        )}
       </div>
     </section>
   );
@@ -179,6 +223,48 @@ function RecentCheckInsSection({ checkIns, loading }: { checkIns: CheckIn[]; loa
   );
 }
 
+function RewardsSection({ score, loading }: { score: RewardScore; loading: boolean }) {
+  const next = nextLevelProgress(score.level, score.confirmed_checkins);
+  const progressPercent = next ? Math.min(100, (score.confirmed_checkins / next.threshold) * 100) : 100;
+
+  return (
+    <SectionShell title="Rewards">
+      {loading ? (
+        <Skeleton className="h-36 rounded-[18px] bg-white/10" />
+      ) : (
+        <Card className="rounded-[18px] border-white/[0.08] bg-white/[0.04] p-4">
+          <div className="flex items-start justify-between gap-4">
+            <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em] ${levelClassName(score.level)}`}>
+              {levelLabel(score.level)}
+            </span>
+            <div className="text-right">
+              <p className="text-3xl font-black leading-none text-white">{score.points_total.toLocaleString()}</p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-white/45">pts</p>
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-3 text-sm font-semibold text-white">
+            <span className="inline-flex items-center gap-2">
+              <Flame className="h-4 w-4 text-[#FFB020]" aria-hidden="true" />
+              {score.streak_count}-night streak
+            </span>
+            <span className="text-white/55">{score.confirmed_checkins} confirmed</span>
+          </div>
+
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-[#8B6CFF]" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <p className="mt-2 text-sm text-white/60">
+            {next
+              ? `${score.confirmed_checkins} / ${next.threshold} confirmed check-ins to ${levelLabel(next.level)}`
+              : "Top trust tier unlocked"}
+          </p>
+        </Card>
+      )}
+    </SectionShell>
+  );
+}
+
 function SettingsSection() {
   return (
     <SectionShell title="Settings">
@@ -206,22 +292,27 @@ function LoggedInState({
   session,
   savedVenues,
   checkIns,
+  rewardScore,
   loadingSaved,
   loadingCheckIns,
+  loadingRewards,
   onSignOut,
 }: {
   session: Session;
   savedVenues: SavedVenue[];
   checkIns: CheckIn[];
+  rewardScore: RewardScore;
   loadingSaved: boolean;
   loadingCheckIns: boolean;
+  loadingRewards: boolean;
   onSignOut: () => void;
 }) {
   const email = session.user.email ?? "Signed in";
 
   return (
     <div className="space-y-7 pb-8">
-      <ProfileHeader email={email} />
+      <ProfileHeader email={email} trustedReporter={rewardScore.trusted_reporter} />
+      <RewardsSection score={rewardScore} loading={loadingRewards} />
       <SavedVenuesSection venues={savedVenues} loading={loadingSaved} />
       <RecentCheckInsSection checkIns={checkIns} loading={loadingCheckIns} />
       <SettingsSection />
@@ -244,8 +335,10 @@ export default function ProfilePage() {
   const [signingIn, setSigningIn] = useState(false);
   const [savedVenues, setSavedVenues] = useState<SavedVenue[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [rewardScore, setRewardScore] = useState<RewardScore>(DEFAULT_REWARD_SCORE);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [loadingCheckIns, setLoadingCheckIns] = useState(false);
+  const [loadingRewards, setLoadingRewards] = useState(false);
 
   const loadSavedVenues = useCallback(
     async (currentSession: Session) => {
@@ -293,6 +386,25 @@ export default function ProfilePage() {
     }
   }, [supabaseBrowser]);
 
+  const loadRewards = useCallback(async (currentSession: Session) => {
+    setLoadingRewards(true);
+    try {
+      const res = await fetch("/api/profile/rewards", {
+        headers: { Authorization: `Bearer ${currentSession.access_token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        setRewardScore(DEFAULT_REWARD_SCORE);
+        return;
+      }
+      setRewardScore({ ...DEFAULT_REWARD_SCORE, ...((await res.json()) as Partial<RewardScore>) });
+    } catch {
+      setRewardScore(DEFAULT_REWARD_SCORE);
+    } finally {
+      setLoadingRewards(false);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -304,6 +416,7 @@ export default function ProfilePage() {
       if (data.session) {
         void loadSavedVenues(data.session);
         void loadCheckIns(data.session);
+        void loadRewards(data.session);
       }
     }
 
@@ -316,9 +429,11 @@ export default function ProfilePage() {
       if (nextSession) {
         void loadSavedVenues(nextSession);
         void loadCheckIns(nextSession);
+        void loadRewards(nextSession);
       } else {
         setSavedVenues([]);
         setCheckIns([]);
+        setRewardScore(DEFAULT_REWARD_SCORE);
       }
     });
 
@@ -326,7 +441,7 @@ export default function ProfilePage() {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [loadCheckIns, loadSavedVenues, supabaseBrowser]);
+  }, [loadCheckIns, loadRewards, loadSavedVenues, supabaseBrowser]);
 
   async function handleGoogleSignIn() {
     setSigningIn(true);
@@ -343,6 +458,7 @@ export default function ProfilePage() {
     setSession(null);
     setSavedVenues([]);
     setCheckIns([]);
+    setRewardScore(DEFAULT_REWARD_SCORE);
   }
 
   return (
@@ -355,8 +471,10 @@ export default function ProfilePage() {
             session={session}
             savedVenues={savedVenues}
             checkIns={checkIns}
+            rewardScore={rewardScore}
             loadingSaved={loadingSaved}
             loadingCheckIns={loadingCheckIns}
+            loadingRewards={loadingRewards}
             onSignOut={handleSignOut}
           />
         )}
