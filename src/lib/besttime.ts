@@ -298,9 +298,14 @@ export async function fetchBestTimeDayRawForecast(besttimeVenueId: string): Prom
   const venueId = besttimeVenueId.trim();
   if (!venueId) throw new Error("BestTime venue id is required.");
 
+  // BestTime day_int: 0=Monday … 6=Sunday (JS Date.getDay() is 0=Sunday)
+  const jsDow = new Date().getDay();
+  const dayInt = jsDow === 0 ? 6 : jsDow - 1;
+
   const params = new URLSearchParams({
     api_key_private: apiKey(),
     venue_id: venueId,
+    day_int: String(dayInt),
   });
   const res = await fetch(`https://besttime.app/api/v1/forecasts/day/raw?${params}`, {
     cache: "no-store",
@@ -309,6 +314,7 @@ export async function fetchBestTimeDayRawForecast(besttimeVenueId: string): Prom
   const payload = readObject(data);
   if (!res.ok || payload?.status === "Error") {
     const message = typeof payload?.message === "string" ? payload.message : `BestTime day forecast HTTP ${res.status}`;
+    console.error("[besttime] fetchBestTimeDayRawForecast error:", message);
     throw new Error(message);
   }
 
