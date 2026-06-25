@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Bookmark, BookmarkCheck } from "lucide-react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
-import { ProGate } from "@/components/ProGate";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
@@ -94,14 +93,8 @@ function SaveButtonInner({ placeId, className, onSavedChange }: SaveButtonProps)
   );
 }
 
-export function SaveButton({ requirePro = false, ...props }: SaveButtonProps) {
-  if (!requirePro) return <SaveButtonInner {...props} />;
-
-  return (
-    <ProGate feature="saved venue alerts" variant="compact" className={props.className}>
-      <SaveButtonInner {...props} />
-    </ProGate>
-  );
+export function SaveButton(props: SaveButtonProps) {
+  return <SaveButtonInner {...props} />;
 }
 
 export default SaveButton;
