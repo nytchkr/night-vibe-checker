@@ -181,7 +181,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }))
     .filter(({ openNow }) => openNow === true)
     .map(({ row, openNow }) => mapVenue(row, openNow))
-    .filter((venue) => venue.signal?.busyness0To100 != null)
+    .filter((venue) => venue.signal?.busyness0To100 != null && venue.signal.busyness0To100 > 0)
     .sort((a, b) => {
       const aBusyness = a.signal?.busyness0To100 ?? -1;
       const bBusyness = b.signal?.busyness0To100 ?? -1;
