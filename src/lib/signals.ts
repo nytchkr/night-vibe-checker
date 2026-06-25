@@ -99,6 +99,7 @@ export async function recomputeVenueSignal(venueId: string) {
     .from("venues")
     .select("id, place_id, last_busyness_refresh")
     .eq("id", venueId)
+    .eq("hidden", false)
     .single();
 
   if (venueError || !venue) throw venueError ?? new Error("Venue not found");

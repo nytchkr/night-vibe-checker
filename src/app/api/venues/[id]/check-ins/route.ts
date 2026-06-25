@@ -81,6 +81,7 @@ async function fetchRecentCheckIns(venueId: string): Promise<{ data: RecentCheck
     .from("check_ins")
     .select("id, busyness_0_to_100, crowd_feel, gender, created_at")
     .eq("venue_id", venueId)
+    .eq("hidden", false)
     .gte("created_at", cutoff)
     .order("created_at", { ascending: false })
     .limit(CHECK_IN_LIMIT);
