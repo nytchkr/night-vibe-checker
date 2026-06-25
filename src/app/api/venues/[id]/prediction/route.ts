@@ -41,6 +41,7 @@ type VenuePredictionRow = {
   id: string;
   place_id: string | null;
   name: string | null;
+  address: string | null;
   category: string | null;
   rating: number | string | null;
   google_rating: number | string | null;
@@ -55,6 +56,7 @@ const VENUE_SELECT = [
   "id",
   "place_id",
   "name",
+  "address",
   "category",
   "rating",
   "google_rating",
@@ -148,8 +150,8 @@ function formatHour(hour: number): string {
   return `${display}${suffix}`;
 }
 
-async function buildBestTimeVenuePrediction(besttimeVenueId: string): Promise<VenuePrediction | null> {
-  const forecast = await fetchBestTimeDayRawForecast(besttimeVenueId);
+async function buildBestTimeVenuePrediction(besttimeVenueId: string, name: string, address: string): Promise<VenuePrediction | null> {
+  const forecast = await fetchBestTimeDayRawForecast(besttimeVenueId, name, address);
   const prediction = buildBestTimePrediction(forecast);
   if (!prediction) return null;
 
@@ -191,7 +193,7 @@ export async function GET(
   let prediction: VenuePrediction | null = null;
   if (besttimeVenueId) {
     try {
-      prediction = await buildBestTimeVenuePrediction(besttimeVenueId);
+      prediction = await buildBestTimeVenuePrediction(besttimeVenueId, venue.name ?? "", venue.address ?? "");
     } catch {
       prediction = null;
     }

@@ -52,9 +52,9 @@ export async function GET(
     );
   }
 
-  const { data, error } = await findVisibleVenueByIdOrPlaceId(id, "id, place_id, besttime_venue_id, hidden");
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(id, "id, place_id, name, address, besttime_venue_id, hidden");
 
-  const venue = data as { id: string; besttime_venue_id: string | null } | null;
+  const venue = data as { id: string; name: string; address: string; besttime_venue_id: string | null } | null;
 
   if (error || !venue) {
     return NextResponse.json<APIResponse<never>>(
@@ -83,7 +83,7 @@ export async function GET(
   }
 
   try {
-    const forecast = await fetchBestTimeDayRawForecast(besttimeVenueId);
+    const forecast = await fetchBestTimeDayRawForecast(besttimeVenueId, venue.name, venue.address);
     return NextResponse.json<APIResponse<ForecastResponse>>(
       {
         status: "success",
