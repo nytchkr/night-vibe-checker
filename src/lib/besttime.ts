@@ -37,6 +37,14 @@ function apiKey(): string {
   return key;
 }
 
+// BestTime paired public key — explicit env var or derived by swapping pri_ prefix.
+function publicApiKey(): string {
+  if (process.env.BESTTIME_API_KEY_PUBLIC) return process.env.BESTTIME_API_KEY_PUBLIC;
+  const priv = apiKey();
+  if (priv.startsWith("pri_")) return "pub_" + priv.slice(4);
+  throw new Error("Cannot derive BESTTIME public key. Set BESTTIME_API_KEY_PUBLIC.");
+}
+
 function readObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
 }
@@ -303,7 +311,7 @@ export async function fetchBestTimeDayRawForecast(besttimeVenueId: string): Prom
   const dayInt = jsDow === 0 ? 6 : jsDow - 1;
 
   const params = new URLSearchParams({
-    api_key_public: apiKey(),
+    api_key_public: publicApiKey(),
     venue_id: venueId,
     day_int: String(dayInt),
   });
