@@ -299,7 +299,7 @@ export async function fetchBestTimeDayRawForecast(besttimeVenueId: string): Prom
   if (!venueId) throw new Error("BestTime venue id is required.");
 
   const params = new URLSearchParams({
-    api_key_public: apiKey(),
+    api_key_private: apiKey(),
     venue_id: venueId,
   });
   const res = await fetch(`https://besttime.app/api/v1/forecasts/day/raw?${params}`, {
