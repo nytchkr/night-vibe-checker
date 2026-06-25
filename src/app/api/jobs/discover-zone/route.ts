@@ -33,6 +33,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Ensure all zone rows exist before upserting venues (FK constraint on venues.zone_id)
+  const { error: zoneError } = await supabaseAdmin.from("zones").upsert(
+    LAUNCH_ZONES.map((z) => ({
+      id: z.id,
+      name: z.name,
+      center_lat: z.center_lat,
+      center_lng: z.center_lng,
+      radius_m: z.radius_m,
+    })),
+    { onConflict: "id" }
+  );
+  if (zoneError) {
+    console.error("[discover-zone] zone upsert failed:", zoneError);
+    return NextResponse.json({ status: "error", error: { code: "DB_ERROR" } }, { status: 500 });
+  }
+
   const venues = Array.from(venuesByPlaceId.values());
   const now = new Date().toISOString();
   const { error } = await supabaseAdmin.from("venues").upsert(
