@@ -15,6 +15,7 @@ const canonicalUrl = "https://nytchkr.com";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
 
 const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
+const DesktopWarningBanner = dynamic(() => import("@/components/DesktopWarningBanner"));
 const inter = Inter({
   subsets: ["latin"],
   weight: ["500", "600"],
@@ -107,6 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to main content
         </a>
         <OfflineBanner />
+        <DesktopWarningBanner />
         {isDev && (
           <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center bg-amber-500/90 py-0.5">
             <span className="text-[11px] font-normal leading-[1.5] text-black">

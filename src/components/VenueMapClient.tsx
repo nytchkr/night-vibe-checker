@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
+import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
 import { hasCompletedOnboarding } from "@/components/OnboardingOverlay";
 import { CITIES, DEFAULT_CITY } from "@/lib/cities";
 import type { City, CityId } from "@/lib/cities";
@@ -80,7 +80,12 @@ export default function VenueMapClient() {
   }
 
   return (
-    <section className="min-h-screen bg-[#0A0A0E] text-white" role="region" aria-label="Venue map">
+    <section
+      className="bg-[#0A0A0E] text-white"
+      role="region"
+      aria-label="Venue map"
+      style={getMapViewportStyle()}
+    >
       <VenueMap city={selectedCity} onCityChange={handleCityChange} />
       <OnboardingGate />
     </section>
