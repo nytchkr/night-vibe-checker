@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mockFrom = vi.fn();
@@ -22,7 +22,32 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
   return builder;
 }
 
-function venue(id: string, name: string, busyness: number | null = null) {
+const OPEN_MONDAY_NIGHT_HOURS = {
+  periods: [
+    {
+      open: { day: 1, hour: 17, minute: 0 },
+      close: { day: 2, hour: 2, minute: 0 },
+    },
+  ],
+  weekdayDescriptions: ["Monday: 5:00 PM - 2:00 AM"],
+};
+
+const CLOSED_MONDAY_NIGHT_HOURS = {
+  periods: [
+    {
+      open: { day: 1, hour: 11, minute: 0 },
+      close: { day: 1, hour: 14, minute: 0 },
+    },
+  ],
+  weekdayDescriptions: ["Monday: 11:00 AM - 2:00 PM"],
+};
+
+function venue(
+  id: string,
+  name: string,
+  busyness: number | null = null,
+  openingHours: unknown = OPEN_MONDAY_NIGHT_HOURS
+) {
   return {
     id,
     place_id: `place-${id}`,
@@ -35,6 +60,7 @@ function venue(id: string, name: string, busyness: number | null = null) {
     hidden: false,
     photo_url: `https://example.com/${id}.jpg`,
     open_now: true,
+    opening_hours: openingHours,
     venue_signals: [
       {
         venue_id: id,
@@ -54,6 +80,12 @@ function venue(id: string, name: string, busyness: number | null = null) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-23T02:00:00.000Z"));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("GET /api/venues/trending", () => {
@@ -101,6 +133,44 @@ describe("GET /api/venues/trending", () => {
     expect(res.status).toBe(200);
     expect(json.status).toBe("success");
     expect(json.data.venues).toEqual([]);
+  });
+
+  it("excludes venues that are currently closed by Google opening hours", async () => {
+    mockFrom.mockReturnValueOnce(
+      chain({
+        data: [
+          venue("venue-open", "Open Bar", 60),
+          venue("venue-closed", "Closed Bar", 99, CLOSED_MONDAY_NIGHT_HOURS),
+        ],
+      })
+    );
+
+    const { GET } = await import("../venues/trending/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open"]);
+    expect(json.data.venues[0].openNow).toBe(true);
+  });
+
+  it("excludes venues with missing or unparsable hours instead of assuming they are open", async () => {
+    mockFrom.mockReturnValueOnce(
+      chain({
+        data: [
+          venue("venue-open", "Open Bar", 60),
+          venue("venue-missing-hours", "Missing Hours", 99, null),
+          venue("venue-unparsable-hours", "Unparsable Hours", 98, { periods: [] }),
+        ],
+      })
+    );
+
+    const { GET } = await import("../venues/trending/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open"]);
   });
 
   it("returns DB_ERROR when venues cannot be loaded", async () => {

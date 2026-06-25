@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
-import { isOpenNow } from "@/lib/openNow";
+import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { v4 as uuidv4 } from "uuid";
 import { LAUNCH_ZONE } from "@/lib/launchZone";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
@@ -17,7 +17,7 @@ const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug,
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
-  phone, website, opening_hours, open_now,
+  phone, website, opening_hours, open_now, updated_at,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -28,7 +28,7 @@ const VENUE_SELECT_LEGACY = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug,
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
-  open_now,
+  open_now, updated_at,
   venue_signals (
     venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
     confidence_0_1, sample_size, computed_at, last_busyness_refresh
@@ -68,7 +68,7 @@ function mapOpeningHours(value: unknown): string[] | undefined {
   return hours.length ? hours : undefined;
 }
 
-function mapVenue(row: Record<string, unknown>): ConsumerVenue {
+function mapVenue(row: Record<string, unknown>, openNow: boolean | null): ConsumerVenue {
   const sig = row.venue_signals;
   const signalRow: Record<string, unknown> | undefined = Array.isArray(sig)
     ? (sig[0] as Record<string, unknown> | undefined)
@@ -95,7 +95,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     phone: (row.phone ?? undefined) as string | undefined,
     website: (row.website ?? undefined) as string | undefined,
     openingHours: mapOpeningHours(row.opening_hours),
-    openNow: isOpenNow(row.opening_hours),
+    openNow,
     hidden: Boolean(row.hidden),
     signal,
     mf_ratio: signal?.mfRatio ?? null,
@@ -171,14 +171,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const venues = (venuesData ?? [])
-    .map(mapVenue)
+    .map((row) => ({
+      row,
+      openNow: inferCanonicalOpenNow({
+        category: (row.category ?? row.venue_type) as string | null,
+        openingHours: row.opening_hours,
+        storedOpenNow: row.open_now,
+        refreshedAt: row.updated_at,
+      }),
+    }))
+    .filter(({ openNow }) => openNow === true)
+    .map(({ row, openNow }) => mapVenue(row, openNow))
     .filter((venue) => venue.signal?.busyness0To100 != null)
     .sort((a, b) => {
       const aBusyness = a.signal?.busyness0To100 ?? -1;
       const bBusyness = b.signal?.busyness0To100 ?? -1;
       return bBusyness - aBusyness || a.name.localeCompare(b.name);
     })
-    .slice(0, TRENDING_LIMIT)
+    .slice(0, TRENDING_LIMIT);
 
   return NextResponse.json<APIResponse<{ venues: ConsumerVenue[] }>>(
     {
