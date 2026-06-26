@@ -29,7 +29,7 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
   return builder;
 }
 
-function venue(id: string, name: string) {
+function venue(id: string, name: string, overrides: Record<string, unknown> = {}) {
   return {
     id,
     place_id: `place-${id}`,
@@ -39,6 +39,8 @@ function venue(id: string, name: string) {
     lat: 35.2123,
     lng: -80.859,
     category: "bar",
+    rating: null,
+    google_rating: null,
     hidden: false,
     open_now: true,
     venue_signals: [
@@ -54,6 +56,7 @@ function venue(id: string, name: string) {
         last_busyness_refresh: null,
       },
     ],
+    ...overrides,
   };
 }
 
@@ -79,6 +82,7 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
       search_query: "rooftop",
       search_zone_id: null,
@@ -114,5 +118,28 @@ describe("GET /api/venues search", () => {
     });
     expect(mockFrom).not.toHaveBeenCalled();
     expect(json.data.venues).toEqual([]);
+  });
+
+  it("uses rating then name when venues have equal or missing busyness", async () => {
+    const query = chain({
+      data: [
+        venue("venue-a", "Alpha", { rating: 4.2 }),
+        venue("venue-b", "Beta", { google_rating: 4.8 }),
+        venue("venue-c", "Charlie", { rating: 4.8 }),
+      ],
+    });
+    mockFrom.mockReturnValueOnce(query);
+
+    const { GET } = await import("../venues/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
+      "venue-b",
+      "venue-c",
+      "venue-a",
+    ]);
   });
 });

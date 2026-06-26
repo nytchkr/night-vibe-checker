@@ -973,7 +973,7 @@ export function VenueMap({
     signal?.addEventListener("abort", handleAbort, { once: true });
 
     try {
-      const res = await fetch("/api/venues", { signal: controller.signal });
+      const res = await fetch("/api/venues", { cache: "no-store", signal: controller.signal });
       if (!res.ok) throw new Error(`Venue fetch failed: ${res.status}`);
       const json = (await res.json()) as APIResponse<{ venues: ConsumerVenue[] }>;
       const nextVenues = json.data?.venues ?? [];

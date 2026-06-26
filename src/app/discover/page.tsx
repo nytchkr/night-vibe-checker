@@ -126,7 +126,7 @@ export default function DiscoverPage() {
     setIsLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch("/api/venues?q=nearby");
+      const res = await fetch("/api/venues?q=nearby", { cache: "no-store" });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const json = await res.json();
       // API may return { data: [...] } or a bare array

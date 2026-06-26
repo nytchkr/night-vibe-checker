@@ -46,7 +46,12 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
     setStatus("loading");
     setError(null);
 
-    const excludeVenueIds = nextMode === "surprise" ? shownVenueIds : [];
+    const excludeVenueIds = nextMode === "surprise"
+      ? Array.from(new Set([
+          ...shownVenueIds,
+          ...(spinAgain ? result?.picks.map((pick) => pick.venue.id) ?? [] : []),
+        ]))
+      : [];
     try {
       const res = await fetch("/api/suggest", {
         method: "POST",
@@ -56,7 +61,7 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
           intent,
           userLat,
           userLng,
-          excludeVenueIds: spinAgain ? excludeVenueIds : nextMode === "surprise" ? shownVenueIds : [],
+          excludeVenueIds,
         }),
       });
       const json = (await res.json()) as APIResponse<AISuggestResult>;

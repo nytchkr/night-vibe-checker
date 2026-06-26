@@ -211,7 +211,7 @@ export default function VibeCheckClient({
     setVenuesLoading(true);
     setVenuesError(null);
 
-    fetch("/api/venues")
+    fetch("/api/venues", { cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) throw new Error(`${res.status}`);
         return res.json();

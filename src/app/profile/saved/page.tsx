@@ -90,7 +90,7 @@ export default function ProfileSavedPage() {
           fetch("/api/saved-venues", {
             headers: { Authorization: `Bearer ${session.access_token}` },
           }),
-          fetch("/api/venues"),
+          fetch("/api/venues", { cache: "no-store" }),
         ]);
 
         if (!savedRes.ok || !venuesRes.ok) {

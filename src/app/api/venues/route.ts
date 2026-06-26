@@ -13,6 +13,8 @@ import { inZone } from "@/lib/zone";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
 const VENUE_SELECT = `
@@ -38,8 +40,8 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
-const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300",
+const DYNAMIC_HEADERS = {
+  "Cache-Control": "private, no-store",
 };
 
 type VenueQueryResult = {
@@ -278,8 +280,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
           status: "success",
           data: { zone: LAUNCH_ZONE, venues: [] },
-          meta: { cached: true, generatedAt, requestId },
-        }, { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } });
+          meta: { cached: false, generatedAt, requestId },
+        }, { headers: { ...headers, ...DYNAMIC_HEADERS } });
       }
     }
 
@@ -321,19 +323,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
         const aBusyness = a.signal?.busyness0To100;
         const bBusyness = b.signal?.busyness0To100;
+        const aRating = a.rating ?? a.googleRating ?? null;
+        const bRating = b.rating ?? b.googleRating ?? null;
 
-        if (aBusyness == null && bBusyness == null) return a.name.localeCompare(b.name);
+        if (aBusyness == null && bBusyness == null) {
+          if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
+          if (aRating == null) return 1;
+          if (bRating == null) return -1;
+          return bRating - aRating || a.name.localeCompare(b.name);
+        }
         if (aBusyness == null) return 1;
         if (bBusyness == null) return -1;
         if (bBusyness !== aBusyness) return bBusyness - aBusyness;
-        return a.name.localeCompare(b.name);
+        if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
+        if (aRating == null) return 1;
+        if (bRating == null) return -1;
+        return bRating - aRating || a.name.localeCompare(b.name);
       });
 
     return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
       status: "success",
       data: { zone: LAUNCH_ZONE, venues },
-      meta: { cached: true, generatedAt, requestId },
-    }, { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } });
+      meta: { cached: false, generatedAt, requestId },
+    }, { headers: { ...headers, ...DYNAMIC_HEADERS } });
   } catch (error) {
     console.error("[venues] unexpected error:", error);
     return NextResponse.json<APIResponse<never>>(

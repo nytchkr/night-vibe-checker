@@ -1,6 +1,6 @@
 // ============================================================
 // GET /api/venues/trending
-// Top visible launch-zone venues by current busyness signal.
+// Top visible launch-zone venues by recent check-in activity.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
@@ -12,6 +12,7 @@ import { LAUNCH_ZONES } from "@/lib/launchZone";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
 const TRENDING_LIMIT = 5;
+const TRENDING_WINDOW_MS = 24 * 60 * 60 * 1000;
 const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
 const VENUE_SELECT = `
@@ -36,8 +37,14 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
-const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=120, stale-while-revalidate=300",
+export const dynamic = "force-dynamic";
+
+const DYNAMIC_HEADERS = {
+  "Cache-Control": "private, no-store",
+};
+
+type RecentCheckInRow = {
+  venue_id: string | null;
 };
 
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
@@ -140,11 +147,50 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const since = new Date(Date.now() - TRENDING_WINDOW_MS).toISOString();
+  const checkInsResult = await supabaseAdmin
+    .from("check_ins")
+    .select("venue_id, created_at")
+    .gte("created_at", since)
+    .eq("hidden", false)
+    .limit(500);
+
+  if (checkInsResult.error) {
+    return NextResponse.json<APIResponse<never>>(
+      {
+        status: "error",
+        error: { code: "DB_ERROR", message: "Could not load recent check-ins." },
+        meta: { cached: false, generatedAt, requestId },
+      },
+      { status: 500, headers: { ...headers, ...DYNAMIC_HEADERS } }
+    );
+  }
+
+  const checkInCounts = new Map<string, number>();
+  for (const row of ((checkInsResult.data ?? []) as RecentCheckInRow[])) {
+    const venueId = typeof row.venue_id === "string" ? row.venue_id.trim() : "";
+    if (!venueId) continue;
+    checkInCounts.set(venueId, (checkInCounts.get(venueId) ?? 0) + 1);
+  }
+
+  const recentVenueIds = Array.from(checkInCounts.keys());
+  if (recentVenueIds.length === 0) {
+    return NextResponse.json<APIResponse<{ venues: ConsumerVenue[] }>>(
+      {
+        status: "success",
+        data: { venues: [] },
+        meta: { cached: false, generatedAt, requestId },
+      },
+      { headers: { ...headers, ...DYNAMIC_HEADERS } }
+    );
+  }
+
   const primaryResult = await supabaseAdmin
     .from("venues")
     .select(VENUE_SELECT)
     .eq("hidden", false)
     .in("zone_id", LAUNCH_ZONE_IDS)
+    .in("id", recentVenueIds)
     .limit(100);
   let venuesData = primaryResult.data as Record<string, unknown>[] | null;
   let venuesError = primaryResult.error;
@@ -155,6 +201,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       .select(VENUE_SELECT_LEGACY)
       .eq("hidden", false)
       .in("zone_id", LAUNCH_ZONE_IDS)
+      .in("id", recentVenueIds)
       .limit(100);
     venuesData = legacyResult.data as Record<string, unknown>[] | null;
     venuesError = legacyResult.error;
@@ -165,9 +212,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       {
         status: "error",
         error: { code: "DB_ERROR", message: "Could not load trending venues." },
-        meta: { cached: true, generatedAt, requestId },
+        meta: { cached: false, generatedAt, requestId },
       },
-      { status: 500, headers }
+      { status: 500, headers: { ...headers, ...DYNAMIC_HEADERS } }
     );
   }
 
@@ -182,11 +229,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     }))
     .filter(({ openNow }) => openNow === true)
     .map(({ row, openNow }) => mapVenue(row, openNow))
-    .filter((venue) => venue.signal?.busyness0To100 != null && venue.signal.busyness0To100 > 0)
     .sort((a, b) => {
+      const checkInDelta = (checkInCounts.get(b.id) ?? 0) - (checkInCounts.get(a.id) ?? 0);
+      if (checkInDelta !== 0) return checkInDelta;
       const aBusyness = a.signal?.busyness0To100 ?? -1;
       const bBusyness = b.signal?.busyness0To100 ?? -1;
-      return bBusyness - aBusyness || a.name.localeCompare(b.name);
+      if (bBusyness !== aBusyness) return bBusyness - aBusyness;
+      const aRating = a.rating ?? a.googleRating ?? null;
+      const bRating = b.rating ?? b.googleRating ?? null;
+      if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
+      if (aRating == null) return 1;
+      if (bRating == null) return -1;
+      return bRating - aRating || a.name.localeCompare(b.name);
     })
     .slice(0, TRENDING_LIMIT);
 
@@ -194,8 +248,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     {
       status: "success",
       data: { venues },
-      meta: { cached: true, generatedAt, requestId },
+      meta: { cached: false, generatedAt, requestId },
     },
-    { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } }
+    { headers: { ...headers, ...DYNAMIC_HEADERS } }
   );
 }

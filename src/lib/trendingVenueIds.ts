@@ -1,7 +1,7 @@
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 export async function fetchTrendingVenueIds(signal?: AbortSignal): Promise<Set<string>> {
-  const res = await fetch("/api/venues/trending", { signal });
+  const res = await fetch("/api/venues/trending", { cache: "no-store", signal });
   if (!res.ok) throw new Error(`Trending venues failed: ${res.status}`);
 
   const json = (await res.json()) as APIResponse<{ venues: ConsumerVenue[] }>;

@@ -80,7 +80,7 @@ export function TrendingRow() {
 
     async function loadTrending() {
       try {
-        const res = await fetch("/api/venues/trending", { signal: controller.signal });
+        const res = await fetch("/api/venues/trending", { cache: "no-store", signal: controller.signal });
         if (!res.ok) throw new Error(`${res.status}`);
         const json = (await res.json()) as APIResponse<{ venues?: ConsumerVenue[] }>;
         setVenues(Array.isArray(json.data?.venues) ? json.data.venues.slice(0, 5) : []);

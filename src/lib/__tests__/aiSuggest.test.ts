@@ -135,4 +135,23 @@ describe("aiSuggest real-data guardrails", () => {
 
     expect(result.slice(0, 3).map((item) => item.venue.id)).toEqual(["venue-a", "venue-b", "venue-c"]);
   });
+
+  it("can apply bounded score jitter for surprise mode without changing deterministic ranking by default", () => {
+    const venues = [
+      venue({ id: "venue-a", name: "Alpha", rating: 4.5, googleRating: 4.5 }),
+      venue({ id: "venue-b", name: "Beta", rating: 4.4, googleRating: 4.4 }),
+    ];
+
+    const deterministic = filterAndRankVenues(venues, DEFAULT_AI_SUGGEST_FILTER);
+    let randomIndex = 0;
+    const randomValues = [0, 1];
+    const jittered = filterAndRankVenues(venues, DEFAULT_AI_SUGGEST_FILTER, {
+      scoreJitterPercent: 0.05,
+      random: () => randomValues[randomIndex++] ?? 0.5,
+    });
+
+    expect(deterministic.map((item) => item.venue.id)).toEqual(["venue-a", "venue-b"]);
+    expect(jittered.map((item) => item.venue.id)).toEqual(["venue-b", "venue-a"]);
+    expect(jittered[0].scoreReasons).toContain("surprise variety");
+  });
 });

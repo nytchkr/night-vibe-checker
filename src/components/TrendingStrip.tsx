@@ -64,7 +64,7 @@ export function TrendingStrip() {
 
     async function fetchTrending() {
       try {
-        const res = await fetch("/api/venues/trending");
+        const res = await fetch("/api/venues/trending", { cache: "no-store" });
         if (!res.ok) throw new Error(`${res.status}`);
         const json = await res.json();
         if (!cancelled) setVenues(json?.data?.venues ?? []);

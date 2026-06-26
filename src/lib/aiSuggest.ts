@@ -265,9 +265,13 @@ export function filterAndRankVenues(
     userLat?: number | null;
     userLng?: number | null;
     excludeVenueIds?: string[];
+    scoreJitterPercent?: number;
+    random?: () => number;
   } = {},
 ): AISuggestRankedVenue[] {
   const excluded = new Set(options.excludeVenueIds ?? []);
+  const jitterPercent = clampNumber(options.scoreJitterPercent ?? 0, 0, 0.05);
+  const random = options.random ?? Math.random;
 
   return venues
     .filter((venue) => !venue.hidden)
@@ -307,6 +311,11 @@ export function filterAndRankVenues(
       if (filter.busynessPreference === "dead" && bucket === "dead") score += 25;
       if (filter.busynessPreference === "moderate" && bucket === "moderate") score += 25;
       if (filter.busynessPreference === "any" && bucket === "moderate") score += 10;
+      if (jitterPercent > 0 && score > 0) {
+        const jitterMultiplier = 1 + (random() * 2 - 1) * jitterPercent;
+        score *= jitterMultiplier;
+        scoreReasons.push("surprise variety");
+      }
 
       return { venue, distanceKm, score: Math.round(score * 10) / 10, scoreReasons };
     })
@@ -439,6 +448,7 @@ export async function suggestVenues(
     userLat: request.userLat,
     userLng: request.userLng,
     excludeVenueIds: request.excludeVenueIds,
+    scoreJitterPercent: request.mode === "surprise" ? 0.05 : 0,
   });
   const limit = request.mode === "decide" ? 3 : 1;
   const explained = await Promise.all(ranked.slice(0, limit).map((item) => explainRankedVenue(item, llm.explain)));

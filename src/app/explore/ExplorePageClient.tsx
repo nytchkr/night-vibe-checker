@@ -93,6 +93,15 @@ function getVenueRating(venue: ConsumerVenue): number | null {
   return rating == null || !Number.isFinite(rating) ? null : rating;
 }
 
+function compareVenueRatingThenName(a: ConsumerVenue, b: ConsumerVenue): number {
+  const aRating = getVenueRating(a);
+  const bRating = getVenueRating(b);
+  if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
+  if (aRating == null) return 1;
+  if (bRating == null) return -1;
+  return bRating - aRating || a.name.localeCompare(b.name);
+}
+
 function getVenueOpenNow(venue: ConsumerVenue): boolean | null {
   return venue.openNow ?? null;
 }
@@ -638,7 +647,7 @@ export function ExplorePageClient() {
       const trimmedSearchTerm = searchTerm.trim();
       if (trimmedSearchTerm) params.set("q", trimmedSearchTerm);
       const url = params.size ? `/api/venues?${params.toString()}` : "/api/venues";
-      const res = await fetch(url, { signal });
+      const res = await fetch(url, { cache: "no-store", signal });
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
       setVenues(json?.data?.venues ?? []);
@@ -657,7 +666,7 @@ export function ExplorePageClient() {
 
   const fetchActivity = useCallback(async () => {
     try {
-      const res = await fetch("/api/activity/feed");
+      const res = await fetch("/api/activity/feed", { cache: "no-store" });
       if (!res.ok) throw new Error(`${res.status}`);
       const json = (await res.json()) as { items?: ActivityFeedItem[] };
       setActivityItems(Array.isArray(json.items) ? json.items.slice(0, 8) : []);
@@ -830,7 +839,7 @@ export function ExplorePageClient() {
         if (aTrending !== bTrending) return aTrending ? -1 : 1;
         const aScore = getVenueVibeScore(a) ?? 0;
         const bScore = getVenueVibeScore(b) ?? 0;
-        return bScore - aScore || a.name.localeCompare(b.name);
+        return bScore - aScore || compareVenueRatingThenName(a, b);
       }
 
       if (effectiveExploreSort === "nearby" && userLocation) {
@@ -842,10 +851,10 @@ export function ExplorePageClient() {
       if (effectiveExploreSort === "hottest") {
         const aScore = getVenueVibeScore(a);
         const bScore = getVenueVibeScore(b);
-        if (aScore == null && bScore == null) return a.name.localeCompare(b.name);
+        if (aScore == null && bScore == null) return compareVenueRatingThenName(a, b);
         if (aScore == null) return 1;
         if (bScore == null) return -1;
-        return bScore - aScore || a.name.localeCompare(b.name);
+        return bScore - aScore || compareVenueRatingThenName(a, b);
       }
 
       return a.name.localeCompare(b.name);
@@ -863,7 +872,7 @@ export function ExplorePageClient() {
       .sort((a, b) => {
         const aBusyness = a.signal?.busyness0To100 ?? 0;
         const bBusyness = b.signal?.busyness0To100 ?? 0;
-        return bBusyness - aBusyness || a.name.localeCompare(b.name);
+        return bBusyness - aBusyness || compareVenueRatingThenName(a, b);
       })
       .slice(0, 5);
   }, [venues]);
@@ -877,7 +886,7 @@ export function ExplorePageClient() {
       .sort((a, b) => {
         const aBusyness = getActiveBusyness(a) ?? 0;
         const bBusyness = getActiveBusyness(b) ?? 0;
-        return bBusyness - aBusyness || a.name.localeCompare(b.name);
+        return bBusyness - aBusyness || compareVenueRatingThenName(a, b);
       })
       .slice(0, 3);
   }, [sortedVenues, venues]);
