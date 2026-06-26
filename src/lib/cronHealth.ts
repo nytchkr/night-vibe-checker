@@ -27,5 +27,11 @@ export async function logCronRun({
 }
 
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Unknown error";
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const obj = error as Record<string, unknown>;
+    if (typeof obj.message === "string") return obj.message;
+    return JSON.stringify(obj);
+  }
+  return String(error ?? "Unknown error");
 }

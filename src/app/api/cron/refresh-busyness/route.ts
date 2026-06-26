@@ -21,29 +21,38 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const startedAt = Date.now();
-  try {
-    const results = await refreshBusyness(50);
-    const openNow = await refreshOpenNow();
-    const updated = results.filter((result) => result.ok).length;
-    const errors = results
-      .filter((result) => !result.ok)
-      .map((result) => ({
-        venueId: result.venueId,
-        error: result.reason ?? "Unknown refresh error",
-      }));
-    await logCronRun({ jobName: "refresh-busyness", startedAt, venuesUpdated: updated });
 
-    return NextResponse.json({
-      updated,
-      errors,
-      results,
-      openNow,
-    });
+  let results: Awaited<ReturnType<typeof refreshBusyness>> = [];
+  let busyError: string | null = null;
+  try {
+    results = await refreshBusyness(50);
   } catch (err) {
-    await logCronRun({ jobName: "refresh-busyness", startedAt, error: errorMessage(err) });
-    console.error("[cron/refresh-busyness] Refresh failed:", err);
-    return NextResponse.json({ error: "Refresh busyness failed." }, { status: 500 });
+    busyError = errorMessage(err);
+    console.error("[cron/refresh-busyness] refreshBusyness failed:", err);
   }
+
+  let openNow: Awaited<ReturnType<typeof refreshOpenNow>> | null = null;
+  let openNowError: string | null = null;
+  try {
+    openNow = await refreshOpenNow();
+  } catch (err) {
+    openNowError = errorMessage(err);
+    console.error("[cron/refresh-busyness] refreshOpenNow failed:", err);
+  }
+
+  const updated = results.filter((r) => r.ok).length;
+  const errors = results
+    .filter((r) => !r.ok)
+    .map((r) => ({ venueId: r.venueId, error: r.reason ?? "Unknown refresh error" }));
+
+  await logCronRun({
+    jobName: "refresh-busyness",
+    startedAt,
+    venuesUpdated: updated,
+    error: busyError ?? openNowError,
+  });
+
+  return NextResponse.json({ updated, errors, results, openNow, busyError, openNowError });
 }
 
 export const POST = GET;

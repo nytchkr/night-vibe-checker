@@ -43,7 +43,7 @@ jobs:
     steps:
       - name: Trigger refresh-busyness cron
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 600 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             https://nytchkr.com/api/cron/refresh-busyness)
           echo "HTTP status: $STATUS"
@@ -58,7 +58,7 @@ jobs:
     steps:
       - name: Trigger refresh-open-now cron
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 600 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             https://nytchkr.com/api/cron/refresh-open-now)
           echo "HTTP status: $STATUS"
@@ -73,7 +73,7 @@ jobs:
     steps:
       - name: Trigger discover-zone job
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 600 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             https://nytchkr.com/api/jobs/discover-zone)
           echo "HTTP status: $STATUS"

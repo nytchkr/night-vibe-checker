@@ -166,26 +166,28 @@ export function inferCanonicalOpenNow({
 export async function refreshOpenNow() {
   const { data: venues, error } = await supabaseAdmin
     .from("venues")
-    .select("*")
+    .select("id, category, opening_hours")
     .eq("hidden", false)
     .order("id", { ascending: true });
 
-  if (error) throw error;
+  if (error) throw new Error(`refreshOpenNow fetch failed: ${JSON.stringify(error)}`);
 
   const charlotteTime = getCharlotteTimeParts();
-  const updates = ((venues ?? []) as VenueOpenNowRow[]).map((venue) => ({
-    ...venue,
-    open_now: inferOpenNow(venue.category, charlotteTime, venue.opening_hours),
-  }));
+  const rows = (venues ?? []) as VenueOpenNowRow[];
+  let updated = 0;
 
-  for (let index = 0; index < updates.length; index += UPDATE_BATCH_SIZE) {
-    const batch = updates.slice(index, index + UPDATE_BATCH_SIZE);
-    const { error: updateError } = await supabaseAdmin.from("venues").upsert(batch, {
+  for (let index = 0; index < rows.length; index += UPDATE_BATCH_SIZE) {
+    const batch = rows.slice(index, index + UPDATE_BATCH_SIZE);
+    const updateRows = batch.map((venue) => ({
+      id: venue.id,
+      open_now: inferOpenNow(venue.category, charlotteTime, venue.opening_hours),
+    }));
+    const { error: updateError } = await supabaseAdmin.from("venues").upsert(updateRows, {
       onConflict: "id",
     });
-
-    if (updateError) throw updateError;
+    if (updateError) throw new Error(`refreshOpenNow update failed: ${JSON.stringify(updateError)}`);
+    updated += batch.length;
   }
 
-  return { updated: updates.length };
+  return { updated };
 }
