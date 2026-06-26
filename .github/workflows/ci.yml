@@ -63,8 +63,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium webkit
+        run: npx playwright install --with-deps chromium
 
       - name: Build for E2E
         run: npm run build
@@ -80,7 +79,7 @@ jobs:
         run: |
           npm start &
           npx wait-on http://localhost:3000 --timeout 30000
-          CI=1 BASE_URL=http://localhost:3000 npx playwright test --reporter=github
+          CI=1 BASE_URL=http://localhost:3000 npx playwright test --project=chromium --reporter=github
         env:
           E2E_SMOKE: "true"
           PORT: 3000
