@@ -300,10 +300,7 @@
 
 @media (min-width: 1024px) {
   .app-shell {
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    grid-template-rows: 100vh;
-    overflow: hidden;
+    display: block;
   }
 
   .app-sidebar {
@@ -315,9 +312,9 @@
   }
 
   .app-content {
+    margin-left: 240px;
     overflow-y: auto;
-    max-width: 800px;
-    margin: 0 auto;
+    max-width: 960px;
   }
 }
 

@@ -13,15 +13,8 @@ export default function DesktopWarningBanner() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    function updateVisibility() {
-      const dismissed = window.sessionStorage.getItem(DISMISS_KEY) === "true";
-      setIsVisible(!dismissed && !isMobileEnvironment());
-    }
-
-    updateVisibility();
-    window.addEventListener("resize", updateVisibility);
-
-    return () => window.removeEventListener("resize", updateVisibility);
+    // Desktop layout is now fully supported — banner permanently hidden
+    setIsVisible(false);
   }, []);
 
   function dismiss() {
