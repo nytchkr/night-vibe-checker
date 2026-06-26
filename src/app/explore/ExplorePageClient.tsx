@@ -34,6 +34,7 @@ import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type UserLocation = { lat: number; lng: number };
 type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
+type TonightPickLabel = "Moderate" | "Packed" | "Wild";
 type ActivityFeedItem = {
   id: string;
   user: {
@@ -188,6 +189,28 @@ function getHottestBusynessColor(label: HottestBusynessLabel): string {
   }
 }
 
+function getActiveBusyness(venue: ConsumerVenue): number | null {
+  const value = venue.signal?.busyness0To100;
+  return value != null && Number.isFinite(value) && value > 0 ? clampPercent(value) : null;
+}
+
+function getTonightPickLabel(level: number): TonightPickLabel {
+  if (level >= 85) return "Wild";
+  if (level >= 60) return "Packed";
+  return "Moderate";
+}
+
+function getTonightPickColor(label: TonightPickLabel): string {
+  switch (label) {
+    case "Wild":
+      return "#FF2D78";
+    case "Packed":
+      return "#FF5B6A";
+    case "Moderate":
+      return "#FFB020";
+  }
+}
+
 function getRelativeTimeLabel(value: string): string {
   const checkedInMs = new Date(value).getTime();
   if (!Number.isFinite(checkedInMs)) return "now";
@@ -235,6 +258,122 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
         </div>
       </div>
     </article>
+  );
+}
+
+function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const busyness = getActiveBusyness(venue) ?? 0;
+  const label = getTonightPickLabel(busyness);
+  const color = getTonightPickColor(label);
+
+  return (
+    <Link
+      href={`/venues/${encodeURIComponent(venue.id)}`}
+      onClick={() => trackAnalytics("tonights_pick_tapped", { venueId: venue.id, rank: index + 1 })}
+      className="group relative h-[180px] w-[140px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.28)] transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      aria-label={`Open ${venue.name}, ${label}, ${busyness}% busy`}
+    >
+      {venue.photoUrl && !photoFailed ? (
+        <Image
+          src={venue.photoUrl}
+          alt={venue.name}
+          fill
+          sizes="140px"
+          loading={index === 0 ? undefined : "lazy"}
+          priority={index === 0}
+          placeholder="blur"
+          blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
+          onError={() => setPhotoFailed(true)}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-[#8B6CFF]/18 text-5xl font-black text-[#8B6CFF]" aria-hidden="true">
+          {getVenueInitial(venue.name)}
+        </div>
+      )}
+      <div className="absolute inset-x-0 bottom-0 min-h-[104px] bg-gradient-to-t from-[#050507] via-[#050507]/78 to-transparent" aria-hidden="true" />
+      <div className="absolute inset-x-0 bottom-0 space-y-2 p-3">
+        <span
+          className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black leading-none"
+          style={{ borderColor: `${color}66`, backgroundColor: `${color}24`, color }}
+        >
+          {label}
+        </span>
+        <div className="flex items-end justify-between gap-2">
+          <h3 className="line-clamp-2 text-[13px] font-black leading-[1.15] text-white">
+            {venue.name}
+          </h3>
+          <span className="shrink-0 text-lg font-black leading-none text-white/85" aria-hidden="true">
+            →
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function TonightsPicksStrip({ venues }: { venues: ConsumerVenue[] }) {
+  if (venues.length === 0) return null;
+
+  return (
+    <section className="space-y-3" aria-label="Tonight's Picks">
+      <h2 className="font-display text-sm font-black text-white">Tonight&apos;s Picks 🔥</h2>
+      <div className="scroll-touch flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
+        {venues.map((venue, index) => (
+          <TonightPickCard key={venue.id} venue={venue} index={index} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function NeighborhoodHeatRow({ venues }: { venues: ConsumerVenue[] }) {
+  const neighborhoods = ["South End", "Dilworth"].map((name) => {
+    const activeVenues = venues.filter((venue) => getVenueNeighborhoodName(venue) === name && getActiveBusyness(venue) != null);
+    const average = activeVenues.length
+      ? activeVenues.reduce((sum, venue) => sum + (getActiveBusyness(venue) ?? 0), 0) / activeVenues.length
+      : 0;
+    const dotClass = average > 60 ? "bg-[#22C55E]" : average > 30 ? "bg-[#FACC15]" : "bg-[#6B7280]";
+
+    return { name, activeCount: activeVenues.length, dotClass };
+  });
+
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Neighborhood heat">
+      {neighborhoods.map((neighborhood) => (
+        <div
+          key={neighborhood.name}
+          className="flex min-h-[50px] items-center justify-between gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.045] px-3 py-2"
+        >
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-black text-white">{neighborhood.name}</p>
+            <p className="mt-0.5 text-[11px] font-semibold text-white/50">
+              {neighborhood.activeCount} live {neighborhood.activeCount === 1 ? "spot" : "spots"}
+            </p>
+          </div>
+          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${neighborhood.dotClass}`} aria-hidden="true" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ExploreQuietEmptyState() {
+  return (
+    <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
+      <span aria-hidden="true" className="block text-5xl leading-none">🌙</span>
+      <h2 className="mt-4 font-display text-[22px] font-black text-[#F4F5F8]">
+        Nothing popping off right now
+      </h2>
+      <p className="mt-2 text-sm font-semibold text-white/50">Check back after 9pm</p>
+      <Link
+        href="/map"
+        className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      >
+        View map instead →
+      </Link>
+    </div>
   );
 }
 
@@ -727,6 +866,20 @@ export function ExplorePageClient() {
       .slice(0, 5);
   }, [venues]);
 
+  const tonightsPicks = useMemo(() => {
+    if (venues === undefined) return [];
+
+    const sourceVenues = sortedVenues.length > 0 ? sortedVenues : venues;
+    return sourceVenues
+      .filter((venue) => !venue.hidden && getActiveBusyness(venue) != null)
+      .sort((a, b) => {
+        const aBusyness = getActiveBusyness(a) ?? 0;
+        const bBusyness = getActiveBusyness(b) ?? 0;
+        return bBusyness - aBusyness || a.name.localeCompare(b.name);
+      })
+      .slice(0, 3);
+  }, [sortedVenues, venues]);
+
   const venueDistances = useMemo(() => {
     if (!userLocation || venues === undefined) return new Map<string, number>();
 
@@ -840,9 +993,23 @@ export function ExplorePageClient() {
               )}
             </div>
           </div>
-          <h1 className="font-display text-[34px] font-semibold text-white tracking-normal">
-            South End
-          </h1>
+          <NeighborhoodHeatRow venues={venues} />
+
+          <div className="mt-4 flex items-center gap-2">
+            <h1 className="font-display text-[34px] font-semibold tracking-normal">
+              <motion.span
+                className="inline-block bg-[linear-gradient(100deg,#F4F5F8_0%,#F4F5F8_34%,#00F5D4_50%,#FF2D78_64%,#F4F5F8_82%)] bg-[length:220%_100%] bg-clip-text text-transparent"
+                initial={prefersReduced ? false : { backgroundPosition: "0% 50%" }}
+                animate={prefersReduced ? undefined : { backgroundPosition: "100% 50%" }}
+                transition={{ duration: 1.35, ease: "easeOut", delay: 0.08 }}
+              >
+                South End
+              </motion.span>
+            </h1>
+            <span className="rounded-full bg-[#22C55E]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#22C55E]">
+              LIVE
+            </span>
+          </div>
           <p className="mt-1 text-sm text-white/55">{venuesCount} spots tracked tonight</p>
 
           <div className="mt-5">
@@ -852,6 +1019,12 @@ export function ExplorePageClient() {
           {hottestVenues.length > 0 && (
             <div className="mt-5">
               <HottestRightNow venues={hottestVenues} />
+            </div>
+          )}
+
+          {tonightsPicks.length > 0 && (
+            <div className="mt-5">
+              <TonightsPicksStrip venues={tonightsPicks} />
             </div>
           )}
 
@@ -952,11 +1125,11 @@ export function ExplorePageClient() {
         )}
 
         {venues !== undefined && !error && !isSearchingVenues && venues.length === 0 && (
-          <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
-            <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
-              {trimmedSearchQuery ? `No venues found for "${trimmedSearchQuery}"` : "No venues in this area yet. Check back soon."}
-            </h2>
-            {trimmedSearchQuery ? (
+          trimmedSearchQuery ? (
+            <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
+              <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
+                {`No venues found for "${trimmedSearchQuery}"`}
+              </h2>
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
@@ -964,31 +1137,26 @@ export function ExplorePageClient() {
               >
                 Clear search
               </button>
-            ) : (
-              <Link
-                href="/map"
-                className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                View map
-              </Link>
-            )}
-          </div>
+            </div>
+          ) : <ExploreQuietEmptyState />
         )}
 
         {venues !== undefined && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
-          <div className="px-6 py-12 text-center text-white/60">
-            <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
-            <h2 className="mt-3 text-[15px] font-semibold leading-6">
-              No spots match this filter.
-            </h2>
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-            >
-              Clear filters
-            </button>
-          </div>
+          trimmedSearchQuery ? (
+            <div className="px-6 py-12 text-center text-white/60">
+              <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
+              <h2 className="mt-3 text-[15px] font-semibold leading-6">
+                No spots match this filter.
+              </h2>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : <ExploreQuietEmptyState />
         )}
 
         {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && (
