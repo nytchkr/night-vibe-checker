@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { Info } from "lucide-react";
@@ -76,6 +77,43 @@ function MfRatioChip({ venue }: { venue: ConsumerVenue }) {
     <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-1 text-[11px] font-black text-white/55">
       M/F {percents.male}/{percents.female}
     </span>
+  );
+}
+
+function venueHref(venue: ConsumerVenue) {
+  return `/venues/${encodeURIComponent(venue.slug || venue.id)}`;
+}
+
+function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
+  return (
+    <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.055] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="truncate font-display text-[22px] font-semibold leading-tight text-white">
+            {venue.name}
+          </h2>
+          <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white/55">
+            {venue.address}
+          </p>
+        </div>
+        <BusynessBadge venue={venue} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+        <Link
+          href={`/vibe-check?venueId=${encodeURIComponent(venue.id)}`}
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_22px_rgba(139,108,255,0.34)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+        >
+          Check in →
+        </Link>
+        <Link
+          href={venueHref(venue)}
+          className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-5 text-sm font-black text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+        >
+          View details →
+        </Link>
+      </div>
+    </section>
   );
 }
 
@@ -187,6 +225,10 @@ export default function MapBottomSheet({
   );
   const topVenues = sortedVenues.slice(0, 5);
   const openCount = venues.filter((venue) => venue.openNow).length;
+  const selectedVenue = useMemo(
+    () => venues.find((venue) => venue.id === selectedVenueId) ?? null,
+    [selectedVenueId, venues],
+  );
 
   useEffect(() => {
     if (!selectedVenueId || snap === "collapsed") return;
@@ -343,6 +385,10 @@ export default function MapBottomSheet({
             <div className="rounded-2xl border border-[#8B6CFF]/20 bg-[#8B6CFF]/10 px-4 py-3 text-sm font-semibold leading-5 text-white/70">
               {launchZoneNotice}
             </div>
+          )}
+
+          {selectedVenue && snap !== "collapsed" && (
+            <SelectedVenueCard venue={selectedVenue} />
           )}
 
           {loading ? (

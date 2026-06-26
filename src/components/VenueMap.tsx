@@ -717,6 +717,48 @@ function CategoryFilterPills({
   );
 }
 
+function MapOverlayStatsBar({ venueCount }: { venueCount: number }) {
+  return (
+    <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-center justify-end">
+      <div className="flex items-center gap-2">
+        <span className="rounded-full bg-[#0A0A0E]/80 px-3 py-1.5 text-xs font-bold text-white shadow-2xl backdrop-blur">
+          {venueCount} venues tracked
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0A0A0E]/80 px-3 py-1.5 text-xs font-bold text-white shadow-2xl backdrop-blur">
+          <span className="relative flex h-2 w-2" aria-hidden="true">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#35F58A] opacity-70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#35F58A]" />
+          </span>
+          LIVE
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function CrowdLegend() {
+  const rows = [
+    { label: "Dead", className: "bg-[#5C6573]" },
+    { label: "Moderate", className: "bg-[#FFB020]" },
+    { label: "Packed", className: "bg-[#FF5B6A]" },
+    { label: "Wild", className: "bg-[#FF5B6A] shadow-[0_0_12px_rgba(255,91,106,0.85)]" },
+  ];
+
+  return (
+    <div className="pointer-events-none absolute bottom-24 left-3 z-10 rounded-[14px] bg-[#0A0A0E]/85 p-3 text-xs font-semibold text-white backdrop-blur">
+      <p className="mb-2 text-white/60">Crowd</p>
+      <div className="space-y-1.5">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center gap-2">
+            <span className={`h-2.5 w-2.5 rounded-full ${row.className}`} aria-hidden="true" />
+            <span>{row.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function FilterFab({
   hasActiveFilters,
   onClick,
@@ -1131,6 +1173,7 @@ export function VenueMap({
       </MapErrorBoundary>
 
       <CitySelector city={city} onCityChange={onCityChange} />
+      <MapOverlayStatsBar venueCount={filteredVenues.length} />
       <BusynessFilterBar activeFilter={activeBusynessFilter} onFilterChange={setActiveBusynessFilter} />
       <CategoryFilterPills activeFilter={activeCategoryFilter} onFilterChange={setActiveCategoryFilter} />
       <FilterFab
@@ -1159,17 +1202,7 @@ export function VenueMap({
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-20 left-1/2 z-[1000] flex -translate-x-1/2 gap-3 whitespace-nowrap rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 py-2 text-xs font-semibold text-[#9CA2AE] shadow-2xl backdrop-blur-sm">
-        <span>
-          <span style={{ color: getBusynessState(100).color }}>●</span> Packed
-        </span>
-        <span>
-          <span style={{ color: getBusynessState(50).color }}>●</span> Moderate
-        </span>
-        <span>
-          <span style={{ color: getBusynessState(0).color }}>●</span> Quiet
-        </span>
-      </div>
+      <CrowdLegend />
 
       {loading && (
         <div className="pointer-events-none absolute inset-0 z-[1000]">
