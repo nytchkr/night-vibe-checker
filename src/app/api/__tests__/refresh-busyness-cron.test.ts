@@ -79,18 +79,39 @@ describe("GET /api/cron/refresh-busyness", () => {
         { venueId: "venue-2", ok: false, reason: "BestTime forecast HTTP 404" },
       ],
       openNow: { updated: 57 },
+      busyError: null,
+      openNowError: null,
     });
   });
 
-  it("returns a 500 when the shared refresh fails", async () => {
+  it("returns 200 with busyError when refreshBusyness throws, still calls refreshOpenNow", async () => {
     refreshBusynessMock.mockRejectedValue(new Error("BESTTIME_API_KEY is not set."));
+    refreshOpenNowMock.mockResolvedValue({ updated: 12 });
 
     const { GET } = await import("../cron/refresh-busyness/route");
     const res = await GET(request("test-cron-secret"));
     const json = await res.json();
 
-    expect(res.status).toBe(500);
-    expect(json).toEqual({ error: "Refresh busyness failed." });
-    expect(refreshOpenNowMock).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(json.busyError).toBe("BESTTIME_API_KEY is not set.");
+    expect(json.openNowError).toBeNull();
+    expect(json.openNow).toEqual({ updated: 12 });
+    expect(json.updated).toBe(0);
+    expect(refreshOpenNowMock).toHaveBeenCalled();
+  });
+
+  it("returns 200 with openNowError when refreshOpenNow throws", async () => {
+    refreshBusynessMock.mockResolvedValue([{ venueId: "venue-1", ok: true }]);
+    refreshOpenNowMock.mockRejectedValue(new Error("refreshOpenNow fetch failed: {}"));
+
+    const { GET } = await import("../cron/refresh-busyness/route");
+    const res = await GET(request("test-cron-secret"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.busyError).toBeNull();
+    expect(json.openNowError).toBe("refreshOpenNow fetch failed: {}");
+    expect(json.openNow).toBeNull();
+    expect(json.updated).toBe(1);
   });
 });
