@@ -64,11 +64,11 @@ function venue(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function claudeResponse(predictions: unknown) {
+function openAIResponse(predictions: unknown) {
   return {
     ok: true,
     json: vi.fn().mockResolvedValue({
-      content: [{ type: "text", text: JSON.stringify(predictions) }],
+      choices: [{ message: { content: JSON.stringify(predictions) } }],
     }),
   } as unknown as Response;
 }
@@ -78,7 +78,7 @@ beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-25T12:00:00.000Z"));
-  process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+  process.env.OPENAI_API_KEY = "test-openai-key";
   global.fetch = mockFetch;
 });
 
@@ -102,7 +102,7 @@ describe("GET /api/venues/[id]/predict", () => {
         { id: "c3", busyness: "moderate", crowd_feel: "balanced", note: null, gender_self_report: "m", created_at: "2026-06-22T03:00:00.000Z" },
       ],
     }));
-    mockFetch.mockResolvedValue(claudeResponse({
+    mockFetch.mockResolvedValue(openAIResponse({
       bestTimeToVisit: { dayOfWeek: "Thursday", hourWindow: "10pm - midnight", basis: "BestTime forecast + 3 check-in reports" },
       peakCrowdWindow: { tonight: "11pm peak", thisWeekend: "not provided" },
       vibeTrend: { direction: "up", description: "Packed reports are recent." },
@@ -125,10 +125,10 @@ describe("GET /api/venues/[id]/predict", () => {
     expect(json.data.predictions.peakCrowdWindow.thisWeekend).toBeNull();
     expect(json.data.predictions.crowdProfileForecast.malePercent).toBe(67);
     expect(json.data.warning).toBeNull();
-    expect(json.meta.model).toBe("claude-sonnet-4-6");
+    expect(json.meta.model).toBe("gpt-4o-mini");
 
     const claudeBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    const context = JSON.parse(claudeBody.messages[0].content);
+    const context = JSON.parse(claudeBody.messages[1].content);
     expect(context.venue).toMatchObject({ id: "venue-1", googlePlaceId: "place-1" });
     expect(context.bestTimeHourlyForecast.hours).toHaveLength(3);
     expect(context.checkInSummaries).toHaveLength(3);
@@ -145,7 +145,7 @@ describe("GET /api/venues/[id]/predict", () => {
         { id: "c2", busyness: "dead", crowd_feel: "chill", note: null, gender_self_report: "f", created_at: "2026-06-23T03:00:00.000Z" },
       ],
     }));
-    mockFetch.mockResolvedValue(claudeResponse({
+    mockFetch.mockResolvedValue(openAIResponse({
       bestTimeToVisit: { dayOfWeek: "Friday", hourWindow: "10pm - midnight", basis: "invented" },
       peakCrowdWindow: { tonight: "11pm peak", thisWeekend: "Saturday" },
       vibeTrend: { direction: "stable", description: "Only two reports." },
@@ -184,7 +184,7 @@ describe("GET /api/venues/[id]/predict", () => {
         { id: "c3", busyness: "moderate", crowd_feel: "mixed", note: null, gender_self_report: null, created_at: "2026-06-22T03:00:00.000Z" },
       ],
     }));
-    mockFetch.mockResolvedValue(claudeResponse({
+    mockFetch.mockResolvedValue(openAIResponse({
       bestTimeToVisit: { dayOfWeek: "Thursday", hourWindow: "10pm - 11pm", basis: "BestTime forecast + 3 check-in reports" },
       peakCrowdWindow: { tonight: "10pm peak", thisWeekend: null },
       vibeTrend: { direction: "stable", description: "Mixed recent reports." },
