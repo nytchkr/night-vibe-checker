@@ -134,7 +134,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <main
               id="main-content"
               tabIndex={-1}
-              className={`app-content scroll-touch ${isDev ? "pb-20 pt-5 lg:pb-0 lg:pt-0" : "pb-20 lg:pb-0"}`}
+              className={`app-content scroll-touch ${isDev ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-5 lg:pb-0 lg:pt-0" : "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"}`}
             >
               {children}
             </main>

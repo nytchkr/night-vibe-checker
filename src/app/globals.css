@@ -313,8 +313,8 @@
 
   .app-content {
     margin-left: 240px;
-    overflow-y: auto;
-    max-width: 960px;
+    min-height: 100vh;
+    max-width: calc(100vw - 240px);
   }
 }
 

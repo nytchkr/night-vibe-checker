@@ -31,7 +31,7 @@ const CROWD_CFG: Record<CrowdLevel, { label: string; bg: string; text: string; b
   quiet: { label: "Dead", bg: "rgba(255,255,255,0.035)", text: "#5C6573", border: "#5C6573" },
   moderate: { label: "Moderate", bg: "rgba(255,255,255,0.035)", text: "#FFB020", border: "#FFB020" },
   packed: { label: "Packed", bg: "rgba(255,255,255,0.035)", text: "#FF5B6A", border: "#FF5B6A" },
-  wild: { label: "Packed", bg: "rgba(255,255,255,0.035)", text: "#FF5B6A", border: "#FF5B6A" },
+  wild: { label: "Wild", bg: "rgba(255,91,106,0.08)", text: "#FF5B6A", border: "#FF5B6A" },
 };
 
 function timeAgo(isoString: string): string {
@@ -103,7 +103,9 @@ function CompactCard({
   isSaved,
   accessToken,
   onSaveToggle,
+  crowdBadge,
 }: Omit<VenueCardProps, "variant" | "className">) {
+  const crowd = crowdBadge ? CROWD_CFG[crowdBadge] : null;
   const googleRatingData = getGoogleRatingData(venue);
 
   return (
@@ -144,6 +146,11 @@ function CompactCard({
             <div className="mt-1 flex min-w-0 items-center gap-2 text-xs">
               {googleRatingData ? <StarRating {...googleRatingData} /> : null}
               <PriceLevel level={venue.priceLevel} />
+              {crowd && (
+                <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ color: crowd.text, border: `1px solid ${crowd.border}59` }}>
+                  {crowd.label}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -216,7 +223,9 @@ function FullCard({
           </span>
         </div>
       ) : (
-        <div className="w-full min-h-[32px] border-b border-white/[0.07]" />
+        <div className="w-full flex items-center px-3 min-h-[32px] border-b border-white/[0.07]">
+          <span className="text-[11px] text-white/30">No reports yet — be first</span>
+        </div>
       )}
 
       {/* Card body */}
@@ -245,7 +254,7 @@ function FullCard({
           aria-label={`Report vibe for ${venue.name}`}
           className="flex min-h-[44px] flex-shrink-0 items-center rounded-full border border-[#8B6CFF]/50 px-3 py-2 text-[13px] font-semibold text-[#8B6CFF] transition-colors duration-150 hover:bg-[#8B6CFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-40"
         >
-          {isChecking ? "…" : "Report"}
+          {isChecking ? "…" : "Check in →"}
         </button>
       </div>
     </div>

@@ -204,8 +204,10 @@ export function BottomNav() {
     const handleSavedVenuesChanged = () => {
       void refreshYouBadge();
     };
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
     const handleFocus = () => {
-      void refreshYouBadge();
+      if (focusTimer) clearTimeout(focusTimer);
+      focusTimer = setTimeout(() => { void refreshYouBadge(); }, 2000);
     };
 
     window.addEventListener("focus", handleFocus);
@@ -214,6 +216,7 @@ export function BottomNav() {
     return () => {
       cancelled = true;
       subscription.unsubscribe();
+      if (focusTimer) clearTimeout(focusTimer);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
     };

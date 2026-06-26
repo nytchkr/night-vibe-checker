@@ -865,7 +865,7 @@ export function ExplorePageClient() {
                 type="search"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search venues..."
+                placeholder="Search South End, Dilworth, venue name..."
                 className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               />
               <svg
