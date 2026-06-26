@@ -43,7 +43,7 @@ describe("Google Places discovery", () => {
       const type = url.searchParams.get("type");
 
       expect(url.toString()).toContain("/nearbysearch/json");
-      expect(url.searchParams.get("location")).toBe("35.218,-80.85");
+      expect(url.searchParams.get("location")).toBe("35.2123,-80.859");
       expect(url.searchParams.get("radius")).toBe("2500");
       expect(url.searchParams.get("key")).toBe("places-test-key");
 
@@ -54,7 +54,7 @@ describe("Google Places discovery", () => {
             place_id: type === "bar" ? "place-1" : `place-${type}`,
             name: `${type} venue`,
             vicinity: "100 Tryon St",
-            geometry: { location: { lat: 35.218, lng: -80.85 } },
+            geometry: { location: { lat: 35.2123, lng: -80.859 } },
             rating: 4.5,
             user_ratings_total: 123,
             price_level: 2,
@@ -101,8 +101,8 @@ describe("Google Places discovery", () => {
     expect(venues[0]).toMatchObject({
       name: "bar venue",
       address: "100 Tryon St",
-      lat: 35.218,
-      lng: -80.85,
+      lat: 35.2123,
+      lng: -80.859,
       category: "bar",
       googleRating: 4.5,
       totalRatings: 123,

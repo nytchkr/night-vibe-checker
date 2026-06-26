@@ -1,4 +1,4 @@
-export const LAUNCH_ZONE = { center_lat: 35.2180, center_lng: -80.8500, radius_m: 2500 };
+export const LAUNCH_ZONE = { center_lat: 35.2123, center_lng: -80.8590, radius_m: 2500 };
 
 export const SECOND_ZONE = { center_lat: 35.2040, center_lng: -80.8440, radius_m: 2500 };
 
