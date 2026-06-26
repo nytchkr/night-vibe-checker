@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, ChevronRight, Flame, LogOut, MapPin, Moon, Settings } from "lucide-react";
+import { Bell, Check, ChevronRight, Crown, Flame, LogOut, Moon, Settings, Share2, Star } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
+import { Toast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +20,10 @@ type SavedVenue = {
 type CheckIn = {
   id: string;
   venue_id: string | null;
+  venue_name?: string | null;
+  busyness?: string | null;
+  crowd_feel?: string | null;
+  note?: string | null;
   created_at: string;
   venues?: { name?: string | null } | { name?: string | null }[] | null;
 };
@@ -44,6 +49,7 @@ const DEFAULT_REWARD_SCORE: RewardScore = {
 const YOU_TAB_LIMIT = 5;
 
 function venueNameFrom(checkIn: CheckIn): string {
+  if (checkIn.venue_name) return checkIn.venue_name;
   const venues = checkIn.venues;
   if (Array.isArray(venues)) return venues[0]?.name ?? "Unknown venue";
   return venues?.name ?? "Unknown venue";
@@ -76,6 +82,27 @@ function levelClassName(level: RewardLevel): string {
   if (level === "local") return "bg-[#F0568C]/15 text-[#F0568C] border border-[#F0568C]/35";
   if (level === "insider") return "bg-[#FFB020]/15 text-[#FFB020] border border-[#FFB020]/35";
   return "bg-white/10 text-white/70 border border-white/15";
+}
+
+function busynessLabel(value: string | null | undefined): string | null {
+  if (value === "packed") return "Packed";
+  if (value === "moderate") return "Moderate";
+  if (value === "dead" || value === "quiet") return "Quiet";
+  return null;
+}
+
+function busynessDotClassName(value: string | null | undefined): string {
+  if (value === "packed") return "bg-[#FF5B6A] shadow-[0_0_16px_rgba(255,91,106,0.55)]";
+  if (value === "moderate") return "bg-[#FFB020] shadow-[0_0_16px_rgba(255,176,32,0.45)]";
+  if (value === "dead" || value === "quiet") return "bg-[#5C6573] shadow-[0_0_14px_rgba(92,101,115,0.35)]";
+  return "bg-[#8B6CFF] shadow-[0_0_16px_rgba(139,108,255,0.45)]";
+}
+
+function busynessBadgeClassName(value: string | null | undefined): string {
+  if (value === "packed") return "border-[#FF5B6A]/40 bg-[#FF5B6A]/15 text-[#FF8A94]";
+  if (value === "moderate") return "border-[#FFB020]/40 bg-[#FFB020]/15 text-[#FFCB66]";
+  if (value === "dead" || value === "quiet") return "border-white/15 bg-white/10 text-white/65";
+  return "border-[#8B6CFF]/35 bg-[#8B6CFF]/15 text-[#B9AAFF]";
 }
 
 function nextLevelProgress(level: RewardLevel, confirmedCheckins: number): { level: RewardLevel; threshold: number } | null {
@@ -126,8 +153,10 @@ function LoggedOutState({ onSignIn, signingIn }: { onSignIn: () => void; signing
 function ProfileHeader({ email, trustedReporter }: { email: string; trustedReporter: boolean }) {
   return (
     <section className="flex items-center gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#8B6CFF] text-xl font-black text-white">
-        {initialFor(email)}
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8B6CFF,#F0568C)] p-[3px] shadow-[0_0_28px_rgba(139,108,255,0.45),0_0_36px_rgba(240,86,140,0.25)]">
+        <div className="flex h-full w-full items-center justify-center rounded-full bg-[#111118] text-xl font-black text-white">
+          {initialFor(email)}
+        </div>
       </div>
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#F0568C]">You</p>
@@ -138,6 +167,41 @@ function ProfileHeader({ email, trustedReporter }: { email: string; trustedRepor
           </span>
         )}
       </div>
+    </section>
+  );
+}
+
+function ProfileStatsGrid({ score, loading }: { score: RewardScore; loading: boolean }) {
+  const stats = [
+    { label: "Total Nights Out", value: score.confirmed_checkins, icon: Moon, color: "text-[#8B6CFF]" },
+    { label: "Current Streak", value: score.streak_count, icon: Flame, color: "text-[#FFB020]" },
+    { label: "Points", value: score.points_total, icon: Star, color: "text-[#F0568C]" },
+  ];
+
+  return (
+    <section className="grid grid-cols-3 gap-2">
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+        return (
+          <Card key={stat.label} className="min-h-[104px] rounded-[18px] border-white/[0.08] bg-[#111118] p-3">
+            {loading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-4 rounded-full bg-white/10" />
+                <Skeleton className="h-6 w-12 bg-white/10" />
+                <Skeleton className="h-3 w-full bg-white/10" />
+              </div>
+            ) : (
+              <div className="flex h-full flex-col justify-between">
+                <Icon className={`h-4 w-4 ${stat.color}`} aria-hidden="true" />
+                <div>
+                  <p className="text-xl font-black leading-none text-white">{stat.value.toLocaleString()}</p>
+                  <p className="mt-1 text-[11px] font-semibold leading-4 text-white/50">{stat.label}</p>
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
     </section>
   );
 }
@@ -188,30 +252,104 @@ function SavedVenuesSection({ venues, loading }: { venues: SavedVenue[]; loading
   );
 }
 
-function RecentCheckInsSection({ checkIns, loading }: { checkIns: CheckIn[]; loading: boolean }) {
+function TopSpotCard({ topSpot, loading }: { topSpot: { venueId: string; venueName: string; count: number } | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <SectionShell title="Top Spot">
+        <Skeleton className="h-20 rounded-[18px] bg-white/10" />
+      </SectionShell>
+    );
+  }
+
+  if (!topSpot) return null;
+
   return (
-    <SectionShell title="Recent Check-ins">
-      <div className="space-y-2">
+    <SectionShell title="Top Spot">
+      <Link
+        href={`/venues/${topSpot.venueId}`}
+        className="flex min-h-20 items-center justify-between gap-4 rounded-[18px] border border-[#FFB020]/25 bg-[#FFB020]/10 px-4 py-3 transition-colors hover:bg-[#FFB020]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB020]/60"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#FFB020]/35 bg-[#FFB020]/15">
+            <Crown className="h-5 w-5 text-[#FFB020]" aria-hidden="true" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-bold text-white">{topSpot.venueName}</span>
+            <span className="block text-sm text-white/55">
+              {topSpot.count} {topSpot.count === 1 ? "check-in" : "check-ins"}
+            </span>
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-white/45" aria-hidden="true" />
+      </Link>
+    </SectionShell>
+  );
+}
+
+function ProfileCompletionNudge({ savedCount, checkInCount }: { savedCount: number; checkInCount: number }) {
+  if (savedCount > 0 && checkInCount > 0) return null;
+
+  return (
+    <section className="rounded-[18px] border border-[#8B6CFF]/40 bg-gradient-to-r from-[#8B6CFF]/10 to-[#F0568C]/10 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold leading-6 text-white">Complete your vibe profile - save a spot or log your first check-in</p>
+        <Button
+          asChild
+          className="h-10 rounded-full bg-white text-sm font-bold text-[#111118] hover:bg-white/90 focus-visible:ring-[#8B6CFF]/70"
+        >
+          <Link href="/explore">Explore</Link>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function RecentCheckInsSection({ checkIns, loading }: { checkIns: CheckIn[]; loading: boolean }) {
+  const visibleCheckIns = checkIns.slice(0, YOU_TAB_LIMIT);
+
+  return (
+    <SectionShell title="My Nights">
+      <div className="space-y-0">
         {loading &&
           Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-16 rounded-[16px] bg-white/10" />
+            <Skeleton key={index} className="mb-2 h-16 rounded-[16px] bg-white/10" />
           ))}
 
         {!loading &&
-          checkIns.map((checkIn) => (
-            <Link
-              key={checkIn.id}
-              href={checkIn.venue_id ? `/venues/${checkIn.venue_id}` : "/map"}
-              className="flex min-h-16 items-center gap-3 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-            >
-              <MapPin className="h-4 w-4 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-white">{venueNameFrom(checkIn)}</span>
-                <span className="block text-sm text-white/60">{formatDate(checkIn.created_at)}</span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-white/45" aria-hidden="true" />
-            </Link>
-          ))}
+          visibleCheckIns.map((checkIn, index) => {
+            const label = busynessLabel(checkIn.busyness);
+            return (
+              <Link
+                key={checkIn.id}
+                href={checkIn.venue_id ? `/venues/${checkIn.venue_id}` : "/map"}
+                className="group grid min-h-16 grid-cols-[1.5rem_1fr_auto] gap-3 rounded-[16px] px-1 py-2 transition-colors hover:bg-white/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                <span className="relative flex justify-center pt-3" aria-hidden="true">
+                  <span className={`h-3 w-3 rounded-full ${busynessDotClassName(checkIn.busyness)}`} />
+                  {index < visibleCheckIns.length - 1 && (
+                    <span className="absolute top-7 h-[calc(100%-0.25rem)] w-px bg-white/10" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-white">{venueNameFrom(checkIn)}</span>
+                  <span className="block text-sm text-white/60">{formatDate(checkIn.created_at)}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  {label && (
+                    <span
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] ${busynessBadgeClassName(checkIn.busyness)}`}
+                    >
+                      {label}
+                    </span>
+                  )}
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-white/45 transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </span>
+              </Link>
+            );
+          })}
 
         {!loading && checkIns.length === 0 && (
           <Card className="rounded-[18px] border-white/[0.08] bg-white/[0.04] p-4 text-sm leading-6 text-white/60">
@@ -266,6 +404,14 @@ function RewardsSection({ score, loading }: { score: RewardScore; loading: boole
 }
 
 function SettingsSection() {
+  const [toastVisible, setToastVisible] = useState(false);
+
+  async function handleShareProfile() {
+    if (typeof window === "undefined" || typeof navigator === "undefined" || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(window.location.href);
+    setToastVisible(true);
+  }
+
   return (
     <SectionShell title="Settings">
       <div className="space-y-2">
@@ -283,7 +429,22 @@ function SettingsSection() {
           <Settings className="h-4 w-4 text-[#8B6CFF]" aria-hidden="true" />
           <span className="text-sm font-semibold text-white">Google account connected</span>
         </div>
+        <div className="flex min-h-14 items-center gap-3 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-4 py-3">
+          <Check className="h-4 w-4 text-[#00F5D4]" aria-hidden="true" />
+          <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold text-white/75">
+            Dark mode always on ✓
+          </span>
+        </div>
+        <Button
+          type="button"
+          onClick={handleShareProfile}
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[16px] border border-[#8B6CFF]/35 bg-[#8B6CFF]/15 px-4 py-3 text-sm font-bold text-white hover:bg-[#8B6CFF]/25 focus-visible:ring-[#8B6CFF]/70"
+        >
+          <Share2 className="h-4 w-4" aria-hidden="true" />
+          Share Profile
+        </Button>
       </div>
+      {toastVisible && <Toast message="Link copied!" onDone={() => setToastVisible(false)} />}
     </SectionShell>
   );
 }
@@ -308,11 +469,27 @@ function LoggedInState({
   onSignOut: () => void;
 }) {
   const email = session.user.email ?? "Signed in";
+  const topSpot = useMemo(() => {
+    const counts = new Map<string, { venueId: string; venueName: string; count: number }>();
+    for (const checkIn of checkIns) {
+      if (!checkIn.venue_id) continue;
+      const current = counts.get(checkIn.venue_id);
+      counts.set(checkIn.venue_id, {
+        venueId: checkIn.venue_id,
+        venueName: current?.venueName ?? venueNameFrom(checkIn),
+        count: (current?.count ?? 0) + 1,
+      });
+    }
+    return [...counts.values()].sort((a, b) => b.count - a.count || a.venueName.localeCompare(b.venueName))[0] ?? null;
+  }, [checkIns]);
 
   return (
     <div className="space-y-7 pb-8">
       <ProfileHeader email={email} trustedReporter={rewardScore.trusted_reporter} />
+      <ProfileStatsGrid score={rewardScore} loading={loadingRewards} />
+      <ProfileCompletionNudge savedCount={savedVenues.length} checkInCount={checkIns.length} />
       <RewardsSection score={rewardScore} loading={loadingRewards} />
+      <TopSpotCard topSpot={topSpot} loading={loadingCheckIns} />
       <SavedVenuesSection venues={savedVenues} loading={loadingSaved} />
       <RecentCheckInsSection checkIns={checkIns} loading={loadingCheckIns} />
       <SettingsSection />
@@ -366,25 +543,21 @@ export default function ProfilePage() {
   const loadCheckIns = useCallback(async (currentSession: Session) => {
     setLoadingCheckIns(true);
     try {
-      const { data, error } = await supabaseBrowser
-        .from("check_ins")
-        .select("id,venue_id,created_at,venues(name)")
-        .eq("user_id", currentSession.user.id)
-        .order("created_at", { ascending: false })
-        .limit(YOU_TAB_LIMIT);
-
-      if (error) {
+      const res = await fetch("/api/profile/check-ins", {
+        headers: { Authorization: `Bearer ${currentSession.access_token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) {
         setCheckIns([]);
         return;
       }
-
-      setCheckIns(((data ?? []) as CheckIn[]).slice(0, YOU_TAB_LIMIT));
+      setCheckIns((await res.json()) as CheckIn[]);
     } catch {
       setCheckIns([]);
     } finally {
       setLoadingCheckIns(false);
     }
-  }, [supabaseBrowser]);
+  }, []);
 
   const loadRewards = useCallback(async (currentSession: Session) => {
     setLoadingRewards(true);
