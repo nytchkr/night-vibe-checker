@@ -35,6 +35,6 @@ export interface PredictionResponse {
   meta: {
     venueId: string;
     generatedAt: string;
-    model: "claude-sonnet-4-6";
+    model: string;
   };
 }

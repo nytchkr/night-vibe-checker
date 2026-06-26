@@ -10,8 +10,8 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-const MODEL = "claude-sonnet-4-6" as const;
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const MODEL = "gpt-4o-mini" as const;
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const SYSTEM_PROMPT =
   "You are an AI analyst for a nightlife venue app. You receive REAL data about a venue - BestTime hourly busyness forecasts and user check-in reports. Your job is to summarize patterns and produce honest predictions based ONLY on the data provided. Never invent numbers. If data is missing, say so. Return only valid JSON.";
 
@@ -34,7 +34,7 @@ type CheckInRow = {
   created_at: string;
 };
 
-type ClaudePredictionPayload = Partial<PredictionResponse["data"]["predictions"]> & {
+type OpenAIPredictionPayload = Partial<PredictionResponse["data"]["predictions"]> & {
   predictions?: Partial<PredictionResponse["data"]["predictions"]>;
 };
 
@@ -91,14 +91,13 @@ function stripJsonFence(text: string): string {
   return fenced?.[1]?.trim() ?? trimmed;
 }
 
-function extractClaudeText(payload: unknown): string | null {
-  const candidate = payload as { content?: Array<{ type?: string; text?: string }> } | null;
-  const text = candidate?.content?.find((part) => part.type === "text" && typeof part.text === "string")?.text;
-  return text ?? null;
+function extractOpenAIText(payload: unknown): string | null {
+  const candidate = payload as { choices?: Array<{ message?: { content?: string } }> } | null;
+  return candidate?.choices?.[0]?.message?.content ?? null;
 }
 
-function parseClaudePredictions(text: string): Partial<PredictionResponse["data"]["predictions"]> {
-  const parsed = JSON.parse(stripJsonFence(text)) as ClaudePredictionPayload;
+function parseOpenAIPredictions(text: string): Partial<PredictionResponse["data"]["predictions"]> {
+  const parsed = JSON.parse(stripJsonFence(text)) as OpenAIPredictionPayload;
   return parsed.predictions ?? parsed;
 }
 
@@ -209,32 +208,33 @@ function buildClaudeContext(
   };
 }
 
-async function callClaude(context: unknown): Promise<Partial<PredictionResponse["data"]["predictions"]>> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set.");
+async function callOpenAI(context: unknown): Promise<Partial<PredictionResponse["data"]["predictions"]>> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not set.");
 
-  const res = await fetch(ANTHROPIC_URL, {
+  const res = await fetch(OPENAI_URL, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "anthropic-version": "2023-06-01",
-      "x-api-key": apiKey,
+      "authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 800,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: JSON.stringify(context) }],
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: JSON.stringify(context) },
+      ],
     }),
     cache: "no-store",
   });
 
   const payload: unknown = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`Claude prediction request failed with HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`OpenAI prediction request failed with HTTP ${res.status}`);
 
-  const text = extractClaudeText(payload);
-  if (!text) throw new Error("Claude prediction response did not include text JSON.");
-  return parseClaudePredictions(text);
+  const text = extractOpenAIText(payload);
+  if (!text) throw new Error("OpenAI prediction response did not include text JSON.");
+  return parseOpenAIPredictions(text);
 }
 
 export async function GET(
@@ -261,7 +261,7 @@ export async function GET(
       fetchRecentCheckIns(venue.id),
     ]);
     const hasBestTimeData = Boolean(forecast?.hours.length);
-    const rawPredictions = await callClaude(buildClaudeContext(venue, forecast, checkIns));
+    const rawPredictions = await callOpenAI(buildClaudeContext(venue, forecast, checkIns));
     const predictions = normalizePredictions(rawPredictions, checkIns, hasBestTimeData);
     const checkInCount = checkIns.length;
 
@@ -287,7 +287,7 @@ export async function GET(
 
     return NextResponse.json(body, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err) {
-    const isKeyMissing = err instanceof Error && err.message.includes("ANTHROPIC_API_KEY");
+    const isKeyMissing = err instanceof Error && err.message.includes("OPENAI_API_KEY");
     console.error("[predict] error:", err instanceof Error ? err.message : String(err));
     const message = isKeyMissing
       ? "Server prediction configuration is incomplete."
