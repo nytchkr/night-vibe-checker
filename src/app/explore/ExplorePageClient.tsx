@@ -5,9 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { SearchX } from "lucide-react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
+import { AISuggest } from "@/components/AISuggest";
 import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import SkeletonCard from "@/components/SkeletonCard";
@@ -230,7 +231,7 @@ function getRelativeTimeLabel(value: string): string {
 
 function ActivityCard({ item }: { item: ActivityFeedItem }) {
   return (
-    <article className="w-48 flex-shrink-0 rounded-xl bg-white/[0.04] px-3 py-2.5">
+    <article className="w-48 flex-shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
       <div className="flex items-center gap-3">
         {item.user.avatar_url ? (
           <Image
@@ -271,7 +272,7 @@ function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
       onClick={() => trackAnalytics("tonights_pick_tapped", { venueId: venue.id, rank: index + 1 })}
-      className="group relative h-[180px] w-[140px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.28)] transition-transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="group relative h-[180px] w-[140px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       aria-label={`Open ${venue.name}, ${label}, ${busyness}% busy`}
     >
       {venue.photoUrl && !photoFailed ? (
@@ -318,7 +319,7 @@ function TonightsPicksStrip({ venues }: { venues: ConsumerVenue[] }) {
 
   return (
     <section className="space-y-3" aria-label="Tonight's Picks">
-      <h2 className="font-display text-sm font-black text-white">Tonight&apos;s Picks 🔥</h2>
+      <h2 className="font-display text-sm font-black tracking-tight text-white">Tonight&apos;s Picks 🔥</h2>
       <div className="scroll-touch flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
         {venues.map((venue, index) => (
           <TonightPickCard key={venue.id} venue={venue} index={index} />
@@ -344,7 +345,7 @@ function NeighborhoodHeatRow({ venues }: { venues: ConsumerVenue[] }) {
       {neighborhoods.map((neighborhood) => (
         <div
           key={neighborhood.name}
-          className="flex min-h-[50px] items-center justify-between gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.045] px-3 py-2"
+          className="flex min-h-[50px] items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.045] px-4 py-3 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10"
         >
           <div className="min-w-0">
             <p className="truncate text-[13px] font-black text-white">{neighborhood.name}</p>
@@ -361,15 +362,15 @@ function NeighborhoodHeatRow({ venues }: { venues: ConsumerVenue[] }) {
 
 function ExploreQuietEmptyState() {
   return (
-    <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
+    <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
       <span aria-hidden="true" className="block text-5xl leading-none">🌙</span>
-      <h2 className="mt-4 font-display text-[22px] font-black text-[#F4F5F8]">
+      <h2 className="mt-4 font-display text-[22px] font-black tracking-tight text-[#F4F5F8]">
         Nothing popping off right now
       </h2>
       <p className="mt-2 text-sm font-semibold text-white/50">Check back after 9pm</p>
       <Link
         href="/map"
-        className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+        className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.1] hover:shadow-lg hover:shadow-violet/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         View map instead →
       </Link>
@@ -386,7 +387,7 @@ function BusynessChip({
 }) {
   if (value == null || !Number.isFinite(value)) {
     return (
-      <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-[#9CA2AE]">
+      <span className="rounded-full border border-white/[0.06] bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-[#9CA2AE] backdrop-blur-sm">
         No crowd data
       </span>
     );
@@ -439,8 +440,8 @@ function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
 
   return (
     <section className="space-y-3" aria-label="Hottest right now">
-      <h2 className="font-display text-sm font-semibold text-[#F4F5F8]">Hottest right now</h2>
-      <div className="overflow-hidden rounded-[18px] border border-white/[0.08] bg-white/[0.035]">
+      <h2 className="font-display text-sm font-semibold tracking-tight text-[#F4F5F8]">Hottest right now</h2>
+      <div className="overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
         {venues.map((venue, index) => {
           const rawLevel = venue.signal?.busyness0To100 ?? 0;
           const level = clampPercent(rawLevel);
@@ -452,7 +453,7 @@ function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
               key={venue.id}
               href={`/venues/${encodeURIComponent(venue.id)}`}
               onClick={() => trackAnalytics("hottest_right_now_tapped", { venueId: venue.id, rank: index + 1 })}
-              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-3.5 py-3 transition-colors last:border-b-0 hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/60"
+              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-4 py-3 transition-all duration-200 ease-out last:border-b-0 hover:bg-white/[0.06] active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/60"
               aria-label={`Open ${venue.name}, ranked number ${index + 1}, ${label}`}
             >
               <span className="font-display text-sm font-black text-white/55">#{index + 1}</span>
@@ -521,11 +522,12 @@ function VenueFeedCard({
         delay: prefersReduced || index >= 8 ? 0 : index * 0.04,
         ease: "easeOut",
       }}
+      exit={prefersReduced ? undefined : { opacity: 0, y: -6 }}
     >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.035)] p-3 transition-colors hover:border-white/[0.16] hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 sm:flex-row sm:items-center"
+        className="group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.05] hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10 active:scale-[0.99] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 sm:flex-row sm:items-center"
         aria-label={`Open ${venue.name}`}
       >
         {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
@@ -554,14 +556,14 @@ function VenueFeedCard({
           <div className="min-w-0 space-y-1">
             <div className="flex min-w-0 items-start justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <h2 className="min-w-0 truncate text-[16px] font-semibold leading-tight text-white">
+                <h2 className="min-w-0 truncate text-[16px] font-semibold leading-tight tracking-tight text-white">
                   <HighlightText text={venue.name} query={searchQuery} />
                 </h2>
                 <OpenNowBadge openNow={venue.openNow ?? null} />
               </div>
               {googleRatingLabel ? (
                 <span
-                  className="max-w-[6rem] shrink-0 truncate rounded-full border border-white/[0.08] bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[#F4F5F8]"
+                  className="max-w-[6rem] shrink-0 truncate rounded-full border border-white/[0.06] bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[#F4F5F8] backdrop-blur-sm"
                   aria-label={reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`}
                 >
                   {googleRatingLabel}
@@ -996,7 +998,7 @@ export function ExplorePageClient() {
           <NeighborhoodHeatRow venues={venues} />
 
           <div className="mt-4 flex items-center gap-2">
-            <h1 className="font-display text-[34px] font-semibold tracking-normal">
+            <h1 className="font-display text-[34px] font-semibold tracking-tight">
               <motion.span
                 className="inline-block bg-[linear-gradient(100deg,#F4F5F8_0%,#F4F5F8_34%,#00F5D4_50%,#FF2D78_64%,#F4F5F8_82%)] bg-[length:220%_100%] bg-clip-text text-transparent"
                 initial={prefersReduced ? false : { backgroundPosition: "0% 50%" }}
@@ -1012,22 +1014,6 @@ export function ExplorePageClient() {
           </div>
           <p className="mt-1 text-sm text-white/55">{venuesCount} spots tracked tonight</p>
 
-          <div className="mt-5">
-            <TrendingRow />
-          </div>
-
-          {hottestVenues.length > 0 && (
-            <div className="mt-5">
-              <HottestRightNow venues={hottestVenues} />
-            </div>
-          )}
-
-          {tonightsPicks.length > 0 && (
-            <div className="mt-5">
-              <TonightsPicksStrip venues={tonightsPicks} />
-            </div>
-          )}
-
           <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
             <div className="relative">
               <label htmlFor="venue-search" className="sr-only">
@@ -1039,7 +1025,7 @@ export function ExplorePageClient() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search South End, Dilworth, venue name..."
-                className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/30 focus:border-white/25 focus:outline-none focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-medium text-white transition-all duration-200 ease-out placeholder:text-white/30 focus:border-violet/60 focus:outline-none focus:ring-2 focus:ring-violet/40 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               />
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1061,7 +1047,7 @@ export function ExplorePageClient() {
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-colors hover:bg-white/15 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-all duration-200 ease-out hover:bg-white/15 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                   aria-label="Clear search"
                 >
                   ×
@@ -1072,7 +1058,7 @@ export function ExplorePageClient() {
             {showOutOfZoneSearchBanner && (
               <div
                 role="status"
-                className="rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-4 py-3 text-sm font-semibold leading-5 text-[#9CA2AE]"
+                className="rounded-[14px] border border-white/[0.06] bg-white/[0.07] px-4 py-3 text-sm font-medium leading-5 text-[#9CA2AE] backdrop-blur-sm"
               >
                 {OUT_OF_ZONE_SEARCH_MESSAGE}
               </div>
@@ -1087,6 +1073,28 @@ export function ExplorePageClient() {
               onFilterToggle={toggleExploreFilter}
             />
           </div>
+
+          <AISuggest
+            userLat={userLocation?.lat ?? null}
+            userLng={userLocation?.lng ?? null}
+            className="mt-4"
+          />
+
+          <div className="mt-5">
+            <TrendingRow />
+          </div>
+
+          {hottestVenues.length > 0 && (
+            <div className="mt-5">
+              <HottestRightNow venues={hottestVenues} />
+            </div>
+          )}
+
+          {tonightsPicks.length > 0 && (
+            <div className="mt-5">
+              <TonightsPicksStrip venues={tonightsPicks} />
+            </div>
+          )}
         </div>
       </header>
 
@@ -1102,13 +1110,13 @@ export function ExplorePageClient() {
         {error && (
           <div
             role="alert"
-            className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 text-center"
+            className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10"
           >
             <p className="text-sm font-semibold text-white">{error}</p>
             <button
               type="button"
               onClick={() => void refreshVenues()}
-              className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-medium text-[#0A0A0E] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-medium text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Retry
             </button>
@@ -1126,14 +1134,14 @@ export function ExplorePageClient() {
 
         {venues !== undefined && !error && !isSearchingVenues && venues.length === 0 && (
           trimmedSearchQuery ? (
-            <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-8 text-center">
-              <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
+            <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
+              <h2 className="font-display text-[19px] font-semibold tracking-tight text-[#F4F5F8]">
                 {`No venues found for "${trimmedSearchQuery}"`}
               </h2>
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 Clear search
               </button>
@@ -1151,7 +1159,7 @@ export function ExplorePageClient() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-colors hover:bg-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 Clear filters
               </button>
@@ -1162,17 +1170,19 @@ export function ExplorePageClient() {
         {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && (
           <div className="scroll-touch pr-1 [will-change:scroll-position]">
             <ul className="venue-card-grid grid grid-cols-1 gap-3 lg:grid-cols-3">
-              {sortedVenues.map((venue, index) => (
-                <VenueFeedCard
-                  key={venue.id}
-                  venue={venue}
-                  searchQuery={searchQuery}
-                  distance={venueDistances.get(venue.id) ?? null}
-                  index={index}
-                  prefersReduced={prefersReduced}
-                  isTrending={trendingVenueIds.has(venue.id)}
-                />
-              ))}
+              <AnimatePresence initial={false}>
+                {sortedVenues.map((venue, index) => (
+                  <VenueFeedCard
+                    key={venue.id}
+                    venue={venue}
+                    searchQuery={searchQuery}
+                    distance={venueDistances.get(venue.id) ?? null}
+                    index={index}
+                    prefersReduced={prefersReduced}
+                    isTrending={trendingVenueIds.has(venue.id)}
+                  />
+                ))}
+              </AnimatePresence>
             </ul>
           </div>
         )}

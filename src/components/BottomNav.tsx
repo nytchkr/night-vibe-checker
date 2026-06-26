@@ -116,18 +116,18 @@ function NavItem({
       href={href}
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`relative flex h-16 flex-1 flex-col items-center justify-center gap-1 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+      className={`group relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-200 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
         active
-          ? "text-[#8B6CFF]"
-          : "text-[#9CA2AE] hover:text-[#F4F5F8]"
+          ? "text-[#8B6CFF] drop-shadow-[0_0_12px_rgba(139,108,255,0.35)]"
+          : "text-[#9CA2AE] hover:bg-white/[0.04] hover:text-[#F4F5F8]"
       }`}
     >
-      {active && <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF]" />}
-      <span className="relative">
+      <span className="relative transition-transform duration-200 ease-out group-hover:scale-105">
         {children}
         {showBadge && <BadgeDot />}
       </span>
       <span className="text-[11px] font-normal leading-[1.5]">{label}</span>
+      {active && <span className="absolute bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_12px_rgba(139,108,255,0.7)]" aria-hidden="true" />}
     </Link>
   );
 }
@@ -314,10 +314,10 @@ export function SidebarNav() {
             key={href}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-[48px] items-center gap-3 border-l-2 px-4 py-3 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+            className={`flex min-h-[48px] items-center gap-3 rounded-r-2xl border-l-2 px-4 py-3 text-sm font-semibold transition-all duration-200 ease-out active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
               active
-                ? "border-[#8B6CFF] text-[#8B6CFF]"
-                : "border-transparent text-[#9CA2AE] hover:border-white/[0.08] hover:text-[#F4F5F8]"
+                ? "border-[#8B6CFF] bg-[#8B6CFF]/10 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.18)]"
+                : "border-transparent text-[#9CA2AE] hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-[#F4F5F8]"
             }`}
           >
             <Icon filled={active} />

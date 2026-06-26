@@ -88,12 +88,12 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
 
   return (
     <section className={`space-y-4 ${className}`} aria-label="AI venue suggestions">
-      <Card className="border-white/[0.08] bg-white/[0.035]">
+      <Card className="border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
         <CardHeader className="space-y-3 p-4 pb-3">
           <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-base text-[#F4F5F8]">
+            <CardTitle className="flex items-center gap-2 text-base tracking-tight text-[#F4F5F8]">
               <Sparkles className="h-4 w-4 text-[#00F5D4]" aria-hidden="true" />
-              AI pick
+              Let AI choose
             </CardTitle>
             <span className="rounded-full border border-[#00F5D4]/30 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#00F5D4]">
               Real data only
@@ -107,10 +107,10 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
                 variant="ghost"
                 aria-pressed={mode === item}
                 onClick={() => switchMode(item)}
-                className={`min-h-11 rounded-full border text-sm ${
+                className={`min-h-11 rounded-full border text-sm transition-all duration-200 ease-out active:scale-95 ${
                   mode === item
-                    ? "border-[#8B6CFF] bg-[#8B6CFF] text-[#0A0A0E]"
-                    : "border-white/[0.08] bg-white/[0.04] text-white/75 hover:bg-white/[0.08]"
+                    ? "border-[#8B6CFF] bg-[#8B6CFF] text-[#0A0A0E] shadow-[0_0_22px_rgba(139,108,255,0.3)]"
+                    : "border-white/[0.06] bg-white/[0.04] text-white/75 hover:bg-white/[0.08] hover:ring-1 hover:ring-violet/20"
                 }`}
               >
                 {modeIcon(item)}
@@ -125,13 +125,13 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
             onChange={(event) => setIntent(event.target.value)}
             placeholder="Close, not too packed, budget friendly"
             aria-label="What kind of venue do you want?"
-            className="min-h-11"
+            className="min-h-11 border-white/[0.06] bg-white/[0.05] font-medium text-white transition-all duration-200 ease-out placeholder:text-white/35 focus:border-violet/60 focus:ring-violet/40"
           />
           <Button
             type="button"
             onClick={() => runSuggest(mode)}
             disabled={status === "loading"}
-            className="min-h-11 w-full rounded-full bg-[#8B6CFF] font-semibold text-[#0A0A0E] hover:bg-[#9C85FF]"
+            className="min-h-11 w-full rounded-full bg-[#8B6CFF] font-semibold text-[#0A0A0E] shadow-[0_0_22px_rgba(139,108,255,0.28)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95"
           >
             {status === "loading" ? "Checking..." : modeLabel(mode)}
           </Button>
@@ -143,11 +143,11 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
       {result?.picks.length ? (
         <div className="space-y-3">
           {result.picks.map((pick) => (
-            <Card key={pick.venue.id} className="border-white/[0.08] bg-white/[0.04]">
+            <Card key={pick.venue.id} className="border-white/[0.06] bg-white/[0.04] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-[#F4F5F8]">{pick.venue.name}</p>
+                    <p className="truncate text-base font-semibold tracking-tight text-[#F4F5F8]">{pick.venue.name}</p>
                     <p className="mt-1 text-xs text-white/55">{pick.venue.category}</p>
                   </div>
                   <span className="shrink-0 rounded-full bg-[#00F5D4]/10 px-2 py-1 text-[11px] font-semibold text-[#00F5D4]">
@@ -156,7 +156,7 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
                 </div>
                 <p className="text-sm leading-6 text-white/75">{pick.explanation}</p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Button asChild variant="ghost" className="h-10 rounded-full bg-white/[0.06] px-4 text-white hover:bg-white/[0.1]">
+                  <Button asChild variant="ghost" className="h-10 rounded-full bg-white/[0.06] px-4 text-white transition-all duration-200 ease-out hover:bg-white/[0.1] active:scale-95">
                     <Link href={venueHref(pick)}>View venue</Link>
                   </Button>
                   {mode === "surprise" ? (
@@ -165,7 +165,7 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
                       variant="ghost"
                       onClick={() => runSuggest("surprise", true)}
                       disabled={status === "loading"}
-                      className="h-10 rounded-full bg-white/[0.06] px-4 text-white hover:bg-white/[0.1]"
+                      className="h-10 rounded-full bg-white/[0.06] px-4 text-white transition-all duration-200 ease-out hover:bg-white/[0.1] active:scale-95"
                     >
                       <RotateCcw aria-hidden="true" />
                       Spin again

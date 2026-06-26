@@ -110,10 +110,10 @@ function CompactCard({
 
   return (
     <Card
-      className="relative w-56 overflow-hidden rounded-[18px] border-white/[0.08] text-[#F4F5F8] shadow-2xl"
+      className="relative w-56 overflow-hidden rounded-[18px] border-white/[0.06] text-[#F4F5F8] shadow-2xl backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10"
       style={{ background: "rgba(255,255,255,0.035)" }}
     >
-      <CardContent className="p-3">
+      <CardContent className="p-4">
         {venue.id && (
           <SaveVenueButton
             venueId={venue.id}
@@ -142,7 +142,7 @@ function CompactCard({
             </div>
           ) : null}
           <div className="min-w-0 pr-10">
-            <p className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</p>
+            <p className="font-display truncate text-[19px] font-semibold leading-tight tracking-tight text-[#F4F5F8]">{venue.name}</p>
             <div className="mt-1 flex min-w-0 items-center gap-2 text-xs">
               {googleRatingData ? <StarRating {...googleRatingData} /> : null}
               <PriceLevel level={venue.priceLevel} />
@@ -167,7 +167,7 @@ function CompactCard({
           type="button"
           onClick={() => onVibeCheck?.(venue)}
           disabled={isChecking}
-          className="mt-3 min-h-11 w-full rounded-full bg-[#8B6CFF] text-[13px] font-semibold text-[#0A0A0E] hover:bg-[#8B6CFF]"
+          className="mt-3 min-h-11 w-full rounded-full bg-[#8B6CFF] text-[13px] font-semibold text-[#0A0A0E] shadow-[0_0_18px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] active:scale-95"
         >
           {isChecking ? "Checking..." : "Check vibe"}
         </Button>
@@ -198,7 +198,7 @@ function FullCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[18px] border border-white/[0.08] ${className ?? ""}`}
+      className={`relative overflow-hidden rounded-[18px] border border-white/[0.06] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 ${className ?? ""}`}
       style={{ background: "rgba(255,255,255,0.035)" }}
     >
       {venue.id && (
@@ -215,7 +215,7 @@ function FullCard({
       {/* Crowd color bar */}
       {crowd ? (
         <div
-          className="w-full flex items-center px-3 pr-12 min-h-[32px]"
+          className="flex min-h-[32px] w-full items-center px-4 pr-12"
           style={{ background: crowd.bg, borderBottom: `1px solid ${crowd.border}` }}
         >
           <span className="text-[13px] font-semibold" style={{ color: crowd.text }}>
@@ -223,16 +223,16 @@ function FullCard({
           </span>
         </div>
       ) : (
-        <div className="w-full flex items-center px-3 min-h-[32px] border-b border-white/[0.07]">
+        <div className="flex min-h-[32px] w-full items-center border-b border-white/[0.06] px-4">
           <span className="text-[11px] text-white/30">No reports yet — be first</span>
         </div>
       )}
 
       {/* Card body */}
-      <div className="flex items-center px-3 py-3 gap-3">
+      <div className="flex items-center gap-3 p-4">
         <div className="flex-1 min-w-0">
           {/* Venue name */}
-          <p className="font-display truncate text-[19px] font-semibold leading-snug text-[#F4F5F8]">{venue.name}</p>
+          <p className="font-display truncate text-[19px] font-semibold leading-snug tracking-tight text-[#F4F5F8]">{venue.name}</p>
           {googleRatingData ? (
             <div className="mt-1 text-xs">
               <StarRating {...googleRatingData} />
@@ -252,7 +252,7 @@ function FullCard({
           onClick={() => onVibeCheck?.(venue)}
           disabled={isChecking}
           aria-label={`Report vibe for ${venue.name}`}
-          className="flex min-h-[44px] flex-shrink-0 items-center rounded-full border border-[#8B6CFF]/50 px-3 py-2 text-[13px] font-semibold text-[#8B6CFF] transition-colors duration-150 hover:bg-[#8B6CFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-40"
+          className="flex min-h-[44px] flex-shrink-0 items-center rounded-full border border-[#8B6CFF]/50 px-4 py-2 text-[13px] font-semibold text-[#8B6CFF] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#8B6CFF]/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-40 disabled:hover:translate-y-0 disabled:active:scale-100"
         >
           {isChecking ? "…" : "Check in →"}
         </button>
