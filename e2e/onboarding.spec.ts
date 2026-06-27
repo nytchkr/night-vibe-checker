@@ -15,9 +15,9 @@ test.describe("Onboarding overlay", () => {
     await expect(overlay.getByRole("button", { name: /^South End\b/ })).toBeVisible();
     await expect(overlay.getByRole("button", { name: /^Dilworth\b/ })).toBeVisible();
     await expect(overlay.getByRole("button", { name: /^South Park\b/ })).toBeVisible();
-    await expect(overlay.getByText("18 spots")).toBeVisible();
-    await expect(overlay.getByText("12 spots")).toBeVisible();
-    await expect(overlay.getByText("8 spots")).toBeVisible();
+    await expect(overlay.getByText("18 spots", { exact: true })).toBeVisible();
+    await expect(overlay.getByText("12 spots", { exact: true })).toBeVisible();
+    await expect(overlay.getByText("8 spots", { exact: true })).toBeVisible();
 
     await overlay.getByRole("button", { name: "What is nytchkr?" }).click();
     await expect(overlay.getByRole("tooltip")).toContainText("real Charlotte nightlife spots");
