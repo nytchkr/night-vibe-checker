@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: canonicalUrl,
   },
-  themeColor,
+  themeColor: "#0A0A0E",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
@@ -107,7 +107,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 `,
           }}
         />
-        <meta name="theme-color" content={themeColor} />
+        <meta name="theme-color" content="#0A0A0E" />
         <meta name="mobile-web-app-capable" content="yes" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
