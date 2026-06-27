@@ -133,7 +133,8 @@ describe("VibeCheckHistoryPage", () => {
   it("shows empty state with link to /explore when no check-ins", async () => {
     await renderHistory();
 
-    expect(screen.getByRole("heading", { name: "No check-ins yet — find somewhere to go tonight!" })).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "No check-ins yet" })).not.toBeNull();
+    expect(screen.getByText("Find somewhere to go tonight and check in when you arrive.")).not.toBeNull();
     expect(screen.getByRole("link", { name: "Explore venues" }).getAttribute("href")).toBe("/explore");
   });
 

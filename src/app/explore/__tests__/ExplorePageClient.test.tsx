@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExplorePageClient } from "../ExplorePageClient";
 import type { ConsumerVenue } from "@/types";
 
+const routerPrefetch = vi.fn();
+
 vi.mock("next/dynamic", () => ({
   default: () => function DynamicStub() {
     return null;
@@ -26,13 +28,13 @@ vi.mock("next/link", async () => {
       prefetch?: boolean;
       [key: string]: unknown;
     }) {
-      return React.createElement("a", { href, ...props }, children);
+      return React.createElement("a", { href, "data-prefetch": String(_prefetch), ...props }, children);
     },
   };
 });
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ prefetch: vi.fn() }),
+  useRouter: () => ({ prefetch: routerPrefetch }),
 }));
 
 vi.mock("@vercel/analytics", () => ({
@@ -287,7 +289,8 @@ describe("ExplorePageClient venue search", () => {
 
     await searchFor("zzzz");
 
-    expect(screen.getByRole("heading", { name: 'No results for "zzzz"' })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "No venues found" })).toBeTruthy();
+    expect(screen.getByText("Try a different search or category filter")).toBeTruthy();
     expect(within(venueResults()).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
   });
 
@@ -366,5 +369,43 @@ describe("ExplorePageClient venue search", () => {
     expect(await screen.findByText("Location access was denied. Enable location to sort nearby spots.")).toBeTruthy();
     expect(within(venueResults()).queryByText(/ mi$/)).toBeNull();
     expect(screen.getByRole("button", { name: "Hottest" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("manually prefetches venue detail routes once on hover and touch", async () => {
+    await renderExplore();
+
+    const sportsBar = within(venueResults()).getByRole("link", { name: /^Open Sports Bar/ });
+    expect(sportsBar.getAttribute("data-prefetch")).toBe("false");
+
+    fireEvent.mouseEnter(sportsBar);
+    fireEvent.mouseEnter(sportsBar);
+    expect(routerPrefetch).toHaveBeenCalledTimes(1);
+    expect(routerPrefetch).toHaveBeenCalledWith("/venues/sports-bar");
+
+    fireEvent.touchStart(sportsBar);
+    expect(routerPrefetch).toHaveBeenCalledTimes(1);
+
+    const neonLounge = within(venueResults()).getByRole("link", { name: /^Open Neon Lounge/ });
+    fireEvent.touchStart(neonLounge);
+    expect(routerPrefetch).toHaveBeenCalledTimes(2);
+    expect(routerPrefetch).toHaveBeenLastCalledWith("/venues/neon-lounge");
+  });
+
+  it("uses touchstart instead of mouseenter on touch devices", async () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(pointer: coarse)",
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+
+    await renderExplore();
+
+    const sportsBar = within(venueResults()).getByRole("link", { name: /^Open Sports Bar/ });
+    fireEvent.mouseEnter(sportsBar);
+    expect(routerPrefetch).not.toHaveBeenCalled();
+
+    fireEvent.touchStart(sportsBar);
+    expect(routerPrefetch).toHaveBeenCalledTimes(1);
+    expect(routerPrefetch).toHaveBeenCalledWith("/venues/sports-bar");
   });
 });

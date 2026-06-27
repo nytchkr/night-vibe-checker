@@ -247,6 +247,8 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
           onClick={handleCheckInButtonTap}
           disabled={loading || checkedIn}
           aria-label={checkedIn ? `Checked in at ${venueName}` : `Check in at ${venueName}`}
+          aria-pressed={checkedIn}
+          aria-busy={loading}
           className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed ${
             checkedIn
               ? "bg-emerald-400 text-[#06120D] shadow-[0_0_24px_rgba(52,211,153,0.22)]"
@@ -310,6 +312,8 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
           <button
             type="button"
             aria-label="Cancel check-in"
+            aria-hidden="true"
+            tabIndex={-1}
             className="absolute inset-0 cursor-default"
             onClick={() => {
               if (!loading) setConfirmOpen(false);
@@ -349,6 +353,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
                 type="button"
                 onClick={() => void checkIn()}
                 disabled={loading}
+                aria-busy={loading}
                 className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading ? (

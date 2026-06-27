@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, Check, ChevronRight, Crown, Flame, LogOut, MapPin, Moon, Settings, Share2, Star } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bell, Check, ChevronRight, Crown, Flame, Heart, LogOut, MapPin, Moon, Settings, Share2, Star } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { PageTransition } from "@/components/PageTransition";
@@ -234,13 +235,22 @@ function ProfileHeader({ email, trustedReporter }: { email: string; trustedRepor
   );
 }
 
-function CheckInStreakBadge({ streak }: { streak: number }) {
-  if (streak <= 0) return null;
+function CheckInStreakBadge({ streak, loading, hasError }: { streak: number; loading: boolean; hasError: boolean }) {
+  if (loading) return <Skeleton className="h-10 w-40 rounded-full bg-[#8B6CFF]/10" aria-label="Loading streak" />;
+  if (hasError) return null;
+
+  if (streak <= 0) {
+    return (
+      <p className="text-sm font-semibold text-white/55">
+        Start your streak — check in tonight!
+      </p>
+    );
+  }
 
   return (
     <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-4 text-sm font-black text-[#8B6CFF] shadow-[0_0_24px_rgba(139,108,255,0.18)]">
       <span aria-hidden="true">🔥</span>
-      <span>{streak}-night streak</span>
+      <span>{streak} day streak</span>
     </div>
   );
 }
@@ -317,8 +327,14 @@ function SavedVenuesSection({ venues, loading }: { venues: SavedVenue[]; loading
           ))}
 
         {!loading && venues.length === 0 && (
-          <Card className="rounded-[18px] border-white/[0.08] bg-white/[0.04] p-4 text-sm leading-6 text-white/60">
-            You haven&apos;t saved any venues yet
+          <Card className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#FF2D78]/25 bg-[#FF2D78]/10 text-[#FF8AB0]" aria-hidden="true">
+              <Heart className="h-6 w-6" strokeWidth={1.9} />
+            </div>
+            <h3 className="mt-4 text-[17px] font-black leading-6 text-white">No saved venues yet</h3>
+            <p className="mt-1 text-sm font-semibold leading-5 text-white/60">
+              Tap the heart on any venue to save it for later.
+            </p>
           </Card>
         )}
       </div>
@@ -687,6 +703,8 @@ function LoggedInState({
   loadingSaved,
   loadingCheckIns,
   loadingRewards,
+  loadingStreak,
+  streakLoadError,
   onNotificationPrefsChange,
   onSignOut,
   onChangeArea,
@@ -700,6 +718,8 @@ function LoggedInState({
   loadingSaved: boolean;
   loadingCheckIns: boolean;
   loadingRewards: boolean;
+  loadingStreak: boolean;
+  streakLoadError: boolean;
   onNotificationPrefsChange: (prefs: NotificationPrefs) => void;
   onSignOut: () => void;
   onChangeArea: () => void;
@@ -722,7 +742,7 @@ function LoggedInState({
   return (
     <div className="space-y-7 pb-8">
       <ProfileHeader email={email} trustedReporter={rewardScore.trusted_reporter} />
-      <CheckInStreakBadge streak={userStreak.streak} />
+      <CheckInStreakBadge streak={userStreak.streak} loading={loadingStreak} hasError={streakLoadError} />
       <ProfileStatsGrid score={rewardScore} loading={loadingRewards} />
       <ProfileCompletionNudge savedCount={savedVenues.length} checkInCount={checkIns.length} />
       <RewardsSection score={rewardScore} loading={loadingRewards} />
@@ -748,6 +768,7 @@ function LoggedInState({
 }
 
 export default function ProfilePage() {
+  const router = useRouter();
   const supabaseBrowser = useMemo(() => createBrowserClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -760,6 +781,8 @@ export default function ProfilePage() {
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [loadingCheckIns, setLoadingCheckIns] = useState(false);
   const [loadingRewards, setLoadingRewards] = useState(false);
+  const [loadingStreak, setLoadingStreak] = useState(false);
+  const [streakLoadError, setStreakLoadError] = useState(false);
   const [showAreaPicker, setShowAreaPicker] = useState(false);
 
   const loadSavedVenues = useCallback(
@@ -824,20 +847,30 @@ export default function ProfilePage() {
   }, []);
 
   const loadUserStreak = useCallback(async (currentSession: Session) => {
+    setLoadingStreak(true);
+    setStreakLoadError(false);
     try {
       const res = await fetch("/api/user/streak", {
         headers: { Authorization: `Bearer ${currentSession.access_token}` },
         cache: "no-store",
       });
+      if (res.status === 401) {
+        router.push("/login?return=/profile");
+        return;
+      }
       if (!res.ok) {
         setUserStreak(DEFAULT_USER_STREAK);
+        setStreakLoadError(true);
         return;
       }
       setUserStreak({ ...DEFAULT_USER_STREAK, ...((await res.json()) as Partial<UserStreak>) });
     } catch {
       setUserStreak(DEFAULT_USER_STREAK);
+      setStreakLoadError(true);
+    } finally {
+      setLoadingStreak(false);
     }
-  }, []);
+  }, [router]);
 
   const loadNotificationPrefs = useCallback(async (currentSession: Session) => {
     try {
@@ -894,6 +927,8 @@ export default function ProfilePage() {
         setCheckIns([]);
         setRewardScore(DEFAULT_REWARD_SCORE);
         setUserStreak(DEFAULT_USER_STREAK);
+        setLoadingStreak(false);
+        setStreakLoadError(false);
         setNotificationPrefs(DEFAULT_NOTIFICATION_PREFS);
       }
     });
@@ -967,6 +1002,8 @@ export default function ProfilePage() {
             loadingSaved={loadingSaved}
             loadingCheckIns={loadingCheckIns}
             loadingRewards={loadingRewards}
+            loadingStreak={loadingStreak}
+            streakLoadError={streakLoadError}
             onNotificationPrefsChange={setNotificationPrefs}
             onSignOut={handleSignOut}
             onChangeArea={() => setShowAreaPicker(true)}

@@ -78,8 +78,10 @@ export function Toast({
 export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
   return (
     <div
+      role="status"
       aria-live="polite"
       aria-relevant="additions removals"
+      aria-atomic="false"
       className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[10000] flex flex-col-reverse items-center gap-2 px-4 sm:bottom-6"
     >
       <AnimatePresence initial={false}>
@@ -111,6 +113,7 @@ function ToastCard({
     <MotionDiv
       layout
       role={toast.variant === "error" ? "alert" : "status"}
+      aria-live={toast.variant === "error" ? "assertive" : "polite"}
       aria-atomic="true"
       initial={{ opacity: 0, y: 28, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}

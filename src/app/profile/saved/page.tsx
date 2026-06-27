@@ -155,11 +155,16 @@ export default function ProfileSavedPage() {
           )}
 
           {!loading && !error && savedVenues.length === 0 && (
-            <section className="px-4 py-12 text-center text-white/60">
-              <Heart size={24} strokeWidth={1.9} aria-hidden="true" className="mx-auto" />
-              <h2 className="mt-3 text-[15px] font-semibold leading-6">
-                Save spots you want to revisit.
+            <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#FF2D78]/25 bg-[#FF2D78]/10 text-[#FF8AB0]" aria-hidden="true">
+                <Heart size={24} strokeWidth={1.9} />
+              </div>
+              <h2 className="mt-4 text-[17px] font-black leading-6 text-white">
+                No saved venues yet
               </h2>
+              <p className="mt-1 text-sm font-semibold leading-5 text-white/60">
+                Tap the heart on any venue to save it for later.
+              </p>
               <Link
                 href="/explore"
                 className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-[13px] font-semibold text-[#0A0A0E] transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"

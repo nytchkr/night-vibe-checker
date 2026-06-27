@@ -153,8 +153,11 @@ export default async function VibeCheckHistoryPage() {
             <CardContent className="flex flex-col items-center px-6 py-12 text-center">
               <MapPin className="h-8 w-8 text-[#FF2D78]" aria-hidden="true" />
               <h2 className="mt-4 text-lg font-black text-white">
-                No check-ins yet — find somewhere to go tonight!
+                No check-ins yet
               </h2>
+              <p className="mt-2 text-sm font-semibold leading-5 text-white/55">
+                Find somewhere to go tonight and check in when you arrive.
+              </p>
               <Link
                 href="/explore"
                 className="mt-6 inline-flex min-h-11 items-center rounded-full bg-[#8B6CFF] px-5 text-sm font-bold text-white transition-colors hover:bg-[#9B82FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70"

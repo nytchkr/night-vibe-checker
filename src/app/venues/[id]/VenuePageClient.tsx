@@ -1505,6 +1505,8 @@ export function VenuePageClient({
           <button
             type="button"
             aria-label="Close report form"
+            aria-hidden="true"
+            tabIndex={-1}
             className="absolute inset-0 cursor-default"
             onClick={closeReportFormWithHaptic}
           />
@@ -1580,6 +1582,7 @@ export function VenuePageClient({
               type="button"
               onClick={submitVenueReport}
               disabled={reportSubmitting}
+              aria-busy={reportSubmitting}
               className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
             >
               {reportSubmitting ? "Submitting" : "Submit report"}
@@ -1600,6 +1603,8 @@ export function VenuePageClient({
           <button
             type="button"
             aria-label="Close vibe report"
+            aria-hidden="true"
+            tabIndex={-1}
             className="absolute inset-0 cursor-default"
             onClick={closeVibeReportWithHaptic}
           />
@@ -1725,6 +1730,7 @@ export function VenuePageClient({
                         }}
                         disabled={vibeSubmitting}
                         aria-pressed={selected}
+                        aria-busy={vibeSubmitting && selected}
                         className={`flex min-h-12 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-50 ${
                           selected
                             ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-white"

@@ -315,6 +315,13 @@ function formatCrowdFeel(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function isTouchDevice(): boolean {
+  return typeof window !== "undefined" && (
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia?.("(pointer: coarse)").matches === true
+  );
+}
+
 function ActivityCard({ item }: { item: ActivityFeedItem }) {
   const busynessLabel = getActivityBusynessLabel(item.busyness);
   const busynessColor = getActivityBusynessColor(busynessLabel);
@@ -473,28 +480,21 @@ function ExploreQuietEmptyState() {
 
 function ExploreNoMatchState({ query, onClear }: { query: string; onClear: () => void }) {
   const trimmedQuery = query.trim();
-  const title = trimmedQuery ? `No results for "${trimmedQuery}"` : "No spots match your filters";
-  const description = trimmedQuery
-    ? "Try a venue name or neighborhood nearby."
-    : "Reset the filters to see what's live tonight.";
+  const clearLabel = trimmedQuery ? "Clear search" : "Clear filters";
 
   return (
-    <div className="rounded-[18px] border border-[#8B6CFF]/25 bg-[linear-gradient(135deg,rgba(139,108,255,0.12),rgba(0,245,212,0.07)_48%,rgba(240,86,140,0.08))] px-6 py-9 text-center shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
-      <div className="relative mx-auto h-20 w-24" aria-hidden="true">
-        <span className="absolute left-2 top-5 h-12 w-12 rounded-2xl border border-[#00F5D4]/35 bg-[#00F5D4]/10 shadow-[0_0_28px_rgba(0,245,212,0.16)]" />
-        <span className="absolute right-2 top-2 h-14 w-14 rounded-full border border-[#F0568C]/35 bg-[#F0568C]/15 shadow-[0_0_28px_rgba(240,86,140,0.18)]" />
-        <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#8B6CFF]/45 bg-[#8B6CFF]/20 text-[#F4F5F8] shadow-[0_0_24px_rgba(139,108,255,0.22)]">
-          <SearchX className="h-5 w-5" strokeWidth={2.1} />
-        </span>
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#00F5D4]/25 bg-[#00F5D4]/10 text-[#00F5D4]" aria-hidden="true">
+        <SearchX className="h-6 w-6" strokeWidth={2.1} />
       </div>
-      <h2 className="mt-3 text-[17px] font-black leading-6 text-white">{title}</h2>
-      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">{description}</p>
+      <h2 className="mt-4 text-[17px] font-black leading-6 text-white">No venues found</h2>
+      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">Try a different search or category filter</p>
       <button
         type="button"
         onClick={onClear}
         className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
-        Clear filters
+        {clearLabel}
       </button>
     </div>
   );
@@ -670,7 +670,10 @@ function VenueFeedCard({
       <MotionLink
         href={`/venues/${encodeURIComponent(venue.id)}`}
         prefetch={false}
-        onMouseEnter={() => onPrefetchVenue(venue.id)}
+        onMouseEnter={() => {
+          if (isTouchDevice()) return;
+          onPrefetchVenue(venue.id);
+        }}
         onTouchStart={() => onPrefetchVenue(venue.id)}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
         className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-colors duration-150 ease-out hover:bg-white/[0.05] active:scale-[0.98] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
@@ -1101,7 +1104,7 @@ export function ExplorePageClient() {
   const prefetchVenueDetail = useCallback((venueId: string) => {
     if (prefetchedVenueIdsRef.current.has(venueId)) return;
     prefetchedVenueIdsRef.current.add(venueId);
-    router.prefetch(`/venues/${encodeURIComponent(venueId)}`);
+    router.prefetch(`/venues/${venueId}`);
   }, [router]);
 
   const hottestVenues = useMemo(() => {

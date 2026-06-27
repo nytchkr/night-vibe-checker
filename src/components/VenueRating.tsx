@@ -91,6 +91,7 @@ export function VenueRating({
   const [loading, setLoading] = useState(true);
   const [pendingRating, setPendingRating] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submissionStatus, setSubmissionStatus] = useState("");
 
   useEffect(() => {
     if (!venueId) return;
@@ -120,6 +121,7 @@ export function VenueRating({
 
   async function submitRating(rating: number) {
     if (!accessToken) {
+      setSubmissionStatus("Sign in to rate this venue.");
       showToast("Sign in to rate", "info");
       return;
     }
@@ -138,6 +140,7 @@ export function VenueRating({
 
     setPendingRating(rating);
     setError(null);
+    setSubmissionStatus(`Saving ${rating} star${rating === 1 ? "" : "s"}.`);
     setRatingState(nextState);
 
     try {
@@ -151,11 +154,13 @@ export function VenueRating({
       });
       if (!res.ok) throw new Error(`${res.status}`);
       trackAnalytics("rating_submitted", { venue_id: venueId, rating });
+      setSubmissionStatus(`Rating saved. You rated this venue ${rating} star${rating === 1 ? "" : "s"}.`);
       showToast("Rating saved!", "success");
       onRated?.();
     } catch {
       setRatingState(previousState);
       setError("Could not save rating.");
+      setSubmissionStatus("Could not save rating. Try again.");
     } finally {
       setPendingRating(null);
     }
@@ -171,6 +176,8 @@ export function VenueRating({
   const countLabel = displayCount == null || displayCount <= 0 ? null : `${displayCount.toLocaleString()} ratings`;
   const hasNoRatings = !loading && ratingState.userRating === null;
   const showPostCheckInPrompt = promptAfterCheckIn && !loading && ratingState.userRating === null;
+  const ratingDescriptionId = `venue-rating-description-${venueId}`;
+  const ratingFeedbackId = `venue-rating-feedback-${venueId}`;
 
   return (
     <section
@@ -181,13 +188,14 @@ export function VenueRating({
       }`}
       role="region"
       aria-label="Venue rating"
+      aria-describedby={`${ratingDescriptionId} ${ratingFeedbackId}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-[13px] font-medium text-[#9CA2AE]">
             {showPostCheckInPrompt ? "Rate this venue" : "Your rating"}
           </p>
-          <p className="mt-1 text-[12px] font-medium text-white/55">
+          <p id={ratingDescriptionId} className="mt-1 text-[12px] font-medium text-white/55">
             {googleRatingLabel}{countLabel ? ` · ${countLabel}` : ""}
           </p>
           {showPostCheckInPrompt && (
@@ -196,7 +204,13 @@ export function VenueRating({
           {readOnly && <p className="mt-1 text-[12px] text-[#9CA2AE]">Sign in to rate</p>}
         </div>
         {!readOnly && (
-          <div className="flex items-center gap-1.5" aria-busy={loading}>
+          <div
+            className="flex items-center gap-1.5"
+            role="group"
+            aria-label="Rate this venue"
+            aria-describedby={`${ratingDescriptionId} ${ratingFeedbackId}`}
+            aria-busy={loading || pendingRating !== null}
+          >
             {[1, 2, 3, 4, 5].map((rating) => (
               <StarButton
                 key={rating}
@@ -212,6 +226,9 @@ export function VenueRating({
           </div>
         )}
       </div>
+      <p id={ratingFeedbackId} role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {submissionStatus}
+      </p>
       {hasNoRatings && !readOnly && (
         <p className="text-[13px] italic text-[#9CA2AE]">Tap a star to add your rating</p>
       )}
