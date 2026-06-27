@@ -51,7 +51,7 @@ export function contentSecurityPolicy(nonce: string): string {
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' https://maps.googleapis.com https://va.vercel-scripts.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com",
-    "img-src 'self' data: blob: https://maps.googleapis.com https://*.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleusercontent.com https://storage.googleapis.com https://*.supabase.co",
+    "img-src 'self' data: blob: https://maps.googleapis.com https://*.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleusercontent.com https://storage.googleapis.com https://*.supabase.co https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org",
     "font-src 'self' data: https://fonts.gstatic.com",
     "connect-src 'self' https://maps.googleapis.com https://*.googleapis.com https://besttime.app https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.vercel-insights.com",
     "frame-src 'self' https://accounts.google.com https://*.supabase.co",
