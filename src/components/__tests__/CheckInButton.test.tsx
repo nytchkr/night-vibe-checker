@@ -115,8 +115,8 @@ describe("CheckInButton haptics", () => {
 
     await completeCheckIn();
 
-    expect(vibrate).toHaveBeenCalledWith(12);
-    expect(vibrate).toHaveBeenCalledWith([8, 50, 8]);
+    expect(vibrate).toHaveBeenCalledWith(10);
+    expect(vibrate).toHaveBeenCalledWith([50, 30, 50]);
   });
 
   it("skips check-in vibration when haptics are disabled in localStorage", async () => {

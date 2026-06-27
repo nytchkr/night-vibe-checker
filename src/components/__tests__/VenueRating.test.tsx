@@ -7,12 +7,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/hooks/useToast";
 import { VenueRating } from "@/components/VenueRating";
 
+const lightHaptic = vi.hoisted(() => vi.fn());
+
 vi.mock("@vercel/analytics", () => ({
   track: vi.fn(),
 }));
 
-vi.mock("@/lib/haptics", () => ({
-  triggerHapticFeedback: vi.fn(),
+vi.mock("@/hooks/useHaptic", () => ({
+  useHaptic: () => ({
+    light: lightHaptic,
+  }),
 }));
 
 function renderVenueRating(props?: Partial<React.ComponentProps<typeof VenueRating>>) {
@@ -82,6 +86,7 @@ describe("VenueRating", () => {
     await userEvent.click(screen.getByRole("button", { name: "Rate 5 stars" }));
 
     expect(await screen.findByText("Rating saved!")).toBeTruthy();
+    expect(lightHaptic).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
