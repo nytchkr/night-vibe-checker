@@ -87,6 +87,7 @@ describe("GET /api/venue-ratings", () => {
     expect(json.ratingCount).toBe(4);
     expect(json.userRating).toBe(4);
     expect(json.data).toEqual({ averageRating: 3.3, ratingCount: 4, userRating: 4 });
+    expect(res.headers.get("Cache-Control")).toBe("private, no-cache");
   });
 
   it("lets guests read counts without a user rating", async () => {
@@ -98,6 +99,7 @@ describe("GET /api/venue-ratings", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toMatchObject({ averageRating: 5, ratingCount: 1, userRating: null });
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=30, stale-while-revalidate=60");
     expect(mockGetUser).not.toHaveBeenCalled();
   });
 });
