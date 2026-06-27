@@ -13,7 +13,8 @@ export function AppOnboardingGate() {
   const [shouldRender, setShouldRender] = useState(false);
 
   useEffect(() => {
-    if (hasCompletedOnboarding()) return;
+    const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
+    if (!forceOnboarding && hasCompletedOnboarding()) return;
 
     const timeoutId = window.setTimeout(() => setShouldRender(true), 150);
     return () => window.clearTimeout(timeoutId);

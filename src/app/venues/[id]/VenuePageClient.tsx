@@ -1529,7 +1529,7 @@ export function VenuePageClient({
               <CheckInButton venueId={venue.id} venueName={venue.name} />
               <SaveButton
                 placeId={venue.id}
-                ariaLabel="Save venue shortcut"
+                ariaLabel="Bookmark shortcut"
                 onSavedChange={handleVenueSavedChange}
                 className="h-[52px] w-full rounded-full border border-white/[0.08] bg-white/[0.06] text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
               />

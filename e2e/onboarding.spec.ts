@@ -8,7 +8,7 @@ test.describe("Onboarding overlay", () => {
       window.localStorage.clear();
       window.sessionStorage.clear();
     });
-    await page.goto("/map", { waitUntil: "domcontentloaded" });
+    await page.goto("/map?onboarding=1", { waitUntil: "domcontentloaded" });
 
     const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
     await expect(overlay).toBeVisible({ timeout: 20_000 });
@@ -28,7 +28,7 @@ test.describe("Onboarding overlay", () => {
       window.localStorage.clear();
       window.sessionStorage.clear();
     });
-    await page.goto("/map", { waitUntil: "domcontentloaded" });
+    await page.goto("/map?onboarding=1", { waitUntil: "domcontentloaded" });
 
     const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
     await expect(overlay).toBeVisible({ timeout: 20_000 });

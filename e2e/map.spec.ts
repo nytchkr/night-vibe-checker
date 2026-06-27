@@ -173,7 +173,7 @@ async function mockVenues(page: Page, delayMs = 0) {
 }
 
 async function openMap(page: Page) {
-  await page.goto("/map");
+  await page.goto("/map", { waitUntil: "domcontentloaded" });
   await page.waitForSelector(".leaflet-container", { timeout: 25000 });
   const sheet = page.locator('section[aria-label="South End venues"]');
   await sheet.waitFor({ state: "attached", timeout: 20000 });
