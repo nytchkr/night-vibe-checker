@@ -6,8 +6,8 @@ import { Loader2, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { div as MotionDiv } from "framer-motion/client";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { triggerHapticFeedback } from "@/lib/haptics";
 import { formatRewardMessages } from "@/lib/rewardMessages";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useToast } from "@/hooks/useToast";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -69,6 +69,7 @@ function errorMessageFrom(status: number, payload: unknown) {
 
 export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
   const { showToast } = useToast();
+  const haptic = useHaptic();
   const [state, setState] = useState<CheckInState>("idle");
   const [checkedInUntil, setCheckedInUntil] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -167,6 +168,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
 
       const json = await response.json().catch(() => null);
       if (response.status === 429) {
+        haptic.error();
         setState("idle");
         setConfirmOpen(false);
         showToast("Already checked in tonight!", "info");
@@ -184,7 +186,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
       });
       const now = Date.now();
       lockCheckIn(now);
-      triggerHapticFeedback([8, 50, 8]);
+      haptic.success();
       setConfirmOpen(false);
       showToast(`${venueName}: ${reward.toast}`, "success");
       if (reward.pointsBadge || reward.streakBadge) {
@@ -203,6 +205,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
         detail: { venueId, venueName, checkedInAt: now },
       }));
     } catch (error) {
+      haptic.error();
       setState("error");
       showToast(error instanceof Error ? error.message : "Could not check in. Try again.", "error");
     }
@@ -217,7 +220,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
   });
 
   function handleCheckInButtonTap() {
-    triggerHapticFeedback(12);
+    haptic.light();
     setConfirmOpen(true);
   }
 

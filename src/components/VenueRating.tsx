@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { track } from "@vercel/analytics";
 import { Star } from "lucide-react";
+import { useHaptic } from "@/hooks/useHaptic";
 import { useToast } from "@/hooks/useToast";
-import { triggerHapticFeedback } from "@/lib/haptics";
 
 type VenueRatingState = {
   averageRating: number | null;
@@ -86,6 +86,7 @@ export function VenueRating({
   onRated?: () => void;
 }) {
   const { showToast } = useToast();
+  const haptic = useHaptic();
   const [ratingState, setRatingState] = useState<VenueRatingState>(EMPTY_RATING_STATE);
   const [loading, setLoading] = useState(true);
   const [pendingRating, setPendingRating] = useState<number | null>(null);
@@ -138,7 +139,6 @@ export function VenueRating({
     setPendingRating(rating);
     setError(null);
     setRatingState(nextState);
-    triggerHapticFeedback(30);
 
     try {
       const res = await fetch("/api/venue-ratings", {
@@ -203,7 +203,10 @@ export function VenueRating({
                 disabled={disabled}
                 filled={(ratingState.userRating ?? 0) >= rating}
                 rating={rating}
-                onClick={() => void submitRating(rating)}
+                onClick={() => {
+                  haptic.light();
+                  void submitRating(rating);
+                }}
               />
             ))}
           </div>
