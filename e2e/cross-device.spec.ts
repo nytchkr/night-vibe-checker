@@ -133,8 +133,16 @@ async function markOnboarded(page: Page) {
   });
 }
 
-async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {}) {
+async function mockVenueApis(page: Page, options: { holdFirstVenueRequest?: boolean } = {}) {
   let venueListRequests = 0;
+  let shouldReleaseFirstVenueResponse = false;
+  let pendingFirstVenueRelease: (() => void) | null = null;
+
+  const releaseFirstVenueResponse = () => {
+    shouldReleaseFirstVenueResponse = true;
+    pendingFirstVenueRelease?.();
+    pendingFirstVenueRelease = null;
+  };
 
   await page.route("**/api/activity/feed**", async (route) => {
     if (route.request().method() !== "GET") return route.continue();
@@ -165,8 +173,10 @@ async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {
 
     if (url.pathname === "/api/venues") {
       venueListRequests += 1;
-      if (venueListRequests === 1 && options.delayVenuesMs) {
-        await new Promise((resolve) => setTimeout(resolve, options.delayVenuesMs));
+      if (venueListRequests === 1 && options.holdFirstVenueRequest && !shouldReleaseFirstVenueResponse) {
+        await new Promise<void>((resolve) => {
+          pendingFirstVenueRelease = resolve;
+        });
       }
 
       return route.fulfill({
@@ -232,7 +242,10 @@ async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {
     return route.continue();
   });
 
-  return () => venueListRequests;
+  return {
+    getVenueRequestCount: () => venueListRequests,
+    releaseFirstVenueResponse,
+  };
 }
 
 async function getLaunchVenue(request: APIRequestContext): Promise<TestVenue> {
@@ -327,11 +340,12 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
 
   test("@device Explore shows skeleton, open-now badge, and pull-to-refresh", async ({ page }, testInfo) => {
     await markOnboarded(page);
-    const getVenueRequestCount = await mockVenueApis(page, { delayVenuesMs: 650 });
+    const { getVenueRequestCount, releaseFirstVenueResponse } = await mockVenueApis(page, { holdFirstVenueRequest: true });
 
     await page.goto("/explore", { waitUntil: "domcontentloaded" });
 
     await expect(page.getByRole("status", { name: "Loading venue card" }).first()).toBeVisible();
+    releaseFirstVenueResponse();
     await expectExploreReady(page);
 
     const venueCard = page.getByRole("region", { name: "Venue results" }).getByRole("link", { name: "Open Cross Device Pulse", exact: true });
