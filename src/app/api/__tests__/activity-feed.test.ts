@@ -64,11 +64,12 @@ describe("GET /api/activity/feed", () => {
       }));
 
     const { GET } = await import("../activity/feed/route");
-    const res = await GET();
+    const req = new Request("http://localhost/api/activity/feed") as import("next/server").NextRequest;
+    const res = await GET(req);
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(json).toEqual({
       items: [
         {
@@ -109,7 +110,8 @@ describe("GET /api/activity/feed", () => {
       }));
 
     const { GET } = await import("../activity/feed/route");
-    const res = await GET();
+    const req = new Request("http://localhost/api/activity/feed") as import("next/server").NextRequest;
+    const res = await GET(req);
     const json = await res.json();
 
     expect(res.status).toBe(200);
