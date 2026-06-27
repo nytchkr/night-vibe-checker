@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
@@ -165,17 +164,13 @@ export function BottomNav() {
 
   useEffect(() => {
     let cancelled = false;
-    let client: ReturnType<typeof createBrowserClient>;
-
-    try {
-      client = createBrowserClient();
-    } catch {
-      setShowYouBadge(false);
-      return;
-    }
+    let unsubscribe: (() => void) | null = null;
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
 
     async function refreshYouBadge() {
       try {
+        const { createBrowserClient } = await import("@/lib/supabase-browser");
+        const client = createBrowserClient();
         const { data: sessionData } = await client.auth.getSession();
         const userId = sessionData.session?.user.id;
 
@@ -195,28 +190,40 @@ export function BottomNav() {
       }
     }
 
-    void refreshYouBadge();
+    async function startAuthBadgeSync() {
+      try {
+        const { createBrowserClient } = await import("@/lib/supabase-browser");
+        const client = createBrowserClient();
 
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange(() => {
-      void refreshYouBadge();
-    });
+        if (cancelled) return;
+        void refreshYouBadge();
+
+        const {
+          data: { subscription },
+        } = client.auth.onAuthStateChange(() => {
+          void refreshYouBadge();
+        });
+        unsubscribe = () => subscription.unsubscribe();
+      } catch {
+        if (!cancelled) setShowYouBadge(false);
+      }
+    }
+
     const handleSavedVenuesChanged = () => {
       void refreshYouBadge();
     };
-    let focusTimer: ReturnType<typeof setTimeout> | null = null;
     const handleFocus = () => {
       if (focusTimer) clearTimeout(focusTimer);
       focusTimer = setTimeout(() => { void refreshYouBadge(); }, 2000);
     };
 
+    void startAuthBadgeSync();
     window.addEventListener("focus", handleFocus);
     window.addEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
 
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      unsubscribe?.();
       if (focusTimer) clearTimeout(focusTimer);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);

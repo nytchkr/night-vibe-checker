@@ -984,9 +984,7 @@ export function VenuePageClient({
   const mfPercents = getMFRatioPercents(signal?.mfRatio);
   const hasEnoughMfSample = mfSampleSize >= DETAIL_MF_SAMPLE_THRESHOLD && mfPercents !== null;
   const crowdFeel = getCrowdFeel(hasEnoughMfSample ? mfPercents?.male ?? null : null);
-  const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
-  const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
-  const googleReviewLabel = formatReviewCount(venue?.userRatingCount ?? venue?.totalRatings);
+  const googleRatingData = getGoogleRatingData(venue);
   const neighborhood = venue ? getNeighborhood(venue.lat, venue.lng) : "Charlotte";
   const hoursSummary = useMemo(() => summarizeVenueHours(venue?.openingHours), [venue?.openingHours]);
   const mapsHref = useMemo(() => {
@@ -1134,6 +1132,10 @@ export function VenuePageClient({
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <h1 className="font-display max-w-[22rem] text-4xl font-black leading-[1.02] text-white drop-shadow-lg">{venue.name}</h1>
+                  <PriceLevelDisplay
+                    priceLevel={venue.priceLevel}
+                    className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs backdrop-blur"
+                  />
                   <OpenNowBadge openNow={venue.openNow ?? null} />
                   {isTrending ? <TrendingBadge /> : null}
                 </div>
@@ -1151,15 +1153,11 @@ export function VenuePageClient({
 
             <div className="relative mx-auto max-w-lg px-4 pb-6 pt-5">
               <div>
-                {googleRatingLabel && (
+                {googleRatingData && (
                   <div
-                    className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-3"
-                    aria-label={googleReviewLabel ? `${googleRatingLabel} star rating from ${googleReviewLabel}` : `${googleRatingLabel} star rating`}
+                    className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-3 text-sm"
                   >
-                    <span className="text-2xl font-black leading-none text-amber-300">★ {googleRatingLabel}</span>
-                    <span className="text-sm font-semibold text-white/45">
-                      {googleReviewLabel ?? "Google rating"}
-                    </span>
+                    <StarRating {...googleRatingData} className="text-base" />
                   </div>
                 )}
                 <div className="mt-5 space-y-3">
@@ -1179,6 +1177,16 @@ export function VenuePageClient({
                   ) : (
                     <div className="min-h-[54px] rounded-full bg-white/10" aria-hidden="true" />
                   )}
+                  <VenueRating
+                    venueId={venue.id}
+                    accessToken={accessToken}
+                    promptAfterCheckIn={showPostCheckInRatingPrompt}
+                    onRated={() => {
+                      setShowPostCheckInRatingPrompt(false);
+                      setToast("Rating submitted!");
+                      haptic.success();
+                    }}
+                  />
                 </div>
                 <section className="mt-4" role="region" aria-label="Venue hours">
                   <button
@@ -1384,8 +1392,6 @@ export function VenuePageClient({
               hourlyLoading={bestTimeForecastLoading}
               hourlyUpdatedOn={bestTimeForecastUpdatedOn}
             />
-
-            <VenueRating venueId={venueId} accessToken={accessToken} />
 
             <VenueTips venueId={venue.id} />
 
@@ -1708,23 +1714,6 @@ export function VenuePageClient({
             )}
           </div>
         </div>
-      )}
-
-      {venue && (
-        <RatingPrompt
-          accessToken={accessToken}
-          isOpen={ratingPromptOpen}
-          onSkip={() => {
-            setRatingPromptOpen(false);
-            haptic.light();
-          }}
-          onSubmitted={() => {
-            setRatingPromptOpen(false);
-            setToast("Rating submitted!");
-            haptic.success();
-          }}
-          venueId={venue.id}
-        />
       )}
 
     </div>
