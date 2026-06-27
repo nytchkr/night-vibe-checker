@@ -238,12 +238,41 @@ test.describe("Map tab", () => {
     // VenueMap is dynamically imported (SSR=false) — Leaflet takes time to hydrate in headless
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
     await expect(page.locator(".leaflet-container")).toBeVisible();
-    // Legend pill visible (premium redesign replaced "N spots" counter with legend)
+    await expect(page.getByText("8 spots")).toBeVisible({ timeout: 25000 });
     await expect(page.getByText(/Packed|Moderate|Quiet/i).first()).toBeVisible({ timeout: 25000 });
     await expect(page.getByRole("group", { name: "Map busyness filter" })).toBeVisible();
     await expect(page.getByRole("group", { name: "Map zone filter" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Filter venues" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Recenter to South End" })).toBeVisible();
+  });
+
+  test("renders launch zone boundaries and current location dot when geolocation is available", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition(success: PositionCallback) {
+            success({
+              coords: {
+                accuracy: 12,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                latitude: 35.2123,
+                longitude: -80.859,
+                speed: null,
+              },
+              timestamp: Date.now(),
+            } as GeolocationPosition);
+          },
+        },
+      });
+    });
+
+    await openMap(page);
+
+    await expect(page.locator('path[stroke="#8B6CFF"][stroke-dasharray="8 10"]')).toHaveCount(3, { timeout: 10000 });
+    await expect(page.locator('path[fill="#2F80FF"]')).toBeVisible({ timeout: 10000 });
   });
 
   test("Report Vibe FAB is visible on /map", async ({ page }) => {

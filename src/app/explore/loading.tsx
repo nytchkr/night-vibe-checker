@@ -1,12 +1,29 @@
 export default function ExploreLoading() {
   return (
-    <div className="flex min-h-screen-safe flex-col bg-[#0A0A0E] px-4 pb-24 pt-6">
-      <div className="mb-1 h-7 w-48 animate-pulse rounded bg-white/10" />
-      <div className="mb-4 h-4 w-28 animate-pulse rounded bg-white/5" />
-      <div className="mb-6 h-10 w-full animate-pulse rounded-full bg-white/10" />
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="mb-3 h-[114px] animate-pulse rounded-[18px] border border-white/10 bg-white/[0.04]" />
-      ))}
+    <div className="min-h-screen-safe bg-[#0A0A0E] px-4 pb-24 pt-10 text-white" role="status" aria-label="Loading Explore">
+      <div className="mx-auto max-w-lg">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="h-4 w-40 animate-pulse rounded bg-white/[0.08]" />
+          <div className="h-4 w-16 animate-pulse rounded bg-white/[0.08]" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-[50px] animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.045]" />
+          <div className="h-[50px] animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.045]" />
+        </div>
+        <div className="mt-4 h-10 w-52 animate-pulse rounded-lg bg-white/[0.08]" />
+        <div className="mt-3 h-4 w-32 animate-pulse rounded bg-white/[0.06]" />
+        <div className="mt-5 h-12 w-full animate-pulse rounded-xl border border-white/10 bg-white/[0.05]" />
+        <div className="mt-3 flex gap-2 overflow-hidden">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-9 min-w-24 animate-pulse rounded-full bg-white/[0.07]" />
+          ))}
+        </div>
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="min-h-[236px] animate-pulse rounded-[18px] border border-white/[0.06] bg-white/[0.035] sm:min-h-[126px]" />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

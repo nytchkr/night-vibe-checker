@@ -1101,6 +1101,7 @@ export function VenueMap({
   const [openNowFilter, setOpenNowFilter] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mapTilesLoading, setMapTilesLoading] = useState(true);
   const [slowLoad, setSlowLoad] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
@@ -1186,14 +1187,14 @@ export function VenueMap({
   }, []);
 
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !mapTilesLoading) {
       setSlowLoad(false);
       return;
     }
 
     const timeoutId = setTimeout(() => setSlowLoad(true), SLOW_LOAD_DELAY_MS);
     return () => clearTimeout(timeoutId);
-  }, [loading]);
+  }, [loading, mapTilesLoading]);
 
   useEffect(() => {
     if (!("geolocation" in navigator)) return;
@@ -1314,6 +1315,11 @@ export function VenueMap({
           <TileLayer
             attribution='&copy; <a href="https://carto.com/">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            eventHandlers={{
+              loading: () => setMapTilesLoading(true),
+              load: () => setMapTilesLoading(false),
+              tileerror: () => setMapTilesLoading(false),
+            }}
           />
           <MapFitBounds venues={filteredVenues.length > 0 ? filteredVenues : zoneVenues} zoneFilter={activeZoneFilter} />
           <ZipRecenterControl />
@@ -1370,7 +1376,7 @@ export function VenueMap({
 
       <CrowdLegend />
 
-      {loading && (
+      {(loading || mapTilesLoading) && (
         <div className="pointer-events-none absolute inset-0 z-[1000]">
           <MapLoadingSkeleton className="h-full" style={{ height: "100%", minHeight: "100%" }} />
           {slowLoad && (

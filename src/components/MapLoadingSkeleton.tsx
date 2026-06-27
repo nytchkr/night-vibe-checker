@@ -25,6 +25,9 @@ export function MapLoadingSkeleton({
       <div className="absolute left-4 top-4 h-10 w-40 animate-pulse rounded-full bg-white/[0.06]" />
       <div className="absolute left-1/2 top-14 h-9 w-52 -translate-x-1/2 animate-pulse rounded-full bg-white/[0.06]" />
       <div className="absolute bottom-20 left-1/2 h-9 w-64 -translate-x-1/2 animate-pulse rounded-full bg-white/[0.06]" />
+      <div className="absolute left-[24%] top-[32%] h-5 w-5 animate-pulse rounded-full bg-[#00F5D4]/35 shadow-[0_0_28px_rgba(0,245,212,0.28)]" />
+      <div className="absolute right-[26%] top-[44%] h-4 w-4 animate-pulse rounded-full bg-[#FF2D78]/35 shadow-[0_0_28px_rgba(255,45,120,0.28)]" />
+      <div className="absolute left-[46%] top-[58%] h-6 w-6 animate-pulse rounded-full bg-[#FFB020]/30 shadow-[0_0_28px_rgba(255,176,32,0.22)]" />
       <div className="absolute inset-x-0 bottom-0 h-[120px] rounded-t-3xl border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 pt-3 backdrop-blur-xl">
         <div className="mx-auto h-1 w-10 rounded-full bg-white/20" />
         <div className="mx-auto mt-3 h-9 w-44 animate-pulse rounded-full bg-white/[0.06]" />
