@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { span as MotionSpan } from "framer-motion/client";
@@ -8,7 +8,108 @@ import { span as MotionSpan } from "framer-motion/client";
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
-const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
+const STREAK_UPDATED_EVENT = "nightvibe:streak-changed";
+
+type UserStreakResponse = {
+  streak?: number | null;
+};
+
+type YouStreakContextValue = {
+  hasActiveStreak: boolean;
+  refreshStreak: () => void;
+};
+
+const YouStreakContext = createContext<YouStreakContextValue>({
+  hasActiveStreak: false,
+  refreshStreak: () => undefined,
+});
+
+export function YouStreakProvider({ children }: { children: React.ReactNode }) {
+  const [hasActiveStreak, setHasActiveStreak] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshStreak = useCallback(() => {
+    setRefreshKey((current) => current + 1);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
+
+    async function loadStreak(accessToken: string | null | undefined) {
+      if (!accessToken) {
+        if (!cancelled) setHasActiveStreak(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/user/streak", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          if (!cancelled) setHasActiveStreak(false);
+          return;
+        }
+
+        const data = (await res.json()) as UserStreakResponse;
+        if (!cancelled) setHasActiveStreak((data.streak ?? 0) >= 1);
+      } catch {
+        if (!cancelled) setHasActiveStreak(false);
+      }
+    }
+
+    async function startStreakSync() {
+      try {
+        const { createBrowserClient } = await import("@/lib/supabase-browser");
+        const client = createBrowserClient();
+        const { data: sessionData } = await client.auth.getSession();
+
+        if (cancelled) return;
+        void loadStreak(sessionData.session?.access_token);
+
+        const {
+          data: { subscription },
+        } = client.auth.onAuthStateChange((_event, session) => {
+          void loadStreak(session?.access_token);
+        });
+        unsubscribe = () => subscription.unsubscribe();
+      } catch {
+        if (!cancelled) setHasActiveStreak(false);
+      }
+    }
+
+    function handleFocus() {
+      if (focusTimer) clearTimeout(focusTimer);
+      focusTimer = setTimeout(refreshStreak, 2000);
+    }
+
+    void startStreakSync();
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener(STREAK_UPDATED_EVENT, refreshStreak);
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+      if (focusTimer) clearTimeout(focusTimer);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener(STREAK_UPDATED_EVENT, refreshStreak);
+    };
+  }, [refreshKey, refreshStreak]);
+
+  const value = useMemo(
+    () => ({ hasActiveStreak, refreshStreak }),
+    [hasActiveStreak, refreshStreak],
+  );
+
+  return <YouStreakContext.Provider value={value}>{children}</YouStreakContext.Provider>;
+}
+
+function useYouStreak() {
+  return useContext(YouStreakContext);
+}
 
 function parseStoredVenueIds(value: string | null): Set<string> {
   if (!value) return new Set();
@@ -28,6 +129,15 @@ function BadgeDot() {
     <span
       aria-hidden="true"
       className="absolute right-0 top-0 h-2 w-2 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.65)]"
+    />
+  );
+}
+
+function StreakDot() {
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-[#8B6CFF]"
     />
   );
 }
@@ -119,12 +229,14 @@ function NavItem({
   label,
   active,
   showBadge = false,
+  badgeVariant = "default",
   children,
 }: {
   href: string;
   label: string;
   active: boolean;
   showBadge?: boolean;
+  badgeVariant?: "default" | "streak";
   children: React.ReactNode;
 }) {
   return (
@@ -141,7 +253,7 @@ function NavItem({
     >
       <span className="relative transition-transform duration-150 ease-out group-hover:scale-105">
         {children}
-        {showBadge && <BadgeDot />}
+        {showBadge && (badgeVariant === "streak" ? <StreakDot /> : <BadgeDot />)}
         {active && (
           <MotionSpan
             layoutId="bottom-nav-active-underline"
@@ -184,77 +296,9 @@ function getActiveStates(pathname: string) {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const [showYouBadge, setShowYouBadge] = useState(false);
   const [showExploreBadge, setShowExploreBadge] = useState(false);
+  const { hasActiveStreak } = useYouStreak();
   const { mapActive, exploreActive, vibeCheckActive, youActive } = getActiveStates(pathname);
-
-  useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: (() => void) | null = null;
-    let focusTimer: ReturnType<typeof setTimeout> | null = null;
-
-    async function refreshYouBadge() {
-      try {
-        const { createBrowserClient } = await import("@/lib/supabase-browser");
-        const client = createBrowserClient();
-        const { data: sessionData } = await client.auth.getSession();
-        const userId = sessionData.session?.user.id;
-
-        if (!userId) {
-          if (!cancelled) setShowYouBadge(false);
-          return;
-        }
-
-        const { count, error } = await client
-          .from("saved_venues")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", userId);
-
-        if (!cancelled) setShowYouBadge(!error && (count ?? 0) > 0);
-      } catch {
-        if (!cancelled) setShowYouBadge(false);
-      }
-    }
-
-    async function startAuthBadgeSync() {
-      try {
-        const { createBrowserClient } = await import("@/lib/supabase-browser");
-        const client = createBrowserClient();
-
-        if (cancelled) return;
-        void refreshYouBadge();
-
-        const {
-          data: { subscription },
-        } = client.auth.onAuthStateChange(() => {
-          void refreshYouBadge();
-        });
-        unsubscribe = () => subscription.unsubscribe();
-      } catch {
-        if (!cancelled) setShowYouBadge(false);
-      }
-    }
-
-    const handleSavedVenuesChanged = () => {
-      void refreshYouBadge();
-    };
-    const handleFocus = () => {
-      if (focusTimer) clearTimeout(focusTimer);
-      focusTimer = setTimeout(() => { void refreshYouBadge(); }, 2000);
-    };
-
-    void startAuthBadgeSync();
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-      if (focusTimer) clearTimeout(focusTimer);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
-    };
-  }, [pathname]);
 
   useEffect(() => {
     function refreshExploreBadge() {
@@ -319,7 +363,7 @@ export function BottomNav() {
           <VibeCheckIcon filled={vibeCheckActive} />
         </NavItem>
 
-        <NavItem href="/you" label="You" active={youActive} showBadge={showYouBadge}>
+        <NavItem href="/you" label="You" active={youActive} showBadge={hasActiveStreak} badgeVariant="streak">
           <YouIcon filled={youActive} />
         </NavItem>
       </div>
