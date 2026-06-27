@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Script from "next/script";
+import { AppOnboardingGate } from "@/components/AppOnboardingGate";
 import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
@@ -138,6 +139,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
               {children}
             </main>
+            <AppOnboardingGate />
           </OnboardingGateProvider>
         </div>
         <PWAInstallVisitTracker>

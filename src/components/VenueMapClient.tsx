@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
-import { hasCompletedOnboarding } from "@/components/OnboardingOverlay";
 import { CITIES, DEFAULT_CITY } from "@/lib/cities";
 import type { City, CityId } from "@/lib/cities";
 
@@ -11,11 +10,6 @@ const VenueMap = dynamic(() => import("@/components/VenueMap"), {
   ssr: false,
   loading: () => <MapLoadingSkeleton />,
 });
-const OnboardingOverlay = dynamic(
-  () => import("@/components/OnboardingOverlay").then((mod) => mod.OnboardingOverlay),
-  { ssr: false },
-);
-
 const CITY_STORAGE_KEY = "nightvibe:selected-city";
 const CITY_QUERY_PARAM = "city";
 
@@ -33,30 +27,6 @@ function cleanUnsupportedCityParam() {
 
   url.searchParams.delete(CITY_QUERY_PARAM);
   window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-}
-
-function OnboardingGate() {
-  const [shouldRender, setShouldRender] = useState(false);
-
-  useEffect(() => {
-    if (hasCompletedOnboarding()) return;
-
-    const show = () => setShouldRender(true);
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
-      cancelIdleCallback?: (handle: number) => void;
-    };
-
-    if (idleWindow.requestIdleCallback) {
-      const idleId = idleWindow.requestIdleCallback(show, { timeout: 1200 });
-      return () => idleWindow.cancelIdleCallback?.(idleId);
-    }
-
-    const timeoutId = globalThis.setTimeout(show, 600);
-    return () => globalThis.clearTimeout(timeoutId);
-  }, []);
-
-  return shouldRender ? <OnboardingOverlay /> : null;
 }
 
 export default function VenueMapClient() {
@@ -87,7 +57,6 @@ export default function VenueMapClient() {
       style={getMapViewportStyle()}
     >
       <VenueMap city={selectedCity} onCityChange={handleCityChange} />
-      <OnboardingGate />
     </section>
   );
 }
