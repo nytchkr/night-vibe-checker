@@ -266,6 +266,67 @@ test.describe("Explore tab", () => {
     await expect(cards.nth(2)).toContainText("Zero Proof");
   });
 
+  test("Near Me sort requests location, sorts by distance, and shows distance badges", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition(success: PositionCallback) {
+            success({
+              coords: {
+                latitude: 35.214,
+                longitude: -80.863,
+                accuracy: 10,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                speed: null,
+              },
+              timestamp: Date.now(),
+            } as GeolocationPosition);
+          },
+        },
+      });
+    });
+
+    await page.goto("/explore");
+    await page.getByRole("button", { name: "Near Me" }).click();
+
+    const cards = page.getByRole("article");
+    await expect(cards.first()).toContainText("Lowlight Lounge");
+    await expect(cards.first()).toContainText("0.0 mi");
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toContainText(/\d\.\d mi/);
+  });
+
+  test("Near Me sort falls back to default sort when location is denied", async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, "geolocation", {
+        configurable: true,
+        value: {
+          getCurrentPosition(_success: PositionCallback, error?: PositionErrorCallback | null) {
+            error?.({
+              code: 1,
+              message: "User denied Geolocation",
+              PERMISSION_DENIED: 1,
+              POSITION_UNAVAILABLE: 2,
+              TIMEOUT: 3,
+            } as GeolocationPositionError);
+          },
+        },
+      });
+    });
+
+    await page.goto("/explore");
+    await page.getByRole("button", { name: "Near Me" }).click();
+
+    await expect(page.getByText("Enable location for nearby sorting")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hottest" })).toHaveAttribute("aria-pressed", "true");
+
+    const cards = page.getByRole("article");
+    await expect(cards.first()).toContainText("Pulse Room");
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).not.toContainText(/\d\.\d mi/);
+  });
+
   test("shows honest empty venue and sparse signal states", async ({ page }) => {
     await page.goto("/explore");
 

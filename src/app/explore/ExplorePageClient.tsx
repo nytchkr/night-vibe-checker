@@ -41,6 +41,7 @@ const AISuggest = dynamic(
 );
 
 type UserLocation = { lat: number; lng: number };
+type LocationSortStatus = "idle" | "requesting" | "granted" | "denied" | "unsupported";
 type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
 type TonightPickLabel = "Moderate" | "Packed" | "Wild";
 type ZoneStatsSummary = {
@@ -682,9 +683,13 @@ function VenueFeedCard({
           <BusynessChip value={busyness} source={signal?.busynessSource ?? null} />
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <span className="min-w-0 truncate text-[13px] font-medium text-[#9CA2AE]">
-              {distance != null ? `${distance.toFixed(1)} mi · ` : ""}
-              {venue.address}
+            <span className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-[#9CA2AE]">
+              {distance != null ? (
+                <span className="shrink-0 rounded-full border border-[#00F5D4]/30 bg-[#00F5D4]/10 px-2 py-0.5 text-[11px] font-black text-[#00F5D4]">
+                  {distance.toFixed(1)} mi
+                </span>
+              ) : null}
+              <span className="min-w-0 truncate">{venue.address}</span>
             </span>
             <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
               {mfPercents ? (
@@ -717,6 +722,7 @@ export function ExplorePageClient() {
   const [exploreFilters, setExploreFilters] = useState<Set<ExploreFilterOption>>(() => new Set());
   const [hasInitializedExploreFilters, setHasInitializedExploreFilters] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
+  const [locationSortStatus, setLocationSortStatus] = useState<LocationSortStatus>("idle");
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
@@ -803,23 +809,8 @@ export function ExplorePageClient() {
   }, [trackPageView]);
 
   useEffect(() => {
-    if (!("geolocation" in navigator)) return;
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      () => undefined,
-      { maximumAge: 5 * 60 * 1000, timeout: 8000 },
-    );
-  }, []);
-
-  useEffect(() => {
     const storedSort = localStorage.getItem(EXPLORE_SORT_STORAGE_KEY);
-    if (isExploreSortOption(storedSort)) setExploreSort(storedSort);
+    if (isExploreSortOption(storedSort) && storedSort !== "nearby") setExploreSort(storedSort);
 
     const params = new URLSearchParams(window.location.search);
     const initialSearchQuery = params.get("q") ?? sessionStorage.getItem(EXPLORE_SEARCH_STORAGE_KEY) ?? "";
@@ -944,7 +935,7 @@ export function ExplorePageClient() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const effectiveExploreSort = exploreSort === "nearby" && !userLocation ? DEFAULT_EXPLORE_SORT : exploreSort;
+  const effectiveExploreSort = exploreSort === "nearby" && userLocation ? "nearby" : exploreSort === "nearby" ? DEFAULT_EXPLORE_SORT : exploreSort;
 
   const sortedVenues = useMemo(() => {
     if (venues === undefined) return [];
@@ -1069,8 +1060,9 @@ export function ExplorePageClient() {
     };
   }, [exploreFilters, venues]);
 
+  const showNearbyDistances = effectiveExploreSort === "nearby" && userLocation !== null;
   const venueDistances = useMemo(() => {
-    if (!userLocation || venues === undefined) return new Map<string, number>();
+    if (!showNearbyDistances || !userLocation || venues === undefined) return new Map<string, number>();
 
     return new Map(
       venues.map((venue) => [
@@ -1078,7 +1070,7 @@ export function ExplorePageClient() {
         distanceMiles(userLocation.lat, userLocation.lng, venue.lat, venue.lng),
       ]),
     );
-  }, [userLocation, venues]);
+  }, [showNearbyDistances, userLocation, venues]);
 
   const venuesCount = venues?.length ?? 0;
   const searchedLocationCenter = getSearchedLocationCenter(searchQuery);
@@ -1107,8 +1099,41 @@ export function ExplorePageClient() {
     searchInputRef.current?.focus();
   }
 
+  function requestNearbySort() {
+    if (!("geolocation" in navigator)) {
+      setUserLocation(null);
+      setLocationSortStatus("unsupported");
+      setExploreSort(DEFAULT_EXPLORE_SORT);
+      trackAnalytics("explore_nearby_location_unavailable", { reason: "unsupported" });
+      return;
+    }
+
+    setLocationSortStatus("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationSortStatus("granted");
+        setExploreSort("nearby");
+        trackAnalytics("explore_nearby_location_granted", { accuracy: Math.round(position.coords.accuracy ?? 0) });
+      },
+      (positionError) => {
+        setUserLocation(null);
+        setLocationSortStatus(positionError.code === positionError.PERMISSION_DENIED ? "denied" : "unsupported");
+        setExploreSort(DEFAULT_EXPLORE_SORT);
+        trackAnalytics("explore_nearby_location_denied", { code: positionError.code });
+      },
+      { maximumAge: 5 * 60 * 1000, timeout: 8000 },
+    );
+  }
+
   function selectExploreSort(option: ExploreSortOption) {
-    if (option === "nearby" && !userLocation) return;
+    if (option === "nearby") {
+      requestNearbySort();
+      return;
+    }
     setExploreSort(option);
     trackAnalytics("explore_filter_selected", { filter: option });
   }
@@ -1276,11 +1301,16 @@ export function ExplorePageClient() {
             <ExploreSortFilter
               selectedSort={effectiveExploreSort}
               selectedFilters={exploreFilters}
-              nearbyEnabled={userLocation !== null}
+              nearbyLoading={locationSortStatus === "requesting"}
               savedCount={savedCount}
               onSortChange={selectExploreSort}
               onFilterToggle={toggleExploreFilter}
             />
+            {(locationSortStatus === "denied" || locationSortStatus === "unsupported") && (
+              <p role="status" className="text-xs font-semibold text-[#FFB020]">
+                Enable location for nearby sorting
+              </p>
+            )}
           </div>
 
           <AISuggest
@@ -1360,7 +1390,7 @@ export function ExplorePageClient() {
                     key={venue.id}
                     venue={venue}
                     searchQuery={debouncedSearchQuery}
-                    distance={venueDistances.get(venue.id) ?? null}
+                    distance={showNearbyDistances ? venueDistances.get(venue.id) ?? null : null}
                     index={index}
                     prefersReduced={prefersReduced}
                     isTrending={trendingVenueIds.has(venue.id)}

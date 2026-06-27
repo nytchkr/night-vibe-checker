@@ -21,7 +21,7 @@ const SORT_OPTIONS: { value: ExploreSortOption; label: string }[] = [
   { value: "hottest", label: "Hottest" },
   { value: "top-rated", label: "Top Rated" },
   { value: "trending", label: "Trending" },
-  { value: "nearby", label: "Nearby" },
+  { value: "nearby", label: "Near Me" },
 ];
 
 const FILTER_OPTIONS: { value: ExploreFilterOption; label: string; comingSoon?: boolean }[] = [
@@ -35,7 +35,7 @@ const FILTER_OPTIONS: { value: ExploreFilterOption; label: string; comingSoon?: 
 type ExploreSortFilterProps = {
   selectedSort: ExploreSortOption;
   selectedFilters: Set<ExploreFilterOption>;
-  nearbyEnabled: boolean;
+  nearbyLoading?: boolean;
   savedCount?: number;
   onSortChange: (sort: ExploreSortOption) => void;
   onFilterToggle: (filter: ExploreFilterOption) => void;
@@ -95,7 +95,7 @@ function Chip({
 export function ExploreSortFilter({
   selectedSort,
   selectedFilters,
-  nearbyEnabled,
+  nearbyLoading = false,
   savedCount = 0,
   onSortChange,
   onFilterToggle,
@@ -111,7 +111,7 @@ export function ExploreSortFilter({
             label={option.label}
             active={selectedSort === option.value}
             pressed={selectedSort === option.value}
-            disabled={option.value === "nearby" && !nearbyEnabled}
+            disabled={option.value === "nearby" && nearbyLoading}
             onClick={() => {
               haptic.light();
               onSortChange(option.value);
