@@ -21,7 +21,7 @@ export default function OfflineBanner() {
   if (!isOffline) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[200] w-full bg-yellow-500/90 py-2 text-center text-sm text-black">
+    <div className="fixed top-0 left-0 right-0 z-[200] w-full bg-yellow-500/90 py-2 text-center text-sm text-[#0A0A0E]">
       You're offline — showing cached venues
     </div>
   );

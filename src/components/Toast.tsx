@@ -38,12 +38,12 @@ const variantStyles: Record<ToastVariant, { panel: string; dot: string; glow: st
   },
   error: {
     panel: "border-[#F05656]/45 bg-[#F05656] text-white",
-    dot: "bg-white",
+    dot: "bg-[#14141A]",
     glow: "shadow-[0_18px_48px_rgba(240,86,86,0.28)]",
   },
   info: {
     panel: "border-[#8B6CFF]/45 bg-[#8B6CFF] text-white",
-    dot: "bg-white",
+    dot: "bg-[#14141A]",
     glow: "shadow-[0_18px_48px_rgba(139,108,255,0.30)]",
   },
 };

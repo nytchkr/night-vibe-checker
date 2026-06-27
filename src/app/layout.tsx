@@ -130,7 +130,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <DesktopWarningBanner />
         {isDev && (
           <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center bg-amber-500/90 py-0.5">
-            <span className="text-[11px] font-normal leading-[1.5] text-black">
+            <span className="text-[11px] font-normal leading-[1.5] text-[#0A0A0E]">
               Dev, not production
             </span>
           </div>
