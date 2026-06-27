@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { ConsumerVenue } from "@/types";
 
 export const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
 
@@ -13,12 +14,32 @@ type SavedVenuesResponse = {
   place_ids?: string[];
   venueIds?: string[];
   savedVenueIds?: string[];
-  savedVenues?: Array<{ venueId?: string; placeId?: string | null }>;
+  savedVenues?: RawSavedVenue[];
   data?: {
     savedVenueIds?: string[];
     placeIds?: string[];
-    savedVenues?: Array<{ venueId?: string; placeId?: string | null }>;
+    savedVenues?: RawSavedVenue[];
   };
+};
+
+type RawSavedVenue = {
+  venueId?: string;
+  placeId?: string | null;
+  alertThreshold?: number;
+  savedAt?: string | null;
+  createdAt?: string | null;
+  currentBusyness?: number | null;
+  venue?: ConsumerVenue | null;
+};
+
+export type SavedVenue = {
+  venueId: string;
+  placeId: string | null;
+  alertThreshold: number;
+  savedAt: string | null;
+  createdAt: string | null;
+  currentBusyness: number | null;
+  venue: ConsumerVenue | null;
 };
 
 type SavedVenueStateResponse = {
@@ -42,9 +63,38 @@ function readSavedIds(json: SavedVenuesResponse): string[] {
   return ids.filter((id): id is string => typeof id === "string" && id.length > 0);
 }
 
+function toSortableTime(value: string | null): number {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : Number.NEGATIVE_INFINITY;
+}
+
+function readSavedVenues(json: SavedVenuesResponse): SavedVenue[] {
+  const rawVenues = json.savedVenues ?? json.data?.savedVenues ?? [];
+
+  return rawVenues
+    .flatMap((item): SavedVenue[] => {
+      if (typeof item.venueId !== "string" || item.venueId.length === 0) return [];
+      const savedAt = item.savedAt ?? item.createdAt ?? null;
+
+      return [{
+        venueId: item.venueId,
+        placeId: item.placeId ?? item.venue?.placeId ?? null,
+        alertThreshold: item.alertThreshold ?? 70,
+        savedAt,
+        createdAt: item.createdAt ?? savedAt,
+        currentBusyness: item.currentBusyness ?? item.venue?.signal?.busyness0To100 ?? null,
+        venue: item.venue ?? null,
+      }];
+    })
+    .sort((a, b) => toSortableTime(b.savedAt) - toSortableTime(a.savedAt));
+}
+
 export function useSavedVenues() {
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [savedVenues, setSavedVenues] = useState<SavedVenue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const getAccessToken = useCallback(async () => {
     const client = await getSupabaseBrowserClient();
@@ -54,11 +104,14 @@ export function useSavedVenues() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError(null);
 
     try {
       const token = await getAccessToken();
       if (!token) {
         setSavedIds(new Set());
+        setSavedVenues([]);
+        setError("Sign in to view your saved venues.");
         return;
       }
 
@@ -68,13 +121,18 @@ export function useSavedVenues() {
 
       if (!res.ok) {
         setSavedIds(new Set());
+        setSavedVenues([]);
+        setError("Could not load your saved venues right now.");
         return;
       }
 
       const json = (await res.json()) as SavedVenuesResponse;
       setSavedIds(new Set(readSavedIds(json)));
+      setSavedVenues(readSavedVenues(json));
     } catch {
       setSavedIds(new Set());
+      setSavedVenues([]);
+      setError("Could not load your saved venues right now.");
     } finally {
       setLoading(false);
     }
@@ -208,5 +266,5 @@ export function useSavedVenues() {
     }
   }, [getAccessToken, savedIds]);
 
-  return { isSaved, savedIds, refreshVenueSavedState, toggle, loading };
+  return { error, isSaved, loading, refreshVenueSavedState, savedIds, savedVenues, toggle };
 }

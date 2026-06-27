@@ -1130,8 +1130,8 @@ export function VenuePageClient({
                 alt={`${venue.name} venue photo`}
                 className="absolute inset-0 h-full w-full"
                 imageClassName="scale-[1.01]"
-                sizes="100vw"
-                priority
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 600px, 800px"
+                priority={true}
                 fetchPriority="high"
               />
               <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent,#0A0A0E)]" aria-hidden="true" />

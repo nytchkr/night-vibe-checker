@@ -368,9 +368,8 @@ function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number
         photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
         className="h-full w-full"
         imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.04]"
-        sizes="(max-width: 767px) 140px, 160px"
-        priority={index === 0}
-        loading={index === 0 ? undefined : "lazy"}
+        sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
+        loading="lazy"
       />
       <div className="absolute inset-x-0 bottom-0 min-h-[104px] bg-gradient-to-t from-[#050507] via-[#050507]/78 to-transparent" aria-hidden="true" />
       <div className="absolute inset-x-0 bottom-0 space-y-2 p-3">
@@ -695,9 +694,8 @@ function VenueFeedCard({
           photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
           className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto"
           imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.02]"
-          sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
-          priority={index < 3}
-          loading={index < 3 ? undefined : "lazy"}
+          sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
+          loading="lazy"
         />
 
         <div className="relative z-[1] flex min-w-0 flex-1 flex-col justify-center gap-2">
