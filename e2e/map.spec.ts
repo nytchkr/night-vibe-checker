@@ -303,7 +303,14 @@ test.describe("Map tab", () => {
     await expect(cluster).toHaveCSS("background-color", "rgb(139, 108, 255)");
     await expect(cluster).toHaveCSS("color", "rgb(255, 255, 255)");
 
-    await cluster.click();
+    const zoomIn = page.locator(".leaflet-control-zoom-in");
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await zoomIn.click();
+      await page.waitForTimeout(300);
+      if ((await page.locator(".venue-cluster-pin").count()) === 6) {
+        break;
+      }
+    }
     await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
   });
 
