@@ -296,7 +296,7 @@ describe("ExplorePageClient venue search", () => {
       } as GeolocationPosition);
     });
 
-    await renderExplore("Far Lounge");
+    await renderExplore();
     await userEvent.click(screen.getByRole("button", { name: "Near Me" }));
 
     await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1));
