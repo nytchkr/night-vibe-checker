@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, X } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
+import * as motion from "framer-motion/client";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import { formatRewardMessages } from "@/lib/rewardMessages";
@@ -165,6 +166,13 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
       }
 
       const json = await response.json().catch(() => null);
+      if (response.status === 429) {
+        setState("idle");
+        setConfirmOpen(false);
+        showToast("Already checked in tonight!", "info");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error(errorMessageFrom(response.status, json));
       }

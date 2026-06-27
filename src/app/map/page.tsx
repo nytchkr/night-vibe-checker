@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import TonightStats from "@/components/TonightStats";
-import VenueMapClient from "@/components/VenueMapClient";
 import { PageTransition } from "@/components/PageTransition";
 import { RoutePrefetch } from "@/components/RoutePrefetch";
+import { LazyVenueMapClient } from "@/components/LazyVenueMapClient";
 
 export const metadata: Metadata = {
   title: "Map — nytchkr",
@@ -22,7 +22,7 @@ export default function MapPage() {
       </p>
       <div className="mx-auto w-full bg-[#0A0A0E] md:max-w-lg lg:max-w-none">
         <TonightStats />
-        <VenueMapClient />
+        <LazyVenueMapClient />
       </div>
     </PageTransition>
   );

@@ -1,4 +1,5 @@
-const RUNTIME_CACHE = "nightvibe-v2";
+const STATIC_CACHE = "nightvibe-static-v3";
+const RUNTIME_CACHE = "nightvibe-runtime-v3";
 const OFFLINE_URL = "/offline";
 const STATIC_URLS = ["/", "/map", "/explore", OFFLINE_URL];
 const CACHE_FIRST_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cartocdn.com"];
@@ -18,7 +19,7 @@ const VENUE_LIST_MAX_AGE_MS = 5 * 60 * 1000;
 const VENUE_DETAIL_TIMEOUT_MS = 5000;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(RUNTIME_CACHE).then((cache) => cache.addAll(STATIC_URLS)));
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_URLS)));
   self.skipWaiting();
 });
 
@@ -26,7 +27,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== RUNTIME_CACHE).map((key) => caches.delete(key)))),
+      .then((keys) =>
+        Promise.all(keys.filter((key) => ![STATIC_CACHE, RUNTIME_CACHE].includes(key)).map((key) => caches.delete(key))),
+      ),
   );
   self.clients.claim();
 });
@@ -54,9 +57,14 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== location.origin) return;
 
   const acceptsHtml = request.headers.get("accept")?.includes("text/html");
+  if (request.mode === "navigate" || acceptsHtml) {
+    event.respondWith(networkOnlyNavigation(request));
+    return;
+  }
+
   const staticAsset = ["script", "style"].includes(request.destination);
-  if (acceptsHtml || staticAsset) {
-    event.respondWith(handleDocumentOrStaticRequest(request, acceptsHtml));
+  if (staticAsset) {
+    event.respondWith(handleStaticRequest(request));
   }
 });
 
@@ -125,18 +133,23 @@ async function fetchAndCache(request, cachePromise) {
   return putAndReturn(cache, request, response);
 }
 
-async function handleDocumentOrStaticRequest(request, acceptsHtml) {
+async function networkOnlyNavigation(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    const offline = await caches.match(OFFLINE_URL);
+    return offline || Response.error();
+  }
+}
+
+async function handleStaticRequest(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
 
   try {
     return await fetchAndCache(request);
-  } catch (error) {
-    if (acceptsHtml) {
-      const offline = await caches.match(OFFLINE_URL);
-      if (offline) return offline;
-    }
-    throw error;
+  } catch {
+    return Response.error();
   }
 }
 

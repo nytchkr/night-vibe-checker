@@ -165,7 +165,7 @@ async function mockCheckInPost(
         contentType: "application/json",
         body: JSON.stringify({
           status: "error",
-          error: { code: "RATE_LIMITED", message: options.message ?? "Already checked in" },
+          error: { code: "DUPLICATE_CHECK_IN", message: options.message ?? "Already checked in tonight!" },
           meta,
         }),
       });
@@ -290,15 +290,16 @@ test.describe("NV-TEST-042 check-in flow", () => {
     await expect(page.getByRole("button", { name: `Checked in at ${venue.name}` }).first()).toBeVisible();
   });
 
-  test("duplicate check-in within 30 minutes shows Already checked in message", async ({ page, request }) => {
+  test("duplicate check-in within cooldown shows Already checked in message", async ({ page, request }) => {
     const venue = await getLaunchVenue(request);
     await addLocalSession(page);
-    await mockCheckInPost(page, venue, { status: 429, message: "Already checked in" });
+    await mockCheckInPost(page, venue, { status: 429, message: "Already checked in tonight!" });
 
     await openVenue(page, venue);
     await confirmCheckIn(page, venue);
 
-    await expect(page.getByRole("status").filter({ hasText: "Already checked in" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Already checked in tonight!" })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Check in at ${venue.name}` }).first()).toBeEnabled();
   });
 
   test("check-in updates the busyness bar on the venue page", async ({ page, request }) => {

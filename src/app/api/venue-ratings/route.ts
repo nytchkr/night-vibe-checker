@@ -3,12 +3,10 @@ import { z } from "zod";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
-type VenueRatingValue = "up" | "down";
-
 type VenueRatingsData = {
-  upCount: number;
-  downCount: number;
-  userRating: VenueRatingValue | null;
+  averageRating: number | null;
+  ratingCount: number;
+  userRating: number | null;
 };
 
 type VenueRatingsResponse = APIResponse<VenueRatingsData> & VenueRatingsData;
@@ -16,8 +14,9 @@ type VenueRatingsResponse = APIResponse<VenueRatingsData> & VenueRatingsData;
 const VenueIdSchema = z.string().trim().min(1);
 
 const RatingBodySchema = z.object({
-  venueId: VenueIdSchema,
-  rating: z.enum(["up", "down"]),
+  venue_id: VenueIdSchema,
+  rating: z.number().int().min(1).max(5),
+  user_id: z.string().trim().min(1).optional(),
 });
 
 const PRIVATE_CACHE_HEADERS = {
@@ -50,29 +49,23 @@ function missingConfigResponse(error: unknown, headers?: HeadersInit): NextRespo
   );
 }
 
-function countRatings(rows: Array<{ rating: unknown }>): Pick<VenueRatingsData, "upCount" | "downCount"> {
-  return rows.reduce(
-    (counts, row) => {
-      const rating = normalizeStoredRating(row.rating);
-      if (rating === "up") counts.upCount += 1;
-      if (rating === "down") counts.downCount += 1;
-      return counts;
-    },
-    { upCount: 0, downCount: 0 },
-  );
+function normalizeStoredRating(rating: unknown): number | null {
+  const n = Number(rating);
+  if (!Number.isFinite(n)) return null;
+  const rounded = Math.round(n);
+  if (rounded < 1 || rounded > 5) return null;
+  return rounded;
 }
 
-function normalizeStoredRating(rating: unknown): VenueRatingValue | null {
-  if (rating === "up" || rating === "down") return rating;
-  const numericRating = Number(rating);
-  if (!Number.isFinite(numericRating)) return null;
-  if (numericRating >= 4) return "up";
-  if (numericRating <= 2) return "down";
-  return null;
-}
+function summarizeRatings(rows: Array<{ rating: unknown }>): Pick<VenueRatingsData, "averageRating" | "ratingCount"> {
+  const ratings = rows
+    .map((row) => normalizeStoredRating(row.rating))
+    .filter((r): r is number => r !== null);
 
-function ratingToStoredValue(rating: VenueRatingValue): number {
-  return rating === "up" ? 5 : 1;
+  if (ratings.length === 0) return { averageRating: null, ratingCount: 0 };
+
+  const avg = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+  return { averageRating: Math.round(avg * 10) / 10, ratingCount: ratings.length };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -84,7 +77,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const venueIdParam = req.nextUrl.searchParams.get("venueId");
+  const venueIdParam = req.nextUrl.searchParams.get("venue_id") ?? req.nextUrl.searchParams.get("venueId");
   const venueId = VenueIdSchema.safeParse(venueIdParam);
   if (!venueId.success) {
     return json<never>(
@@ -97,7 +90,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
   const { data, error } = await supabaseAdmin
     .from("venue_ratings")
     .select("rating")
@@ -110,30 +102,30 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let userRating: VenueRatingValue | null = null;
-  if (userId) {
-    const { data: userRow, error: userError } = await supabaseAdmin
-      .from("venue_ratings")
-      .select("rating")
-      .eq("venue_id", venueId.data)
-      .eq("user_id", userId)
-      .maybeSingle();
+  const summary = summarizeRatings((data ?? []) as Array<{ rating: unknown }>);
 
-    if (userError) {
-      return json<never>(
-        { status: "error", error: { code: "DB_ERROR", message: "Could not fetch your venue rating." }, meta: meta() },
-        { status: 500, headers: PRIVATE_CACHE_HEADERS },
-      );
+  const authHeader = req.headers.get("Authorization");
+  const hasBearer = Boolean(authHeader?.startsWith("Bearer ") && authHeader.slice(7).trim());
+
+  let userRating: number | null = null;
+  if (hasBearer) {
+    const userId = await getBearerUserId(authHeader);
+    if (userId) {
+      const { data: userRow } = await supabaseAdmin
+        .from("venue_ratings")
+        .select("rating")
+        .eq("venue_id", venueId.data)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      userRating = normalizeStoredRating(userRow?.rating);
     }
-
-    userRating = normalizeStoredRating(userRow?.rating);
   }
 
-  const counts = countRatings((data ?? []) as Array<{ rating: unknown }>);
-  const response: VenueRatingsData = { ...counts, userRating };
+  const responseData: VenueRatingsData = { ...summary, userRating };
 
   return NextResponse.json<VenueRatingsResponse>(
-    { status: "success", ...response, data: response, meta: meta() },
+    { status: "success", ...responseData, data: responseData, meta: meta() },
     { headers: PRIVATE_CACHE_HEADERS },
   );
 }
@@ -174,17 +166,28 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return json<never>(
       {
         status: "error",
-        error: { code: "VALIDATION_ERROR", message: "venueId and rating ('up' or 'down') are required." },
+        error: { code: "VALIDATION_ERROR", message: "venue_id and rating (1-5) are required." },
         meta: meta(),
       },
       { status: 400 },
     );
   }
 
-  const { venueId, rating } = parsed.data;
+  const { venue_id: venueId, rating, user_id: submittedUserId } = parsed.data;
+  if (submittedUserId && submittedUserId !== userId) {
+    return json<never>(
+      {
+        status: "error",
+        error: { code: "FORBIDDEN", message: "Cannot rate a venue for a different user." },
+        meta: meta(),
+      },
+      { status: 403 },
+    );
+  }
+
   const { error } = await supabaseAdmin
     .from("venue_ratings")
-    .upsert({ venue_id: venueId, user_id: userId, rating: ratingToStoredValue(rating) }, { onConflict: "venue_id,user_id" });
+    .upsert({ venue_id: venueId, user_id: userId, rating }, { onConflict: "venue_id,user_id" });
 
   if (error) {
     return json<never>(
@@ -193,5 +196,5 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  return json({ status: "success", data: { venueId, rating }, meta: meta() });
+  return json({ status: "success", data: { venue_id: venueId, user_id: userId, rating }, meta: meta() });
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import VenueMapClient from "@/components/VenueMapClient";
+import { LazyVenueMapClient } from "@/components/LazyVenueMapClient";
 
 export const metadata: Metadata = {
   title: "NightVibe - South End Charlotte",
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <VenueMapClient />;
+  return <LazyVenueMapClient />;
 }

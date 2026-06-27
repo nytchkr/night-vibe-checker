@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { motion } from "framer-motion";
+import * as motion from "framer-motion/client";
 import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";

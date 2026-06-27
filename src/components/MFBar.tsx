@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { motion } from "framer-motion";
+import * as motion from "framer-motion/client";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 type MFBarSource = "live" | "forecast" | null;

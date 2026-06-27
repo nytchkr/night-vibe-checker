@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, HelpCircle, MapPin } from "lucide-react";
-import { motion } from "framer-motion";
+import * as motion from "framer-motion/client";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { triggerHapticFeedback } from "@/lib/haptics";
