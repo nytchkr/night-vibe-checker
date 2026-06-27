@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
 
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
@@ -24,14 +23,9 @@ function parseStoredVenueIds(value: string | null): Set<string> {
 }
 
 function BadgeDot() {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <motion.span
+    <span
       aria-hidden="true"
-      initial={prefersReducedMotion ? false : { scale: 0 }}
-      animate={{ scale: 1 }}
-      transition={prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 28, mass: 0.7 }}
       className="absolute right-0 top-0 h-2 w-2 translate-x-1/2 -translate-y-1/2 rounded-full bg-[#F0568C] shadow-[0_0_10px_rgba(240,86,140,0.65)]"
     />
   );
