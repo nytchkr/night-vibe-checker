@@ -13,7 +13,7 @@ async function refreshSignals(req: NextRequest): Promise<NextResponse> {
 
   const startedAt = Date.now();
   try {
-    const results = await refreshBusyness(50);
+    const results = await refreshBusyness();
     const openNow = await refreshOpenNow();
     const updated = results.filter((result) => result.ok).length;
     const errors = results

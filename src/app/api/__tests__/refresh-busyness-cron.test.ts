@@ -54,7 +54,7 @@ describe("GET /api/cron/refresh-busyness", () => {
     const res = await GET(requestWithCronHeader("test-cron-secret"));
 
     expect(res.status).toBe(200);
-    expect(refreshBusynessMock).toHaveBeenCalledWith(50);
+    expect(refreshBusynessMock).toHaveBeenCalledWith();
   });
 
   it("refreshes busyness through the shared BestTime adapter", async () => {
@@ -69,7 +69,7 @@ describe("GET /api/cron/refresh-busyness", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(refreshBusynessMock).toHaveBeenCalledWith(50);
+    expect(refreshBusynessMock).toHaveBeenCalledWith();
     expect(refreshOpenNowMock).toHaveBeenCalled();
     expect(json).toEqual({
       updated: 1,

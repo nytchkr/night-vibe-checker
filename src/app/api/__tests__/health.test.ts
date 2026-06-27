@@ -11,6 +11,7 @@ function countQuery(count: number) {
   const promise = Promise.resolve({ count, error: null });
   return {
     select: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     then: promise.then.bind(promise),
     catch: promise.catch.bind(promise),
   };
@@ -20,15 +21,19 @@ function rowsQuery(data: unknown[]) {
   const promise = Promise.resolve({ data, error: null });
   return {
     select: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     then: promise.then.bind(promise),
     catch: promise.catch.bind(promise),
   };
 }
 
-function venueRow(lastBusynessRefresh: string) {
+function venueRow(lastBusynessRefresh: string, overrides: Record<string, unknown> = {}) {
   return {
+    zone_id: "south-end-charlotte",
+    besttime_venue_id: "bt-venue-1",
     open_now: true,
-    venue_signals: { last_busyness_refresh: lastBusynessRefresh },
+    venue_signals: { busyness_0_100: 72, last_busyness_refresh: lastBusynessRefresh },
+    ...overrides,
   };
 }
 
@@ -62,8 +67,101 @@ describe("GET /api/health", () => {
     expect(json.venue_count).toBe(100);
     expect(json.signals_count).toBe(100);
     expect(json.openNowCount).toBe(2);
+    expect(json.zones_with_signal_coverage).toEqual({
+      "south-end-charlotte": 2,
+      "dilworth-charlotte": 0,
+      "south-park-charlotte": 0,
+    });
+    expect(json.besttime_coverage_by_zone).toEqual([
+      {
+        zone_id: "south-end-charlotte",
+        zone_name: "South End",
+        venues: 2,
+        with_besttime_venue_id: 2,
+        without_besttime_venue_id: 0,
+        with_signal: 2,
+        without_signal: 0,
+        lastBusynessRefresh: "2026-06-21T14:21:27.265Z",
+      },
+      {
+        zone_id: "dilworth-charlotte",
+        zone_name: "Dilworth / Myers Park",
+        venues: 0,
+        with_besttime_venue_id: 0,
+        without_besttime_venue_id: 0,
+        with_signal: 0,
+        without_signal: 0,
+        lastBusynessRefresh: null,
+      },
+      {
+        zone_id: "south-park-charlotte",
+        zone_name: "South Park",
+        venues: 0,
+        with_besttime_venue_id: 0,
+        without_besttime_venue_id: 0,
+        with_signal: 0,
+        without_signal: 0,
+        lastBusynessRefresh: null,
+      },
+    ]);
     expect(json.staleSince).toBeNull();
     expect(json.lastBusynessRefresh).toBe("2026-06-21T14:21:27.265Z");
+  });
+
+  it("reports venue BestTime and signal coverage for each launch zone", async () => {
+    mockFrom
+      .mockReturnValueOnce(countQuery(3))
+      .mockReturnValueOnce(countQuery(2))
+      .mockReturnValueOnce(rowsQuery([
+        venueRow("2026-06-21T14:18:32.113Z"),
+        venueRow("2026-06-21T14:21:27.265Z", {
+          zone_id: "dilworth-charlotte",
+          besttime_venue_id: null,
+          venue_signals: { busyness_0_100: null, last_busyness_refresh: "2026-06-21T14:21:27.265Z" },
+        }),
+        venueRow("2026-06-21T14:22:27.265Z", {
+          zone_id: "south-park-charlotte",
+          besttime_venue_id: "bt-venue-3",
+          venue_signals: { busyness_0_100: 63, last_busyness_refresh: "2026-06-21T14:22:27.265Z" },
+        }),
+      ]));
+
+    const { GET } = await import("../health/route");
+    const res = await GET(new NextRequest("http://localhost/api/health"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.zones_with_signal_coverage).toEqual({
+      "south-end-charlotte": 1,
+      "dilworth-charlotte": 0,
+      "south-park-charlotte": 1,
+    });
+    expect(json.besttime_coverage_by_zone).toMatchObject([
+      {
+        zone_id: "south-end-charlotte",
+        venues: 1,
+        with_besttime_venue_id: 1,
+        without_besttime_venue_id: 0,
+        with_signal: 1,
+        without_signal: 0,
+      },
+      {
+        zone_id: "dilworth-charlotte",
+        venues: 1,
+        with_besttime_venue_id: 0,
+        without_besttime_venue_id: 1,
+        with_signal: 0,
+        without_signal: 1,
+      },
+      {
+        zone_id: "south-park-charlotte",
+        venues: 1,
+        with_besttime_venue_id: 1,
+        without_besttime_venue_id: 0,
+        with_signal: 1,
+        without_signal: 0,
+      },
+    ]);
   });
 
   it("degrades when a full daily busyness refresh is missed", async () => {

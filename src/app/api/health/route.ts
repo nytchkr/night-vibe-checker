@@ -1,6 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { publicRateLimit } from "@/lib/apiRateLimit";
+import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { supabaseAdmin } from "@/lib/supabase";
+
+type ZoneSignalCoverage = {
+  zone_id: string;
+  zone_name: string;
+  venues: number;
+  with_besttime_venue_id: number;
+  without_besttime_venue_id: number;
+  with_signal: number;
+  without_signal: number;
+  lastBusynessRefresh: string | null;
+};
 
 type HealthPayload = {
   status: "ok" | "degraded";
@@ -8,6 +20,8 @@ type HealthPayload = {
   venue_count: number | null;
   signals_count: number | null;
   openNowCount: number | null;
+  zones_with_signal_coverage: Record<string, number>;
+  besttime_coverage_by_zone: ZoneSignalCoverage[];
   lastBusynessRefresh: string | null;
   staleSince: string | null;
 };
@@ -35,14 +49,16 @@ async function countRows(table: "venues" | "venue_signals"): Promise<number | nu
 }
 
 type VenueHealthRow = {
+  zone_id: string | null;
+  besttime_venue_id: string | null;
   open_now: boolean | null;
   venue_signals:
-    | { last_busyness_refresh: string | null }
-    | Array<{ last_busyness_refresh: string | null }>
+    | { busyness_0_100: number | null; last_busyness_refresh: string | null }
+    | Array<{ busyness_0_100: number | null; last_busyness_refresh: string | null }>
     | null;
 };
 
-function firstSignal(row: VenueHealthRow): { last_busyness_refresh: string | null } | null {
+function firstSignal(row: VenueHealthRow): { busyness_0_100: number | null; last_busyness_refresh: string | null } | null {
   if (Array.isArray(row.venue_signals)) return row.venue_signals[0] ?? null;
   return row.venue_signals ?? null;
 }
@@ -51,7 +67,8 @@ async function getVenueHealthRows(): Promise<VenueHealthRow[] | null> {
   try {
     const query = supabaseAdmin
       .from("venues")
-      .select("open_now, venue_signals(last_busyness_refresh)");
+      .select("zone_id, besttime_venue_id, open_now, venue_signals(busyness_0_100, last_busyness_refresh)")
+      .in("zone_id", LAUNCH_ZONES.map((zone) => zone.id));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
     const result = await Promise.race([query, timeout]);
 
@@ -60,6 +77,57 @@ async function getVenueHealthRows(): Promise<VenueHealthRow[] | null> {
   } catch {
     return null;
   }
+}
+
+function buildZoneSignalCoverage(rows: VenueHealthRow[] | null): {
+  zonesWithSignalCoverage: Record<string, number>;
+  bestTimeCoverageByZone: ZoneSignalCoverage[];
+} {
+  const coverageByZone = new Map<string, ZoneSignalCoverage>(
+    LAUNCH_ZONES.map((zone) => [
+      zone.id,
+      {
+        zone_id: zone.id,
+        zone_name: zone.name,
+        venues: 0,
+        with_besttime_venue_id: 0,
+        without_besttime_venue_id: 0,
+        with_signal: 0,
+        without_signal: 0,
+        lastBusynessRefresh: null,
+      },
+    ])
+  );
+
+  for (const row of rows ?? []) {
+    if (!row.zone_id || !coverageByZone.has(row.zone_id)) continue;
+    const coverage = coverageByZone.get(row.zone_id)!;
+    const signal = firstSignal(row);
+    const hasBestTimeVenueId = typeof row.besttime_venue_id === "string" && row.besttime_venue_id.trim().length > 0;
+    const hasSignal = typeof signal?.busyness_0_100 === "number";
+
+    coverage.venues += 1;
+    if (hasBestTimeVenueId) coverage.with_besttime_venue_id += 1;
+    else coverage.without_besttime_venue_id += 1;
+    if (hasSignal) coverage.with_signal += 1;
+    else coverage.without_signal += 1;
+
+    if (signal?.last_busyness_refresh) {
+      const current = coverage.lastBusynessRefresh ? new Date(coverage.lastBusynessRefresh).getTime() : 0;
+      const next = new Date(signal.last_busyness_refresh).getTime();
+      if (Number.isFinite(next) && next > current) {
+        coverage.lastBusynessRefresh = signal.last_busyness_refresh;
+      }
+    }
+  }
+
+  const bestTimeCoverageByZone = [...coverageByZone.values()];
+  return {
+    zonesWithSignalCoverage: Object.fromEntries(
+      bestTimeCoverageByZone.map((coverage) => [coverage.zone_id, coverage.with_signal])
+    ),
+    bestTimeCoverageByZone,
+  };
 }
 
 export async function GET(req?: NextRequest) {
@@ -74,6 +142,7 @@ export async function GET(req?: NextRequest) {
   ]);
 
   const openNowCount = venueRows?.filter((row) => row.open_now === true).length ?? null;
+  const { zonesWithSignalCoverage, bestTimeCoverageByZone } = buildZoneSignalCoverage(venueRows);
   const refreshTimes = (venueRows ?? [])
     .map((row) => firstSignal(row)?.last_busyness_refresh)
     .filter((value): value is string => Boolean(value))
@@ -93,6 +162,8 @@ export async function GET(req?: NextRequest) {
     venue_count: venueCount,
     signals_count: signalsCount,
     openNowCount,
+    zones_with_signal_coverage: zonesWithSignalCoverage,
+    besttime_coverage_by_zone: bestTimeCoverageByZone,
     lastBusynessRefresh: newestSignal?.toISOString() ?? null,
     staleSince,
   };

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   let results: Awaited<ReturnType<typeof refreshBusyness>> = [];
   let busyError: string | null = null;
   try {
-    results = await refreshBusyness(50);
+    results = await refreshBusyness();
   } catch (err) {
     busyError = errorMessage(err);
     console.error("[cron/refresh-busyness] refreshBusyness failed:", err);
