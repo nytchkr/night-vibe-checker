@@ -164,7 +164,8 @@ export function isOpenNowFromGoogleHours(openingHours: unknown, charlotteTime: C
 }
 
 export function isOpenNow(opening_hours: any): boolean | null {
-  return opening_hours?.open_now ?? null;
+  const explicitOpenNow = opening_hours?.open_now ?? opening_hours?.openNow;
+  return typeof explicitOpenNow === "boolean" ? explicitOpenNow : null;
 }
 
 export function inferOpenNow(category: string | null, charlotteTime: CharlotteTime, openingHours?: unknown): boolean | null {
@@ -191,18 +192,9 @@ export function isOpenNowFresh(refreshedAt: unknown, now = new Date()): boolean 
 }
 
 export function inferCanonicalOpenNow({
-  category = null,
   openingHours,
-  refreshedAt,
-  now = new Date(),
 }: CanonicalOpenNowInput): boolean | null {
-  if (!isOpenNowFresh(refreshedAt, now)) return null;
-
-  const charlotteTime = getCharlotteTimeParts(now);
-  const inferredOpenNow = inferOpenNow(category, charlotteTime, openingHours);
-  if (inferredOpenNow != null) return inferredOpenNow;
-
-  return null;
+  return isOpenNow(openingHours);
 }
 
 export async function refreshOpenNow() {

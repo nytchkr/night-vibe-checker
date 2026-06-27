@@ -82,7 +82,7 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
     expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
     expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
       search_query: "rooftop",
@@ -171,7 +171,7 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
     expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
       "venue-b",
@@ -213,7 +213,7 @@ describe("GET /api/venues search", () => {
     );
 
     expect(second.status).toBe(304);
-    expect(second.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
+    expect(second.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
     expect(second.headers.get("ETag")).toBe(etag);
     expect(await second.text()).toBe("");
   });

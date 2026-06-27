@@ -43,7 +43,7 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
-const PUBLIC_CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=120";
+const PUBLIC_CACHE_CONTROL = "s-maxage=60, stale-while-revalidate=300";
 const PRIVATE_CACHE_CONTROL = "private, no-cache";
 
 type VenueQueryResult = {

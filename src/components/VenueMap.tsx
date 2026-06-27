@@ -13,7 +13,6 @@ import { AnimatePresence } from "framer-motion";
 import { aside as MotionAside } from "framer-motion/client";
 import { Check, ChevronDown, LocateFixed, MapPin, RefreshCw, Search, X } from "lucide-react";
 import { Circle, CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { inZone } from "@/lib/zone";
@@ -1001,31 +1000,32 @@ function MarkerVenuePopup({
   onClose: () => void;
   venue: ConsumerVenue | null;
 }) {
-  const busyness = venue?.signal?.busyness0To100;
-  const busynessPct = typeof busyness === "number" && Number.isFinite(busyness)
-    ? Math.max(0, Math.min(100, busyness))
-    : 0;
-  const busynessLabel = venue ? getBusynessState(busyness).label : "No data yet";
-
   return (
     <AnimatePresence>
       {venue && (
-        <MotionAside
-          key={venue.id}
-          role="dialog"
-          aria-modal="false"
-          aria-label={`${venue.name} map preview`}
-          className="fixed inset-x-0 bottom-0 z-[1200] px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4"
-          initial={{ y: "110%", opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: "110%", opacity: 0 }}
-          transition={{ type: "spring", stiffness: 420, damping: 36, mass: 0.9 }}
-        >
-          <div className="mx-auto w-full max-w-lg rounded-t-[18px] border border-white/[0.08] bg-[#0A0A0E]/96 p-4 shadow-[0_-24px_70px_rgba(0,0,0,0.66),0_0_32px_rgba(139,108,255,0.14)] backdrop-blur-xl">
+        <>
+          <button
+            type="button"
+            aria-label="Dismiss venue popup"
+            onClick={onClose}
+            className="fixed inset-0 z-10 cursor-default bg-transparent"
+          />
+          <MotionAside
+            key={venue.id}
+            role="dialog"
+            aria-modal="false"
+            aria-label={`${venue.name} venue popup`}
+            className="fixed bottom-20 inset-x-4 rounded-2xl bg-[#14141A] border border-white/[0.08] p-4 shadow-2xl z-20"
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 16, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <h2 className="truncate text-xl font-black leading-tight text-white">{venue.name}</h2>
+                <h2 className="truncate font-semibold text-white">{venue.name}</h2>
+                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="truncate text-xs font-semibold text-white/55">{venue.category}</span>
                   {venue.openNow && (
                     <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#00F5D4]/35 bg-[#00F5D4]/12 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-[#00F5D4]">
                       <span className="h-1.5 w-1.5 rounded-full bg-[#00F5D4] shadow-[0_0_10px_rgba(0,245,212,0.7)]" aria-hidden="true" />
@@ -1033,7 +1033,6 @@ function MarkerVenuePopup({
                     </span>
                   )}
                 </div>
-                <p className="mt-1 truncate text-xs font-semibold text-white/50">{venue.category}</p>
               </div>
               <button
                 type="button"
@@ -1045,27 +1044,22 @@ function MarkerVenuePopup({
               </button>
             </div>
 
-            <div className="mt-4" aria-label={`Busyness ${busynessPct}%`}>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[11px] font-black uppercase text-white/45">Busyness</span>
-                <span className="text-xs font-black text-white/70">{busyness == null ? busynessLabel : `${busynessPct}%`}</span>
-              </div>
-              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/[0.08]">
-                <div
-                  className="venue-fill-motion h-full rounded-full bg-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.55)]"
-                  style={{ width: `${busynessPct}%` }}
-                />
-              </div>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Link
+                href={venueHref(venue)}
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-4 text-sm font-black text-white transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                View venue
+              </Link>
+              <Link
+                href={`/vibe-check?venueId=${encodeURIComponent(venue.id)}`}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.32)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                Check in
+              </Link>
             </div>
-
-            <Link
-              href={venueHref(venue)}
-              className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_22px_rgba(139,108,255,0.34)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
-            >
-              View Details
-            </Link>
-          </div>
-        </MotionAside>
+          </MotionAside>
+        </>
       )}
     </AnimatePresence>
   );
@@ -1572,16 +1566,18 @@ export function VenueMap({
         + Report vibe
       </Link>
 
-      <MapBottomSheet
-        cityName={city.name}
-        launchZoneNotice={isUserOutsideLaunchZone ? OUT_OF_ZONE_GEO_MESSAGE : null}
-        loading={loading}
-        onVenueSelect={selectVenueFromList}
-        selectedVenueId={selectedVenueId}
-        setSnap={setSheetSnap}
-        snap={sheetSnap}
-        venues={filteredVenues}
-      />
+      {!markerPopupVenue && (
+        <MapBottomSheet
+          cityName={city.name}
+          launchZoneNotice={isUserOutsideLaunchZone ? OUT_OF_ZONE_GEO_MESSAGE : null}
+          loading={loading}
+          onVenueSelect={selectVenueFromList}
+          selectedVenueId={selectedVenueId}
+          setSnap={setSheetSnap}
+          snap={sheetSnap}
+          venues={filteredVenues}
+        />
+      )}
 
       <MarkerVenuePopup venue={markerPopupVenue} onClose={dismissMarkerPopup} />
 

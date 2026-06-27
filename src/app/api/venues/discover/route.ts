@@ -25,6 +25,10 @@ const DYNAMIC_HEADERS = {
   "Cache-Control": "private, no-store",
 };
 
+const EDGE_CACHE_HEADERS = {
+  "Cache-Control": "s-maxage=30, stale-while-revalidate=120",
+};
+
 function mapPhotoUrl(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
@@ -141,7 +145,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       status: "success",
       data: { zone: LAUNCH_ZONE, discovered: discovered.length },
       meta: { cached: false, generatedAt, requestId },
-    }, { headers: DYNAMIC_HEADERS });
+    }, { headers: EDGE_CACHE_HEADERS });
   }
 
   const venues: ConsumerVenue[] = ((venueRows ?? []) as Record<string, unknown>[]).map((row) => ({
@@ -178,5 +182,5 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     status: "success",
     data: { zone: LAUNCH_ZONE, venues, discovered: discovered.length },
     meta: { cached: false, generatedAt, requestId },
-  }, { headers: DYNAMIC_HEADERS });
+  }, { headers: EDGE_CACHE_HEADERS });
 }

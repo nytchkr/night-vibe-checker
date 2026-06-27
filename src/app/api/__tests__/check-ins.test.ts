@@ -130,9 +130,11 @@ const SIGNAL = {
   last_busyness_refresh: null,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   vi.resetModules();
+  const { resetRateLimitStore } = await import("@/lib/rateLimit");
+  resetRateLimitStore();
   mockAssertSupabaseServerEnv.mockReturnValue(undefined);
   mockGetAuthenticatedUserId.mockResolvedValue("user-123");
   mockAuth("user-123");
@@ -153,6 +155,10 @@ describe("POST /api/check-ins", () => {
     const { POST } = await import("../check-ins/route");
     const res = await POST(request("POST", "http://localhost/api/check-ins", {}, ""));
     expect(res.status).toBe(401);
+    const json = await res.json();
+    expect(json.error.code).toBe("UNAUTHORIZED");
+    const authRequest = mockGetAuthenticatedUserId.mock.calls[0]?.[0] as NextRequest;
+    expect(authRequest.headers.get("authorization")).toBeNull();
   });
 
   it("validates the new report payload", async () => {
@@ -170,6 +176,20 @@ describe("POST /api/check-ins", () => {
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json).toEqual({ error: "venue_id is required." });
+  });
+
+  it("returns 400 when venue_id contains only invalid characters", async () => {
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        venue_id: "<>;'\"()",
+      })
+    );
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json).toEqual({ error: "venue_id is required." });
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it("rejects an invalid vibe enum when provided", async () => {
@@ -288,6 +308,38 @@ describe("POST /api/check-ins", () => {
 
     expect(res.status).toBe(201);
     expect(venueChain.eq).toHaveBeenCalledWith("place_id", "place-123DROPTABLEcheck_ins--");
+  });
+
+  it("strips XSS characters from venue_id before inserting a simple check-in", async () => {
+    const sanitizedVenueId = "scriptalert1script";
+    const xssVenue = {
+      id: sanitizedVenueId,
+      place_id: sanitizedVenueId,
+      hidden: false,
+    };
+    const venueChain = chain({ data: xssVenue });
+    const duplicateChain = chain({ data: [] });
+    const insertChain = chain({ data: { id: "simple-check-in-1" } });
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        venue_id: "<script>alert(1)</script>",
+      })
+    );
+
+    expect(res.status).toBe(201);
+    expect(venueChain.eq).toHaveBeenCalledWith("place_id", sanitizedVenueId);
+    expect(insertChain.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        venue_id: sanitizedVenueId,
+        place_id: sanitizedVenueId,
+      })
+    );
   });
 
   it("accepts the canonical place_id, numeric busyness, crowd_feel, and prefer-not gender payload", async () => {

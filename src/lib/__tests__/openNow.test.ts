@@ -64,6 +64,7 @@ describe("isOpenNow", () => {
   it("returns only the explicit Google open_now value", () => {
     expect(isOpenNow({ open_now: true })).toBe(true);
     expect(isOpenNow({ open_now: false })).toBe(false);
+    expect(isOpenNow({ openNow: true })).toBe(true);
     expect(isOpenNow(null)).toBeNull();
     expect(isOpenNow({ periods: [] })).toBeNull();
   });
@@ -90,23 +91,23 @@ describe("inferOpenNow", () => {
 describe("inferCanonicalOpenNow", () => {
   const now = new Date("2026-06-22T22:00:00.000-04:00");
 
-  it("uses fresh Google periods in Charlotte local time", () => {
+  it("uses only the explicit Google open_now field", () => {
     expect(
       inferCanonicalOpenNow({
         category: "bar",
-        openingHours: sampleHours,
-        refreshedAt: "2026-06-22T21:30:00.000-04:00",
+        openingHours: { ...sampleHours, open_now: true },
+        refreshedAt: "2026-06-20T21:30:00.000-04:00",
         now,
       })
     ).toBe(true);
   });
 
-  it("does not show open status when the hours refresh is stale", () => {
+  it("returns null instead of computing from Google periods", () => {
     expect(
       inferCanonicalOpenNow({
         category: "bar",
         openingHours: sampleHours,
-        refreshedAt: "2026-06-20T21:30:00.000-04:00",
+        refreshedAt: "2026-06-22T21:30:00.000-04:00",
         now,
       })
     ).toBeNull();

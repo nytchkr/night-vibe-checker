@@ -59,7 +59,7 @@ describe("GET /api/venues/[id] cache headers", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("s-maxage=30, stale-while-revalidate=120");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=600");
     expect(json.data.venue.id).toBe("venue-1");
   });
 });

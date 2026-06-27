@@ -10,6 +10,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 const OPEN_MONDAY_NIGHT_HOURS = {
+  open_now: true,
   periods: [
     {
       open: { day: 1, hour: 17, minute: 0 },
@@ -20,6 +21,7 @@ const OPEN_MONDAY_NIGHT_HOURS = {
 };
 
 const CLOSED_MONDAY_NIGHT_HOURS = {
+  open_now: false,
   periods: [
     {
       open: { day: 1, hour: 11, minute: 0 },
@@ -62,6 +64,7 @@ function venueRow({
   busyness,
   checkInCount,
   openingHours = OPEN_MONDAY_NIGHT_HOURS,
+  openNow = true,
   rating = null,
 }: {
   id: string;
@@ -69,8 +72,13 @@ function venueRow({
   busyness: number | null;
   checkInCount: number;
   openingHours?: unknown;
+  openNow?: boolean | null;
   rating?: number | null;
 }) {
+  const canonicalOpeningHours = openingHours && typeof openingHours === "object" && !Array.isArray(openingHours)
+    ? { ...openingHours, open_now: openNow }
+    : openingHours;
+
   return {
     id,
     place_id: `place-${id}`,
@@ -87,7 +95,8 @@ function venueRow({
     price_level: 2,
     photo_url: `https://example.test/${id}.jpg`,
     hidden: false,
-    opening_hours: openingHours,
+    open_now: openNow,
+    opening_hours: canonicalOpeningHours,
     updated_at: UPDATED_AT,
     venue_signals: [
       {
@@ -142,7 +151,7 @@ describe("trending venue scoring", () => {
 
   it("excludes closed venues from trending results", async () => {
     const rows = [
-      venueRow({ id: "venue-closed", name: "Closed Bar", busyness: 80, checkInCount: 2, openingHours: CLOSED_MONDAY_NIGHT_HOURS }),
+      venueRow({ id: "venue-closed", name: "Closed Bar", busyness: 80, checkInCount: 2, openingHours: CLOSED_MONDAY_NIGHT_HOURS, openNow: false }),
       venueRow({ id: "venue-open", name: "Open Bar", busyness: 80, checkInCount: 2 }),
     ];
 

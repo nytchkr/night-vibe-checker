@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -29,7 +29,6 @@ import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { fetchTrendingVenueIds } from "@/lib/clientTrendingVenueIds";
 import { inZone } from "@/lib/zone";
 import { isOnboardingZoneId, PREFERRED_ZONE_STORAGE_KEY, type OnboardingZone } from "@/lib/onboarding";
-import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { useTrack } from "@/lib/useTrack";
@@ -92,6 +91,7 @@ const EXPLORE_ZONE_FILTERS_BY_ID: Record<OnboardingZone["id"], ExploreFilterOpti
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
+const PULL_TO_REFRESH_THRESHOLD_PX = 60;
 
 async function getSupabaseBrowserClient() {
   const { createBrowserClient } = await import("@/lib/supabase-browser");
@@ -750,15 +750,11 @@ function VenueFeedCard({
 
 function PullToRefreshIndicator({
   refreshing,
-  pullDistance,
   prefersReduced,
 }: {
   refreshing: boolean;
-  pullDistance: number;
   prefersReduced: boolean;
 }) {
-  const pullOffset = Math.min(10, Math.max(0, pullDistance / 10));
-
   return (
     <MotionDiv
       key="explore-pull-to-refresh"
@@ -767,27 +763,20 @@ function PullToRefreshIndicator({
       initial={prefersReduced ? false : { opacity: 0, y: -18, height: 0 }}
       animate={{
         opacity: 1,
-        y: prefersReduced ? 0 : pullOffset,
+        y: 0,
         height: "auto",
       }}
       exit={prefersReduced ? undefined : { opacity: 0, y: -12, height: 0 }}
       transition={{ duration: prefersReduced ? 0 : 0.22, ease: "easeOut" }}
       className="overflow-hidden"
     >
-      <div className="mb-3 flex justify-center">
-        <div className="flex min-h-[68px] min-w-[104px] flex-col items-center justify-center rounded-[18px] border border-[#8B6CFF]/20 bg-[#0A0A0E]/92 px-5 py-3 shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur">
+      <div className="mb-3 flex justify-center pt-1">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#8B6CFF]/20 bg-[#0A0A0E]/92 shadow-[0_10px_24px_rgba(0,0,0,0.24)] backdrop-blur">
           <span className="sr-only">{refreshing ? "Refreshing venues" : "Pull to refresh venues"}</span>
           <span
-            className="relative h-3 w-16 overflow-hidden rounded-full bg-white/[0.04]"
+            className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-2 border-t-[#8B6CFF]"
             aria-hidden="true"
-          >
-            <span className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-white/[0.08] to-white/[0.04] bg-[length:400%_100%] animate-shimmer" />
-          </span>
-          {refreshing ? (
-            <span className="mt-2 text-xs font-semibold text-[#8B6CFF]">
-              Refreshing...
-            </span>
-          ) : null}
+          />
         </div>
       </div>
     </MotionDiv>
@@ -819,6 +808,10 @@ export function ExplorePageClient() {
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const pullStartYRef = useRef<number | null>(null);
+  const pullDeltaRef = useRef(0);
+  const [pullDelta, setPullDelta] = useState(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   const fetchVenues = useCallback(async ({
     reset = false,
@@ -867,8 +860,6 @@ export function ExplorePageClient() {
       setActivityLoaded(true);
     }
   }, []);
-
-  const { pulling, refreshing, pullDistance } = usePullToRefresh(refreshVenues);
 
   useEffect(() => {
     void fetchActivity();
@@ -1252,6 +1243,59 @@ export function ExplorePageClient() {
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
   ), [now]);
 
+  function isAtWindowTop() {
+    return typeof window !== "undefined" && window.scrollY === 0;
+  }
+
+  function handlePullTouchStart(event: TouchEvent<HTMLElement>) {
+    if (!isAtWindowTop() || isPullRefreshing) {
+      pullStartYRef.current = null;
+      pullDeltaRef.current = 0;
+      setPullDelta(0);
+      return;
+    }
+
+    pullStartYRef.current = event.touches[0]?.clientY ?? null;
+    pullDeltaRef.current = 0;
+    setPullDelta(0);
+  }
+
+  function handlePullTouchMove(event: TouchEvent<HTMLElement>) {
+    if (pullStartYRef.current === null || !isAtWindowTop()) {
+      pullStartYRef.current = null;
+      pullDeltaRef.current = 0;
+      setPullDelta(0);
+      return;
+    }
+
+    const currentY = event.touches[0]?.clientY;
+    if (currentY === undefined) return;
+
+    const nextDelta = Math.max(0, currentY - pullStartYRef.current);
+    pullDeltaRef.current = nextDelta;
+    setPullDelta(nextDelta);
+  }
+
+  async function handlePullTouchEnd() {
+    const shouldRefresh = pullDeltaRef.current > PULL_TO_REFRESH_THRESHOLD_PX && isAtWindowTop() && !isPullRefreshing;
+    pullStartYRef.current = null;
+
+    if (!shouldRefresh) {
+      pullDeltaRef.current = 0;
+      setPullDelta(0);
+      return;
+    }
+
+    setIsPullRefreshing(true);
+    try {
+      await refreshVenues();
+    } finally {
+      setIsPullRefreshing(false);
+      pullDeltaRef.current = 0;
+      setPullDelta(0);
+    }
+  }
+
   if (!venues) {
     return (
       <div className="min-h-screen-safe space-y-3 bg-[#0A0A0E] p-4 text-white">
@@ -1426,12 +1470,23 @@ export function ExplorePageClient() {
         </div>
       </div>
 
-      <section className="mx-auto max-w-lg space-y-3 px-4 pb-6" role="region" aria-label="Venue results">
+      <section
+        className="mx-auto max-w-lg space-y-3 px-4 pb-6"
+        role="region"
+        aria-label="Venue results"
+        onTouchStart={handlePullTouchStart}
+        onTouchMove={handlePullTouchMove}
+        onTouchEnd={() => void handlePullTouchEnd()}
+        onTouchCancel={() => {
+          pullStartYRef.current = null;
+          pullDeltaRef.current = 0;
+          setPullDelta(0);
+        }}
+      >
         <AnimatePresence initial={false}>
-          {(pulling || refreshing) ? (
+          {(pullDelta > PULL_TO_REFRESH_THRESHOLD_PX || isPullRefreshing) ? (
             <PullToRefreshIndicator
-              refreshing={refreshing}
-              pullDistance={pullDistance}
+              refreshing={isPullRefreshing}
               prefersReduced={prefersReduced}
             />
           ) : null}

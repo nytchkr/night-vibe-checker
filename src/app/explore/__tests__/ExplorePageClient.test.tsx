@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExplorePageClient } from "../ExplorePageClient";
@@ -55,6 +55,7 @@ vi.mock("framer-motion", async () => {
       whileHover: _whileHover,
       layout: _layout,
       layoutId: _layoutId,
+      variants: _variants,
       ...props
     }: {
       children?: React.ReactNode;
@@ -66,6 +67,7 @@ vi.mock("framer-motion", async () => {
       whileHover?: unknown;
       layout?: unknown;
       layoutId?: unknown;
+      variants?: unknown;
       [key: string]: unknown;
     }) {
       return React.createElement(tag, props, children);
@@ -90,6 +92,7 @@ vi.mock("framer-motion/client", async () => {
       animate: _animate,
       exit: _exit,
       transition: _transition,
+      variants: _variants,
       ...props
     }: {
       children?: React.ReactNode;
@@ -97,6 +100,7 @@ vi.mock("framer-motion/client", async () => {
       animate?: unknown;
       exit?: unknown;
       transition?: unknown;
+      variants?: unknown;
       [key: string]: unknown;
     }) {
       return React.createElement(tag, props, children);
@@ -288,7 +292,7 @@ describe("ExplorePageClient venue search", () => {
 
     await renderExplore();
 
-    await userEvent.click(screen.getByRole("button", { name: "Bars" }));
+    fireEvent.click(screen.getByRole("button", { name: "Bars" }));
 
     const results = venueResults();
     expect(screen.getByRole("button", { name: "Bars" }).getAttribute("aria-pressed")).toBe("true");
@@ -474,10 +478,10 @@ describe("ExplorePageClient venue search", () => {
       }),
     ]);
 
-    await renderExplore();
+    render(<ExplorePageClient />);
 
-    const results = venueResults();
-    const sampleReadyBar = within(results).getByRole("link", { name: /^Open Sample Ready Bar/ });
+    const results = await screen.findByRole("region", { name: "Venue results" });
+    const sampleReadyBar = await within(results).findByRole("link", { name: /^Open Sample Ready Bar/ });
     const thinSampleBar = within(results).getByRole("link", { name: /^Open Thin Sample Bar/ });
 
     expect(within(sampleReadyBar).getByTitle(`M/F ratio from ${MIN_SAMPLE_SIZE_FOR_RATIO} check-ins`)).toBeTruthy();
@@ -486,14 +490,19 @@ describe("ExplorePageClient venue search", () => {
   });
 
   it("renders skeleton venue cards during the initial load", async () => {
+    let resolveVenues: (response: Response) => void = () => {};
+    const venuesPromise = new Promise<Response>((resolve) => {
+      resolveVenues = resolve;
+    });
+
     vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
       const url = input.toString();
       if (url.includes("/api/activity/feed")) {
-        return new Promise<Response>(() => {});
+        return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
       }
 
       if (url.includes("/api/venues")) {
-        return new Promise<Response>(() => {});
+        return venuesPromise;
       }
 
       return Promise.resolve(new Response("{}", { status: 200 }));
@@ -502,5 +511,9 @@ describe("ExplorePageClient venue search", () => {
     render(<ExplorePageClient />);
 
     await waitFor(() => expect(screen.getAllByRole("status", { name: "Loading..." })).toHaveLength(6));
+    await act(async () => {
+      resolveVenues(new Response(JSON.stringify({ data: { venues } }), { status: 200 }));
+    });
+    await screen.findByRole("region", { name: "Venue results" });
   });
 });

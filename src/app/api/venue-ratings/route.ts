@@ -24,6 +24,10 @@ const PRIVATE_CACHE_HEADERS = {
   "Cache-Control": "private, no-cache",
 };
 
+const EDGE_CACHE_HEADERS = {
+  "Cache-Control": "s-maxage=30, stale-while-revalidate=60",
+};
+
 function meta() {
   return { cached: false, generatedAt: new Date().toISOString() };
 }
@@ -111,6 +115,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const authHeader = req.headers.get("Authorization");
   const hasBearer = Boolean(authHeader?.startsWith("Bearer ") && authHeader.slice(7).trim());
+  const responseHeaders = hasBearer ? PRIVATE_CACHE_HEADERS : EDGE_CACHE_HEADERS;
 
   let userRating: number | null = null;
   if (hasBearer) {
@@ -131,7 +136,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<VenueRatingsResponse>(
     { status: "success", ...responseData, data: responseData, meta: meta() },
-    { headers: PRIVATE_CACHE_HEADERS },
+    { headers: responseHeaders },
   );
 }
 

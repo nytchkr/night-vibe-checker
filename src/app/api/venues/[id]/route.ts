@@ -37,7 +37,7 @@ const VENUE_SELECT_LEGACY = `
 export const dynamic = "force-dynamic";
 
 const EDGE_CACHE_HEADERS = {
-  "Cache-Control": "s-maxage=30, stale-while-revalidate=120",
+  "Cache-Control": "s-maxage=120, stale-while-revalidate=600",
 };
 
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
