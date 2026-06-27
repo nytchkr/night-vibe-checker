@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExplorePageClient } from "../ExplorePageClient";
@@ -297,7 +297,7 @@ describe("ExplorePageClient venue search", () => {
     });
 
     await renderExplore();
-    await userEvent.click(screen.getByRole("button", { name: "Near Me" }));
+    fireEvent.click(screen.getByRole("button", { name: "Near Me" }));
 
     await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByText("0.3 mi")).toBeTruthy());
@@ -322,7 +322,7 @@ describe("ExplorePageClient venue search", () => {
     });
 
     await renderExplore();
-    await userEvent.click(screen.getByRole("button", { name: "Near Me" }));
+    fireEvent.click(screen.getByRole("button", { name: "Near Me" }));
 
     expect(await screen.findByText("Location access was denied. Enable location to sort nearby spots.")).toBeTruthy();
     expect(within(venueResults()).queryByText(/ mi$/)).toBeNull();
