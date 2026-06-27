@@ -29,7 +29,12 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
 
     // Only run Vitest tests — exclude Playwright spec files
-    include: ["src/**/__tests__/**/*.test.ts", "src/**/__tests__/**/*.spec.ts"],
+    include: [
+      "src/**/__tests__/**/*.test.ts",
+      "src/**/__tests__/**/*.test.tsx",
+      "src/**/__tests__/**/*.spec.ts",
+      "src/**/__tests__/**/*.spec.tsx",
+    ],
     exclude: ["e2e/**", "node_modules/**", ".next/**"],
 
     coverage: {
