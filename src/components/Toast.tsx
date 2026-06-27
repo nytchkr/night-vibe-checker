@@ -1,70 +1,151 @@
 "use client";
 
-// ============================================================
-// Toast
-//
-// Fixed bottom-center notification.
-// Fades in immediately, fades out after durationMs then calls onDone.
-//
-// Props:
-//   message  — text to display
-//   onDone   — called when the animation completes so the
-//              parent can clear the toast from state
-// ============================================================
+import { useEffect } from "react";
+import { AnimatePresence } from "framer-motion";
+import { div as MotionDiv } from "framer-motion/client";
+import { X } from "lucide-react";
 
-import { useEffect, useState } from "react";
+export type ToastVariant = "success" | "error" | "info";
 
-interface ToastProps {
+export type ToastItem = {
+  id: number;
+  message: string;
+  variant: ToastVariant;
+};
+
+type ToastProps = {
   message: string;
   onDone: () => void;
+  variant?: ToastVariant;
   actionLabel?: string;
   onAction?: () => void;
   durationMs?: number;
-  fadeMs?: number;
   className?: string;
-}
+};
 
-export function Toast({ message, onDone, actionLabel, onAction, durationMs = 2500, fadeMs = 500, className = "" }: ToastProps) {
-  const [visible, setVisible] = useState(true);
-  const hasAction = Boolean(actionLabel && onAction);
+type ToastViewportProps = {
+  toasts: ToastItem[];
+  onDismiss: (id: number) => void;
+};
 
+const TOAST_DURATION_MS = 3000;
+
+const variantStyles: Record<ToastVariant, { panel: string; dot: string; glow: string }> = {
+  success: {
+    panel: "border-[#00F5D4]/45 bg-[#00F5D4] text-[#051312]",
+    dot: "bg-[#051312]",
+    glow: "shadow-[0_18px_48px_rgba(0,245,212,0.28)]",
+  },
+  error: {
+    panel: "border-[#F05656]/45 bg-[#F05656] text-white",
+    dot: "bg-white",
+    glow: "shadow-[0_18px_48px_rgba(240,86,86,0.28)]",
+  },
+  info: {
+    panel: "border-[#8B6CFF]/45 bg-[#8B6CFF] text-white",
+    dot: "bg-white",
+    glow: "shadow-[0_18px_48px_rgba(139,108,255,0.30)]",
+  },
+};
+
+export function Toast({
+  message,
+  onDone,
+  variant = "info",
+  actionLabel,
+  onAction,
+  durationMs = TOAST_DURATION_MS,
+  className = "",
+}: ToastProps) {
   useEffect(() => {
-    const hideTimer = setTimeout(() => setVisible(false), durationMs);
-    const doneTimer = setTimeout(() => onDone(), durationMs + fadeMs);
-    return () => {
-      clearTimeout(hideTimer);
-      clearTimeout(doneTimer);
-    };
-  }, [durationMs, fadeMs, onDone]);
+    const timer = window.setTimeout(onDone, durationMs);
+    return () => window.clearTimeout(timer);
+  }, [durationMs, onDone]);
 
   return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[10000] flex justify-center px-4 sm:bottom-6">
+      <ToastCard
+        toast={{ id: 0, message, variant }}
+        onDismiss={onDone}
+        actionLabel={actionLabel}
+        onAction={onAction}
+        className={className}
+      />
+    </div>
+  );
+}
+
+export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
+  return (
     <div
-      role="status"
       aria-live="polite"
-      aria-atomic="true"
-      style={{ transition: `opacity ${fadeMs}ms ease` }}
-      className={`
-        fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999]
-        rounded-xl bg-white/10 px-4 py-3
-        text-sm font-medium text-white backdrop-blur
-        border border-white/10 shadow-xl
-        ${hasAction ? "pointer-events-auto" : "pointer-events-none select-none"}
-        whitespace-nowrap
-        ${visible ? "opacity-100" : "opacity-0"}
-        ${className}
-      `}
+      aria-relevant="additions removals"
+      className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[10000] flex flex-col-reverse items-center gap-2 px-4 sm:bottom-6"
     >
-      <span>{message}</span>
+      <AnimatePresence initial={false}>
+        {toasts.map((toast) => (
+          <ToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ToastCard({
+  toast,
+  onDismiss,
+  actionLabel,
+  onAction,
+  className = "",
+}: {
+  toast: ToastItem;
+  onDismiss: (id: number) => void;
+  actionLabel?: string;
+  onAction?: () => void;
+  className?: string;
+}) {
+  const styles = variantStyles[toast.variant];
+  const hasAction = Boolean(actionLabel && onAction);
+
+  return (
+    <MotionDiv
+      layout
+      role={toast.variant === "error" ? "alert" : "status"}
+      aria-atomic="true"
+      initial={{ opacity: 0, y: 28, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 18, scale: 0.98 }}
+      transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
+      className={[
+        "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[14px] border px-4 py-3 text-sm font-bold leading-5",
+        "backdrop-blur-xl",
+        styles.panel,
+        styles.glow,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${styles.dot}`} aria-hidden="true" />
+      <span className="min-w-0 flex-1 break-words">{toast.message}</span>
       {hasAction ? (
         <button
           type="button"
           onClick={onAction}
-          className="ml-3 rounded-full border border-white/25 px-3 py-1 text-xs font-black text-white transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+          className="shrink-0 rounded-full border border-current/25 px-3 py-1 text-xs font-black text-current/90 transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
           {actionLabel}
         </button>
       ) : null}
-    </div>
+      <button
+        type="button"
+        onClick={() => onDismiss(toast.id)}
+        aria-label="Dismiss notification"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-current/70 transition-colors hover:bg-white/15 hover:text-current focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </MotionDiv>
   );
 }
 

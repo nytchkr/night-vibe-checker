@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ToastProvider } from "@/components/ToastProvider";
+import { ToastProvider } from "@/hooks/useToast";
 import type { ConsumerVenue } from "@/types";
 import { VenuePageClient } from "../VenuePageClient";
 
@@ -133,6 +133,11 @@ vi.mock("@/components/StarRating", () => ({
 
 vi.mock("@/components/Toast", () => ({
   Toast: ({ message }: { message: string }) => <div>{message}</div>,
+  ToastViewport: ({ toasts }: { toasts: Array<{ id: number; message: string; variant: string }> }) => (
+    <div data-testid="toast-viewport">
+      {toasts.map((t) => <div key={t.id}>{t.message}</div>)}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/TrendingBadge", () => ({
