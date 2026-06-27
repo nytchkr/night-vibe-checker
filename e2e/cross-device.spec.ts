@@ -200,8 +200,7 @@ async function expectVenueCardVisible(page: Page, venueName: string) {
 }
 
 async function expectMapReady(page: Page) {
-  await page.waitForSelector(".leaflet-container", { timeout: 25_000 });
-  await expect(page.locator(".leaflet-container")).toBeVisible();
+  await expect(page.locator(".leaflet-container").first()).toBeVisible({ timeout: 25_000 });
   await expect(page.locator(".venue-cluster-pin, .leaflet-marker-icon").first()).toBeVisible({ timeout: 25_000 });
 }
 
@@ -272,14 +271,14 @@ test.describe("@device cross-device browser coverage", () => {
   test("@device venue card opens detail with visible hero art", async ({ page, request }) => {
     await preventFetchedVenuePhotos(page);
 
-    const realVenue = await getNoPhotoVenue(request) ?? await getRealVenue(request);
-    test.skip(!realVenue, "No cached launch-zone venue available from /api/venues");
+    const realVenue = await getNoPhotoVenue(request);
+    test.skip(!realVenue, "No cached launch-zone venue without photo_url/photoUrls was available from /api/venues");
 
     await mockVenueApis(page, [realVenue!]);
     await page.goto("/explore");
     await expectVenueCardVisible(page, realVenue!.name);
 
-    await page.getByRole("link", { name: `Open ${realVenue!.name}`, exact: true }).first().click();
+    await page.locator(`a[href="/venues/${realVenue!.id}"]`).last().click();
 
     await expect(page).toHaveURL(new RegExp(`/venues/${realVenue!.id}$`));
     await expect(page.getByRole("heading", { level: 1, name: realVenue!.name })).toBeVisible({ timeout: 15_000 });
