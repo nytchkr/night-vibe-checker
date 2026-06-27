@@ -72,6 +72,28 @@ function ExploreIcon({ filled }: { filled?: boolean }) {
   );
 }
 
+function VibeCheckIcon({ filled }: { filled?: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={24}
+      height={24}
+      viewBox="0 0 24 24"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={filled ? 2.5 : 2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 4h8" />
+      <path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z" fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
+      <path d="M7 4h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
+      <path d="m9 13 2 2 4-5" />
+    </svg>
+  );
+}
+
 function YouIcon({ filled }: { filled?: boolean }) {
   return (
     <svg
@@ -111,25 +133,25 @@ function NavItem({
       prefetch
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-200 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+      className={`group relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-150 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
         active
           ? "text-[#8B6CFF] drop-shadow-[0_0_12px_rgba(139,108,255,0.35)]"
           : "text-[#9CA2AE] hover:bg-white/[0.04] hover:text-[#F4F5F8]"
       }`}
     >
-      <span className="relative transition-transform duration-200 ease-out group-hover:scale-105">
+      <span className="relative transition-transform duration-150 ease-out group-hover:scale-105">
         {children}
         {showBadge && <BadgeDot />}
+        {active && (
+          <MotionSpan
+            layoutId="bottom-nav-active-underline"
+            aria-hidden="true"
+            className="absolute -bottom-1 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_12px_rgba(139,108,255,0.7)]"
+            transition={{ duration: 0.15, ease: "easeOut" }}
+          />
+        )}
       </span>
       <span className="text-[11px] font-normal leading-[1.5]">{label}</span>
-      {active && (
-        <MotionSpan
-          layoutId="bottom-nav-active-underline"
-          aria-hidden="true"
-          className="absolute bottom-1.5 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_12px_rgba(139,108,255,0.7)]"
-          transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
-        />
-      )}
     </Link>
   );
 }
@@ -137,7 +159,8 @@ function NavItem({
 const navItems = [
   { href: "/map", label: "Map", Icon: MapIcon },
   { href: "/explore", label: "Explore", Icon: ExploreIcon },
-  { href: "/profile", label: "You", Icon: YouIcon },
+  { href: "/vibe-check", label: "Vibe", Icon: VibeCheckIcon },
+  { href: "/you", label: "You", Icon: YouIcon },
 ];
 
 function shouldHideNavigation(pathname: string): boolean {
@@ -154,7 +177,8 @@ function getActiveStates(pathname: string) {
   return {
     mapActive: pathname.startsWith("/map") || pathname === "/",
     exploreActive: pathname.startsWith("/explore"),
-    youActive: pathname.startsWith("/profile"),
+    vibeCheckActive: pathname.startsWith("/vibe-check"),
+    youActive: pathname.startsWith("/you") || pathname.startsWith("/profile"),
   };
 }
 
@@ -162,7 +186,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const [showYouBadge, setShowYouBadge] = useState(false);
   const [showExploreBadge, setShowExploreBadge] = useState(false);
-  const { mapActive, exploreActive, youActive } = getActiveStates(pathname);
+  const { mapActive, exploreActive, vibeCheckActive, youActive } = getActiveStates(pathname);
 
   useEffect(() => {
     let cancelled = false;
@@ -283,15 +307,19 @@ export function BottomNav() {
       className="app-bottom-nav tap-highlight-none fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <div className="mx-auto flex h-16 w-full max-w-lg items-stretch px-3">
-        <NavItem href="/map" label="Map" active={mapActive}>
-          <MapIcon filled={mapActive} />
-        </NavItem>
-
         <NavItem href="/explore" label="Explore" active={exploreActive} showBadge={!exploreActive && showExploreBadge}>
           <ExploreIcon filled={exploreActive} />
         </NavItem>
 
-        <NavItem href="/profile" label="You" active={youActive} showBadge={showYouBadge}>
+        <NavItem href="/map" label="Map" active={mapActive}>
+          <MapIcon filled={mapActive} />
+        </NavItem>
+
+        <NavItem href="/vibe-check" label="Vibe" active={vibeCheckActive}>
+          <VibeCheckIcon filled={vibeCheckActive} />
+        </NavItem>
+
+        <NavItem href="/you" label="You" active={youActive} showBadge={showYouBadge}>
           <YouIcon filled={youActive} />
         </NavItem>
       </div>
@@ -301,11 +329,12 @@ export function BottomNav() {
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { mapActive, exploreActive, youActive } = getActiveStates(pathname);
+  const { mapActive, exploreActive, vibeCheckActive, youActive } = getActiveStates(pathname);
   const activeByHref: Record<string, boolean> = {
     "/map": mapActive,
     "/explore": exploreActive,
-    "/profile": youActive,
+    "/vibe-check": vibeCheckActive,
+    "/you": youActive,
   };
 
   if (shouldHideNavigation(pathname)) {
@@ -325,7 +354,7 @@ export function SidebarNav() {
             href={href}
             prefetch
             aria-current={active ? "page" : undefined}
-            className={`relative flex min-h-[48px] items-center gap-3 rounded-r-2xl border-l-2 px-4 py-3 text-sm font-semibold transition-all duration-200 ease-out active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+            className={`relative flex min-h-[48px] items-center gap-3 rounded-r-2xl border-l-2 px-4 py-3 text-sm font-semibold transition-all duration-150 ease-out active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
               active
                 ? "border-[#8B6CFF] bg-[#8B6CFF]/10 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.18)]"
                 : "border-transparent text-[#9CA2AE] hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-[#F4F5F8]"
@@ -336,7 +365,7 @@ export function SidebarNav() {
                 layoutId="sidebar-nav-active-border"
                 aria-hidden="true"
                 className="absolute left-0 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_14px_rgba(139,108,255,0.65)]"
-                transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
               />
             )}
             <Icon filled={active} />
