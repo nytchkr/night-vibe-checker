@@ -537,17 +537,27 @@ function BusynessChip({
   );
 }
 
-function MFRatioPill({ malePercent, femalePercent }: { malePercent: number; femalePercent: number }) {
+function MFRatioPill({
+  malePercent,
+  femalePercent,
+  sampleSize,
+}: {
+  malePercent: number;
+  femalePercent: number;
+  sampleSize: number;
+}) {
   const isMaleLeaning = malePercent >= femalePercent;
   const percent = isMaleLeaning ? malePercent : femalePercent;
   const label = isMaleLeaning ? "M" : "F";
   const color = isMaleLeaning ? "#8B6CFF" : "#F0568C";
+  const ratioLabel = `M/F ratio from ${sampleSize} check-ins`;
 
   return (
     <span
       className="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-black"
       style={{ borderColor: `${color}55`, backgroundColor: `${color}1A`, color }}
-      aria-label={`${malePercent}% male, ${femalePercent}% female`}
+      title={ratioLabel}
+      aria-label={`${ratioLabel}: ${malePercent}% male, ${femalePercent}% female`}
     >
       {percent}% {label}
     </span>
@@ -627,6 +637,7 @@ function VenueFeedCard({
     signal?.mfRatio !== undefined &&
     signal.sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
   const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
+  const mfSampleSize = signal?.sampleSize ?? 0;
   const neighborhood = getNeighborhood(venue.lat, venue.lng);
   const cardHover = prefersReduced
     ? undefined
@@ -716,7 +727,7 @@ function VenueFeedCard({
             </span>
             <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
               {mfPercents ? (
-                <MFRatioPill malePercent={mfPercents.male} femalePercent={mfPercents.female} />
+                <MFRatioPill malePercent={mfPercents.male} femalePercent={mfPercents.female} sampleSize={mfSampleSize} />
               ) : null}
               {hasBusyness ? <SignalFreshnessLabel signal={signal} /> : null}
             </div>
