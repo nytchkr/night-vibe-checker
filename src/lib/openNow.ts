@@ -37,6 +37,7 @@ type GoogleHoursPeriod = {
 
 const MINUTES_PER_DAY = 24 * 60;
 const MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY;
+const WEEKDAYS_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export function getCharlotteTimeParts(date = new Date()): CharlotteTime {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -88,6 +89,43 @@ function parseGoogleEndpoint(endpoint: GoogleHoursEndpoint | undefined): number 
   return day * MINUTES_PER_DAY + hour * 60 + minute;
 }
 
+function hasAlwaysOpenPeriod(rawPeriods: unknown[]): boolean {
+  return rawPeriods.some((rawPeriod) => {
+    if (!isRecord(rawPeriod)) return false;
+    const openMinute = parseGoogleEndpoint((rawPeriod as GoogleHoursPeriod).open);
+    return openMinute != null && !isRecord((rawPeriod as GoogleHoursPeriod).close);
+  });
+}
+
+function extractHoursText(openingHours: unknown): string[] {
+  if (Array.isArray(openingHours)) {
+    return openingHours.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (!isRecord(openingHours)) return [];
+
+  const descriptions = openingHours.weekdayDescriptions ?? openingHours.weekday_text;
+  if (!Array.isArray(descriptions)) return [];
+  return descriptions.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function isTwentyFourHourText(line: string): boolean {
+  return /\b(open\s*)?24\s*hours\b/i.test(line);
+}
+
+function isCurrentDayTwentyFourHours(openingHours: unknown, charlotteTime: CharlotteTime): boolean {
+  const hoursText = extractHoursText(openingHours);
+  if (!hoursText.length) return false;
+
+  const currentDay = WEEKDAYS_LONG[charlotteTime.day]?.toLowerCase();
+  return hoursText.some((line) => {
+    if (!isTwentyFourHourText(line)) return false;
+    const [rawDay] = line.split(":");
+    const day = rawDay?.trim().toLowerCase();
+    return !day || day === currentDay;
+  });
+}
+
 function isMinuteWithinPeriod(currentMinute: number, openMinute: number, closeMinute: number) {
   let adjustedClose = closeMinute;
   if (adjustedClose <= openMinute) adjustedClose += MINUTES_PER_WEEK;
@@ -103,6 +141,8 @@ export function isOpenNowFromGoogleHours(openingHours: unknown, charlotteTime: C
 
   const rawPeriods = openingHours.periods;
   if (!Array.isArray(rawPeriods)) return null;
+
+  if (hasAlwaysOpenPeriod(rawPeriods)) return true;
 
   const currentMinute = charlotteTime.day * MINUTES_PER_DAY + charlotteTime.hour * 60 + charlotteTime.minute;
   let parsedAnyPeriod = false;
@@ -131,6 +171,7 @@ export function inferOpenNow(category: string | null, charlotteTime: CharlotteTi
   if (openingHours != null) {
     const googleOpenNow = isOpenNowFromGoogleHours(openingHours, charlotteTime);
     if (googleOpenNow != null) return googleOpenNow;
+    if (isCurrentDayTwentyFourHours(openingHours, charlotteTime)) return true;
   }
 
   return null;

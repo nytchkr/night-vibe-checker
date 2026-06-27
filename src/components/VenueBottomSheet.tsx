@@ -93,7 +93,7 @@ function getOpenStatus(venue: ConsumerVenue) {
   }
 
   return {
-    label: "Hours pending",
+    label: "Hours unknown",
     detail: getTodayHours(venue.openingHours),
     dotClass: "bg-white/30",
     toneClass: "border-white/[0.08] bg-white/[0.05] text-white/58",
@@ -401,7 +401,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                     <span>{openStatus.label}</span>
                   </div>
                   <p className="mt-1 truncate text-xs font-semibold text-[#9CA2AE]">
-                    {openStatus.detail ?? "Real Google hours are not available for this venue yet."}
+                    {openStatus.detail ?? "Hours unknown"}
                   </p>
                 </div>
 

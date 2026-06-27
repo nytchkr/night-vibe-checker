@@ -8,8 +8,8 @@ import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, MapPin, RefreshCw, Search, X } from "lucide-react";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { Check, ChevronDown, LocateFixed, MapPin, RefreshCw, Search, X } from "lucide-react";
+import { Circle, CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
@@ -60,7 +60,7 @@ const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
 const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
 const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
-const SOUTH_END_MAP_CENTER: [number, number] = [35.2178, -80.8597];
+const SOUTH_END_MAP_CENTER: [number, number] = [LAUNCH_ZONES[0].center_lat, LAUNCH_ZONES[0].center_lng];
 const MAP_DEFAULT_ZOOM = 15;
 const MAP_CLUSTER_DISABLE_ZOOM = 13;
 const MAP_CLUSTER_RADIUS = 50;
@@ -239,17 +239,83 @@ function RecenterButton({ center }: { center: [number, number] }) {
     <button
       type="button"
       aria-label="Recenter to South End"
-      onClick={() => map.flyTo(center, MAP_DEFAULT_ZOOM)}
-      className="fixed bottom-20 left-4 z-50 flex h-11 items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 text-xs font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 lg:bottom-6"
+      onClick={() => {
+        map.flyTo(center, MAP_DEFAULT_ZOOM, { animate: true, duration: 0.45 });
+        window.setTimeout(() => map.invalidateSize({ pan: false }), 250);
+      }}
+      className="fixed bottom-20 right-4 z-[1050] flex h-11 items-center gap-2 rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-4 text-xs font-semibold text-[#F4F5F8] shadow-2xl backdrop-blur transition-colors hover:bg-[#101017] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 lg:bottom-6"
     >
-      <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="7" />
-        <path d="M12 3v3M12 18v3M3 12h3M18 12h3" />
-        <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
-      </svg>
-      South End
+      <LocateFixed aria-hidden="true" className="h-4 w-4" />
+      Recenter
     </button>
   );
+}
+
+function ZoneBoundaryCircles() {
+  return (
+    <>
+      {LAUNCH_ZONES.map((zone) => (
+        <Circle
+          key={zone.id}
+          center={[zone.center_lat, zone.center_lng]}
+          radius={zone.radius_m}
+          pathOptions={{
+            color: "#8B6CFF",
+            dashArray: "8 10",
+            fillOpacity: 0,
+            opacity: 0.55,
+            weight: 1.5,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+function UserLocationDot({ location }: { location: [number, number] | null }) {
+  if (!location) return null;
+
+  return (
+    <CircleMarker
+      center={location}
+      pathOptions={{
+        color: "#FFFFFF",
+        fillColor: "#2F80FF",
+        fillOpacity: 1,
+        opacity: 1,
+        weight: 2,
+      }}
+      radius={7}
+    />
+  );
+}
+
+function ViewportVenueCountTracker({
+  onCountChange,
+  venues,
+}: {
+  onCountChange: (count: number) => void;
+  venues: ConsumerVenue[];
+}) {
+  const map = useMap();
+
+  const updateVisibleCount = useCallback(() => {
+    const bounds = map.getBounds();
+    const nextCount = venues.filter((venue) => bounds.contains([venue.lat, venue.lng])).length;
+    onCountChange(nextCount);
+  }, [map, onCountChange, venues]);
+
+  useMapEvents({
+    moveend: updateVisibleCount,
+    resize: updateVisibleCount,
+    zoomend: updateVisibleCount,
+  });
+
+  useEffect(() => {
+    updateVisibleCount();
+  }, [updateVisibleCount]);
+
+  return null;
 }
 
 function createVenueClusterIcon(cluster: L.MarkerCluster) {
@@ -805,10 +871,10 @@ function ZoneFilterToggle({
 
 function MapOverlayStatsBar({ venueCount }: { venueCount: number }) {
   return (
-    <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-center justify-end">
+    <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex items-center justify-center">
       <div className="flex items-center gap-2">
         <span className="rounded-full bg-[#0A0A0E]/80 px-3 py-1.5 text-xs font-bold text-white shadow-2xl backdrop-blur">
-          {venueCount} venues tracked
+          {venueCount} {venueCount === 1 ? "spot" : "spots"}
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0A0A0E]/80 px-3 py-1.5 text-xs font-bold text-white shadow-2xl backdrop-blur">
           <span className="relative flex h-2 w-2" aria-hidden="true">
@@ -1038,6 +1104,8 @@ export function VenueMap({
   const [slowLoad, setSlowLoad] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isUserOutsideLaunchZone, setIsUserOutsideLaunchZone] = useState(false);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [visibleViewportVenueCount, setVisibleViewportVenueCount] = useState(0);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const mapRef = useRef<LeafletMap | null>(null);
   const mapViewportStyle = isDesktop ? { height: "100vh", minHeight: "0" } : getMapViewportStyle();
@@ -1132,7 +1200,9 @@ export function VenueMap({
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setIsUserOutsideLaunchZone(!inZone(position.coords.latitude, position.coords.longitude));
+        const location: [number, number] = [position.coords.latitude, position.coords.longitude];
+        setUserLocation(location);
+        setIsUserOutsideLaunchZone(!inZone(location[0], location[1]));
       },
       () => undefined,
       { maximumAge: 5 * 60 * 1000, timeout: 8000 },
@@ -1254,6 +1324,9 @@ export function VenueMap({
             venues={zoneVenues}
           />
           <RecenterButton center={cityCenter} />
+          <ZoneBoundaryCircles />
+          <UserLocationDot location={userLocation} />
+          <ViewportVenueCountTracker venues={filteredVenues} onCountChange={setVisibleViewportVenueCount} />
 
           <ClusteredVenueMarkers
             venues={filteredVenues}
@@ -1265,7 +1338,7 @@ export function VenueMap({
       </MapErrorBoundary>
 
       <CitySelector city={city} onCityChange={onCityChange} />
-      <MapOverlayStatsBar venueCount={filteredVenues.length} />
+      <MapOverlayStatsBar venueCount={visibleViewportVenueCount} />
       <BusynessFilterBar activeFilter={activeBusynessFilter} onFilterChange={setActiveBusynessFilter} />
       <CategoryFilterPills activeFilter={activeCategoryFilter} onFilterChange={setActiveCategoryFilter} />
       <ZoneFilterToggle activeFilter={activeZoneFilter} onFilterChange={setActiveZoneFilter} />

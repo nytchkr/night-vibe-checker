@@ -1101,11 +1101,11 @@ export function VenuePageClient({
     : hoursSummary.hasHours
       ? hoursSummary.todayStatus
       : venue?.openNow == null
-        ? "Hours not available"
+        ? "Hours unknown"
         : "Open now";
   const statusClassName = statusText.startsWith("Open")
     ? "text-[#8B6CFF]"
-    : statusText === "Hours not available"
+    : statusText === "Hours unknown"
       ? "text-[#9CA2AE]"
       : "text-[#F0568C]";
   const isTrending = venue ? trendingVenueIds.has(venue.id) : false;
@@ -1286,7 +1286,7 @@ export function VenuePageClient({
                     <span>
                       <span className="block text-sm font-black text-white">Hours</span>
                       <span className="mt-1 block text-[13px] font-medium text-white/45">
-                        {hoursSummary.hasHours ? hoursSummary.todayStatus : "Hours not available"}
+                        {hoursSummary.hasHours ? hoursSummary.todayStatus : "Hours unknown"}
                       </span>
                     </span>
                     <ChevronDown
@@ -1315,7 +1315,7 @@ export function VenuePageClient({
                       </ul>
                     ) : (
                       <p id={hoursPanelId} className="mt-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-[13px] font-medium text-white/45">
-                        Hours not available
+                        Hours unknown
                       </p>
                     )
                   )}

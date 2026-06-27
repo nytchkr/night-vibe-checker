@@ -23,6 +23,10 @@ describe("isOpenNowFromGoogleHours", () => {
     expect(isOpenNowFromGoogleHours(sampleHours, { day: 2, hour: 1, minute: 45 })).toBe(true);
   });
 
+  it("returns false at the close minute for overnight periods", () => {
+    expect(isOpenNowFromGoogleHours(sampleHours, { day: 2, hour: 2, minute: 0 })).toBe(false);
+  });
+
   it("returns false when Google periods exist but none match", () => {
     expect(isOpenNowFromGoogleHours(sampleHours, { day: 3, hour: 20, minute: 0 })).toBe(false);
   });
@@ -45,6 +49,15 @@ describe("isOpenNowFromGoogleHours", () => {
     expect(isOpenNowFromGoogleHours(null, { day: 1, hour: 18, minute: 0 })).toBeNull();
     expect(isOpenNowFromGoogleHours({ periods: [{ open: { day: 1 } }] }, { day: 1, hour: 18, minute: 0 })).toBeNull();
   });
+
+  it("treats Google periods without close endpoints as always open", () => {
+    expect(
+      isOpenNowFromGoogleHours(
+        { periods: [{ open: { day: 0, hour: 0, minute: 0 } }] },
+        { day: 4, hour: 3, minute: 15 }
+      )
+    ).toBe(true);
+  });
 });
 
 describe("isOpenNow", () => {
@@ -64,6 +77,12 @@ describe("inferOpenNow", () => {
   it("returns null instead of guessing when Google hours are unavailable", () => {
     expect(inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, null)).toBeNull();
     expect(inferOpenNow("restaurant", { day: 1, hour: 12, minute: 0 }, null)).toBeNull();
+  });
+
+  it("returns true for current-day 24 hour text when periods are unavailable", () => {
+    expect(
+      inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, { weekdayDescriptions: ["Monday: Open 24 hours"] })
+    ).toBe(true);
   });
 });
 
@@ -97,6 +116,17 @@ describe("inferCanonicalOpenNow", () => {
       inferCanonicalOpenNow({
         category: "bar",
         openingHours: { weekdayDescriptions: ["Monday: 5:00 PM - 2:00 AM"] },
+        refreshedAt: "2026-06-22T21:30:00.000-04:00",
+        now,
+      })
+    ).toBeNull();
+  });
+
+  it("returns null for fresh venues with no hours data instead of closed", () => {
+    expect(
+      inferCanonicalOpenNow({
+        category: "bar",
+        openingHours: null,
         refreshedAt: "2026-06-22T21:30:00.000-04:00",
         now,
       })
