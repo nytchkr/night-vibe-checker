@@ -30,6 +30,7 @@ import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { inZone } from "@/lib/zone";
 import { isOnboardingZoneId, PREFERRED_ZONE_STORAGE_KEY, type OnboardingZone } from "@/lib/onboarding";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
@@ -708,9 +709,7 @@ function VenueFeedCard({
 export function ExplorePageClient() {
   const router = useRouter();
   const trackPageView = useTrack();
-  const prefersReduced =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const prefersReduced = useReducedMotion();
   const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[] | undefined>(undefined);
   const [isFetchingVenues, setIsFetchingVenues] = useState(false);
@@ -1223,7 +1222,7 @@ export function ExplorePageClient() {
                 className="inline-block bg-[linear-gradient(100deg,#F4F5F8_0%,#F4F5F8_34%,#00F5D4_50%,#FF2D78_64%,#F4F5F8_82%)] bg-[length:220%_100%] bg-clip-text text-transparent"
                 initial={prefersReduced ? false : { backgroundPosition: "0% 50%" }}
                 animate={prefersReduced ? undefined : { backgroundPosition: "100% 50%" }}
-                transition={{ duration: 1.35, ease: "easeOut", delay: 0.08 }}
+                transition={{ duration: prefersReduced ? 0 : 1.35, ease: "easeOut", delay: prefersReduced ? 0 : 0.08 }}
               >
                 South End
               </motion.span>

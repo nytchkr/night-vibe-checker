@@ -5,6 +5,11 @@ export const HAPTICS_STORAGE_KEY = "nv-haptics-enabled";
 export type HapticsPreference = "on" | "off";
 export type HapticPattern = number | number[];
 
+function prefersReducedMotion() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export function getHapticsPreference(): HapticsPreference {
   if (typeof window === "undefined") return "on";
 
@@ -27,6 +32,7 @@ export function setHapticsPreference(preference: HapticsPreference) {
 
 export function triggerHapticFeedback(pattern: HapticPattern) {
   if (typeof navigator === "undefined") return;
+  if (prefersReducedMotion()) return;
   if (getHapticsPreference() !== "on") return;
 
   try {

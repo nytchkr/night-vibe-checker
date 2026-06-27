@@ -49,6 +49,20 @@ describe("haptics", () => {
     expect(vibrate).not.toHaveBeenCalled();
   });
 
+  it("does not vibrate when reduced motion is requested", () => {
+    const localStorage = storageMock({ [HAPTICS_STORAGE_KEY]: "true" });
+    const vibrate = vi.fn();
+    vi.stubGlobal("window", {
+      localStorage,
+      matchMedia: vi.fn(() => ({ matches: true })),
+    });
+    vi.stubGlobal("navigator", { vibrate });
+
+    triggerHapticFeedback(12);
+
+    expect(vibrate).not.toHaveBeenCalled();
+  });
+
   it("wraps unavailable vibrate implementations safely", () => {
     const localStorage = storageMock({ [HAPTICS_STORAGE_KEY]: "true" });
     const vibrate = vi.fn(() => {

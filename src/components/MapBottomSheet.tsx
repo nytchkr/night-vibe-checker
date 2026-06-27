@@ -12,6 +12,7 @@ import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { ConsumerVenue } from "@/types";
 
 export type MapSheetSnap = "collapsed" | "mid" | "expanded";
@@ -206,9 +207,7 @@ export default function MapBottomSheet({
   venues: ConsumerVenue[];
 }) {
   const haptic = useHaptic();
-  const prefersReduced =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const prefersReduced = useReducedMotion();
   const [dragTranslate, setDragTranslate] = useState<number | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ pointerId: -1, startY: 0, startTranslate: 0, currentTranslate: 0 });

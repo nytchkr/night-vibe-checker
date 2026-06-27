@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, X } from "lucide-react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import { formatRewardMessages } from "@/lib/rewardMessages";
 import { useToast } from "@/components/ToastProvider";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 type CheckInState = "idle" | "loading" | "checked-in" | "error" | "requires-auth";
 
@@ -266,7 +267,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
               initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
               animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: -34, scale: 1 }}
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -54, scale: 0.98 }}
-              transition={{ duration: reduceMotion ? 0.15 : 0.72, ease: "easeOut" }}
+              transition={{ duration: reduceMotion ? 0 : 0.72, ease: "easeOut" }}
               onAnimationComplete={() => {
                 window.setTimeout(() => setRewardAnimation(null), reduceMotion ? 300 : 850);
               }}

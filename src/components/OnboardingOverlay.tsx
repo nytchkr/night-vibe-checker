@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, HelpCircle, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import {
   LEGACY_ONBOARDING_STORAGE_KEY,
@@ -36,6 +37,7 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const navigationTimerRef = useRef<number | null>(null);
   const suppressTapRef = useRef(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const close = useCallback(() => {
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");
@@ -95,9 +97,9 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
       >
         <div className="flex flex-1 flex-col justify-center">
           <motion.div
-            initial={{ opacity: 0, y: 12 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.24, ease: "easeOut" }}
+            transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: "easeOut" }}
           >
             <p className="text-center text-xs font-black uppercase tracking-[0.24em] text-white/45">nytchkr</p>
             <h2
@@ -167,8 +169,8 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
                       <motion.span
                         className="text-xl font-black text-white/35 transition-colors group-hover:text-white/70"
                         aria-hidden="true"
-                        animate={isSelected ? { scale: [1, 1.18, 1], color: "rgba(255,255,255,0.9)" } : { scale: 1 }}
-                        transition={{ duration: 0.28, ease: "easeOut" }}
+                        animate={isSelected && !prefersReducedMotion ? { scale: [1, 1.18, 1], color: "rgba(255,255,255,0.9)" } : { scale: 1 }}
+                        transition={{ duration: prefersReducedMotion ? 0 : 0.28, ease: "easeOut" }}
                       >
                         {isSelected ? "✓" : "→"}
                       </motion.span>

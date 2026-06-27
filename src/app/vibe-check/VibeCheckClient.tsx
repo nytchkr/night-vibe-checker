@@ -9,6 +9,7 @@ import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { useHaptic } from "@/hooks/useHaptic";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { APIResponse, ConsumerVenue, CrowdFeel, ReportedBusyness, VenueSignal } from "@/types";
 
 type VibeCheckClientProps = {
@@ -167,9 +168,7 @@ export default function VibeCheckClient({
 }: VibeCheckClientProps) {
   const router = useRouter();
   const haptic = useHaptic();
-  const prefersReduced =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const prefersReduced = useReducedMotion();
 
   const venueId = initialVenueId;
   const venueName = initialVenueName;

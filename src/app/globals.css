@@ -159,9 +159,11 @@
   .venue-pin-live-pulse,
   .venue-pin-live-dot,
   .pulse-fast,
+  .venue-card-motion,
   .venue-fill-motion,
   .venue-trending-dot {
     animation: none !important;
+    transition: none !important;
   }
 
   .venue-fill-motion {
