@@ -613,6 +613,7 @@ function VenueFeedCard({
   index,
   prefersReduced,
   isTrending,
+  onPrefetchVenue,
 }: {
   venue: ConsumerVenue;
   searchQuery: string;
@@ -620,6 +621,7 @@ function VenueFeedCard({
   index: number;
   prefersReduced: boolean;
   isTrending: boolean;
+  onPrefetchVenue: (venueId: string) => void;
 }) {
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
@@ -664,6 +666,9 @@ function VenueFeedCard({
     >
       <MotionLink
         href={`/venues/${encodeURIComponent(venue.id)}`}
+        prefetch={false}
+        onMouseEnter={() => onPrefetchVenue(venue.id)}
+        onTouchStart={() => onPrefetchVenue(venue.id)}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
         className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-colors duration-150 ease-out hover:bg-white/[0.05] active:scale-[0.98] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
         whileHover={cardHover}
@@ -806,6 +811,7 @@ export function ExplorePageClient() {
   const { savedIds } = useSavedVenues();
   const hasLoadedVenuesRef = useRef(false);
   const hasPrefetchedInitialVenuesRef = useRef(false);
+  const prefetchedVenueIdsRef = useRef<Set<string>>(new Set());
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -1078,9 +1084,16 @@ export function ExplorePageClient() {
     hasPrefetchedInitialVenuesRef.current = true;
 
     for (const venue of sortedVenues.slice(0, 3)) {
+      prefetchedVenueIdsRef.current.add(venue.id);
       prefetchRoute(router, `/venues/${encodeURIComponent(venue.id)}`);
     }
   }, [router, sortedVenues]);
+
+  const prefetchVenueDetail = useCallback((venueId: string) => {
+    if (prefetchedVenueIdsRef.current.has(venueId)) return;
+    prefetchedVenueIdsRef.current.add(venueId);
+    router.prefetch(`/venues/${encodeURIComponent(venueId)}`);
+  }, [router]);
 
   const hottestVenues = useMemo(() => {
     if (venues === undefined) return [];
@@ -1462,6 +1475,7 @@ export function ExplorePageClient() {
                     index={index}
                     prefersReduced={prefersReduced}
                     isTrending={trendingVenueIds.has(venue.id)}
+                    onPrefetchVenue={prefetchVenueDetail}
                   />
                 ))}
               </AnimatePresence>
