@@ -562,6 +562,7 @@ export function VenuePageClient({
   const [error, setError] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
   const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
@@ -729,9 +730,11 @@ export function VenuePageClient({
     async function fetchAuthState() {
       const { data } = await client.auth.getSession();
       const token = data.session?.access_token ?? null;
+      const sessionUserId = data.session?.user?.id ?? null;
       if (cancelled) return;
 
       setAccessToken(token);
+      setUserId(sessionUserId);
       setAuthChecked(true);
     }
 
@@ -741,7 +744,9 @@ export function VenuePageClient({
       data: { subscription },
     } = client.auth.onAuthStateChange((_event, session) => {
       const token = session?.access_token ?? null;
+      const sessionUserId = session?.user?.id ?? null;
       setAccessToken(token);
+      setUserId(sessionUserId);
       setAuthChecked(true);
     });
 
@@ -1181,10 +1186,12 @@ export function VenuePageClient({
                   <VenueRating
                     venueId={venue.id}
                     accessToken={accessToken}
+                    userId={userId}
+                    googleRating={venue.googleRating ?? venue.rating ?? null}
+                    userRatingCount={venue.userRatingCount ?? venue.totalRatings ?? null}
                     promptAfterCheckIn={showPostCheckInRatingPrompt}
                     onRated={() => {
                       setShowPostCheckInRatingPrompt(false);
-                      setToast("Rating submitted!");
                       haptic.success();
                     }}
                   />
