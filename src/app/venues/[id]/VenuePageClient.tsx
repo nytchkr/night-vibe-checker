@@ -1236,13 +1236,16 @@ export function VenuePageClient({
                     <span className="text-sm font-black text-white">{hasBusynessRead ? `${busynessPercent}%` : "--"}</span>
                   </div>
                   {hasBusynessRead ? (
-                    <BusynessMeter
-                      value={busyness}
-                      source={busynessSource}
-                      sampleSize={mfSampleSize}
-                      computedAt={signal?.computedAt ?? null}
-                      className="mt-3"
-                    />
+                    <div>
+                      <BusynessMeter
+                        value={busyness}
+                        source={busynessSource}
+                        sampleSize={mfSampleSize}
+                        computedAt={signal?.computedAt ?? null}
+                        className="mt-3"
+                      />
+                      <SignalFreshnessLabel signal={signal} className="mt-2 block" />
+                    </div>
                   ) : (
                     <div className="mt-3">
                       <EmptySignalState
@@ -1289,12 +1292,15 @@ export function VenuePageClient({
                     </span>
                   </div>
                   {hasBusynessRead ? (
-                    <BusynessMeter
-                      value={busyness}
-                      source={busynessSource}
-                      sampleSize={mfSampleSize}
-                      computedAt={signal?.computedAt ?? null}
-                    />
+                    <div>
+                      <BusynessMeter
+                        value={busyness}
+                        source={busynessSource}
+                        sampleSize={mfSampleSize}
+                        computedAt={signal?.computedAt ?? null}
+                      />
+                      <SignalFreshnessLabel signal={signal} className="mt-2 block" />
+                    </div>
                   ) : (
                     <EmptySignalState
                       icon={Clock}
