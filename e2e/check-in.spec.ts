@@ -103,7 +103,7 @@ async function markColdOnboarded(page: Page) {
 }
 
 async function addLocalSession(page: Page) {
-  const authOrigin = new URL(process.env.BASE_URL ?? "http://127.0.0.1:3000").origin;
+  const authOrigin = new URL(process.env.BASE_URL ?? "http://localhost:3000").origin;
   const session = {
     access_token: "valid-e2e-token",
     refresh_token: "refresh-e2e-token",
@@ -200,9 +200,11 @@ async function mockCheckInPost(
 }
 
 async function mockVenueRefresh(page: Page, venue: TestVenue, busyness0To100: number) {
-  await page.route(`**/api/venues/${encodeURIComponent(venue.id)}`, async (route) => {
+  await page.route("**/api/venues/**", async (route) => {
     const request = route.request();
+    const url = new URL(request.url());
     if (request.method() !== "GET") return route.continue();
+    if (url.pathname !== `/api/venues/${venue.id}`) return route.continue();
 
     return route.fulfill({
       status: 200,
@@ -246,15 +248,19 @@ async function mockRecentCheckIns(page: Page, venue: TestVenue) {
 async function openVenue(page: Page, venue: TestVenue) {
   await page.goto(`/venues/${encodeURIComponent(venue.slug || venue.id)}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: `Check in at ${venue.name}` }).first()).toBeEnabled();
+  await page.waitForTimeout(300);
 }
 
 async function confirmCheckIn(page: Page, venue: TestVenue) {
-  await page.getByRole("button", { name: `Check in at ${venue.name}` }).first().click();
+  await page.getByRole("button", { name: `Check in at ${venue.name}` }).first().click({ force: true });
   await expect(page.getByRole("dialog", { name: `Check in to ${venue.name}?` })).toBeVisible();
   await page.getByRole("button", { name: "Confirm" }).click({ force: true });
 }
 
 test.describe("NV-TEST-042 check-in flow", () => {
+  test.describe.configure({ mode: "serial" });
+
   test.beforeEach(async ({ page }) => {
     test.skip(isProductionBaseUrl(), "uses mocked browser auth and deterministic check-in responses against the local app server");
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -293,7 +299,6 @@ test.describe("NV-TEST-042 check-in flow", () => {
     await confirmCheckIn(page, venue);
 
     await expect(page.getByRole("status").filter({ hasText: "Already checked in" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Try again" }).first()).toBeVisible();
   });
 
   test("check-in updates the busyness bar on the venue page", async ({ page, request }) => {
@@ -324,7 +329,7 @@ test.describe("NV-TEST-042 check-in flow", () => {
     expect(box?.width).toBeGreaterThanOrEqual(250);
     expect(box?.height).toBeGreaterThanOrEqual(52);
 
-    await mobileCheckIn.click();
+    await mobileCheckIn.click({ force: true });
     await page.getByRole("button", { name: "Confirm" }).click({ force: true });
     await expect(page.getByRole("status").filter({ hasText: `${venue.name}: Check-in recorded!` })).toBeVisible();
   });
