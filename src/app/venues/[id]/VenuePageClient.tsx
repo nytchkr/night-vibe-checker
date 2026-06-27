@@ -83,6 +83,14 @@ type VibeCrowdFeelOption = {
 
 type GenderSelfReport = "M" | "F" | "prefer_not";
 
+type VenueDetailTab = "overview" | "vibe" | "tips";
+
+const VENUE_DETAIL_TABS: Array<{ value: VenueDetailTab; label: string }> = [
+  { value: "overview", label: "Overview" },
+  { value: "vibe", label: "Vibe" },
+  { value: "tips", label: "Tips" },
+];
+
 type CheckInRewardResponse = {
   status?: string;
   data?: {
@@ -485,6 +493,7 @@ export function VenuePageClient({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [hoursExpanded, setHoursExpanded] = useState(false);
+  const [tab, setTab] = useState<VenueDetailTab>("overview");
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
   const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
   const [liveCheckInCount, setLiveCheckInCount] = useState(() => normalizeLiveCheckInCount(initialLiveCheckInCount));
@@ -1161,8 +1170,45 @@ export function VenuePageClient({
                 </div>
               </div>
             </div>
+          </section>
 
+          <div className="mx-auto max-w-lg px-4 pt-4">
+            <div
+              className="grid grid-cols-3 border-b border-white/[0.08]"
+              role="tablist"
+              aria-label="Venue detail sections"
+            >
+              {VENUE_DETAIL_TABS.map((item) => {
+                const active = tab === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-controls={`venue-${item.value}-panel`}
+                    id={`venue-${item.value}-tab`}
+                    onClick={() => setTab(item.value)}
+                    className={`min-h-11 border-b-2 px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                      active
+                        ? "border-[#8B6CFF] text-white font-semibold"
+                        : "border-transparent text-white/50 hover:text-white"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {tab === "overview" && (
             <div className="relative mx-auto max-w-lg px-4 pb-6 pt-5">
+              <div
+                id="venue-overview-panel"
+                role="tabpanel"
+                aria-labelledby="venue-overview-tab"
+              >
               <div>
                 {googleRatingData && (
                   <div
@@ -1247,9 +1293,60 @@ export function VenuePageClient({
                   )}
                 </section>
               </div>
-            </div>
-          </section>
+              <div className="mt-6 grid gap-3" role="group" aria-label="Venue sharing and directions">
+                <a
+                  href={mapsHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                >
+                  <MapPin size={17} aria-hidden="true" />
+                  Get Directions
+                </a>
+                {venue.website && (
+                  <a
+                    href={venue.website}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                  >
+                    <Globe size={17} aria-hidden="true" />
+                    Website
+                  </a>
+                )}
+                {phoneHref && (
+                  <a
+                    href={phoneHref}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                  >
+                    <Phone size={17} aria-hidden="true" />
+                    {venue.phoneNumber ?? venue.phone}
+                  </a>
+                )}
+              </div>
 
+              <div className="flex justify-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportError(null);
+                    setReportOpen(true);
+                  }}
+                  className="text-xs font-medium text-white/35 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                >
+                  Report
+                </button>
+              </div>
+              </div>
+            </div>
+          )}
+
+          {tab === "vibe" && (
+            <div
+              id="venue-vibe-panel"
+              role="tabpanel"
+              aria-labelledby="venue-vibe-tab"
+            >
           <div className="border-b border-white/[0.06]">
             <div className="mx-auto max-w-lg overflow-x-auto px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="flex w-max min-w-full gap-3">
@@ -1290,6 +1387,13 @@ export function VenuePageClient({
                     />
                   </div>
                 ) : null}
+
+                <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
+                  <span className="text-[11.5px] font-semibold text-[#646B79]">Check-ins</span>
+                  <p className="mt-2 text-sm font-black text-white">
+                    {liveCheckInCount > 0 ? `${liveCheckInCount} tonight` : "None yet"}
+                  </p>
+                </div>
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11.5px] font-semibold text-[#646B79]">Status</span>
@@ -1405,54 +1509,20 @@ export function VenuePageClient({
               hourlyLoading={bestTimeForecastLoading}
               hourlyUpdatedOn={bestTimeForecastUpdatedOn}
             />
-
-            <VenueTips venueId={venue.id} />
-
-            <div className="grid gap-3" role="group" aria-label="Venue sharing and directions">
-              <a
-                href={mapsHref}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                <MapPin size={17} aria-hidden="true" />
-                Get Directions
-              </a>
-              {venue.website && (
-                <a
-                  href={venue.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                >
-                  <Globe size={17} aria-hidden="true" />
-                  Website
-                </a>
-              )}
-              {phoneHref && (
-                <a
-                  href={phoneHref}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                >
-                  <Phone size={17} aria-hidden="true" />
-                  {venue.phoneNumber ?? venue.phone}
-                </a>
-              )}
-            </div>
-
-            <div className="flex justify-center pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setReportError(null);
-                  setReportOpen(true);
-                }}
-                className="text-xs font-medium text-white/35 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                Report
-              </button>
-            </div>
           </div>
+            </div>
+          )}
+
+          {tab === "tips" && (
+            <div
+              id="venue-tips-panel"
+              role="tabpanel"
+              aria-labelledby="venue-tips-tab"
+              className="mx-auto max-w-lg px-4 py-5"
+            >
+              <VenueTips venueId={venue.id} />
+            </div>
+          )}
 
           <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-white/[0.08] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur-xl sm:hidden">
             <div className="mx-auto grid max-w-lg grid-cols-[minmax(0,1fr)_4rem] gap-3">
