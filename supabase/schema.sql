@@ -375,5 +375,9 @@ create policy "venue_signals_service_write"
   with check (auth.role() = 'service_role');
 
 -- cron_runs: service-role cron health telemetry only.
--- No anon/authenticated policies are intentionally defined.
 alter table public.cron_runs enable row level security;
+
+create policy service_role_only
+  on public.cron_runs
+  using (auth.role() = 'service_role')
+  with check (auth.role() = 'service_role');
