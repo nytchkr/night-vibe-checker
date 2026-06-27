@@ -153,7 +153,11 @@ describe("GET /api/venues/trending", () => {
     expect(checkInsQuery.limit).toHaveBeenCalledWith(500);
     expect(mockFrom).toHaveBeenNthCalledWith(2, "venues");
     expect(venuesQuery.eq).toHaveBeenCalledWith("hidden", false);
-    expect(venuesQuery.in).toHaveBeenCalledWith("zone_id", ["south-end-charlotte", "dilworth-charlotte"]);
+    expect(venuesQuery.in).toHaveBeenCalledWith("zone_id", [
+      "south-end-charlotte",
+      "dilworth-charlotte",
+      "south-park-charlotte",
+    ]);
     expect(venuesQuery.in).toHaveBeenCalledWith("id", [
       "venue-a",
       "venue-b",

@@ -4,7 +4,14 @@ import { cn } from "@/lib/utils";
 import { useHaptic } from "@/hooks/useHaptic";
 
 export type ExploreSortOption = "hottest" | "top-rated" | "trending" | "nearby";
-export type ExploreFilterOption = "open-now" | "saved" | "South End" | "Uptown" | "NoDa" | "Dilworth";
+export type ExploreFilterOption =
+  | "open-now"
+  | "saved"
+  | "South End"
+  | "Uptown"
+  | "NoDa"
+  | "Dilworth"
+  | "South Park";
 
 const SORT_OPTIONS: { value: ExploreSortOption; label: string }[] = [
   { value: "hottest", label: "Hottest" },
@@ -18,6 +25,7 @@ const FILTER_OPTIONS: { value: ExploreFilterOption; label: string; comingSoon?: 
   { value: "saved", label: "Saved" },
   { value: "South End", label: "South End" },
   { value: "Dilworth", label: "Dilworth" },
+  { value: "South Park", label: "South Park" },
   { value: "Uptown", label: "Uptown", comingSoon: true },
   { value: "NoDa", label: "NoDa", comingSoon: true },
 ];

@@ -51,7 +51,12 @@ type ActivityFeedItem = {
 
 const EXPLORE_SORT_STORAGE_KEY = "nv_explore_sort";
 const DEFAULT_EXPLORE_SORT: ExploreSortOption = "hottest";
-const NEIGHBORHOOD_EXPLORE_FILTERS: ExploreFilterOption[] = ["South End", "Uptown", "NoDa", "Dilworth"];
+const NEIGHBORHOOD_EXPLORE_FILTERS: ExploreFilterOption[] = ["South End", "Uptown", "NoDa", "Dilworth", "South Park"];
+const EXPLORE_FILTER_ZONE_IDS: Partial<Record<ExploreFilterOption, string>> = {
+  "South End": "south-end-charlotte",
+  Dilworth: "dilworth-charlotte",
+  "South Park": "south-park-charlotte",
+};
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
@@ -70,6 +75,8 @@ const LOCATION_SEARCH_CENTERS: Record<string, [number, number]> = {
   "28210": [35.14, -80.88],
   "28211": [35.19, -80.78],
   "28212": [35.2, -80.75],
+  southpark: [35.1524, -80.8462],
+  "south park": [35.1524, -80.8462],
 };
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
   try {
@@ -646,6 +653,11 @@ export function ExplorePageClient() {
       const params = new URLSearchParams();
       const trimmedSearchTerm = searchTerm.trim();
       if (trimmedSearchTerm) params.set("q", trimmedSearchTerm);
+      const selectedZoneIds = NEIGHBORHOOD_EXPLORE_FILTERS
+        .filter((filter) => exploreFilters.has(filter))
+        .map((filter) => EXPLORE_FILTER_ZONE_IDS[filter])
+        .filter((zoneId): zoneId is string => Boolean(zoneId));
+      if (selectedZoneIds.length === 1) params.set("zone", selectedZoneIds[0]);
       const url = params.size ? `/api/venues?${params.toString()}` : "/api/venues";
       const res = await fetch(url, { cache: "no-store", signal });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -658,11 +670,11 @@ export function ExplorePageClient() {
     } finally {
       if (!signal?.aborted) setIsFetchingVenues(false);
     }
-  }, []);
+  }, [exploreFilters]);
 
   const refreshVenues = useCallback(async () => {
     await fetchVenues({ searchTerm: debouncedSearchQuery });
-  }, [debouncedSearchQuery, fetchVenues]);
+  }, [debouncedSearchQuery, exploreFilters, fetchVenues]);
 
   const fetchActivity = useCallback(async () => {
     try {
@@ -784,7 +796,7 @@ export function ExplorePageClient() {
       signal: controller.signal,
     });
     return () => controller.abort();
-  }, [debouncedSearchQuery, fetchVenues]);
+  }, [debouncedSearchQuery, exploreFilters, fetchVenues]);
 
   useEffect(() => {
     const client = createBrowserClient();

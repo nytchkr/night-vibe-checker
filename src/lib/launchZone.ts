@@ -1,4 +1,8 @@
-import { LAUNCH_ZONE as ZONE_BOUNDARY, SECOND_ZONE as SECOND_BOUNDARY } from "@/lib/zone";
+import {
+  LAUNCH_ZONE as ZONE_BOUNDARY,
+  SECOND_ZONE as SECOND_BOUNDARY,
+  SOUTH_PARK_ZONE as SP_BOUNDARY,
+} from "@/lib/zone";
 
 export const LAUNCH_ZONE = {
   id: "south-end-charlotte",
@@ -16,6 +20,14 @@ export const DILWORTH_ZONE = {
   radius_m: SECOND_BOUNDARY.radius_m,
 } as const;
 
-export const LAUNCH_ZONES = [LAUNCH_ZONE, DILWORTH_ZONE] as const;
+export const SOUTHPARK_ZONE = {
+  id: "south-park-charlotte",
+  name: "South Park",
+  center_lat: SP_BOUNDARY.center_lat,
+  center_lng: SP_BOUNDARY.center_lng,
+  radius_m: SP_BOUNDARY.radius_m,
+} as const;
+
+export const LAUNCH_ZONES = [LAUNCH_ZONE, DILWORTH_ZONE, SOUTHPARK_ZONE] as const;
 
 export type LaunchZone = (typeof LAUNCH_ZONES)[number];

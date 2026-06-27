@@ -2,7 +2,9 @@ export const LAUNCH_ZONE = { center_lat: 35.2123, center_lng: -80.8590, radius_m
 
 export const SECOND_ZONE = { center_lat: 35.2040, center_lng: -80.8440, radius_m: 2500 };
 
-export const ALL_ZONES = [LAUNCH_ZONE, SECOND_ZONE];
+export const SOUTH_PARK_ZONE = { center_lat: 35.1524, center_lng: -80.8462, radius_m: 2500 };
+
+export const ALL_ZONES = [LAUNCH_ZONE, SECOND_ZONE, SOUTH_PARK_ZONE];
 
 function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;

@@ -16,6 +16,7 @@ import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 export const dynamic = "force-dynamic";
 
 const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
+const LAUNCH_ZONE_ID_SET = new Set<string>(LAUNCH_ZONE_IDS);
 
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
@@ -187,13 +188,15 @@ async function loadVenueRows(
   select: string,
   params: {
     category: string | null;
+    zoneId: string | null;
     searchIds: string[] | null;
   }
 ): Promise<VenueQueryResult> {
+  const zoneIds = params.zoneId ? [params.zoneId] : LAUNCH_ZONE_IDS;
   let query = supabaseAdmin
     .from("venues")
     .select(select)
-    .in("zone_id", LAUNCH_ZONE_IDS)
+    .in("zone_id", zoneIds)
     .eq("hidden", false);
 
   if (params.category) {
@@ -242,6 +245,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const searchParams = req.nextUrl.searchParams;
     const searchQuery = normalizeOptionalParam(searchParams.get("q"));
     const category = normalizeOptionalParam(searchParams.get("category"));
+    const requestedZone = normalizeOptionalParam(searchParams.get("zone"));
+    const zoneId = requestedZone && LAUNCH_ZONE_ID_SET.has(requestedZone) ? requestedZone : null;
     const lat = parseOptionalNumber(searchParams.get("lat"));
     const lng = parseOptionalNumber(searchParams.get("lng"));
     const radiusMeters = parseOptionalNumber(searchParams.get("radius"));
@@ -252,7 +257,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (searchQuery) {
       const { data: searchRows, error: searchError } = await supabaseAdmin.rpc("search_venue_ids", {
         search_query: searchQuery,
-        search_zone_id: null,
+        search_zone_id: zoneId,
         search_category: category,
         center_lat: hasRadiusFilter ? lat : null,
         center_lng: hasRadiusFilter ? lng : null,
@@ -285,12 +290,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       }
     }
 
-    const primaryResult = await loadVenueRows(VENUE_SELECT, { category, searchIds });
+    const primaryResult = await loadVenueRows(VENUE_SELECT, { category, zoneId, searchIds });
     let data = primaryResult.data;
     let error = primaryResult.error;
 
     if (error && isMissingContactColumn(error)) {
-      const legacyResult = await loadVenueRows(VENUE_SELECT_LEGACY, { category, searchIds });
+      const legacyResult = await loadVenueRows(VENUE_SELECT_LEGACY, { category, zoneId, searchIds });
       data = legacyResult.data;
       error = legacyResult.error;
     }

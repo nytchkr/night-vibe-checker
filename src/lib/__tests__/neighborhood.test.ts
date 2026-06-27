@@ -8,7 +8,7 @@ describe("getNeighborhood", () => {
     [35.215, -80.82, "Plaza Midwood"],
     [35.25, -80.81, "NoDa"],
     [35.205, -80.86, "Dilworth"],
-    [35.165, -80.835, "SouthPark"],
+    [35.165, -80.835, "South Park"],
   ])("maps %s, %s to %s", (lat, lng, expected) => {
     expect(getNeighborhood(lat, lng)).toBe(expected);
   });

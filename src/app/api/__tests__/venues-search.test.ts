@@ -120,6 +120,41 @@ describe("GET /api/venues search", () => {
     expect(json.data.venues).toEqual([]);
   });
 
+  it("passes through supported zone filters", async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: "venue-sp", search_rank: 1 }],
+      error: null,
+    });
+    const query = chain({
+      data: [
+        venue("venue-sp", "SouthPark Lounge", {
+          zone_id: "south-park-charlotte",
+          address: "South Park",
+          lat: 35.1524,
+          lng: -80.8462,
+        }),
+      ],
+    });
+    mockFrom.mockReturnValueOnce(query);
+
+    const { GET } = await import("../venues/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues?q=lounge&zone=south-park-charlotte"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
+      search_query: "lounge",
+      search_zone_id: "south-park-charlotte",
+      search_category: null,
+      center_lat: null,
+      center_lng: null,
+      radius_m: null,
+      max_results: 100,
+    });
+    expect(query.in).toHaveBeenCalledWith("zone_id", ["south-park-charlotte"]);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-sp"]);
+  });
+
   it("uses rating then name when venues have equal or missing busyness", async () => {
     const query = chain({
       data: [
