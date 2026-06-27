@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { CheckInButton } from "@/components/CheckInButton";
-import { MFRatioBar, MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
+import { MFRatioBar, getMFRatioPercents, MIN_SAMPLE_SIZE_FOR_RATIO } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { RatingPrompt } from "@/components/RatingPrompt";
@@ -23,7 +24,6 @@ import { VenuePredictionCard } from "@/components/VenuePredictionCard";
 import { VenueRating } from "@/components/VenueRating";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import { VenueTips } from "@/components/VenueTips";
-import { Skeleton } from "@/components/ui/skeleton";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
@@ -114,6 +114,8 @@ const GENDER_SELF_REPORT_OPTIONS: Array<{ value: GenderSelfReport; label: string
   { value: "F", label: "Woman" },
   { value: "prefer_not", label: "Rather not say" },
 ];
+
+const DETAIL_MF_SAMPLE_THRESHOLD = 5;
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
@@ -297,11 +299,26 @@ function getBusynessLabel(percent: number): string {
   return "Quiet";
 }
 
-function formatHourLabel(hour: number): string {
-  if (hour === 0) return "12 AM";
-  if (hour < 12) return `${hour} AM`;
-  if (hour === 12) return "12 PM";
-  return `${hour - 12} PM`;
+function LiveBusynessBadge({
+  hasRead,
+  percent,
+  source,
+}: {
+  hasRead: boolean;
+  percent: number;
+  source: NonNullable<ConsumerVenue["signal"]>["busynessSource"] | null | undefined;
+}) {
+  const color = hasRead ? getBusynessColor(percent) : "#646B79";
+  const label = hasRead ? getBusynessLabel(percent) : "No live read";
+  const sourceText = source === "forecast" ? "forecast" : source === "crowd" ? "crowd" : source === "live" ? "live" : null;
+
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-2 text-xs font-black text-white shadow-lg backdrop-blur">
+      <span className="h-2.5 w-2.5 rounded-full shadow-[0_0_12px_currentColor]" style={{ backgroundColor: color, color }} aria-hidden="true" />
+      <span>{label}</span>
+      {sourceText ? <span className="font-semibold text-white/45">via {sourceText}</span> : null}
+    </span>
+  );
 }
 
 function busynessLevelLabel(level: number | null): string {
@@ -612,86 +629,6 @@ function VenuePhotoCarousel({
   );
 }
 
-function BestTimeForecastSection({
-  hasBestTimeVenue,
-  forecast,
-  loading,
-  error,
-  updatedOn,
-}: {
-  hasBestTimeVenue: boolean;
-  forecast: BestTimeHourlyForecast[];
-  loading: boolean;
-  error: string | null;
-  updatedOn: string | null;
-}) {
-  return (
-    <section className="space-y-3" role="region" aria-label="BestTime forecast">
-      <div>
-        <h2 className="font-display text-lg font-semibold text-[#F4F5F8]">Tonight forecast</h2>
-        <p className="mt-1 text-xs font-semibold text-white/35">
-          BestTime hourly forecast for today
-        </p>
-      </div>
-
-      {!hasBestTimeVenue ? (
-        <EmptySignalState
-          icon={Clock}
-          message="No BestTime forecast is connected for this venue yet"
-        />
-      ) : loading ? (
-        <div className="space-y-2" role="status" aria-label="Loading BestTime forecast">
-          <Skeleton className="h-12 rounded-2xl bg-white/10" />
-          <Skeleton className="h-12 rounded-2xl bg-white/10" />
-        </div>
-      ) : error ? (
-        <EmptySignalState
-          icon={Clock}
-          message="BestTime forecast is unavailable right now"
-        />
-      ) : forecast.length === 0 ? (
-        <EmptySignalState
-          icon={Clock}
-          message="BestTime has no hourly forecast for today"
-        />
-      ) : (
-        <div className="scroll-touch overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4 overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
-          <div className="scroll-touch grid max-h-72 min-w-[28rem] gap-3 overflow-y-auto overscroll-contain pr-1 [will-change:scroll-position]">
-            {forecast.map((hour) => {
-              const busyness = clampPercent(hour.busyness);
-              const color = getBusynessColor(busyness);
-              return (
-                <div key={hour.hour} className="grid grid-cols-[4rem_1fr_4.5rem] items-center gap-3">
-                  <span className="text-xs font-black text-white/55">{formatHourLabel(hour.hour)}</span>
-                  <div
-                    className="h-2 overflow-hidden rounded-full bg-white/10"
-                    role="meter"
-                    aria-label={`${formatHourLabel(hour.hour)} BestTime forecast`}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={busyness}
-                    aria-valuetext={`${busyness}% busy`}
-                  >
-                    <div className="h-full rounded-full" style={{ width: `${busyness}%`, backgroundColor: color }} />
-                  </div>
-                  <span className="text-right text-xs font-black" style={{ color }}>
-                    {busyness}%
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          {updatedOn && (
-            <p className="mt-3 text-[11px] font-medium text-white/35">
-              Updated {timeAgo(updatedOn)}
-            </p>
-          )}
-        </div>
-      )}
-    </section>
-  );
-}
-
 export function VenuePageClient({
   venueId,
   initialVenue,
@@ -713,7 +650,6 @@ export function VenuePageClient({
   const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
   const [bestTimeForecast, setBestTimeForecast] = useState<BestTimeHourlyForecast[]>([]);
   const [bestTimeForecastLoading, setBestTimeForecastLoading] = useState(false);
-  const [bestTimeForecastError, setBestTimeForecastError] = useState<string | null>(null);
   const [bestTimeForecastUpdatedOn, setBestTimeForecastUpdatedOn] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState<VenueReportReason>("wrong_hours");
@@ -908,7 +844,6 @@ export function VenuePageClient({
     const forecastVenueId = venue?.id ?? venueId;
     if (!forecastVenueId || !venue?.besttimeVenueId) {
       setBestTimeForecast([]);
-      setBestTimeForecastError(null);
       setBestTimeForecastUpdatedOn(null);
       setBestTimeForecastLoading(false);
       return;
@@ -916,7 +851,6 @@ export function VenuePageClient({
 
     let cancelled = false;
     setBestTimeForecastLoading(true);
-    setBestTimeForecastError(null);
 
     async function fetchBestTimeForecast() {
       try {
@@ -931,7 +865,6 @@ export function VenuePageClient({
         if (!cancelled) {
           setBestTimeForecast([]);
           setBestTimeForecastUpdatedOn(null);
-          setBestTimeForecastError("BestTime forecast unavailable.");
         }
       } finally {
         if (!cancelled) setBestTimeForecastLoading(false);
@@ -1510,13 +1443,7 @@ export function VenuePageClient({
 
             <VenueTips venueId={venue.id} />
 
-            <BestTimeForecastSection
-              hasBestTimeVenue={Boolean(venue.besttimeVenueId)}
-              forecast={bestTimeForecast}
-              loading={bestTimeForecastLoading}
-              error={bestTimeForecastError}
-              updatedOn={bestTimeForecastUpdatedOn}
-            />
+            {/* BestTime forecast surfaced via VenuePredictionCard above */}
 
             <div className="grid gap-3" role="group" aria-label="Venue sharing and directions">
               <a
