@@ -221,6 +221,22 @@ create table if not exists public.venue_signals (
 create index if not exists venue_signals_place_id_idx on public.venue_signals(place_id);
 
 -- ============================================================
+-- TABLE: cron_runs
+-- Server-only cron health telemetry.
+-- ============================================================
+create table if not exists public.cron_runs (
+  id uuid default gen_random_uuid() primary key,
+  job_name text not null,
+  ran_at timestamptz default now(),
+  duration_ms integer,
+  venues_updated integer,
+  error text
+);
+
+create index if not exists cron_runs_job_name_ran_at_idx
+  on public.cron_runs (job_name, ran_at desc);
+
+-- ============================================================
 -- TRIGGER: keep venues.avg_vibe_score + report_count fresh
 -- ============================================================
 create or replace function public.refresh_venue_vibe_aggregate()
@@ -357,3 +373,7 @@ create policy "venue_signals_service_write"
   on public.venue_signals for all
   using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
+
+-- cron_runs: service-role cron health telemetry only.
+-- No anon/authenticated policies are intentionally defined.
+alter table public.cron_runs enable row level security;
