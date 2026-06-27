@@ -652,11 +652,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!session) return;
+    const activeSession = session;
 
     function refreshProfileCheckIns() {
-      if (!session) return;
-      void loadCheckIns(session);
-      void loadRewards(session);
+      void loadCheckIns(activeSession);
+      void loadRewards(activeSession);
     }
 
     function handleStorage(event: StorageEvent) {

@@ -180,9 +180,9 @@ test.describe("Explore tab", () => {
     await expect(page.getByRole("button", { name: "Restaurants" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Clubs" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Coffee" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Busiest first" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Quietest first" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "A-Z" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Hottest" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Top Rated" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Trending" })).toBeVisible();
   });
 
   test("shows Trending Now above search and links to venue detail", async ({ page }) => {
@@ -255,15 +255,15 @@ test.describe("Explore tab", () => {
     await expect(cards.first()).toContainText("Pulse Room");
     await expect(cards.nth(2)).toContainText("Zero Proof");
 
-    await page.getByRole("button", { name: "Quietest first" }).click();
+    await page.getByRole("button", { name: "Top Rated" }).click();
 
-    await expect(cards.first()).toContainText("Lowlight Lounge");
+    await expect(cards.first()).toContainText("Pulse Room");
     await expect(cards.nth(2)).toContainText("Zero Proof");
 
-    await page.getByRole("button", { name: "A-Z" }).click();
+    await page.getByRole("button", { name: "Hottest" }).click();
 
-    await expect(cards.first()).toContainText("Lowlight Lounge");
-    await expect(cards.nth(1)).toContainText("Pulse Room");
+    await expect(cards.first()).toContainText("Pulse Room");
+    await expect(cards.nth(2)).toContainText("Zero Proof");
   });
 
   test("shows honest empty venue and sparse signal states", async ({ page }) => {

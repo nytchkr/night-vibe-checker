@@ -407,15 +407,31 @@ function ExploreQuietEmptyState() {
     <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
       <span aria-hidden="true" className="block text-5xl leading-none">🌙</span>
       <h2 className="mt-4 font-display text-[22px] font-black tracking-tight text-[#F4F5F8]">
-        No venues found — try adjusting filters
+        No venues in this area yet. Check back soon.
       </h2>
-      <p className="mt-2 text-sm font-semibold text-white/50">Clear search or filters to show South End spots.</p>
+      <p className="mt-2 text-sm font-semibold text-white/50">South End spots will appear here once they are available.</p>
       <Link
         href="/map"
         className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.1] hover:shadow-lg hover:shadow-violet/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         View map instead →
       </Link>
+    </div>
+  );
+}
+
+function ExploreNoMatchState({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="px-6 py-12 text-center text-white/60">
+      <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
+      <h2 className="mt-3 text-[15px] font-semibold leading-6">No venues match</h2>
+      <button
+        type="button"
+        onClick={onClear}
+        className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      >
+        Clear filters
+      </button>
     </div>
   );
 }
@@ -1240,24 +1256,6 @@ export function ExplorePageClient() {
               <p className="mt-2 text-sm font-semibold text-white/50">{`No matches for "${trimmedSearchQuery}"`}</p>
               <button
                 type="button"
-                onClick={clearSearch}
-                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                Clear search
-              </button>
-            </div>
-          ) : <ExploreQuietEmptyState />
-        )}
-
-        {venues !== undefined && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
-          trimmedSearchQuery ? (
-            <div className="px-6 py-12 text-center text-white/60">
-              <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
-              <h2 className="mt-3 text-[15px] font-semibold leading-6">
-                No venues match
-              </h2>
-              <button
-                type="button"
                 onClick={clearFilters}
                 className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
@@ -1265,6 +1263,10 @@ export function ExplorePageClient() {
               </button>
             </div>
           ) : <ExploreQuietEmptyState />
+        )}
+
+        {venues !== undefined && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
+          <ExploreNoMatchState onClear={clearFilters} />
         )}
 
         {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && (
