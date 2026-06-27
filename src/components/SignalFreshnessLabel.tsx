@@ -7,7 +7,7 @@ type SignalFreshnessLabelProps = {
 };
 
 export function SignalFreshnessLabel({ signal, className = "" }: SignalFreshnessLabelProps) {
-  const freshness = formatSignalFreshness(signal?.updatedAt ?? null);
+  const freshness = formatSignalFreshness(signal?.lastBusynessRefresh ?? null);
   const isLive = signal?.busynessSource === "live";
 
   if (!isLive && !freshness) return null;
@@ -24,7 +24,7 @@ export function SignalFreshnessLabel({ signal, className = "" }: SignalFreshness
         </span>
       ) : null}
       {freshness ? (
-        <span className={freshness.stale ? "text-white/55" : "text-[#9CA2AE]"}>
+        <span className={freshness.stale ? "text-[#FFB020]" : "text-[#9CA2AE]"}>
           {freshness.label}
         </span>
       ) : null}

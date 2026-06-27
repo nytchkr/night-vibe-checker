@@ -43,7 +43,7 @@ describe("signal freshness", () => {
   it("formats venue signal freshness for cards", () => {
     expect(formatSignalFreshness(minutesAgo(8))).toEqual({ label: "Updated 8 min ago", stale: false });
     expect(formatSignalFreshness(minutesAgo(125))).toEqual({ label: "Updated today", stale: false });
-    expect(formatSignalFreshness(minutesAgo(24 * 60 + 1))).toEqual({ label: "Data from yesterday", stale: true });
+    expect(formatSignalFreshness(minutesAgo(24 * 60 + 1))).toEqual({ label: "Data may be outdated", stale: true });
     expect(formatSignalFreshness(null)).toBeNull();
     expect(formatSignalFreshness("not-a-date")).toBeNull();
   });

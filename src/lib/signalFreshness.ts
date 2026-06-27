@@ -44,7 +44,7 @@ export function formatSignalFreshness(updatedAt: string | null | undefined): { l
   if (ageMs === null) return null;
 
   const minutes = Math.floor(ageMs / 60_000);
-  if (minutes >= 24 * 60) return { label: "Data from yesterday", stale: true };
+  if (minutes >= 24 * 60) return { label: "Data may be outdated", stale: true };
   if (minutes < 60) return { label: `Updated ${minutes} min ago`, stale: false };
 
   return { label: "Updated today", stale: false };

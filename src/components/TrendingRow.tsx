@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
@@ -74,6 +75,9 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
             style={{ width: `${barWidth}%`, backgroundColor: VIOLET }}
           />
         </div>
+        {busyness == null ? null : (
+          <SignalFreshnessLabel signal={venue.signal} className="mt-2 block" />
+        )}
       </div>
     </Link>
   );

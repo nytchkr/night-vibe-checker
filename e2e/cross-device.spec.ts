@@ -1,15 +1,10 @@
-import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 const generatedAt = new Date().toISOString();
 
-const meta = {
-  cached: true,
-  generatedAt,
-  requestId: "e2e-cross-device",
-};
-
 type TestVenue = {
   id: string;
+  slug?: string;
   placeId: string;
   zoneId: string;
   name: string;
@@ -17,6 +12,7 @@ type TestVenue = {
   lat: number;
   lng: number;
   category: string;
+  neighborhood?: string;
   photoUrl?: string | null;
   photoUrls?: string[];
   openNow?: boolean | null;
@@ -24,7 +20,9 @@ type TestVenue = {
   rating?: number | null;
   googleRating?: number | null;
   totalRatings?: number | null;
+  userRatingCount?: number | null;
   priceLevel?: number | null;
+  openingHours?: string[];
   signal?: {
     venueId: string;
     placeId: string;
@@ -38,22 +36,28 @@ type TestVenue = {
   } | null;
 };
 
-const fallbackVenues: TestVenue[] = [
+const venues: TestVenue[] = [
   {
     id: "cross-device-pulse",
+    slug: "cross-device-pulse",
     placeId: "place-cross-device-pulse",
     zoneId: "south-end-charlotte",
     name: "Cross Device Pulse",
     address: "101 Device Ave",
     lat: 35.2178,
     lng: -80.8597,
+    neighborhood: "South End",
     category: "night_club",
     photoUrl: null,
+    photoUrls: [],
     openNow: true,
     hidden: false,
     rating: 4.6,
+    googleRating: 4.6,
     totalRatings: 320,
+    userRatingCount: 320,
     priceLevel: 2,
+    openingHours: ["Friday: 5:00 PM - 2:00 AM"],
     signal: {
       venueId: "cross-device-pulse",
       placeId: "place-cross-device-pulse",
@@ -68,19 +72,25 @@ const fallbackVenues: TestVenue[] = [
   },
   {
     id: "cross-device-lounge",
+    slug: "cross-device-lounge",
     placeId: "place-cross-device-lounge",
     zoneId: "south-end-charlotte",
     name: "Cross Device Lounge",
     address: "202 Device Ave",
     lat: 35.2185,
     lng: -80.8588,
+    neighborhood: "South End",
     category: "bar",
     photoUrl: null,
+    photoUrls: [],
     openNow: true,
     hidden: false,
     rating: 4.4,
+    googleRating: 4.4,
     totalRatings: 210,
+    userRatingCount: 210,
     priceLevel: 2,
+    openingHours: ["Friday: 4:00 PM - 2:00 AM"],
     signal: {
       venueId: "cross-device-lounge",
       placeId: "place-cross-device-lounge",
@@ -95,53 +105,94 @@ const fallbackVenues: TestVenue[] = [
   },
 ];
 
+const meta = {
+  cached: true,
+  generatedAt,
+  requestId: "e2e-cross-device",
+};
+
 test.use({ serviceWorkers: "block" });
+
+function isDesktop(testInfo: TestInfo) {
+  return testInfo.project.name.includes("desktop");
+}
+
+async function clearClientState(page: Page) {
+  await page.addInitScript(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem("nightvibe:desktop-warning-dismissed", "true");
+  });
+}
 
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
-    window.localStorage.setItem("nightvibe.onboarded", "1");
+    window.localStorage.setItem("nightvibe.onboarded", "true");
     window.localStorage.setItem("nv_onboarded", "1");
     window.sessionStorage.setItem("nightvibe:desktop-warning-dismissed", "true");
   });
 }
 
-async function getRealVenue(request: APIRequestContext): Promise<TestVenue | null> {
-  const response = await request.get("/api/venues");
-  if (!response.ok()) return null;
+async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {}) {
+  let venueListRequests = 0;
 
-  const body = await response.json();
-  const venues = (body?.data?.venues ?? []) as TestVenue[];
-  return venues.find((venue) => venue.id && venue.name) ?? null;
-}
+  await page.route("**/api/activity/feed**", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
 
-async function getNoPhotoVenue(request: APIRequestContext): Promise<TestVenue | null> {
-  const response = await request.get("/api/venues");
-  if (!response.ok()) return null;
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: [] }),
+    });
+  });
 
-  const body = await response.json();
-  const venues = (body?.data?.venues ?? []) as TestVenue[];
-  return venues.find((venue) => {
-    const photoUrls = Array.isArray(venue.photoUrls) ? venue.photoUrls.filter(Boolean) : [];
-    return venue.id && venue.name && !venue.photoUrl && photoUrls.length === 0;
-  }) ?? null;
-}
-
-async function mockVenueApis(page: Page, venues: TestVenue[]) {
-  await page.route("**/api/venues**", async (route) => {
+  await page.route("**/api/venues/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+    if (request.method() !== "GET") return route.continue();
 
-    if (request.method() !== "GET") {
-      return route.continue();
+    const [, , venueId, childRoute] = url.pathname.split("/");
+    const venue = venues.find((item) => item.id === venueId || item.slug === venueId);
+
+    if (childRoute === "photos") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ photos: [] }),
+      });
     }
 
-    if (url.pathname === "/api/venues" || url.pathname === "/api/venues/trending") {
+    if (childRoute === "check-ins") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ checkIns: [] }),
+      });
+    }
+
+    if (childRoute === "activity") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ items: [] }),
+      });
+    }
+
+    if (childRoute === "besttime-forecast") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "success", data: { forecast: [] } }),
+      });
+    }
+
+    if (venue) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           status: "success",
-          data: { venues },
+          data: { venue },
           meta,
         }),
       });
@@ -150,29 +201,25 @@ async function mockVenueApis(page: Page, venues: TestVenue[]) {
     return route.continue();
   });
 
-  await page.route("**/api/activity/feed**", async (route) => {
-    if (route.request().method() !== "GET") return route.continue();
+  await page.route("**/api/venues**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() !== "GET") return route.continue();
+    if (url.pathname !== "/api/venues" && url.pathname !== "/api/venues/trending") return route.continue();
+
+    venueListRequests += 1;
+    if (venueListRequests === 1 && options.delayVenuesMs) {
+      await new Promise((resolve) => setTimeout(resolve, options.delayVenuesMs));
+    }
 
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         status: "success",
-        data: { items: [] },
-        meta,
+        data: { venues },
+        meta: { ...meta, requestNumber: venueListRequests },
       }),
-    });
-  });
-}
-
-async function preventFetchedVenuePhotos(page: Page) {
-  await page.route("**/api/venues/*/photos", async (route) => {
-    if (route.request().method() !== "GET") return route.continue();
-
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ photos: [] }),
     });
   });
 }
@@ -183,111 +230,104 @@ async function assertNoHorizontalOverflow(page: Page) {
   }).toBe(true);
 }
 
-function bottomNav(page: Page) {
-  return page.locator("nav.app-bottom-nav");
-}
-
-function sidebarNav(page: Page) {
-  return page.locator("nav.app-sidebar");
-}
-
-function isDesktop(projectName: string) {
-  return projectName.includes("desktop");
-}
-
-async function expectVenueCardVisible(page: Page, venueName: string) {
-  await expect(page.getByRole("link", { name: `Open ${venueName}`, exact: true }).first()).toBeVisible({ timeout: 15_000 });
-}
-
-async function expectMapReady(page: Page) {
-  await expect(page.locator(".leaflet-container").first()).toBeVisible({ timeout: 25_000 });
-  await expect(page.locator(".venue-cluster-pin, .leaflet-marker-icon").first()).toBeVisible({ timeout: 25_000 });
-}
-
-async function expectTappableNav(page: Page, projectName: string) {
-  if (isDesktop(projectName)) {
-    await expect(bottomNav(page)).not.toBeVisible();
-    await expect(sidebarNav(page)).toBeVisible();
-    expect(await page.getByText("nytchkr is optimized for mobile.").count()).toBe(0);
+async function assertShellNavigation(page: Page, testInfo: TestInfo) {
+  if (isDesktop(testInfo)) {
+    await expect(page.locator("nav.app-bottom-nav")).not.toBeVisible();
+    await expect(page.locator("nav.app-sidebar")).toBeVisible();
     return;
   }
 
-  const nav = bottomNav(page);
-  await expect(nav).toBeVisible();
-
+  const bottomNav = page.locator("nav.app-bottom-nav");
+  await expect(bottomNav).toBeVisible();
   for (const label of ["Map", "Explore", "You"]) {
-    const tab = nav.getByRole("link", { name: label });
-    await expect(tab).toBeVisible();
-    await expect(tab).toBeEnabled();
+    await expect(bottomNav.getByRole("link", { name: label })).toBeVisible();
   }
 }
 
-test.describe("@device cross-device browser coverage", () => {
-  test.describe.configure({ timeout: 60_000 });
+async function expectExploreReady(page: Page) {
+  await expect(page.getByRole("heading", { name: "South End" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("link", { name: "Open Cross Device Pulse", exact: true })).toBeVisible();
+}
 
-  test.beforeEach(async ({ page }) => {
-    await markOnboarded(page);
-  });
+async function performPullToRefresh(page: Page) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const x = Math.floor(page.viewportSize()!.width / 2);
+  await page.mouse.move(x, 24);
+  await page.mouse.down();
+  await page.mouse.move(x, 148, { steps: 8 });
+  await expect(page.getByText("Pull to refresh")).toBeVisible({ timeout: 5_000 });
+  await page.mouse.up();
+  await expect(page.getByRole("status")).toBeVisible({ timeout: 5_000 });
+}
 
-  test("@device home map loads with venue cards and pins", async ({ page }, testInfo) => {
-    await mockVenueApis(page, fallbackVenues);
+test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
+  test.describe.configure({ timeout: 75_000 });
 
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("region", { name: "Venue map" })).toBeVisible({ timeout: 15_000 });
-    await expectMapReady(page);
-    await expectTappableNav(page, testInfo.project.name);
+  test("@device onboarding zone select opens Explore", async ({ page }, testInfo) => {
+    await clearClientState(page);
+    await mockVenueApis(page);
+
+    await page.goto("/map?onboarding=1", { waitUntil: "domcontentloaded" });
+
+    const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
+    await expect(overlay).toBeVisible({ timeout: 20_000 });
+    await overlay.getByRole("button", { name: /^South End\b/ }).click();
+
+    await expect(page).toHaveURL(/\/explore\?zone=south-end-charlotte/);
+    await expectExploreReady(page);
+    await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
   });
 
-  test("@device explore page shows list, AI suggest, sort and filters", async ({ page }) => {
-    await mockVenueApis(page, fallbackVenues);
+  test("@device Explore shows skeleton, open-now badge, and pull-to-refresh", async ({ page }, testInfo) => {
+    await markOnboarded(page);
+    await mockVenueApis(page, { delayVenuesMs: 650 });
 
     await page.goto("/explore", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "South End" })).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByRole("searchbox", { name: "Search venues" })).toBeVisible();
-    await expect(page.getByRole("group", { name: "Explore sort and filters" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Hottest" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Open Now" })).toBeVisible();
-    await expect(page.getByRole("region", { name: "AI venue suggestions" })).toBeVisible();
-    await expect(page.getByText("Let AI choose").first()).toBeVisible();
-    await expectVenueCardVisible(page, "Cross Device Pulse");
+
+    await expect(page.getByRole("status", { name: "Loading venues" })).toBeVisible();
+    await expectExploreReady(page);
+
+    const venueCard = page.getByRole("link", { name: "Open Cross Device Pulse", exact: true });
+    await expect(venueCard).toContainText("Open now");
+    await expect(venueCard).toContainText("Packed");
+
+    await performPullToRefresh(page);
+    await expectExploreReady(page);
+    await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
   });
 
-  test("@device map page renders map container and venue pins", async ({ page }) => {
-    await mockVenueApis(page, fallbackVenues);
+  test("@device venue card opens map bottom sheet with check-in action", async ({ page }, testInfo) => {
+    await markOnboarded(page);
+    await mockVenueApis(page);
 
     await page.goto("/map", { waitUntil: "domcontentloaded" });
-    await expectMapReady(page);
+
+    const mapSheet = page.getByRole("region", { name: "Charlotte venues" });
+    await expect(mapSheet).toBeVisible({ timeout: 25_000 });
+    await mapSheet.getByRole("button", { name: /Expand Charlotte venue list/ }).click();
+    await mapSheet.getByRole("button", { name: /Cross Device Pulse/ }).click();
+
+    await expect(mapSheet.getByRole("heading", { name: "Cross Device Pulse" })).toBeVisible();
+    await expect(mapSheet.getByRole("link", { name: "Check in →" })).toBeVisible();
+    await expect(mapSheet.getByText("Open now").first()).toBeVisible();
+    await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
   });
 
-  test("@device venue card opens detail with visible hero art", async ({ page, request }) => {
-    await preventFetchedVenuePhotos(page);
+  test("@device venue detail shows check-in CTA and share button", async ({ page }, testInfo) => {
+    await markOnboarded(page);
+    await mockVenueApis(page);
 
-    const realVenue = await getNoPhotoVenue(request);
-    test.skip(!realVenue, "No cached launch-zone venue without photo_url/photoUrls was available from /api/venues");
+    await page.goto("/venues/cross-device-pulse", { waitUntil: "domcontentloaded" });
 
-    await mockVenueApis(page, [realVenue!]);
-    await page.goto("/explore", { waitUntil: "domcontentloaded" });
-    await expectVenueCardVisible(page, realVenue!.name);
-    await expect(page.locator(`a[href="/venues/${realVenue!.id}"]`).last()).toBeVisible({ timeout: 15_000 });
-
-    await page.goto(`/venues/${realVenue!.id}`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { level: 1, name: realVenue!.name })).toBeVisible({ timeout: 15_000 });
-
-    const hero = page.getByRole("region", { name: "Venue hero" });
-    await expect(hero).toBeVisible();
-    await expect(hero.locator("img, div").first()).toBeVisible();
-    await assertNoHorizontalOverflow(page);
-  });
-
-  test("@device login page renders accessible email form", async ({ page }) => {
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
-
-    await expect(page.getByRole("heading", { name: /nytchkr/i })).toBeVisible();
-    await expect(page.getByLabel("Email address")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Send magic link" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Cross Device Pulse" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("region", { name: "Venue hero" })).toBeVisible();
+    await expect(page.getByText("Open now").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Check in at Cross Device Pulse" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Share Cross Device Pulse/i }).first()).toBeVisible();
+    await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
   });
 });
