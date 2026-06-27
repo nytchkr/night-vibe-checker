@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
 import { Clock, MapPin } from "lucide-react";
@@ -18,19 +18,21 @@ export const metadata: Metadata = {
   },
 };
 
-type VenueRelation = {
-  name?: string | null;
-  address?: string | null;
-};
-
 type CheckInRow = {
   id: string;
-  venue_id: string | null;
-  user_id: string | null;
+  venueId: string | null;
+  venueName: string | null;
+  venueAddress: string | null;
   busyness: ReportedBusyness | null;
   crowd_feel?: string | null;
-  created_at: string;
-  venues?: VenueRelation | VenueRelation[] | null;
+  createdAt: string;
+};
+
+type UserCheckInsApiResponse = {
+  data?: {
+    checkIns?: CheckInRow[];
+  };
+  nextCursor?: string | null;
 };
 
 type CheckInWeekGroup = {
@@ -91,12 +93,6 @@ async function createCookieSupabaseClient() {
   });
 }
 
-function venueFrom(row: CheckInRow): VenueRelation | null {
-  const relation = row.venues;
-  if (Array.isArray(relation)) return relation[0] ?? null;
-  return relation ?? null;
-}
-
 function getEasternDateParts(date: Date): { year: number; month: number; day: number } | null {
   if (!Number.isFinite(date.getTime())) return null;
 
@@ -129,7 +125,7 @@ function groupCheckInsByWeek(checkIns: CheckInRow[]): CheckInWeekGroup[] {
   const groupByKey = new Map<string, CheckInWeekGroup>();
 
   for (const checkIn of checkIns) {
-    const week = weekInfoFor(checkIn.created_at);
+    const week = weekInfoFor(checkIn.createdAt);
     const existingGroup = groupByKey.get(week.key);
 
     if (existingGroup) {
@@ -178,25 +174,41 @@ function busynessClassName(value: ReportedBusyness | null): string {
 
 async function loadCheckIns(): Promise<CheckInRow[]> {
   const supabase = await createCookieSupabaseClient();
-  const { data: authData } = await supabase.auth.getUser();
+  const [{ data: authData }, { data: sessionData }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.auth.getSession(),
+  ]);
   const user = authData.user;
+  const accessToken = sessionData.session?.access_token;
 
-  if (!user) {
+  if (!user || !accessToken) {
     redirect("/login?return=/vibe-check/history");
   }
 
-  const { data, error } = await supabase
-    .from("check_ins")
-    .select("*, venues!inner(name,address)")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const response = await fetch(await apiUrl("/api/user/check-ins"), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: "no-store",
+  });
 
-  if (error) {
-    throw new Error(`Could not load check-in history: ${error.message}`);
+  if (response.status === 401) {
+    redirect("/login?return=/vibe-check/history");
   }
 
-  return (data ?? []) as CheckInRow[];
+  if (!response.ok) {
+    throw new Error("Could not load check-in history.");
+  }
+
+  const payload = (await response.json()) as UserCheckInsApiResponse;
+  return payload.data?.checkIns ?? [];
+}
+
+async function apiUrl(path: string): Promise<string> {
+  const headerStore = await headers();
+  const host = headerStore.get("host") ?? "localhost:3000";
+  const protocol = headerStore.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${protocol}://${host}${path}`;
 }
 
 export default async function VibeCheckHistoryPage() {
@@ -254,10 +266,9 @@ export default async function VibeCheckHistoryPage() {
                 </h2>
                 <ul className="space-y-3">
                   {group.checkIns.map((checkIn) => {
-                    const venue = venueFrom(checkIn);
-                    const venueName = venue?.name ?? "Unknown venue";
-                    const hasVenueName = Boolean(venue?.name);
-                    const address = venue?.address ?? "Address not available";
+                    const venueName = checkIn.venueName ?? "Unknown venue";
+                    const hasVenueName = Boolean(checkIn.venueName);
+                    const address = checkIn.venueAddress ?? "Address not available";
                     const emoji = vibeEmoji(checkIn.crowd_feel);
 
                     return (
@@ -272,9 +283,9 @@ export default async function VibeCheckHistoryPage() {
                                       {emoji}
                                     </span>
                                   ) : null}
-                                  {checkIn.venue_id ? (
+                                  {checkIn.venueId ? (
                                     <Link
-                                      href={`/venues/${checkIn.venue_id}`}
+                                      href={`/venues/${checkIn.venueId}`}
                                       className={`truncate text-base font-black transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
                                         hasVenueName ? "text-white" : "text-white/40"
                                       }`}
@@ -302,11 +313,11 @@ export default async function VibeCheckHistoryPage() {
                             </div>
 
                             <time
-                              dateTime={checkIn.created_at}
+                              dateTime={checkIn.createdAt}
                               className="mt-4 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-white/45"
                             >
                               <Clock className="h-3.5 w-3.5 text-[#FF2D78]" aria-hidden="true" />
-                              {formatCheckInDate(checkIn.created_at)}
+                              {formatCheckInDate(checkIn.createdAt)}
                             </time>
                           </CardContent>
                         </Card>

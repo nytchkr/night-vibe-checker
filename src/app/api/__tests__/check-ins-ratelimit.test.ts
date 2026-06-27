@@ -155,4 +155,72 @@ describe("POST /api/check-ins rate limit", () => {
       error: "Check-in limit reached. Try again later.",
     });
   });
+
+  it("sets Retry-After to a positive integer for a limited check-in", async () => {
+    enqueueSuccessfulCheckIn("venue-1");
+    enqueueSuccessfulCheckIn("venue-2");
+    enqueueSuccessfulCheckIn("venue-3");
+
+    const { POST } = await import("../check-ins/route");
+
+    for (const venueId of ["venue-1", "venue-2", "venue-3"]) {
+      const res = await POST(request(venueId));
+      expect(res.status).toBe(201);
+    }
+
+    const res = await POST(request("venue-4"));
+    const retryAfter = res.headers.get("Retry-After");
+
+    expect(res.status).toBe(429);
+    expect(retryAfter).toMatch(/^[1-9]\d*$/);
+    expect(Number(retryAfter)).toBeGreaterThan(0);
+  });
+
+  it("keeps different users in separate check-in rate limit buckets", async () => {
+    enqueueSuccessfulCheckIn("venue-1");
+    enqueueSuccessfulCheckIn("venue-2");
+    enqueueSuccessfulCheckIn("venue-3");
+    enqueueSuccessfulCheckIn("venue-4");
+
+    const { POST } = await import("../check-ins/route");
+
+    mockGetAuthenticatedUserId.mockResolvedValue("user-123");
+    for (const venueId of ["venue-1", "venue-2", "venue-3"]) {
+      const res = await POST(request(venueId));
+      expect(res.status).toBe(201);
+    }
+
+    mockGetAuthenticatedUserId.mockResolvedValue("user-456");
+    const otherUserRes = await POST(request("venue-4"));
+    expect(otherUserRes.status).toBe(201);
+
+    mockGetAuthenticatedUserId.mockResolvedValue("user-123");
+    const limitedRes = await POST(request("venue-5"));
+    expect(limitedRes.status).toBe(429);
+    await expect(limitedRes.json()).resolves.toEqual({
+      error: "Check-in limit reached. Try again later.",
+    });
+  });
+
+  it("allows check-ins again after the hourly window resets", async () => {
+    enqueueSuccessfulCheckIn("venue-1");
+    enqueueSuccessfulCheckIn("venue-2");
+    enqueueSuccessfulCheckIn("venue-3");
+    enqueueSuccessfulCheckIn("venue-4");
+
+    const { POST } = await import("../check-ins/route");
+
+    for (const venueId of ["venue-1", "venue-2", "venue-3"]) {
+      const res = await POST(request(venueId));
+      expect(res.status).toBe(201);
+    }
+
+    const limitedRes = await POST(request("venue-4-before-reset"));
+    expect(limitedRes.status).toBe(429);
+
+    vi.setSystemTime(new Date("2026-06-27T11:00:01.000Z"));
+
+    const resetRes = await POST(request("venue-4"));
+    expect(resetRes.status).toBe(201);
+  });
 });

@@ -5,6 +5,7 @@ const mockAssertSupabaseServerEnv = vi.fn();
 const mockFrom = vi.fn();
 const mockGetUser = vi.fn();
 const mockRpc = vi.fn();
+const mockFetch = vi.fn();
 
 class MockMissingSupabaseEnvError extends Error {
   constructor(public readonly variableName: string) {
@@ -73,42 +74,72 @@ beforeEach(() => {
   vi.resetModules();
   mockAssertSupabaseServerEnv.mockReturnValue(undefined);
   mockAuth("user-123");
+  process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+  global.fetch = mockFetch;
 });
 
 describe("GET /api/venues/[id]/tips", () => {
-  it("returns the 5 most recent venue tips", async () => {
-    const venueChain = chain({ data: { id: "venue-uuid", hidden: false } });
-    const tipsChain = chain({
+  it("returns AI venue tips from recent check-in patterns", async () => {
+    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
+    const checkInsChain = chain({
       data: [
         {
-          id: "tip-1",
-          venue_id: "venue-uuid",
-          user_id: "user-1",
-          tip_text: "Sit near the back patio after 10.",
-          helpful_count: 4,
+          busyness: "packed",
           created_at: "2026-06-21T00:00:00.000Z",
+        },
+        {
+          busyness: "moderate",
+          created_at: "2026-06-21T02:00:00.000Z",
         },
       ],
     });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(tipsChain);
+    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: "1. Arrive before midnight for easier entry.\n2. Expect packed energy around 8-10pm." }],
+      }),
+    });
 
     const { GET } = await import("../venues/[id]/tips/route");
     const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
 
     expect(res.status).toBe(200);
-    expect(tipsChain.eq).toHaveBeenCalledWith("venue_id", "venue-uuid");
-    expect(tipsChain.order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(tipsChain.limit).toHaveBeenCalledWith(5);
+    expect(checkInsChain.select).toHaveBeenCalledWith("busyness, created_at");
+    expect(checkInsChain.eq).toHaveBeenCalledWith("venue_id", "venue-uuid");
+    expect(checkInsChain.order).toHaveBeenCalledWith("created_at", { ascending: false });
+    expect(checkInsChain.limit).toHaveBeenCalledWith(20);
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=3600, stale-while-revalidate=86400");
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://api.anthropic.com/v1/messages",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "x-api-key": "test-anthropic-key",
+        }),
+      }),
+    );
+    const anthropicBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(anthropicBody.model).toBe("claude-haiku-4-5-20251001");
+    expect(anthropicBody.messages[0].content).toContain("Night Spot");
     const json = await res.json();
-    expect(json).toEqual([
-      {
-        id: "tip-1",
-        tip_text: "Sit near the back patio after 10.",
-        helpful_count: 4,
-        author_initials: "U1",
-        created_at: "2026-06-21T00:00:00.000Z",
-      },
-    ]);
+    expect(json).toEqual({
+      tips: ["Arrive before midnight for easier entry.", "Expect packed energy around 8-10pm."],
+    });
+  });
+
+  it("returns empty tips when the Anthropic API key is missing", async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
+    const checkInsChain = chain({ data: [{ busyness: "packed", created_at: "2026-06-21T00:00:00.000Z" }] });
+    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
+
+    const { GET } = await import("../venues/[id]/tips/route");
+    const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
+
+    expect(res.status).toBe(200);
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(await res.json()).toEqual({ tips: [] });
   });
 });
 

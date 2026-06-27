@@ -5,12 +5,14 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import VibeCheckHistoryPage from "../history/page";
 
-const { mockCookies, mockFrom, mockGetUser, mockRedirect } = vi.hoisted(() => ({
+const { mockCookies, mockHeaders, mockFrom, mockGetUser, mockGetSession, mockRedirect } = vi.hoisted(() => ({
   mockCookies: vi.fn(async () => ({
     getAll: vi.fn(() => []),
   })),
+  mockHeaders: vi.fn(async () => new Headers({ host: "localhost:3000" })),
   mockFrom: vi.fn(),
   mockGetUser: vi.fn(),
+  mockGetSession: vi.fn(),
   mockRedirect: vi.fn((url: string) => {
     throw new Error(`NEXT_REDIRECT:${url}`);
   }),
@@ -18,6 +20,7 @@ const { mockCookies, mockFrom, mockGetUser, mockRedirect } = vi.hoisted(() => ({
 
 vi.mock("next/headers", () => ({
   cookies: mockCookies,
+  headers: mockHeaders,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -43,30 +46,19 @@ vi.mock("next/link", async () => {
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: vi.fn(() => ({
-    auth: { getUser: mockGetUser },
+    auth: { getUser: mockGetUser, getSession: mockGetSession },
     from: mockFrom,
   })),
 }));
 
 type CheckInFixture = {
   id: string;
-  venue_id: string | null;
-  user_id: string | null;
+  venueId: string | null;
+  venueName: string | null;
+  venueAddress: string | null;
   busyness: "dead" | "moderate" | "packed" | null;
-  created_at: string;
-  venues?: { name?: string | null; address?: string | null } | null;
+  createdAt: string;
 };
-
-function checkInsQuery(data: CheckInFixture[]) {
-  const query = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockResolvedValue({ data, error: null }),
-  };
-
-  return query;
-}
 
 async function renderHistory() {
   const page = await VibeCheckHistoryPage();
@@ -78,12 +70,14 @@ beforeEach(() => {
   vi.setSystemTime(new Date("2026-06-27T12:00:00.000Z"));
   vi.clearAllMocks();
   mockGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
-  mockFrom.mockReturnValue(checkInsQuery([]));
+  mockGetSession.mockResolvedValue({ data: { session: { access_token: "access-token" } }, error: null });
+  vi.stubGlobal("fetch", vi.fn(async () => apiResponse([])));
 });
 
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 describe("VibeCheckHistoryPage", () => {
@@ -94,28 +88,28 @@ describe("VibeCheckHistoryPage", () => {
 
     expect(mockRedirect).toHaveBeenCalledWith("/login?return=/vibe-check/history");
     expect(mockFrom).not.toHaveBeenCalled();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("shows a list of check-ins with venue name and time-ago", async () => {
-    const query = checkInsQuery([
+    vi.mocked(fetch).mockResolvedValue(apiResponse([
       {
         id: "check-in-1",
-        venue_id: "venue-1",
-        user_id: "user-123",
+        venueId: "venue-1",
+        venueName: "Trio",
+        venueAddress: "820 Hamilton St",
         busyness: "packed",
-        created_at: "2026-06-27T10:00:00.000Z",
-        venues: { name: "Trio", address: "820 Hamilton St" },
+        createdAt: "2026-06-27T10:00:00.000Z",
       },
       {
         id: "check-in-2",
-        venue_id: "venue-2",
-        user_id: "user-123",
+        venueId: "venue-2",
+        venueName: "Lost & Found",
+        venueAddress: "332 W Bland St",
         busyness: "moderate",
-        created_at: "2026-06-26T12:00:00.000Z",
-        venues: { name: "Lost & Found", address: "332 W Bland St" },
+        createdAt: "2026-06-26T12:00:00.000Z",
       },
-    ]);
-    mockFrom.mockReturnValue(query);
+    ]));
 
     await renderHistory();
 
@@ -123,11 +117,11 @@ describe("VibeCheckHistoryPage", () => {
     expect(screen.getByRole("link", { name: "Lost & Found" })).not.toBeNull();
     expect(screen.getByText(/Jun 27/)).not.toBeNull();
     expect(screen.getByText(/Jun 26/)).not.toBeNull();
-    expect(mockFrom).toHaveBeenCalledWith("check_ins");
-    expect(query.select).toHaveBeenCalledWith("*, venues!inner(name,address)");
-    expect(query.eq).toHaveBeenCalledWith("user_id", "user-123");
-    expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(query.limit).toHaveBeenCalledWith(50);
+    expect(fetch).toHaveBeenCalledWith("http://localhost:3000/api/user/check-ins", {
+      headers: { Authorization: "Bearer access-token" },
+      cache: "no-store",
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it("shows empty state with link to /explore when no check-ins", async () => {
@@ -139,30 +133,30 @@ describe("VibeCheckHistoryPage", () => {
   });
 
   it("shows busyness badge on check-in cards", async () => {
-    mockFrom.mockReturnValue(checkInsQuery([
+    vi.mocked(fetch).mockResolvedValue(apiResponse([
       {
         id: "packed-check-in",
-        venue_id: "venue-packed",
-        user_id: "user-123",
+        venueId: "venue-packed",
+        venueName: "Packed Room",
+        venueAddress: "100 Camden Rd",
         busyness: "packed",
-        created_at: "2026-06-27T11:55:00.000Z",
-        venues: { name: "Packed Room", address: "100 Camden Rd" },
+        createdAt: "2026-06-27T11:55:00.000Z",
       },
       {
         id: "moderate-check-in",
-        venue_id: "venue-moderate",
-        user_id: "user-123",
+        venueId: "venue-moderate",
+        venueName: "Middle Bar",
+        venueAddress: "101 Camden Rd",
         busyness: "moderate",
-        created_at: "2026-06-27T11:45:00.000Z",
-        venues: { name: "Middle Bar", address: "101 Camden Rd" },
+        createdAt: "2026-06-27T11:45:00.000Z",
       },
       {
         id: "dead-check-in",
-        venue_id: "venue-dead",
-        user_id: "user-123",
+        venueId: "venue-dead",
+        venueName: "Quiet Corner",
+        venueAddress: "102 Camden Rd",
         busyness: "dead",
-        created_at: "2026-06-27T11:30:00.000Z",
-        venues: { name: "Quiet Corner", address: "102 Camden Rd" },
+        createdAt: "2026-06-27T11:30:00.000Z",
       },
     ]));
 
@@ -180,3 +174,11 @@ describe("VibeCheckHistoryPage", () => {
     expect(within(quietCard as HTMLElement).getByText("Quiet")).not.toBeNull();
   });
 });
+
+function apiResponse(checkIns: CheckInFixture[], init?: ResponseInit): Response {
+  return new Response(JSON.stringify({ data: { checkIns }, nextCursor: null }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+}

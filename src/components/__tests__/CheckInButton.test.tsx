@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CheckInButton } from "@/components/CheckInButton";
@@ -77,7 +77,7 @@ async function completeCheckIn() {
   renderCheckInButton();
   await userEvent.click(screen.getByRole("button", { name: "Check in at Sports Bar" }));
   await userEvent.click(await screen.findByRole("button", { name: "Confirm" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Checked in at Sports Bar" })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Checked in at Sports Bar; try again/i })).toBeTruthy());
 }
 
 describe("CheckInButton haptics", () => {
@@ -102,6 +102,7 @@ describe("CheckInButton haptics", () => {
 
   afterEach(() => {
     cleanup();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -131,4 +132,38 @@ describe("CheckInButton haptics", () => {
 
     expect(vibrate).not.toHaveBeenCalled();
   });
+
+  it("stores a successful check-in timestamp with the per-venue cooldown key", async () => {
+    await completeCheckIn();
+
+    const button = screen.getByRole("button", { name: /Checked in at Sports Bar; try again in 20 minutes/i });
+    expect(button.textContent).toBe("Checked in ✓ · try again in 20m");
+    expect(button.hasAttribute("disabled")).toBe(true);
+    expect(localStorage.getItem("nv_last_checkin_sports-bar")).toBeTruthy();
+  });
+
+  it("updates the cooldown countdown every minute and returns to idle when it expires", async () => {
+    const now = new Date("2026-06-27T00:00:00.000Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    localStorage.setItem("nv_last_checkin_sports-bar", String(now.getTime() - 18 * 60 * 1000));
+
+    await act(async () => { renderCheckInButton(); });
+
+    expect(screen.getByRole("button", { name: /try again in 2 minutes/i }).textContent).toBe("Checked in ✓ · try again in 2m");
+
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+
+    expect(screen.getByRole("button", { name: /try again in 1 minute/i }).textContent).toBe("Checked in ✓ · try again in 1m");
+
+    await act(async () => {
+      vi.advanceTimersByTime(60 * 1000);
+    });
+
+    expect(screen.getByRole("button", { name: "Check in at Sports Bar" })).toBeTruthy();
+    expect(localStorage.getItem("nv_last_checkin_sports-bar")).toBeNull();
+    vi.useRealTimers();
+  }, 10000);
 });

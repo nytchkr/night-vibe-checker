@@ -13,6 +13,10 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import type { APIResponse } from "@/types";
 
 const TIP_LIMIT = 5;
+const CHECK_IN_LIMIT = 20;
+const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
+const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
+const AI_TIPS_CACHE_CONTROL = "s-maxage=3600, stale-while-revalidate=86400";
 const TIP_POST_RATE_LIMIT_MAX = 5;
 const TIP_POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const TipBodySchema = z.object({
@@ -36,6 +40,17 @@ export type VenueTip = {
   created_at: string;
   helpful_count: number;
   author_initials: string;
+};
+
+type VenueTipCheckIn = {
+  busyness: "dead" | "moderate" | "packed" | string | null;
+  created_at: string | null;
+};
+
+type VenueTipVenue = {
+  id: string;
+  name: string;
+  category: string | null;
 };
 
 function meta(requestId: string, cached = false) {
@@ -96,72 +111,136 @@ function mapTip(row: Record<string, unknown>): VenueTip {
   });
 }
 
+function emptyAiTipsResponse(): NextResponse<{ tips: string[] }> {
+  return NextResponse.json({ tips: [] }, { headers: { "Cache-Control": AI_TIPS_CACHE_CONTROL } });
+}
+
+function hourLabel(hour: number): string {
+  const normalized = ((hour % 24) + 24) % 24;
+  if (normalized === 0) return "12am";
+  if (normalized < 12) return `${normalized}am`;
+  if (normalized === 12) return "12pm";
+  return `${normalized - 12}pm`;
+}
+
+function summarizeCheckIns(checkIns: VenueTipCheckIn[]): string {
+  const busynessCounts = new Map<string, number>();
+  const hourCounts = new Map<number, number>();
+
+  for (const checkIn of checkIns) {
+    const busyness = typeof checkIn.busyness === "string" ? checkIn.busyness : "";
+    if (busyness) busynessCounts.set(busyness, (busynessCounts.get(busyness) ?? 0) + 1);
+
+    const date = new Date(checkIn.created_at ?? "");
+    if (!Number.isNaN(date.getTime())) {
+      const hour = date.getUTCHours();
+      hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
+    }
+  }
+
+  const typicalBusyness =
+    [...busynessCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
+  const peakHours = [...hourCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([hour]) => hourLabel(hour));
+
+  return `${checkIns.length} recent check-ins. Typical busyness: ${typicalBusyness}. ${
+    peakHours.length ? `Most check-ins cluster around ${peakHours.join(", ")}.` : "No clear peak hour yet."
+  } Busyness counts: ${
+    [...busynessCounts.entries()].map(([label, count]) => `${label} ${count}`).join(", ") || "none"
+  }.`;
+}
+
+function splitTips(text: string): string[] {
+  return text
+    .split(/\n+|(?<=\.)\s+(?=\d+\.|\-|\*)/)
+    .map((line) => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function extractAnthropicText(payload: unknown): string {
+  const content = (payload as { content?: unknown })?.content;
+  if (!Array.isArray(content)) return "";
+
+  return content
+    .map((part) => {
+      const candidate = part as { type?: unknown; text?: unknown };
+      return candidate.type === "text" && typeof candidate.text === "string" ? candidate.text : "";
+    })
+    .join("\n")
+    .trim();
+}
+
+async function fetchRecentCheckIns(venueId: string): Promise<VenueTipCheckIn[]> {
+  const { data, error } = await supabaseAdmin
+    .from("check_ins")
+    .select("busyness, created_at")
+    .eq("venue_id", venueId)
+    .eq("hidden", false)
+    .order("created_at", { ascending: false })
+    .limit(CHECK_IN_LIMIT);
+
+  if (error || !data) return [];
+  return data as VenueTipCheckIn[];
+}
+
+async function generateAiVenueTips(venue: VenueTipVenue, checkIns: VenueTipCheckIn[]): Promise<string[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || checkIns.length === 0) return [];
+
+  const summary = summarizeCheckIns(checkIns);
+  const category = venue.category?.trim() || "venue";
+  const prompt = `Based on these check-in patterns for ${venue.name} (a ${category} in Charlotte NC): ${summary}. Write 2-3 short insider tips for visitors. Be specific and honest. Max 60 words total.`;
+
+  const res = await fetch(ANTHROPIC_MESSAGES_URL, {
+    method: "POST",
+    headers: {
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+    },
+    body: JSON.stringify({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 140,
+      messages: [{ role: "user", content: prompt }],
+    }),
+    cache: "no-store",
+  });
+
+  if (!res.ok) return [];
+  const payload: unknown = await res.json().catch(() => null);
+  return splitTips(extractAnthropicText(payload));
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const requestId = uuidv4();
-  const responseMeta = meta(requestId, true);
-
   try {
     assertSupabaseServerEnv();
   } catch (error) {
-    const response = missingSupabaseConfigResponse(error, responseMeta);
-    if (response) return response;
+    if (error instanceof MissingSupabaseEnvError) return emptyAiTipsResponse();
     throw error;
   }
 
   const { id: rawId } = await params;
   const requestedVenueId = normalizeVenueLookupId(rawId);
   if (!requestedVenueId) {
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "MISSING_ID", message: "Venue id is required." }, meta: responseMeta },
-      { status: 400 },
-    );
+    return emptyAiTipsResponse();
   }
 
-  const venueId = await resolveVenueId(requestedVenueId);
-  if (!venueId) {
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta: responseMeta },
-      { status: 404 },
-    );
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(requestedVenueId, "id, name, category, hidden");
+  const venue = data as VenueTipVenue | null;
+  if (error || !venue) {
+    return emptyAiTipsResponse();
   }
 
-  let { data, error } = await supabaseAdmin
-    .from("venue_tips")
-    .select("id, venue_id, user_id, tip_text, helpful_count, created_at")
-    .eq("venue_id", venueId)
-    .order("created_at", { ascending: false })
-    .limit(TIP_LIMIT);
+  const checkIns = await fetchRecentCheckIns(venue.id);
+  const tips = await generateAiVenueTips(venue, checkIns).catch(() => []);
 
-  if (error) {
-    const msg = error instanceof Error ? error.message : String((error as { message?: unknown } | null)?.message ?? "");
-    if (msg.includes("tip_text") || msg.includes("column")) {
-      const fallback = await supabaseAdmin
-        .from("venue_tips")
-        .select("id, venue_id, user_id, tip, helpful_count, created_at")
-        .eq("venue_id", venueId)
-        .order("created_at", { ascending: false })
-        .limit(TIP_LIMIT);
-      data = (fallback.data ?? []).map((r) => ({ ...r, tip_text: r.tip ?? "" })) as typeof data;
-      error = fallback.error;
-    }
-    if (error) {
-      console.error("[venue-tips GET] DB error:", error);
-      return NextResponse.json<APIResponse<never>>(
-        { status: "error", error: { code: "DB_ERROR", message: "Could not fetch venue tips." }, meta: responseMeta },
-        { status: 500 },
-      );
-    }
-  }
-
-  return NextResponse.json(
-    ((data ?? []) as Record<string, unknown>[])
-      .map(mapTip)
-      .filter((tip) => tip.tip_text.length > 0)
-      .slice(0, TIP_LIMIT),
-  );
+  return NextResponse.json({ tips }, { headers: { "Cache-Control": AI_TIPS_CACHE_CONTROL } });
 }
 
 export async function POST(

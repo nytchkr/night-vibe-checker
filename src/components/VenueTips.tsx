@@ -13,6 +13,7 @@ type VenueTip = {
   created_at: string;
   helpful_count: number;
   author_initials: string;
+  ai_generated?: boolean;
 };
 
 const MAX_TIP_LENGTH = 200;
@@ -21,12 +22,25 @@ const MAX_VISIBLE_TIPS = 5;
 function normalizeTips(json: unknown): VenueTip[] {
   const source = Array.isArray(json)
     ? json
+    : Array.isArray((json as { tips?: unknown[] })?.tips)
+      ? (json as { tips: unknown[] }).tips
     : Array.isArray((json as { data?: { tips?: unknown[] } })?.data?.tips)
       ? (json as { data: { tips: unknown[] } }).data.tips
       : [];
 
   return source
-    .map((tip) => {
+    .map((tip, index) => {
+      if (typeof tip === "string") {
+        return {
+          id: `ai-tip-${index}`,
+          tip_text: tip,
+          created_at: "",
+          helpful_count: 0,
+          author_initials: "AI",
+          ai_generated: true,
+        };
+      }
+
       const value = tip as Partial<VenueTip> & { tip?: string; createdAt?: string };
       return {
         id: typeof value.id === "string" ? value.id : "",
@@ -42,6 +56,7 @@ function normalizeTips(json: unknown): VenueTip[] {
           typeof (value as { author_initials?: unknown }).author_initials === "string"
             ? (value as { author_initials: string }).author_initials
             : "NV",
+        ai_generated: Boolean(value.ai_generated),
       };
     })
     .filter((tip) => tip.id && tip.tip_text)
@@ -181,7 +196,7 @@ export function VenueTips({ venueId }: { venueId: string }) {
       <div className="flex items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-lg font-bold text-white">Tips</h2>
-          <p className="mt-1 text-xs font-semibold text-white/40">Short notes from people who have been here.</p>
+          <p className="mt-1 text-xs font-semibold text-white/40">Tips from locals, organized from recent check-ins.</p>
         </div>
         {authChecked && accessToken ? (
           <Button
@@ -232,18 +247,22 @@ export function VenueTips({ venueId }: { venueId: string }) {
                       <time dateTime={tip.created_at} className="block text-xs font-medium text-white/40">
                         {formatTipDate(tip.created_at)}
                       </time>
+                    ) : tip.ai_generated ? (
+                      <span className="block text-xs font-medium text-white/40">From recent check-in patterns</span>
                     ) : (
                       <span />
                     )}
-                    <button
-                      type="button"
-                      onClick={() => void markHelpful(tip.id)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs font-bold text-white/60 transition-colors hover:border-[#F0568C]/40 hover:bg-[#F0568C]/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70"
-                      aria-label={`${tip.helpful_count} people found this tip helpful`}
-                    >
-                      <ThumbsUp size={13} aria-hidden="true" />
-                      {tip.helpful_count}
-                    </button>
+                    {tip.ai_generated ? null : (
+                      <button
+                        type="button"
+                        onClick={() => void markHelpful(tip.id)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-xs font-bold text-white/60 transition-colors hover:border-[#F0568C]/40 hover:bg-[#F0568C]/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0568C]/70"
+                        aria-label={`${tip.helpful_count} people found this tip helpful`}
+                      >
+                        <ThumbsUp size={13} aria-hidden="true" />
+                        {tip.helpful_count}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

@@ -45,6 +45,8 @@ async function getFirstVenue(page: Page): Promise<Venue> {
 function readTipsArray(body: unknown): unknown[] | null {
   if (Array.isArray(body)) return body;
   if (body && typeof body === "object") {
+    const tips = (body as { tips?: unknown }).tips;
+    if (Array.isArray(tips)) return tips;
     const data = (body as { data?: { tips?: unknown } }).data;
     if (Array.isArray(data?.tips)) return data.tips;
   }

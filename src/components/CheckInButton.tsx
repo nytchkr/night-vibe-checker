@@ -19,7 +19,8 @@ type CheckInButtonProps = {
   venueName: string;
 };
 
-const CHECK_IN_LOCK_MS = 60 * 60 * 1000;
+const CHECK_IN_COOLDOWN_MS = 20 * 60 * 1000;
+const CHECK_IN_COUNTDOWN_INTERVAL_MS = 60 * 1000;
 const CHECK_IN_CREATED_EVENT = "nightvibe:check-in-created";
 const CHECK_IN_REFRESH_KEY = "nightvibe.check-in-refresh";
 
@@ -38,7 +39,7 @@ type RewardAnimation = {
 };
 
 function storageKey(venueId: string) {
-  return `nightvibe.check-in.${venueId}`;
+  return `nv_last_checkin_${venueId}`;
 }
 
 function getStoredCheckInAt(venueId: string): number | null {
@@ -57,6 +58,18 @@ function clearStoredCheckIn(venueId: string) {
   window.localStorage.removeItem(storageKey(venueId));
 }
 
+function timeUntilNextCheckin(checkedInAt: number, now = Date.now()) {
+  return Math.max(CHECK_IN_COOLDOWN_MS - (now - checkedInAt), 0);
+}
+
+function cooldownMinutesRemaining(milliseconds: number) {
+  return Math.max(1, Math.ceil(milliseconds / 60_000));
+}
+
+function cooldownMinutesLabel(minutes: number) {
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
 function errorMessageFrom(status: number, payload: unknown) {
   const message = typeof payload === "object" && payload && "error" in payload
     ? (payload as { error?: { message?: unknown } }).error?.message
@@ -71,63 +84,81 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
   const { showToast } = useToast();
   const haptic = useHaptic();
   const [state, setState] = useState<CheckInState>("idle");
-  const [checkedInUntil, setCheckedInUntil] = useState<number | null>(null);
+  const [lastCheckInAt, setLastCheckInAt] = useState<number | null>(null);
+  const [timeUntilNextCheckinMs, setTimeUntilNextCheckinMs] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [rewardAnimation, setRewardAnimation] = useState<RewardAnimation | null>(null);
+  const [refreshPayload, setRefreshPayload] = useState<{
+    venueId: string;
+    venueName: string;
+    checkedInAt: number;
+  } | null>(null);
   const confirmDialogRef = useRef<HTMLDivElement | null>(null);
   const reduceMotion = useReducedMotion();
-
-  function lockCheckIn(timestamp: number) {
-    storeCheckInAt(venueId, timestamp);
-    setCheckedInUntil(timestamp + CHECK_IN_LOCK_MS);
-  }
 
   useEffect(() => {
     const checkedInAt = getStoredCheckInAt(venueId);
     if (!checkedInAt) {
-      setCheckedInUntil(null);
+      setLastCheckInAt(null);
+      setTimeUntilNextCheckinMs(0);
       setState("idle");
       return;
     }
 
-    const expiresIn = CHECK_IN_LOCK_MS - (Date.now() - checkedInAt);
-    if (expiresIn <= 0) {
+    const remaining = timeUntilNextCheckin(checkedInAt);
+    if (remaining <= 0) {
       clearStoredCheckIn(venueId);
-      setCheckedInUntil(null);
+      setLastCheckInAt(null);
+      setTimeUntilNextCheckinMs(0);
       setState("idle");
       return;
     }
 
-    setCheckedInUntil(checkedInAt + CHECK_IN_LOCK_MS);
+    setLastCheckInAt(checkedInAt);
+    setTimeUntilNextCheckinMs(remaining);
+    setState("checked-in");
   }, [venueId]);
 
   useEffect(() => {
-    if (!checkedInUntil) return;
-    const expiresIn = checkedInUntil - Date.now();
-    if (expiresIn <= 0) {
-      clearStoredCheckIn(venueId);
-      setCheckedInUntil(null);
-      setState("idle");
-      return;
+    if (!lastCheckInAt) return;
+    const checkedInAt = lastCheckInAt;
+    storeCheckInAt(venueId, checkedInAt);
+
+    function updateCooldown() {
+      const remaining = timeUntilNextCheckin(checkedInAt);
+      if (remaining <= 0) {
+        clearStoredCheckIn(venueId);
+        setLastCheckInAt(null);
+        setTimeUntilNextCheckinMs(0);
+        setState("idle");
+        return;
+      }
+
+      setTimeUntilNextCheckinMs(remaining);
+      setState("checked-in");
     }
 
-    setState("checked-in");
-    const timer = window.setTimeout(() => {
-      clearStoredCheckIn(venueId);
-      setCheckedInUntil(null);
-      setState("idle");
-    }, expiresIn);
+    updateCooldown();
+    const interval = window.setInterval(updateCooldown, CHECK_IN_COUNTDOWN_INTERVAL_MS);
 
-    return () => window.clearTimeout(timer);
-  }, [checkedInUntil, venueId]);
+    return () => window.clearInterval(interval);
+  }, [lastCheckInAt, venueId]);
+
+  useEffect(() => {
+    if (!refreshPayload) return;
+    window.localStorage.setItem(CHECK_IN_REFRESH_KEY, JSON.stringify(refreshPayload));
+    window.dispatchEvent(new CustomEvent(CHECK_IN_CREATED_EVENT, {
+      detail: refreshPayload,
+    }));
+    setRefreshPayload(null);
+  }, [refreshPayload]);
 
   useEffect(() => {
     function handleCheckInCreated(event: Event) {
-      const detail = (event as CustomEvent<{ venueId?: string }>).detail;
+      const detail = (event as CustomEvent<{ venueId?: string; checkedInAt?: number }>).detail;
       if (detail?.venueId !== venueId) return;
 
-      const checkedInAt = getStoredCheckInAt(venueId) ?? Date.now();
-      setCheckedInUntil(checkedInAt + CHECK_IN_LOCK_MS);
+      setLastCheckInAt(detail.checkedInAt ?? Date.now());
     }
 
     window.addEventListener(CHECK_IN_CREATED_EVENT, handleCheckInCreated);
@@ -185,7 +216,8 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
         streakCount: Number((json as CheckInResponse | null)?.data?.streakCount ?? 0),
       });
       const now = Date.now();
-      lockCheckIn(now);
+      setLastCheckInAt(now);
+      setTimeUntilNextCheckinMs(timeUntilNextCheckin(now));
       haptic.success();
       setConfirmOpen(false);
       showToast(`${venueName}: ${reward.toast}`, "success");
@@ -196,14 +228,11 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
           streakBadge: reward.streakBadge,
         });
       }
-      window.localStorage.setItem(CHECK_IN_REFRESH_KEY, JSON.stringify({
+      setRefreshPayload({
         venueId,
         venueName,
         checkedInAt: now,
-      }));
-      window.dispatchEvent(new CustomEvent(CHECK_IN_CREATED_EVENT, {
-        detail: { venueId, venueName, checkedInAt: now },
-      }));
+      });
     } catch (error) {
       haptic.error();
       setState("error");
@@ -214,6 +243,8 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
   const checkedIn = state === "checked-in";
   const loading = state === "loading";
   const error = state === "error";
+  const cooldownMinutes = cooldownMinutesRemaining(timeUntilNextCheckinMs);
+  const cooldownLabel = cooldownMinutesLabel(cooldownMinutes);
 
   useFocusTrap(confirmOpen, confirmDialogRef, () => {
     if (!loading) setConfirmOpen(false);
@@ -240,18 +271,18 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
     <>
       <div className="relative w-full">
         <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-          {loading ? `Checking in at ${venueName}` : checkedIn ? `Checked in at ${venueName}` : error ? `Check-in failed at ${venueName}` : ""}
+          {loading ? `Checking in at ${venueName}` : checkedIn ? `Checked in at ${venueName}. Try again in ${cooldownLabel}.` : error ? `Check-in failed at ${venueName}` : ""}
         </span>
         <button
           type="button"
           onClick={handleCheckInButtonTap}
           disabled={loading || checkedIn}
-          aria-label={checkedIn ? `Checked in at ${venueName}` : `Check in at ${venueName}`}
+          aria-label={checkedIn ? `Checked in at ${venueName}; try again in ${cooldownLabel}` : `Check in at ${venueName}`}
           aria-pressed={checkedIn}
           aria-busy={loading}
           className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed ${
             checkedIn
-              ? "bg-emerald-400 text-[#06120D] shadow-[0_0_24px_rgba(52,211,153,0.22)]"
+              ? "cursor-not-allowed bg-white/[0.04] text-white/40 shadow-none"
               : error
                 ? "border border-[#FF5B6A]/35 bg-[#FF5B6A]/10 text-[#FF5B6A] shadow-none hover:bg-[#FF5B6A]/15"
                 : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
@@ -263,7 +294,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
               <span>Checking in</span>
             </>
           ) : checkedIn ? (
-            "✓ Checked In"
+            `Checked in ✓ · try again in ${cooldownMinutes}m`
           ) : error ? (
             "Try again"
           ) : (

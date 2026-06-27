@@ -88,7 +88,7 @@
     @apply bg-background text-foreground;
     background-color: var(--bg-deep);
     color: var(--text-primary);
-    font-family: var(--font-inter), -apple-system, "SF Pro Text", system-ui, sans-serif;
+    font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, -apple-system, "SF Pro Text", sans-serif;
     font-size: 15px;
     font-weight: 500;
     line-height: 1.5;
@@ -118,7 +118,7 @@
   h5,
   h6 {
     font-weight: 500;
-    font-family: var(--font-display), var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-display), "Space Grotesk", var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
     line-height: 1.5;
   }
 

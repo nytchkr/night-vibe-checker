@@ -231,6 +231,26 @@ function mockFetchWithVenues(nextVenues: ConsumerVenue[]) {
       return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     }
 
+    if (url.includes("/api/zones/south-end-charlotte/stats")) {
+      return Promise.resolve(new Response(JSON.stringify({
+        zoneId: "south-end-charlotte",
+        liveCheckInCount: 0,
+        topVenueId: null,
+        topVenueName: null,
+        venueCount: nextVenues.length,
+      }), { status: 200 }));
+    }
+
+    if (url.includes("/api/zones/dilworth-charlotte/stats")) {
+      return Promise.resolve(new Response(JSON.stringify({
+        zoneId: "dilworth-charlotte",
+        liveCheckInCount: 0,
+        topVenueId: null,
+        topVenueName: null,
+        venueCount: 0,
+      }), { status: 200 }));
+    }
+
     if (url.includes("/api/venues")) {
       return Promise.resolve(new Response(JSON.stringify({ data: { venues: nextVenues } }), { status: 200 }));
     }
@@ -242,6 +262,7 @@ function mockFetchWithVenues(nextVenues: ConsumerVenue[]) {
 async function renderExplore() {
   render(<ExplorePageClient />);
   await screen.findAllByRole("link", { name: /^Open / });
+  await screen.findByLabelText("Live zone activity");
 }
 
 function venueResults() {
@@ -393,6 +414,48 @@ describe("ExplorePageClient venue search", () => {
     ]);
   });
 
+  it("renders live zone activity with the hottest zone highlighted", async () => {
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.includes("/api/activity/feed")) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+      }
+
+      if (url.includes("/api/zones/south-end-charlotte/stats")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          zoneId: "south-end-charlotte",
+          liveCheckInCount: 12,
+          topVenueId: null,
+          topVenueName: null,
+          venueCount: 25,
+        }), { status: 200 }));
+      }
+
+      if (url.includes("/api/zones/dilworth-charlotte/stats")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          zoneId: "dilworth-charlotte",
+          liveCheckInCount: 3,
+          topVenueId: null,
+          topVenueName: null,
+          venueCount: 9,
+        }), { status: 200 }));
+      }
+
+      if (url.includes("/api/venues")) {
+        return Promise.resolve(new Response(JSON.stringify({ data: { venues } }), { status: 200 }));
+      }
+
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+
+    await renderExplore();
+
+    await waitFor(() => {
+      expect(screen.getByText("🔥 South End · 12 here")).toBeTruthy();
+      expect(screen.getByText("Dilworth · 3 here")).toBeTruthy();
+    });
+  });
+
   it("manually prefetches venue detail routes once on hover and touch", async () => {
     await renderExplore();
 
@@ -480,6 +543,26 @@ describe("ExplorePageClient venue search", () => {
       const url = input.toString();
       if (url.includes("/api/activity/feed")) {
         return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+      }
+
+      if (url.includes("/api/zones/south-end-charlotte/stats")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          zoneId: "south-end-charlotte",
+          liveCheckInCount: 0,
+          topVenueId: null,
+          topVenueName: null,
+          venueCount: venues.length,
+        }), { status: 200 }));
+      }
+
+      if (url.includes("/api/zones/dilworth-charlotte/stats")) {
+        return Promise.resolve(new Response(JSON.stringify({
+          zoneId: "dilworth-charlotte",
+          liveCheckInCount: 0,
+          topVenueId: null,
+          topVenueName: null,
+          venueCount: 0,
+        }), { status: 200 }));
       }
 
       if (url.includes("/api/venues")) {

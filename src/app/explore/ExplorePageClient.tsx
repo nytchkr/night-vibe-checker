@@ -22,6 +22,7 @@ import { TrendingRow } from "@/components/TrendingRow";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { VenuePhoto } from "@/components/VenuePhoto";
+import { VibeScoreArc } from "@/components/VibeScoreArc";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
@@ -47,6 +48,11 @@ type ZoneStatsSummary = {
   spotCount: number;
   openNowCount: number;
   averageBusyness: number | null;
+};
+type ZoneActivityStats = {
+  zoneId: string;
+  zoneName: string;
+  liveCheckInCount: number;
 };
 type ActivityFeedItem = {
   id: string;
@@ -85,6 +91,10 @@ const EXPLORE_ZONE_FILTERS_BY_ID: Record<OnboardingZone["id"], ExploreFilterOpti
   "dilworth-charlotte": "Dilworth",
   "south-park-charlotte": "South Park",
 };
+const ZONE_ACTIVITY_TARGETS: Array<{ id: OnboardingZone["id"]; name: string }> = [
+  { id: "south-end-charlotte", name: "South End" },
+  { id: "dilworth-charlotte", name: "Dilworth" },
+];
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
@@ -357,10 +367,73 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
   );
 }
 
+function isZoneStatsResponse(value: unknown): value is { zoneId: string; liveCheckInCount: number } {
+  if (value === null || typeof value !== "object") return false;
+  const candidate = value as { zoneId?: unknown; liveCheckInCount?: unknown };
+  return typeof candidate.zoneId === "string" && typeof candidate.liveCheckInCount === "number";
+}
+
+async function fetchZoneActivityStats(signal?: AbortSignal): Promise<ZoneActivityStats[]> {
+  return Promise.all(
+    ZONE_ACTIVITY_TARGETS.map(async (zone) => {
+      const res = await fetch(`/api/zones/${zone.id}/stats`, { cache: "no-store", signal });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const json: unknown = await res.json();
+      if (!isZoneStatsResponse(json)) throw new Error("Invalid zone stats response");
+
+      return {
+        zoneId: zone.id,
+        zoneName: zone.name,
+        liveCheckInCount: Math.max(0, Math.round(json.liveCheckInCount)),
+      };
+    }),
+  );
+}
+
+function ZoneActivityStrip({
+  stats,
+  loading,
+}: {
+  stats: ZoneActivityStats[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Loading zone activity">
+        <div className="h-8 w-32 animate-pulse rounded-full border border-white/[0.08] bg-white/[0.04]" />
+        <div className="h-8 w-28 animate-pulse rounded-full border border-white/[0.08] bg-white/[0.04]" />
+      </div>
+    );
+  }
+
+  if (stats.length === 0) return null;
+
+  const hottestCount = Math.max(...stats.map((zone) => zone.liveCheckInCount));
+  const hottestZoneId = stats.find((zone) => zone.liveCheckInCount === hottestCount)?.zoneId;
+
+  return (
+    <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Live zone activity">
+      {stats.map((zone) => {
+        const isHottest = zone.zoneId === hottestZoneId;
+
+        return (
+          <span
+            key={zone.zoneId}
+            className={`shrink-0 rounded-full border bg-white/[0.04] px-3 py-1.5 text-[13px] font-semibold text-white/80 ${isHottest ? "border-[#F0568C]/50" : "border-white/[0.08]"}`}
+          >
+            {isHottest ? "🔥 " : ""}{zone.zoneName} · {zone.liveCheckInCount} here
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number }) {
   const busyness = getActiveBusyness(venue) ?? 0;
   const label = getTonightPickLabel(busyness);
   const color = getTonightPickColor(label);
+  const vibeScore = getVenueVibeScore(venue);
 
   return (
     <Link
@@ -377,6 +450,11 @@ function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number
         sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
         loading="lazy"
       />
+      {vibeScore != null ? (
+        <div className="absolute right-2 top-2 z-10">
+          <VibeScoreArc score={vibeScore} />
+        </div>
+      ) : null}
       <div className="absolute inset-x-0 bottom-0 min-h-[104px] bg-gradient-to-t from-[#050507] via-[#050507]/78 to-transparent" aria-hidden="true" />
       <div className="absolute inset-x-0 bottom-0 space-y-2 p-3">
         <span
@@ -633,6 +711,7 @@ function VenueFeedCard({
 }) {
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
+  const vibeScore = getVenueVibeScore(venue);
   const rating = venue.rating ?? venue.googleRating;
   const ratingLabel = rating?.toFixed(1);
   const reviewCount = venue.userRatingCount ?? venue.totalRatings;
@@ -693,14 +772,21 @@ function VenueFeedCard({
           aria-hidden="true"
         />
         {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
-        <VenuePhoto
-          name={venue.name}
-          photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
-          className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto"
-          imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.02]"
-          sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
-          loading="lazy"
-        />
+        <div className="relative w-full shrink-0 overflow-hidden rounded-xl sm:h-[72px] sm:w-[72px]">
+          <VenuePhoto
+            name={venue.name}
+            photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
+            className="aspect-video w-full sm:h-full sm:aspect-auto"
+            imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.02]"
+            sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
+            loading="lazy"
+          />
+          {vibeScore != null ? (
+            <div className="absolute right-2 top-2 z-10 sm:right-1.5 sm:top-1.5">
+              <VibeScoreArc score={vibeScore} size={32} />
+            </div>
+          ) : null}
+        </div>
 
         <div className="relative z-[1] flex min-w-0 flex-1 flex-col justify-center gap-2">
           <div className="min-w-0 space-y-1">
@@ -803,6 +889,9 @@ export function ExplorePageClient() {
   const [hasInitializedExploreFilters, setHasInitializedExploreFilters] = useState(false);
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
+  const [zoneActivityStats, setZoneActivityStats] = useState<ZoneActivityStats[]>([]);
+  const [zoneActivityLoading, setZoneActivityLoading] = useState(true);
+  const [zoneActivityError, setZoneActivityError] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const { savedIds } = useSavedVenues();
   const hasLoadedVenuesRef = useRef(false);
@@ -868,6 +957,35 @@ export function ExplorePageClient() {
     const id = window.setInterval(() => void fetchActivity(), 60_000);
     return () => window.clearInterval(id);
   }, [fetchActivity]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadZoneActivity({ showLoading }: { showLoading: boolean }) {
+      if (showLoading) setZoneActivityLoading(true);
+
+      try {
+        const nextStats = await fetchZoneActivityStats(controller.signal);
+        setZoneActivityStats(nextStats);
+        setZoneActivityError(false);
+      } catch {
+        if (!controller.signal.aborted) {
+          setZoneActivityStats([]);
+          setZoneActivityError(true);
+        }
+      } finally {
+        if (!controller.signal.aborted) setZoneActivityLoading(false);
+      }
+    }
+
+    void loadZoneActivity({ showLoading: true });
+    const id = window.setInterval(() => void loadZoneActivity({ showLoading: false }), 60_000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(id);
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1418,6 +1536,10 @@ export function ExplorePageClient() {
             />
           ) : null}
         </AnimatePresence>
+
+        {!zoneActivityError && (
+          <ZoneActivityStrip stats={zoneActivityStats} loading={zoneActivityLoading} />
+        )}
 
         {error && (
           <div
