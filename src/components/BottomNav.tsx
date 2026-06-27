@@ -114,9 +114,10 @@ function NavItem({
   return (
     <Link
       href={href}
+      prefetch
       aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`group relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-200 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+      className={`group relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-200 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
         active
           ? "text-[#8B6CFF] drop-shadow-[0_0_12px_rgba(139,108,255,0.35)]"
           : "text-[#9CA2AE] hover:bg-white/[0.04] hover:text-[#F4F5F8]"
@@ -313,8 +314,9 @@ export function SidebarNav() {
           <Link
             key={href}
             href={href}
+            prefetch
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-[48px] items-center gap-3 rounded-r-2xl border-l-2 px-4 py-3 text-sm font-semibold transition-all duration-200 ease-out active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+            className={`flex min-h-[48px] items-center gap-3 rounded-r-2xl border-l-2 px-4 py-3 text-sm font-semibold transition-all duration-200 ease-out active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
               active
                 ? "border-[#8B6CFF] bg-[#8B6CFF]/10 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.18)]"
                 : "border-transparent text-[#9CA2AE] hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-[#F4F5F8]"

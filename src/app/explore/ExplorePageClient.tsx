@@ -422,9 +422,12 @@ function ExploreQuietEmptyState() {
 
 function ExploreNoMatchState({ onClear }: { onClear: () => void }) {
   return (
-    <div className="px-6 py-12 text-center text-white/60">
-      <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
-      <h2 className="mt-3 text-[15px] font-semibold leading-6">No venues match</h2>
+    <div className="rounded-[18px] border border-[#8B6CFF]/25 bg-[linear-gradient(135deg,rgba(139,108,255,0.12),rgba(240,86,140,0.08))] px-6 py-10 text-center shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#F0568C]/35 bg-[#F0568C]/15 text-[#F0568C] shadow-[0_0_24px_rgba(240,86,140,0.18)]">
+        <SearchX aria-hidden="true" className="h-5 w-5" strokeWidth={2.1} />
+      </span>
+      <h2 className="mt-4 text-[17px] font-black leading-6 text-white">No spots found.</h2>
+      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">Try a different filter.</p>
       <button
         type="button"
         onClick={onClear}
@@ -511,7 +514,7 @@ function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
               key={venue.id}
               href={`/venues/${encodeURIComponent(venue.id)}`}
               onClick={() => trackAnalytics("hottest_right_now_tapped", { venueId: venue.id, rank: index + 1 })}
-              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-4 py-3 transition-all duration-200 ease-out last:border-b-0 hover:bg-white/[0.06] active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/60"
+              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-4 py-3 transition-all duration-200 ease-out last:border-b-0 hover:bg-white/[0.06] active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/70"
               aria-label={`Open ${venue.name}, ranked number ${index + 1}, ${label}`}
             >
               <span className="font-display text-sm font-black text-white/55">#{index + 1}</span>
@@ -584,7 +587,7 @@ function VenueFeedCard({
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.05] hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10 active:scale-[0.99] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 sm:flex-row sm:items-center"
+        className="group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.05] hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10 active:scale-[0.99] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
         aria-label={`Open ${venue.name}`}
       >
         {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
@@ -1095,7 +1098,7 @@ export function ExplorePageClient() {
               {session && (
                 <Link
                   href="/profile"
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   You
                 </Link>
@@ -1134,12 +1137,12 @@ export function ExplorePageClient() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search South End, Dilworth, venue name..."
-                className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-medium text-white transition-all duration-200 ease-out placeholder:text-white/30 focus:border-violet/60 focus:outline-none focus:ring-2 focus:ring-violet/40 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-medium text-white transition-all duration-200 ease-out placeholder:text-white/30 focus:border-violet/60 focus:outline-none focus:ring-2 focus:ring-violet/40 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               />
               <button
                 type="button"
                 onClick={() => searchInputRef.current?.focus()}
-                className="absolute left-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="absolute left-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 aria-label="Focus venue search"
               >
                 <svg
@@ -1162,7 +1165,7 @@ export function ExplorePageClient() {
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-all duration-200 ease-out hover:bg-white/15 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-all duration-200 ease-out hover:bg-white/15 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                   aria-label="Clear search"
                 >
                   ×
@@ -1249,19 +1252,7 @@ export function ExplorePageClient() {
 
         {venues !== undefined && !error && !isSearchingVenues && venues.length === 0 && (
           trimmedSearchQuery ? (
-            <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
-              <h2 className="font-display text-[19px] font-semibold tracking-tight text-[#F4F5F8]">
-                No venues match
-              </h2>
-              <p className="mt-2 text-sm font-semibold text-white/50">{`No matches for "${trimmedSearchQuery}"`}</p>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                Clear filters
-              </button>
-            </div>
+            <ExploreNoMatchState onClear={clearFilters} />
           ) : <ExploreQuietEmptyState />
         )}
 
@@ -1304,9 +1295,9 @@ export function ExplorePageClient() {
         </div>
 
         {activityLoaded && activityItems.length === 0 ? (
-          <div className="mt-4 px-4 py-8 text-center text-white/60">
-            <p className="mt-3 text-sm font-semibold leading-5">
-              Be the first to check in tonight
+          <div className="mt-4 rounded-[18px] border border-[#F0568C]/25 bg-[#F0568C]/10 px-5 py-8 text-center text-white/70 shadow-[0_16px_34px_rgba(240,86,140,0.08)]">
+            <p className="text-sm font-black leading-5 text-white">
+              Be the first to check in tonight!
             </p>
           </div>
         ) : (

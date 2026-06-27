@@ -308,7 +308,7 @@ function TopSpotCard({ topSpot, loading }: { topSpot: { venueId: string; venueNa
     <SectionShell title="Top Spot">
       <Link
         href={`/venues/${topSpot.venueId}`}
-        className="flex min-h-20 items-center justify-between gap-4 rounded-[18px] border border-[#FFB020]/25 bg-[#FFB020]/10 px-4 py-3 transition-colors hover:bg-[#FFB020]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFB020]/60"
+        className="flex min-h-20 items-center justify-between gap-4 rounded-[18px] border border-[#FFB020]/25 bg-[#FFB020]/10 px-4 py-3 transition-colors hover:bg-[#FFB020]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         <span className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#FFB020]/35 bg-[#FFB020]/15">
@@ -396,8 +396,20 @@ function RecentCheckInsSection({ checkIns, loading }: { checkIns: CheckIn[]; loa
           })}
 
         {!loading && checkIns.length === 0 && (
-          <Card className="rounded-[18px] border-white/[0.08] bg-white/[0.04] p-4 text-sm leading-6 text-white/60">
-            No check-ins yet. Check in at a venue to track your nights.
+          <Card className="rounded-[18px] border-[#8B6CFF]/25 bg-[linear-gradient(135deg,rgba(139,108,255,0.14),rgba(240,86,140,0.08))] p-5 text-center shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
+            <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#F0568C]/35 bg-[#F0568C]/15 text-[#F0568C] shadow-[0_0_24px_rgba(240,86,140,0.18)]">
+              <Moon className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <h3 className="mt-4 text-base font-black text-white">Your night starts here.</h3>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/65">
+              Check in at your first spot to build your nightlife history and unlock better recommendations.
+            </p>
+            <Button
+              asChild
+              className="mt-5 min-h-11 rounded-full bg-[#8B6CFF] px-5 text-sm font-bold text-white hover:bg-[#9B82FF] focus-visible:ring-[#8B6CFF]/70"
+            >
+              <Link href="/explore">Explore spots</Link>
+            </Button>
           </Card>
         )}
       </div>

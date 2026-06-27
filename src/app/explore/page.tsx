@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PageTransition } from "@/components/PageTransition";
+import { RoutePrefetch } from "@/components/RoutePrefetch";
 import { ExplorePageClient } from "./ExplorePageClient";
 
 export const metadata: Metadata = {
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 export default function ExplorePage() {
   return (
     <PageTransition>
+      <RoutePrefetch href="/map" />
       <ExplorePageClient />
     </PageTransition>
   );

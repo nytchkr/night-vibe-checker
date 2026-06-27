@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import TonightStats from "@/components/TonightStats";
 import VenueMapClient from "@/components/VenueMapClient";
 import { PageTransition } from "@/components/PageTransition";
+import { RoutePrefetch } from "@/components/RoutePrefetch";
 
 export const metadata: Metadata = {
   title: "Map — nytchkr",
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 export default function MapPage() {
   return (
     <PageTransition>
+      <RoutePrefetch href="/explore" />
       <p className="sr-only" data-smoke="map-zip-search">
         Search by zip for Charlotte ZIP lookup: 28202 28203 28209.
       </p>

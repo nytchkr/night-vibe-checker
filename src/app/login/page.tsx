@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
+import { Loader2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 
@@ -39,6 +40,32 @@ function clearStoredReturnUrl() {
   }
 }
 
+function isValidEmailAddress(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function friendlyMagicLinkError(message: string) {
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedMessage.includes("rate") ||
+    normalizedMessage.includes("too many") ||
+    normalizedMessage.includes("over_email_send_rate_limit")
+  ) {
+    return "You have requested a few links recently. Wait a minute, then try again.";
+  }
+
+  if (
+    normalizedMessage.includes("invalid email") ||
+    normalizedMessage.includes("email address is invalid") ||
+    normalizedMessage.includes("unable to validate email")
+  ) {
+    return "Enter a valid email address, like name@example.com.";
+  }
+
+  return "We could not send the magic link. Check your email address and try again.";
+}
+
 function getRedirectOrigin(): string {
   return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
 }
@@ -60,16 +87,22 @@ function LoginContent() {
   const haptic = useHaptic();
   const hasReturnParam = searchParams.has("return");
   const redirectedRef = useRef(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const returnUrl = useMemo(
     () => safeReturnUrl(searchParams.get("return")),
     [searchParams]
   );
 
   const [email, setEmail] = useState("");
+  const [sentEmail, setSentEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [googleSigningIn, setGoogleSigningIn] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    emailInputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("error") !== "auth_failed") return;
@@ -103,7 +136,15 @@ function LoginContent() {
   }, [hasReturnParam, returnUrl, router]);
 
   async function handleSignIn() {
-    if (!email.trim() || signingIn) return;
+    const emailAddress = email.trim();
+
+    if (!emailAddress || signingIn) return;
+
+    if (!isValidEmailAddress(emailAddress)) {
+      setError("Enter a valid email address, like name@example.com.");
+      emailInputRef.current?.focus();
+      return;
+    }
 
     haptic.medium();
     setSigningIn(true);
@@ -115,18 +156,19 @@ function LoginContent() {
       const origin = getRedirectOrigin();
       const redirectTo = `${origin}/auth/callback?return=${encodeURIComponent(returnUrl)}`;
       const { error: signInError } = await client.auth.signInWithOtp({
-        email: email.trim(),
+        email: emailAddress,
         options: { emailRedirectTo: redirectTo },
       });
 
       if (signInError) {
-        setError(signInError.message);
+        setError(friendlyMagicLinkError(signInError.message));
         return;
       }
 
+      setSentEmail(emailAddress);
       setOtpSent(true);
     } catch {
-      setError("Could not send the magic link. Try again.");
+      setError("We could not send the magic link. Check your connection and try again.");
     } finally {
       setSigningIn(false);
     }
@@ -158,9 +200,9 @@ function LoginContent() {
 
           {otpSent ? (
             <div className="space-y-3 rounded-2xl border border-white/[0.09] bg-white/[0.04] p-5 text-center">
-              <p className="text-sm font-bold text-white">Check your email</p>
+              <p className="text-sm font-bold text-white">Check your email!</p>
               <p className="text-xs leading-relaxed text-white/55">
-                We sent a magic link to <strong className="text-white/70">{email}</strong>. Click it to sign in.
+                We sent a magic link to <strong className="text-white/70">{sentEmail}</strong>. Click it to sign in.
               </p>
             </div>
           ) : (
@@ -203,16 +245,21 @@ function LoginContent() {
                   Email address
                 </label>
                 <input
+                  ref={emailInputRef}
                   id="login-email"
                   type="email"
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    if (error) setError("");
+                  }}
                   onKeyDown={(event) => event.key === "Enter" && handleSignIn()}
                   placeholder="your@email.com"
                   autoComplete="email"
+                  disabled={signingIn}
                   aria-invalid={error ? "true" : "false"}
                   aria-describedby={error ? "login-email-error" : undefined}
-                  className="h-12 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white transition-colors duration-150 placeholder:text-white/55 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="h-12 w-full rounded-xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white transition-colors duration-150 placeholder:text-white/55 disabled:cursor-not-allowed disabled:opacity-60 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 />
                 {error && (
                   <p id="login-email-error" role="alert" className="text-xs text-[#F0568C]">
@@ -223,9 +270,16 @@ function LoginContent() {
                   type="button"
                   onClick={handleSignIn}
                   disabled={!email.trim() || signingIn}
-                  className="h-12 w-full rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-all duration-150 hover:bg-[#A896FF] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/80"
+                  className="h-12 w-full rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-all duration-150 hover:bg-[#A896FF] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
-                  {signingIn ? "Sending..." : "Send magic link"}
+                  {signingIn ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      Sending...
+                    </span>
+                  ) : (
+                    "Send magic link"
+                  )}
                 </button>
               </div>
             </div>
