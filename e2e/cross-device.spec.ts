@@ -146,12 +146,31 @@ async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {
     });
   });
 
-  await page.route("**/api/venues/**", async (route) => {
+  await page.route("**/api/venues**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     if (request.method() !== "GET") return route.continue();
 
-    const [, , venueId, childRoute] = url.pathname.split("/");
+    if (url.pathname === "/api/venues" || url.pathname === "/api/venues/trending") {
+      venueListRequests += 1;
+      if (venueListRequests === 1 && options.delayVenuesMs) {
+        await new Promise((resolve) => setTimeout(resolve, options.delayVenuesMs));
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "success",
+          data: { venues },
+          meta: { ...meta, requestNumber: venueListRequests },
+        }),
+      });
+    }
+
+    const [, apiSegment, venuesSegment, venueId, childRoute] = url.pathname.split("/");
+    if (apiSegment !== "api" || venuesSegment !== "venues" || !venueId) return route.continue();
+
     const venue = venues.find((item) => item.id === venueId || item.slug === venueId);
 
     if (childRoute === "photos") {
@@ -200,28 +219,6 @@ async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {
 
     return route.continue();
   });
-
-  await page.route("**/api/venues**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (request.method() !== "GET") return route.continue();
-    if (url.pathname !== "/api/venues" && url.pathname !== "/api/venues/trending") return route.continue();
-
-    venueListRequests += 1;
-    if (venueListRequests === 1 && options.delayVenuesMs) {
-      await new Promise((resolve) => setTimeout(resolve, options.delayVenuesMs));
-    }
-
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { venues },
-        meta: { ...meta, requestNumber: venueListRequests },
-      }),
-    });
-  });
 }
 
 async function assertNoHorizontalOverflow(page: Page) {
@@ -246,7 +243,7 @@ async function assertShellNavigation(page: Page, testInfo: TestInfo) {
 
 async function expectExploreReady(page: Page) {
   await expect(page.getByRole("heading", { name: "South End" })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("link", { name: "Open Cross Device Pulse", exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Venue results" }).getByRole("link", { name: "Open Cross Device Pulse", exact: true })).toBeVisible();
 }
 
 async function performPullToRefresh(page: Page) {
@@ -285,10 +282,10 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
 
     await page.goto("/explore", { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("status", { name: "Loading venues" })).toBeVisible();
+    await expect(page.getByRole("status", { name: "Loading venue card" }).first()).toBeVisible();
     await expectExploreReady(page);
 
-    const venueCard = page.getByRole("link", { name: "Open Cross Device Pulse", exact: true });
+    const venueCard = page.getByRole("region", { name: "Venue results" }).getByRole("link", { name: "Open Cross Device Pulse", exact: true });
     await expect(venueCard).toContainText("Open now");
     await expect(venueCard).toContainText("Packed");
 
@@ -304,7 +301,7 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
 
     await page.goto("/map", { waitUntil: "domcontentloaded" });
 
-    const mapSheet = page.getByRole("region", { name: "Charlotte venues" });
+    const mapSheet = page.getByRole("region", { name: "South End venues" });
     await expect(mapSheet).toBeVisible({ timeout: 25_000 });
     await mapSheet.getByRole("button", { name: /Expand Charlotte venue list/ }).click();
     await mapSheet.getByRole("button", { name: /Cross Device Pulse/ }).click();
