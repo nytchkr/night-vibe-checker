@@ -9,6 +9,7 @@ import { createBrowserClient } from "@/lib/supabase-browser";
 type SaveButtonProps = {
   placeId: string;
   className?: string;
+  ariaLabel?: string;
   requirePro?: boolean;
   onSavedChange?: (saved: boolean) => void;
 };
@@ -18,7 +19,7 @@ function currentPath() {
   return `${window.location.pathname}${window.location.search}`;
 }
 
-function SaveButtonInner({ placeId, className, onSavedChange }: SaveButtonProps) {
+function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange }: SaveButtonProps) {
   const { isSaved, refreshVenueSavedState, toggle, loading } = useSavedVenues();
   const { requireAuth } = useOnboardingGate();
   const [pending, setPending] = useState(false);
@@ -82,7 +83,7 @@ function SaveButtonInner({ placeId, className, onSavedChange }: SaveButtonProps)
       type="button"
       onClick={handleClick}
       disabled={pending || loading}
-      aria-label={saved ? "Unsave venue" : "Save venue"}
+      aria-label={ariaLabel ?? (saved ? "Unsave venue" : "Save venue")}
       aria-pressed={saved}
       className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-white/72 transition-colors hover:border-[#8B6CFF]/50 hover:text-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-60 ${
         saved ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.24)]" : ""

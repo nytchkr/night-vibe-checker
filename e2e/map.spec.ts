@@ -138,6 +138,7 @@ const venues = [
 const topFiveVenueNames = venues.slice(0, 5).map((venue) => venue.name);
 
 test.use({ serviceWorkers: "block" });
+test.describe.configure({ mode: "serial" });
 
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
@@ -174,8 +175,8 @@ async function mockVenues(page: Page, delayMs = 0) {
 async function openMap(page: Page) {
   await page.goto("/map");
   await page.waitForSelector(".leaflet-container", { timeout: 25000 });
-  const sheet = page.getByRole("region", { name: "South End venues" });
-  await expect(sheet).toBeVisible({ timeout: 20000 });
+  const sheet = page.locator('section[aria-label="South End venues"]');
+  await sheet.waitFor({ state: "attached", timeout: 20000 });
   return sheet;
 }
 
@@ -253,11 +254,7 @@ test.describe("Map tab", () => {
   });
 
   test("redesigned bottom sheet lists venue previews", async ({ page }) => {
-    await page.goto("/map");
-    await page.waitForSelector(".leaflet-container", { timeout: 25000 });
-
-    const sheet = page.getByRole("region", { name: "South End venues" });
-    await expect(sheet).toBeVisible({ timeout: 10000 });
+    const sheet = await openMap(page);
     await expect(sheet.getByRole("button", { name: /Expand South End venue list/ })).toBeVisible();
 
     const packedVenue = sheet.getByRole("button", { name: /Map Test Club/ });

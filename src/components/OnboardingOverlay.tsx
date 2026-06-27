@@ -72,7 +72,7 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex max-h-dvh overflow-y-auto bg-[#0A0A0E]/96 text-white backdrop-blur-sm"
+      className="fixed inset-0 z-[10000] flex max-h-dvh overflow-y-auto bg-[#0A0A0E]/96 text-white backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"

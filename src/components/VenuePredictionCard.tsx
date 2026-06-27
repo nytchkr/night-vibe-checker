@@ -202,7 +202,7 @@ export function VenuePredictionCard({
 
   if (state.status === "empty") {
     const emptyCopy = state.reason === "forecast_unavailable"
-      ? "Forecast unavailable - check back later"
+      ? "Not enough reports yet - forecast unavailable"
       : EMPTY_COPY;
     return (
       <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4" aria-label="AI forecast">

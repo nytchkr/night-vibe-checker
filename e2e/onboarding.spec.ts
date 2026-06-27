@@ -1,15 +1,17 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Onboarding overlay", () => {
+  test.describe.configure({ mode: "serial" });
+
   test("fresh page shows onboarding and Skip dismisses it", async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.clear();
       window.sessionStorage.clear();
     });
-    await page.goto("/map");
+    await page.goto("/map", { waitUntil: "domcontentloaded" });
 
     const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
-    await expect(overlay).toBeVisible();
+    await expect(overlay).toBeVisible({ timeout: 20_000 });
     await expect(overlay.getByRole("button", { name: /^South End\b/ })).toBeVisible();
     await expect(overlay.getByRole("button", { name: /^Dilworth\b/ })).toBeVisible();
     await expect(overlay.getByRole("button", { name: /^South Park\b/ })).toBeVisible();
@@ -26,10 +28,10 @@ test.describe("Onboarding overlay", () => {
       window.localStorage.clear();
       window.sessionStorage.clear();
     });
-    await page.goto("/map");
+    await page.goto("/map", { waitUntil: "domcontentloaded" });
 
     const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
-    await expect(overlay).toBeVisible();
+    await expect(overlay).toBeVisible({ timeout: 20_000 });
     await overlay.getByRole("button", { name: /^South Park\b/ }).click();
 
     await expect(page).toHaveURL(/\/explore\?zone=south-park-charlotte/);

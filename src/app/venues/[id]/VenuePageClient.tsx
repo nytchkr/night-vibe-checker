@@ -1087,7 +1087,7 @@ export function VenuePageClient({
   }, [venue?.openingHours]);
   const mapsHref = useMemo(() => {
     if (!venue) return "#";
-    if (venue.googleMapsUri) return venue.googleMapsUri;
+    if (venue.googleMapsUri?.includes("google.com/maps")) return venue.googleMapsUri;
     const query = venue.address || `${venue.lat},${venue.lng}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   }, [venue]);
@@ -1401,6 +1401,7 @@ export function VenuePageClient({
                   <ShareButton
                     venueId={venue.id}
                     venueName={venue.name}
+                    aria-label="Share current vibe"
                     className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white/[0.04] px-5 text-sm font-black text-gray-200 shadow-none transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:ring-[#8B6CFF]/70 disabled:bg-white/10 disabled:text-white/35"
                   >
                     <span>Share Vibe</span>
@@ -1528,6 +1529,7 @@ export function VenuePageClient({
               <CheckInButton venueId={venue.id} venueName={venue.name} />
               <SaveButton
                 placeId={venue.id}
+                ariaLabel="Save venue shortcut"
                 onSavedChange={handleVenueSavedChange}
                 className="h-[52px] w-full rounded-full border border-white/[0.08] bg-white/[0.06] text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
               />
