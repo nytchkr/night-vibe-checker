@@ -13,7 +13,24 @@ const authMock = vi.hoisted(() => ({
     access_token: string;
     user: { id: string };
   },
+  liveCheckInCount: 0,
 }));
+
+const supabaseMocks = vi.hoisted(() => {
+  const removeChannel = vi.fn();
+  const channel: {
+    on: ReturnType<typeof vi.fn>;
+    subscribe: ReturnType<typeof vi.fn>;
+  } = {
+    on: vi.fn(),
+    subscribe: vi.fn(),
+  };
+
+  channel.on.mockReturnValue(channel);
+  channel.subscribe.mockReturnValue(channel);
+
+  return { channel, removeChannel };
+});
 
 vi.mock("next/image", async () => {
   const React = await import("react");
@@ -162,6 +179,25 @@ vi.mock("@/lib/supabase-browser", () => ({
         },
       })),
     },
+    from: vi.fn(() => {
+      const query: {
+        select: ReturnType<typeof vi.fn>;
+        eq: ReturnType<typeof vi.fn>;
+        gte: ReturnType<typeof vi.fn>;
+      } = {
+        select: vi.fn(),
+        eq: vi.fn(),
+        gte: vi.fn(),
+      };
+
+      query.select.mockReturnValue(query);
+      query.eq.mockReturnValue(query);
+      query.gte.mockResolvedValue({ count: authMock.liveCheckInCount, error: null });
+
+      return query;
+    }),
+    channel: vi.fn(() => supabaseMocks.channel),
+    removeChannel: supabaseMocks.removeChannel,
   }),
 }));
 
@@ -242,7 +278,11 @@ function mockVenuePageFetch(userRating: number | null = null) {
 function renderVenuePage(venue: ConsumerVenue = makeVenue()) {
   render(
     <ToastProvider>
-      <VenuePageClient venueId={venue.id} initialVenue={venue} />
+      <VenuePageClient
+        venueId={venue.id}
+        initialVenue={venue}
+        initialLiveCheckInCount={authMock.liveCheckInCount}
+      />
     </ToastProvider>,
   );
 }
@@ -257,6 +297,7 @@ describe("VenuePageClient venue rating widget", () => {
       access_token: "token-123",
       user: { id: "user-123" },
     };
+    authMock.liveCheckInCount = 0;
   });
 
   afterEach(() => {
@@ -270,6 +311,14 @@ describe("VenuePageClient venue rating widget", () => {
     renderVenuePage();
 
     expect(await findStarButtons()).toHaveLength(5);
+  });
+
+  it("renders the server-seeded live check-in count badge", async () => {
+    authMock.liveCheckInCount = 3;
+    mockVenuePageFetch();
+    renderVenuePage();
+
+    expect(await screen.findByText("3 here tonight")).toBeTruthy();
   });
 
   it("shows the existing user rating as filled stars", async () => {

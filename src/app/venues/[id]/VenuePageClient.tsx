@@ -119,6 +119,7 @@ const GENDER_SELF_REPORT_OPTIONS: Array<{ value: GenderSelfReport; label: string
 ];
 
 const DETAIL_MF_SAMPLE_THRESHOLD = 5;
+const LIVE_CHECK_IN_WINDOW_HOURS = 2;
 
 function timeAgo(iso: string | null | undefined): string {
   if (!iso) return "Not updated yet";
@@ -216,6 +217,15 @@ function getBusynessLabel(percent: number): string {
   return "Quiet";
 }
 
+function normalizeLiveCheckInCount(value: number | null | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.round(value));
+}
+
+function liveCheckInCutoffIso(now = Date.now()): string {
+  return new Date(now - LIVE_CHECK_IN_WINDOW_HOURS * 60 * 60_000).toISOString();
+}
+
 function LiveBusynessBadge({
   hasRead,
   percent,
@@ -234,6 +244,20 @@ function LiveBusynessBadge({
       <span className="h-2.5 w-2.5 rounded-full shadow-[0_0_12px_currentColor]" style={{ backgroundColor: color, color }} aria-hidden="true" />
       <span>{label}</span>
       {sourceText ? <span className="font-semibold text-white/45">via {sourceText}</span> : null}
+    </span>
+  );
+}
+
+function LiveCheckInCountBadge({ count }: { count: number }) {
+  if (count < 1) return null;
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full border border-[#00F5D4]/35 bg-[#00F5D4]/10 px-3 py-2 text-xs font-black shadow-[0_0_18px_rgba(0,245,212,0.18)] backdrop-blur"
+      style={{ color: "#00F5D4" }}
+      aria-label={`${count} here tonight`}
+    >
+      {count} here tonight
     </span>
   );
 }
@@ -551,9 +575,11 @@ function VenuePhotoCarousel({
 export function VenuePageClient({
   venueId,
   initialVenue,
+  initialLiveCheckInCount = 0,
 }: {
   venueId: string;
   initialVenue: ConsumerVenue | null;
+  initialLiveCheckInCount?: number;
 }) {
   const router = useRouter();
   const { consumePendingAction, requireAuth } = useOnboardingGate();
@@ -570,6 +596,7 @@ export function VenuePageClient({
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [venueActivity, setVenueActivity] = useState<VenueActivityItem[]>([]);
   const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
+  const [liveCheckInCount, setLiveCheckInCount] = useState(() => normalizeLiveCheckInCount(initialLiveCheckInCount));
   const [bestTimeForecast, setBestTimeForecast] = useState<BestTimeHourlyForecast[]>([]);
   const [bestTimeForecastLoading, setBestTimeForecastLoading] = useState(false);
   const [bestTimeForecastUpdatedOn, setBestTimeForecastUpdatedOn] = useState<string | null>(null);
@@ -657,6 +684,27 @@ export function VenuePageClient({
     };
   }, [venue]);
 
+  useEffect(() => {
+    setLiveCheckInCount(normalizeLiveCheckInCount(initialLiveCheckInCount));
+  }, [initialLiveCheckInCount, venueId]);
+
+  const fetchLiveCheckInCount = useCallback(async (targetVenueId: string, isCancelled?: () => boolean) => {
+    try {
+      const { count, error } = await createBrowserClient()
+        .from("check_ins")
+        .select("id", { count: "exact", head: true })
+        .eq("venue_id", targetVenueId)
+        .eq("hidden", false)
+        .gte("created_at", liveCheckInCutoffIso());
+
+      if (!error && !isCancelled?.()) {
+        setLiveCheckInCount(normalizeLiveCheckInCount(count));
+      }
+    } catch {
+      // Keep the server-rendered count if the browser cannot read realtime data.
+    }
+  }, []);
+
   const fetchRecentCheckIns = useCallback(async (targetVenueId: string, isCancelled?: () => boolean) => {
     try {
       const res = await fetch(`/api/venues/${encodeURIComponent(targetVenueId)}/check-ins`);
@@ -731,6 +779,37 @@ export function VenuePageClient({
   }, [fetchRecentCheckIns, venue?.id, venueId]);
 
   useEffect(() => {
+    const realtimeVenueId = venue?.id ?? venueId;
+    if (!realtimeVenueId) return;
+
+    let cancelled = false;
+    const client = createBrowserClient();
+    const refresh = () => {
+      void fetchLiveCheckInCount(realtimeVenueId, () => cancelled);
+    };
+    const channel = client
+      .channel(`venue-check-ins:${realtimeVenueId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "check_ins",
+          filter: `venue_id=eq.${realtimeVenueId}`,
+        },
+        refresh,
+      )
+      .subscribe();
+
+    refresh();
+
+    return () => {
+      cancelled = true;
+      void client.removeChannel(channel);
+    };
+  }, [fetchLiveCheckInCount, venue?.id, venueId]);
+
+  useEffect(() => {
     function handleCheckInCreated(event: Event) {
       const detail = (event as CustomEvent<{ venueId?: string }>).detail;
       const checkedVenueId = detail?.venueId;
@@ -739,6 +818,7 @@ export function VenuePageClient({
 
       setCheckInConfirmed(true);
       setShowPostCheckInRatingPrompt(true);
+      void fetchLiveCheckInCount(currentVenueId);
       void fetchRecentCheckIns(currentVenueId);
       void fetch(`/api/venues/${encodeURIComponent(currentVenueId)}`)
         .then((response) => response.ok ? response.json() : null)
@@ -750,7 +830,7 @@ export function VenuePageClient({
 
     window.addEventListener("nightvibe:check-in-created", handleCheckInCreated);
     return () => window.removeEventListener("nightvibe:check-in-created", handleCheckInCreated);
-  }, [fetchRecentCheckIns, venue?.id, venueId]);
+  }, [fetchLiveCheckInCount, fetchRecentCheckIns, venue?.id, venueId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -998,6 +1078,7 @@ export function VenuePageClient({
         const json = await venueRes.json();
         setVenue(json?.data?.venue ?? venue);
       }
+      void fetchLiveCheckInCount(reportVenueId);
       void fetchRecentCheckIns(reportVenueId);
     } catch (error) {
       setVibeError(error instanceof Error ? error.message : "Could not submit vibe.");
@@ -1191,6 +1272,7 @@ export function VenuePageClient({
                     percent={busynessPercent}
                     source={busynessSource}
                   />
+                  <LiveCheckInCountBadge count={liveCheckInCount} />
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <h1 className="font-display max-w-[22rem] text-4xl font-black leading-[1.02] text-white drop-shadow-lg">{venue.name}</h1>
