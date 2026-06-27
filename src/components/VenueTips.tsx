@@ -196,9 +196,9 @@ export function VenueTips({ venueId }: { venueId: string }) {
       </div>
 
       {loading ? (
-        <div className="space-y-2" role="status" aria-label="Loading venue tips">
-          <div className="h-16 rounded-xl bg-white/5" />
-          <div className="h-16 rounded-xl bg-white/5" />
+        <div className="space-y-2" role="status" aria-label="Loading...">
+          <div className="h-16 animate-pulse rounded-xl bg-white/[0.06]" />
+          <div className="h-16 animate-pulse rounded-xl bg-white/[0.06]" />
         </div>
       ) : tipItems.length > 0 ? (
         <ul className="space-y-2">

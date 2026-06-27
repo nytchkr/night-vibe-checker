@@ -195,10 +195,10 @@ function VenueBottomSheetSkeleton({
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         role="dialog"
         aria-modal="true"
-        aria-label="Loading venue details"
+        aria-label="Loading..."
         tabIndex={-1}
       >
-        <div role="status" className="sr-only">Loading venue details</div>
+        <div role="status" aria-label="Loading..." className="sr-only">Loading...</div>
         <div className="mx-auto w-full max-w-lg px-4 pb-4 pt-4">
           <div className="mx-auto h-1 w-10 rounded-full bg-[#646B79]" aria-hidden="true" />
           <div className="mt-3 space-y-2">

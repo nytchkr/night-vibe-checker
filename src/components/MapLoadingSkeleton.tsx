@@ -19,7 +19,7 @@ export function MapLoadingSkeleton({
       className={`relative w-full overflow-hidden bg-[#0A0A0E] text-white transition-opacity duration-300 ${className}`}
       style={style ?? getMapViewportStyle()}
       role="status"
-      aria-label="Loading map"
+      aria-label="Loading..."
       aria-live="polite"
       aria-atomic="true"
     >
@@ -36,7 +36,7 @@ export function MapLoadingSkeleton({
       </div>
       <div className="absolute inset-0 flex items-center justify-center px-4">
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-[#0A0A0E]/80 px-7 py-6 shadow-2xl backdrop-blur">
-          <span className="h-10 w-10 animate-pulse rounded-full bg-white/[0.08]" aria-hidden="true" />
+          <span className="h-10 w-10 animate-pulse rounded-full bg-white/[0.06]" aria-hidden="true" />
           <span className="text-sm font-semibold text-white/50">Loading map...</span>
         </div>
       </div>

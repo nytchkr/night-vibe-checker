@@ -52,12 +52,12 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
 
 function TrendingSkeleton() {
   return (
-    <div className="flex gap-3 overflow-x-hidden" role="status" aria-label="Loading Trending Now">
+    <div className="flex gap-3 overflow-x-hidden" role="status" aria-label="Loading...">
       <span className="sr-only">Loading Trending Now...</span>
       {Array.from({ length: 4 }).map((_, index) => (
         <div
           key={index}
-          className="h-[92px] w-[156px] shrink-0 rounded-2xl border border-white/[0.08] bg-white/[0.04] animate-pulse"
+          className="h-[92px] w-[156px] shrink-0 animate-pulse rounded-2xl border border-white/[0.08] bg-white/[0.06]"
         />
       ))}
     </div>

@@ -271,9 +271,9 @@ export function VenuePredictionCard({
             </div>
 
             {hourlyLoading ? (
-              <div className="mt-4 grid grid-cols-6 gap-2" role="status" aria-label="Loading hourly forecast">
+              <div className="mt-4 grid grid-cols-6 gap-2" role="status" aria-label="Loading...">
                 {Array.from({ length: 6 }).map((_, index) => (
-                  <div key={index} className="h-20 rounded-xl bg-white/[0.06]" />
+                  <div key={index} className="h-20 animate-pulse rounded-xl bg-white/[0.06]" />
                 ))}
               </div>
             ) : (

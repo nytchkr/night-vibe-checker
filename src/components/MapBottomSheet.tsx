@@ -392,7 +392,7 @@ export default function MapBottomSheet({
           )}
 
           {loading ? (
-            <div className="space-y-3" role="status" aria-label="Loading map venues" aria-live="polite" aria-atomic="true">
+            <div className="space-y-3" role="status" aria-label="Loading..." aria-live="polite" aria-atomic="true">
               {Array.from({ length: snap === "collapsed" ? 2 : 4 }).map((_, index) => (
                 <VenueRowSkeleton key={index} />
               ))}

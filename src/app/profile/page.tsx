@@ -127,32 +127,32 @@ function nextLevelProgress(level: RewardLevel, confirmedCheckins: number): { lev
 
 function YouSkeleton() {
   return (
-    <div className="space-y-7" role="status" aria-label="Loading You tab">
+    <div className="space-y-7" role="status" aria-label="Loading...">
       <section className="flex items-center gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4">
-        <Skeleton className="h-16 w-16 shrink-0 rounded-full bg-white/10" />
+        <Skeleton className="h-16 w-16 shrink-0 rounded-full" />
         <div className="min-w-0 flex-1 space-y-3">
-          <Skeleton className="h-3 w-12 bg-white/10" />
-          <Skeleton className="h-5 w-2/3 bg-white/10" />
-          <Skeleton className="h-6 w-32 rounded-full bg-white/10" />
+          <Skeleton className="h-3 w-12" />
+          <Skeleton className="h-5 w-2/3" />
+          <Skeleton className="h-6 w-32 rounded-full" />
         </div>
       </section>
       <section className="grid grid-cols-3 gap-2">
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-[104px] rounded-[18px] bg-white/10" />
+          <Skeleton key={index} className="h-[104px] rounded-[18px]" />
         ))}
       </section>
-      <Skeleton className="h-36 rounded-[18px] bg-white/10" />
-      <Skeleton className="h-20 rounded-[18px] bg-white/10" />
+      <Skeleton className="h-36 rounded-[18px]" />
+      <Skeleton className="h-20 rounded-[18px]" />
       <section className="space-y-2">
-        <Skeleton className="h-4 w-28 bg-white/10" />
+        <Skeleton className="h-4 w-28" />
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-14 rounded-[16px] bg-white/10" />
+          <Skeleton key={index} className="h-14 rounded-[16px]" />
         ))}
       </section>
       <section className="space-y-2">
-        <Skeleton className="h-4 w-24 bg-white/10" />
+        <Skeleton className="h-4 w-24" />
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-16 rounded-[16px] bg-white/10" />
+          <Skeleton key={index} className="h-16 rounded-[16px]" />
         ))}
       </section>
     </div>
@@ -239,9 +239,9 @@ function ProfileStatsGrid({ score, loading }: { score: RewardScore; loading: boo
           <Card key={stat.label} className="min-h-[104px] rounded-[18px] border-white/[0.08] bg-[#111118] p-3">
             {loading ? (
               <div className="space-y-3">
-                <Skeleton className="h-4 w-4 rounded-full bg-white/10" />
-                <Skeleton className="h-6 w-12 bg-white/10" />
-                <Skeleton className="h-3 w-full bg-white/10" />
+                <Skeleton className="h-4 w-4 rounded-full" />
+                <Skeleton className="h-6 w-12" />
+                <Skeleton className="h-3 w-full" />
               </div>
             ) : (
               <div className="flex h-full flex-col justify-between">
@@ -280,7 +280,7 @@ function SavedVenuesSection({ venues, loading }: { venues: SavedVenue[]; loading
       <div className="space-y-2">
         {loading &&
           Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-14 rounded-[16px] bg-white/10" />
+            <Skeleton key={index} className="h-14 rounded-[16px]" />
           ))}
 
         {!loading &&
@@ -309,7 +309,7 @@ function TopSpotCard({ topSpot, loading }: { topSpot: { venueId: string; venueNa
   if (loading) {
     return (
       <SectionShell title="Top Spot">
-        <Skeleton className="h-20 rounded-[18px] bg-white/10" />
+        <Skeleton className="h-20 rounded-[18px]" />
       </SectionShell>
     );
   }
@@ -368,7 +368,7 @@ function RecentCheckInsSection({ checkIns, loading }: { checkIns: CheckIn[]; loa
       <div className="space-y-0">
         {loading &&
           Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="mb-2 h-16 rounded-[16px] bg-white/10" />
+            <Skeleton key={index} className="mb-2 h-16 rounded-[16px]" />
           ))}
 
         {!loading &&
@@ -436,7 +436,7 @@ function RewardsSection({ score, loading }: { score: RewardScore; loading: boole
   return (
     <SectionShell title="Rewards">
       {loading ? (
-        <Skeleton className="h-36 rounded-[18px] bg-white/10" />
+        <Skeleton className="h-36 rounded-[18px]" />
       ) : (
         <Card className="rounded-[18px] border-white/[0.08] bg-white/[0.04] p-4">
           <div className="flex items-start justify-between gap-4">

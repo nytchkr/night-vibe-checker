@@ -74,11 +74,11 @@ function MapPreviewFallback() {
 
 function VenueListSkeleton() {
   return (
-    <div className="space-y-3" aria-busy="true" aria-label="Loading venues">
+    <div className="space-y-3" role="status" aria-label="Loading..." aria-busy="true">
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="animate-pulse rounded-2xl bg-white/5 border border-white/10 h-24"
+          className="h-24 animate-pulse rounded-2xl border border-white/10 bg-white/[0.06]"
           aria-hidden="true"
         />
       ))}

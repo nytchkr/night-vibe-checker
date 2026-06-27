@@ -21,16 +21,16 @@ function clampBusyness(value: number | null | undefined): number | null {
 
 function TrendingSkeleton() {
   return (
-    <div className="flex gap-3 overflow-hidden" role="status" aria-label="Loading Trending Now">
+    <div className="flex gap-3 overflow-hidden" role="status" aria-label="Loading...">
       <span className="sr-only">Loading Trending Now...</span>
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={index}
           className="h-[112px] w-40 shrink-0 rounded-[18px] border border-white/[0.08] bg-white/[0.045] p-3"
         >
-          <div className="h-3 w-20 animate-pulse rounded-full bg-white/[0.08]" />
-          <div className="mt-3 h-4 w-28 animate-pulse rounded-full bg-white/[0.1]" />
-          <div className="mt-6 h-2 w-full animate-pulse rounded-full bg-white/[0.08]" />
+          <div className="h-3 w-20 animate-pulse rounded-full bg-white/[0.06]" />
+          <div className="mt-3 h-4 w-28 animate-pulse rounded-full bg-white/[0.06]" />
+          <div className="mt-6 h-2 w-full animate-pulse rounded-full bg-white/[0.06]" />
         </div>
       ))}
     </div>

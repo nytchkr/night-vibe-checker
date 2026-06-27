@@ -51,9 +51,9 @@ function joinSavedVenues(savedVenueIds: string[], venues: ConsumerVenue[]): Save
 
 function LoadingRows() {
   return (
-    <div className="space-y-3" role="status" aria-label="Loading saved venues">
+    <div className="space-y-3" role="status" aria-label="Loading...">
       {Array.from({ length: 5 }).map((_, index) => (
-        <Skeleton key={index} className="h-20 rounded-[18px] bg-white/10" />
+        <Skeleton key={index} className="h-20 rounded-[18px]" />
       ))}
     </div>
   );
