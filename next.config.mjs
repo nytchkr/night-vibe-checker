@@ -17,10 +17,15 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@supabase/ssr", "framer-motion"],
+  },
   env: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? "",
   },
   images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 2592000,
     remotePatterns: [
       {
         protocol: "https",
