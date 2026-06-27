@@ -1,7 +1,7 @@
-const STATIC_CACHE = "nightvibe-static-v3";
+const STATIC_CACHE = "nightvibe-static-v4";
 const RUNTIME_CACHE = "nightvibe-runtime-v3";
 const OFFLINE_URL = "/offline";
-const STATIC_URLS = ["/", "/map", "/explore", OFFLINE_URL];
+const STATIC_URLS = ["/", "/explore", "/map", "/vibe-check", OFFLINE_URL];
 const CACHE_FIRST_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cartocdn.com"];
 const GOOGLE_MAPS_TILE_HOSTS = [
   "maps.googleapis.com",
@@ -15,7 +15,7 @@ const GOOGLE_MAPS_TILE_HOSTS = [
   "mt2.google.com",
   "mt3.google.com",
 ];
-const VENUE_LIST_MAX_AGE_MS = 5 * 60 * 1000;
+const VENUE_LIST_TIMEOUT_MS = 30000;
 const VENUE_DETAIL_TIMEOUT_MS = 5000;
 
 self.addEventListener("install", (event) => {
@@ -40,7 +40,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   if (isVenueListRequest(url)) {
-    event.respondWith(staleWhileRevalidate(request, VENUE_LIST_MAX_AGE_MS, event));
+    event.respondWith(networkFirst(request, VENUE_LIST_TIMEOUT_MS));
     return;
   }
 

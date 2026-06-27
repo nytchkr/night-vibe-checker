@@ -39,6 +39,45 @@ vi.mock("@vercel/analytics", () => ({
 
 vi.mock("framer-motion", async () => {
   const React = await import("react");
+  const createMotionComponent = (tag: string | React.ComponentType<Record<string, unknown>>) =>
+    function MotionComponent({
+      children,
+      initial: _initial,
+      animate: _animate,
+      exit: _exit,
+      transition: _transition,
+      whileTap: _whileTap,
+      whileHover: _whileHover,
+      layout: _layout,
+      layoutId: _layoutId,
+      ...props
+    }: {
+      children?: React.ReactNode;
+      initial?: unknown;
+      animate?: unknown;
+      exit?: unknown;
+      transition?: unknown;
+      whileTap?: unknown;
+      whileHover?: unknown;
+      layout?: unknown;
+      layoutId?: unknown;
+      [key: string]: unknown;
+    }) {
+      return React.createElement(tag, props, children);
+    };
+
+  const motion = new Proxy({ create: createMotionComponent }, {
+    get: (target, tag: string) => tag in target ? target[tag as keyof typeof target] : createMotionComponent(tag),
+  });
+
+  return {
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
+    motion,
+  };
+});
+
+vi.mock("framer-motion/client", async () => {
+  const React = await import("react");
   const createMotionComponent = (tag: string) =>
     function MotionComponent({
       children,
@@ -59,10 +98,9 @@ vi.mock("framer-motion", async () => {
     };
 
   return {
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
-    motion: new Proxy({}, {
-      get: (_target, tag: string) => createMotionComponent(tag),
-    }),
+    div: createMotionComponent("div"),
+    li: createMotionComponent("li"),
+    span: createMotionComponent("span"),
   };
 });
 
