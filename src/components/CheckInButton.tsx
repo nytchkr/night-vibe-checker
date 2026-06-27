@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { formatRewardMessages } from "@/lib/rewardMessages";
 import { Toast } from "@/components/Toast";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
@@ -24,8 +26,18 @@ type CheckInToast = {
   retry?: boolean;
 };
 
-type StreakResponse = {
-  currentStreak?: number;
+type CheckInResponse = {
+  data?: {
+    pointsAwarded?: number;
+    events?: string[];
+    streakCount?: number;
+  };
+};
+
+type RewardAnimation = {
+  id: number;
+  pointsBadge: string | null;
+  streakBadge: string | null;
 };
 
 function storageKey(venueId: string) {
@@ -58,27 +70,14 @@ function errorMessageFrom(status: number, payload: unknown) {
   return "Could not check in. Try again.";
 }
 
-async function getCurrentStreak(token: string): Promise<number | null> {
-  try {
-    const response = await fetch("/api/profile/streak", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const json = (await response.json()) as StreakResponse;
-    const streak = Number(json.currentStreak ?? 0);
-    return Number.isFinite(streak) ? streak : null;
-  } catch {
-    return null;
-  }
-}
-
 export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
   const [state, setState] = useState<CheckInState>("idle");
   const [checkedInUntil, setCheckedInUntil] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toast, setToast] = useState<CheckInToast | null>(null);
+  const [rewardAnimation, setRewardAnimation] = useState<RewardAnimation | null>(null);
   const confirmDialogRef = useRef<HTMLDivElement | null>(null);
+  const reduceMotion = useReducedMotion();
 
   function lockCheckIn(timestamp: number) {
     storeCheckInAt(venueId, timestamp);
@@ -175,15 +174,25 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
         throw new Error(errorMessageFrom(response.status, json));
       }
 
+      const reward = formatRewardMessages({
+        pointsAwarded: Number((json as CheckInResponse | null)?.data?.pointsAwarded ?? 0),
+        events: (json as CheckInResponse | null)?.data?.events ?? [],
+        streakCount: Number((json as CheckInResponse | null)?.data?.streakCount ?? 0),
+      });
       const now = Date.now();
-      const streak = await getCurrentStreak(token);
-      const streakText = streak && streak > 1 ? ` 🔥 ${streak} day streak!` : "";
       lockCheckIn(now);
       setConfirmOpen(false);
       setToast({
         tone: "success",
-        message: `Checked in to ${venueName}!${streakText}`,
+        message: `${venueName}: ${reward.toast}`,
       });
+      if (reward.pointsBadge || reward.streakBadge) {
+        setRewardAnimation({
+          id: now,
+          pointsBadge: reward.pointsBadge,
+          streakBadge: reward.streakBadge,
+        });
+      }
       window.localStorage.setItem(CHECK_IN_REFRESH_KEY, JSON.stringify({
         venueId,
         venueName,
@@ -224,32 +233,61 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setConfirmOpen(true)}
-        disabled={loading || checkedIn}
-        aria-label={checkedIn ? `Checked in at ${venueName}` : `Check in at ${venueName}`}
-        className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed ${
-          checkedIn
-            ? "bg-emerald-400 text-[#06120D] shadow-[0_0_24px_rgba(52,211,153,0.22)]"
-            : error
-              ? "border border-[#FF5B6A]/35 bg-[#FF5B6A]/10 text-[#FF5B6A] shadow-none hover:bg-[#FF5B6A]/15"
-              : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
-        }`}
-      >
-        {loading ? (
-          <>
-            <Loader2 size={18} className="animate-spin" aria-hidden="true" />
-            <span>Checking in</span>
-          </>
-        ) : checkedIn ? (
-          "✓ Checked In"
-        ) : error ? (
-          "Try again"
-        ) : (
-          "Check In"
-        )}
-      </button>
+      <div className="relative w-full">
+        <button
+          type="button"
+          onClick={() => setConfirmOpen(true)}
+          disabled={loading || checkedIn}
+          aria-label={checkedIn ? `Checked in at ${venueName}` : `Check in at ${venueName}`}
+          className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed ${
+            checkedIn
+              ? "bg-emerald-400 text-[#06120D] shadow-[0_0_24px_rgba(52,211,153,0.22)]"
+              : error
+                ? "border border-[#FF5B6A]/35 bg-[#FF5B6A]/10 text-[#FF5B6A] shadow-none hover:bg-[#FF5B6A]/15"
+                : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
+          }`}
+        >
+          {loading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+              <span>Checking in</span>
+            </>
+          ) : checkedIn ? (
+            "✓ Checked In"
+          ) : error ? (
+            "Try again"
+          ) : (
+            "Check In"
+          )}
+        </button>
+        <AnimatePresence>
+          {rewardAnimation ? (
+            <motion.div
+              key={rewardAnimation.id}
+              aria-live="polite"
+              className="pointer-events-none absolute inset-x-0 -top-4 z-20 flex flex-col items-center gap-1"
+              initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
+              animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: -34, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -54, scale: 0.98 }}
+              transition={{ duration: reduceMotion ? 0.15 : 0.72, ease: "easeOut" }}
+              onAnimationComplete={() => {
+                window.setTimeout(() => setRewardAnimation(null), reduceMotion ? 300 : 850);
+              }}
+            >
+              {rewardAnimation.pointsBadge ? (
+                <span className="rounded-full border border-[#8B6CFF]/55 bg-[#8B6CFF] px-4 py-1.5 text-sm font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.45)]">
+                  {rewardAnimation.pointsBadge}
+                </span>
+              ) : null}
+              {rewardAnimation.streakBadge ? (
+                <span className="rounded-full border border-[#F0568C]/55 bg-[#F0568C] px-3.5 py-1 text-xs font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(240,86,140,0.38)]">
+                  {rewardAnimation.streakBadge}
+                </span>
+              ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
 
       {confirmOpen ? (
         <div

@@ -11,7 +11,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/rateLimit";
 import {
   checkFirstReportOfNight,
   checkStreakBonus,
@@ -27,6 +27,8 @@ const MAX_VENUE_ID_LENGTH = 160;
 const DUPLICATE_WINDOW_MINUTES = 60;
 const POST_RATE_LIMIT_MAX = 10;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
+const USER_POST_RATE_LIMIT_MAX = 10;
+const USER_POST_RATE_LIMIT_WINDOW_MS = 60 * 60_000;
 const PRIVATE_GET_CACHE_HEADERS = {
   "Cache-Control": "private, no-cache",
 };
@@ -246,7 +248,7 @@ async function getRecentDuplicate(venueId: string, userId: string): Promise<{ id
   return (data?.[0] as { id: string; created_at: string } | undefined) ?? null;
 }
 
-function retryAfterSeconds(createdAt: string): number {
+function duplicateRetryAfterSeconds(createdAt: string): number {
   const createdMs = new Date(createdAt).getTime();
   if (!Number.isFinite(createdMs)) return DUPLICATE_WINDOW_MINUTES * 60;
   const retryMs = DUPLICATE_WINDOW_MINUTES * 60_000 - (Date.now() - createdMs);
@@ -284,10 +286,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const rate = checkRateLimit(`check-ins:POST:${ip}`, POST_RATE_LIMIT_MAX, POST_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
-    const retrySeconds = Math.ceil((rate.retryAfterMs ?? POST_RATE_LIMIT_WINDOW_MS) / 1000);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "RATE_LIMITED", message: "Too many check-in attempts. Try again in a minute." }, meta },
-      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } }
+      { status: 429, headers: { ...headers, "Retry-After": String(retryAfterSeconds(rate, POST_RATE_LIMIT_WINDOW_MS)) } }
     );
   }
 
@@ -299,13 +300,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  const userRate = checkRateLimit(
+    `check-ins:POST:user:${userId}`,
+    USER_POST_RATE_LIMIT_MAX,
+    USER_POST_RATE_LIMIT_WINDOW_MS
+  );
+  const userHeaders = rateLimitHeaders(userRate);
+  if (!userRate.allowed) {
+    return NextResponse.json<APIResponse<never>>(
+      { status: "error", error: { code: "RATE_LIMITED", message: "Too many check-ins. Try again later." }, meta },
+      { status: 429, headers: { ...userHeaders, "Retry-After": String(retryAfterSeconds(userRate, USER_POST_RATE_LIMIT_WINDOW_MS)) } }
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "INVALID_JSON", message: "Request body must be valid JSON." }, meta },
-      { status: 400, headers }
+      { status: 400, headers: userHeaders }
     );
   }
 
@@ -317,7 +331,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         error: { code: "VALIDATION_ERROR", message: parsed.error.errors.map((e) => e.message).join("; ") },
         meta,
       },
-      { status: 400, headers }
+      { status: 400, headers: userHeaders }
     );
   }
 
@@ -325,7 +339,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!venue) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue is not available." }, meta },
-      { status: 404, headers }
+      { status: 404, headers: userHeaders }
     );
   }
 
@@ -341,14 +355,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           },
           meta,
         },
-        { status: 429, headers: { ...headers, "Retry-After": String(retryAfterSeconds(duplicate.created_at)) } }
+        { status: 429, headers: { ...userHeaders, "Retry-After": String(duplicateRetryAfterSeconds(duplicate.created_at)) } }
       );
     }
   } catch (error) {
     console.error("[check-ins POST] duplicate guard failed:", error);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "DB_ERROR", message: "Could not validate report freshness." }, meta },
-      { status: 500, headers }
+      { status: 500, headers: userHeaders }
     );
   }
 
@@ -372,7 +386,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       console.error("[check-ins POST] simple insert failed:", error);
       return NextResponse.json<APIResponse<never>>(
         { status: "error", error: { code: "DB_ERROR", message: "Could not save check-in." }, meta },
-        { status: 500, headers }
+        { status: 500, headers: userHeaders }
       );
     }
 
@@ -423,7 +437,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         level: userScore?.level ?? "newcomer",
       },
       meta,
-    }, { status: 200, headers });
+    }, { status: 200, headers: userHeaders });
   }
 
   const reporterGender = await getReporterGender(userId);
@@ -483,7 +497,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     console.error("[check-ins POST] insert failed:", error);
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "DB_ERROR", message: "Could not save report." }, meta },
-      { status: 500, headers }
+      { status: 500, headers: userHeaders }
     );
   }
 
@@ -496,7 +510,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
     { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta },
-    { status: 200, headers }
+    { status: 200, headers: userHeaders }
   );
 }
 

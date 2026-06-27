@@ -308,7 +308,7 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
   return (
     <Link
       href={`/venues/${encodeURIComponent(item.venue.id)}`}
-      className="w-56 flex-shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="venue-card-motion w-56 flex-shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-lg shadow-black/10 backdrop-blur-sm hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       aria-label={`Open ${item.venue.name}, ${busynessLabel}, ${formatCrowdFeel(item.crowd_feel)}, ${getRelativeTimeLabel(item.checked_in_at)}`}
     >
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -339,14 +339,14 @@ function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
       onClick={() => trackAnalytics("tonights_pick_tapped", { venueId: venue.id, rank: index + 1 })}
-      className="group relative h-[180px] w-[140px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="venue-card-motion group relative h-[180px] w-[140px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       aria-label={`Open ${venue.name}, ${label}, ${busyness}% busy`}
     >
       <VenuePhoto
         name={venue.name}
         photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
         className="h-full w-full"
-        imageClassName="transition-transform duration-300 group-hover:scale-[1.04]"
+        imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.04]"
         sizes="140px"
         priority={index === 0}
         loading={index === 0 ? undefined : "lazy"}
@@ -551,14 +551,14 @@ function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
               key={venue.id}
               href={`/venues/${encodeURIComponent(venue.id)}`}
               onClick={() => trackAnalytics("hottest_right_now_tapped", { venueId: venue.id, rank: index + 1 })}
-              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-4 py-3 transition-all duration-200 ease-out last:border-b-0 hover:bg-white/[0.06] active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/70"
+              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-4 py-3 transition-all duration-[180ms] ease-out last:border-b-0 hover:bg-white/[0.06] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/70"
               aria-label={`Open ${venue.name}, ranked number ${index + 1}, ${label}`}
             >
               <span className="font-display text-sm font-black text-white/55">#{index + 1}</span>
               <span className="min-w-0">
                 <span className="block truncate text-[14px] font-black text-white">{venue.name}</span>
                 <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
-                  <span className="block h-full rounded-full" style={{ width: `${level}%`, backgroundColor: color }} />
+                  <span className="venue-fill-motion block h-full rounded-full" style={{ width: `${level}%`, backgroundColor: color }} />
                 </span>
               </span>
               <span
@@ -624,7 +624,7 @@ function VenueFeedCard({
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.05] hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10 active:scale-[0.99] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
+        className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm hover:-translate-y-0.5 hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
         aria-label={`Open ${venue.name}`}
       >
         {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
@@ -632,7 +632,7 @@ function VenueFeedCard({
           name={venue.name}
           photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
           className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto"
-          imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
+          imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.02]"
           sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
           priority={index === 0}
           loading={index === 0 ? undefined : "lazy"}
