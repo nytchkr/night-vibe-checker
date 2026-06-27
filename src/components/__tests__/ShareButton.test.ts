@@ -1,49 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildVenueShareClipboardText,
-  buildVenueShareEndpoint,
   createVenueShareData,
   trackVenueShareEvent,
 } from "@/components/ShareButton";
 
-describe("ShareButton share-card helpers", () => {
-  it("builds the venue share-card endpoint with an encoded venue id", () => {
-    expect(buildVenueShareEndpoint("venue/id with spaces")).toBe(
-      "/api/venues/venue%2Fid%20with%20spaces/share-card",
-    );
-  });
-
-  it("creates native share data from the share-card response", () => {
-    expect(
-      createVenueShareData("Test Bar", {
-        shareUrl: "https://nytchkr.com/venues/test-bar?ref=share",
-        text: "Test Bar is Packed right now on NightVibe",
-      }),
-    ).toEqual({
-      title: "Test Bar on NightVibe",
-      text: "Test Bar is Packed right now on NightVibe",
-      url: "https://nytchkr.com/venues/test-bar?ref=share",
+describe("ShareButton helpers", () => {
+  it("creates native share data from the current page URL", () => {
+    expect(createVenueShareData("Test Bar", "https://night-vibe-checker.vercel.app/venues/test-bar")).toEqual({
+      title: "Test Bar",
+      text: "Check out Test Bar on NightVibe!",
+      url: "https://night-vibe-checker.vercel.app/venues/test-bar",
     });
   });
 
-  it("builds fallback clipboard text with venue summary and URL", () => {
+  it("copies only the URL for clipboard fallback", () => {
     expect(
       buildVenueShareClipboardText({
-        title: "Test Bar on NightVibe",
-        text: "Test Bar is Packed right now on NightVibe",
-        url: "https://nytchkr.com/venues/test-bar?ref=share",
+        title: "Test Bar",
+        text: "Check out Test Bar on NightVibe!",
+        url: "https://night-vibe-checker.vercel.app/venues/test-bar",
       }),
-    ).toBe("Test Bar is Packed right now on NightVibe https://nytchkr.com/venues/test-bar?ref=share");
-  });
-
-  it("does not duplicate the URL when share text already includes it", () => {
-    expect(
-      buildVenueShareClipboardText({
-        title: "Test Bar on NightVibe",
-        text: "Test Bar is Packed right now on NightVibe https://nytchkr.com/venues/test-bar?ref=share",
-        url: "https://nytchkr.com/venues/test-bar?ref=share",
-      }),
-    ).toBe("Test Bar is Packed right now on NightVibe https://nytchkr.com/venues/test-bar?ref=share");
+    ).toBe("https://night-vibe-checker.vercel.app/venues/test-bar");
   });
 
   it("tracks venue share events without an analytics SDK", () => {
