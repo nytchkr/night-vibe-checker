@@ -10,6 +10,7 @@ import { Toast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getHapticsPreference, setHapticsPreference } from "@/lib/haptics";
 import { savePushSubscription, unsubscribeFromPush } from "@/lib/push";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
@@ -472,11 +473,22 @@ function RewardsSection({ score, loading }: { score: RewardScore; loading: boole
 
 function SettingsSection({ onChangeArea }: { onChangeArea: () => void }) {
   const [toastVisible, setToastVisible] = useState(false);
+  const [hapticsEnabled, setHapticsEnabled] = useState(true);
+
+  useEffect(() => {
+    setHapticsEnabled(getHapticsPreference() === "on");
+  }, []);
 
   async function handleShareProfile() {
     if (typeof window === "undefined" || typeof navigator === "undefined" || !navigator.clipboard) return;
     await navigator.clipboard.writeText(window.location.href);
     setToastVisible(true);
+  }
+
+  function toggleHaptics() {
+    const nextEnabled = !hapticsEnabled;
+    setHapticsEnabled(nextEnabled);
+    setHapticsPreference(nextEnabled ? "on" : "off");
   }
 
   return (
@@ -512,6 +524,30 @@ function SettingsSection({ onChangeArea }: { onChangeArea: () => void }) {
           <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold text-white/75">
             Dark mode always on ✓
           </span>
+        </div>
+        <div className="flex min-h-14 items-center justify-between gap-4 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-4 py-3">
+          <span className="flex min-w-0 items-center gap-3">
+            <Settings className="h-4 w-4 shrink-0 text-[#00F5D4]" aria-hidden="true" />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-white">Haptic feedback</span>
+            </span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={hapticsEnabled}
+            aria-label="Haptic feedback"
+            onClick={toggleHaptics}
+            className={`relative min-h-11 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+              hapticsEnabled ? "border-[#8B6CFF]/60 bg-[#8B6CFF]/28" : "border-white/15 bg-white/[0.06]"
+            }`}
+          >
+            <span
+              className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-white/20 bg-[#111117] shadow-lg transition-transform ${
+                hapticsEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
         </div>
         <Button
           type="button"

@@ -11,6 +11,8 @@ const PROTECTED_API_ROUTES = [
 ] as const;
 const LEGACY_HOSTS = new Set(["night-vibe-checker.vercel.app"]);
 const CANONICAL_HOST = "nytchkr.com";
+const CSP_HEADER = "Content-Security-Policy";
+const NONCE_HEADER = "x-nonce";
 
 type MiddlewareResponse = NextResponse<unknown>;
 
@@ -34,24 +36,70 @@ function applySessionCookies(source: MiddlewareResponse, target: MiddlewareRespo
   return target;
 }
 
-function loginRedirect(req: NextRequest, sessionResponse: MiddlewareResponse): MiddlewareResponse {
+function createNonce(): string {
+  const nonceBytes = new Uint8Array(16);
+  crypto.getRandomValues(nonceBytes);
+  let binary = "";
+  nonceBytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+export function contentSecurityPolicy(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' https://maps.googleapis.com https://va.vercel-scripts.com`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com",
+    "img-src 'self' data: blob: https://maps.googleapis.com https://*.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleusercontent.com https://storage.googleapis.com https://*.supabase.co",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' https://maps.googleapis.com https://*.googleapis.com https://besttime.app https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.vercel-insights.com",
+    "frame-src 'self' https://accounts.google.com https://*.supabase.co",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'",
+    "media-src 'self' https://*.supabase.co",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+function applySecurityHeaders(response: MiddlewareResponse, nonce: string): MiddlewareResponse {
+  response.headers.set(CSP_HEADER, contentSecurityPolicy(nonce));
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=()");
+  return response;
+}
+
+function withSecurityHeaders(response: MiddlewareResponse, nonce: string): MiddlewareResponse {
+  return applySecurityHeaders(response, nonce);
+}
+
+function loginRedirect(req: NextRequest, sessionResponse: MiddlewareResponse, nonce: string): MiddlewareResponse {
   const redirectUrl = req.nextUrl.clone();
   const returnPath = `${req.nextUrl.pathname}${req.nextUrl.search}`;
   redirectUrl.pathname = "/login";
   redirectUrl.search = "";
   redirectUrl.searchParams.set("return", returnPath);
 
-  return applySessionCookies(sessionResponse, NextResponse.redirect(redirectUrl));
+  return withSecurityHeaders(applySessionCookies(sessionResponse, NextResponse.redirect(redirectUrl)), nonce);
 }
 
-function unauthorized(sessionResponse: MiddlewareResponse): MiddlewareResponse {
-  return applySessionCookies(
-    sessionResponse,
-    NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+function unauthorized(sessionResponse: MiddlewareResponse, nonce: string): MiddlewareResponse {
+  return withSecurityHeaders(
+    applySessionCookies(
+      sessionResponse,
+      NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    ),
+    nonce,
   );
 }
 
-async function shareRedirect(req: NextRequest): Promise<MiddlewareResponse> {
+async function shareRedirect(req: NextRequest, nonce: string): Promise<MiddlewareResponse> {
   const redirectUrl = req.nextUrl.clone();
   redirectUrl.search = "";
 
@@ -67,10 +115,10 @@ async function shareRedirect(req: NextRequest): Promise<MiddlewareResponse> {
     redirectUrl.search = "";
   }
 
-  return NextResponse.redirect(redirectUrl, 303);
+  return withSecurityHeaders(NextResponse.redirect(redirectUrl, 303), nonce);
 }
 
-function rootAuthCodeRedirect(req: NextRequest): MiddlewareResponse | null {
+function rootAuthCodeRedirect(req: NextRequest, nonce: string): MiddlewareResponse | null {
   if (req.nextUrl.pathname !== "/" || !req.nextUrl.searchParams.has("code")) {
     return null;
   }
@@ -80,11 +128,12 @@ function rootAuthCodeRedirect(req: NextRequest): MiddlewareResponse | null {
   redirectUrl.hostname = CANONICAL_HOST;
   redirectUrl.port = "";
   redirectUrl.pathname = "/auth/callback";
-  return NextResponse.redirect(redirectUrl, 308);
+  return withSecurityHeaders(NextResponse.redirect(redirectUrl, 308), nonce);
 }
 
 export async function middleware(req: NextRequest): Promise<MiddlewareResponse> {
-  const authCodeRedirect = rootAuthCodeRedirect(req);
+  const nonce = createNonce();
+  const authCodeRedirect = rootAuthCodeRedirect(req, nonce);
   if (authCodeRedirect) return authCodeRedirect;
 
   if (LEGACY_HOSTS.has(req.nextUrl.hostname)) {
@@ -92,18 +141,20 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
     redirectUrl.protocol = "https:";
     redirectUrl.hostname = CANONICAL_HOST;
     redirectUrl.port = "";
-    return NextResponse.redirect(redirectUrl, 308);
+    return withSecurityHeaders(NextResponse.redirect(redirectUrl, 308), nonce);
   }
 
   const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(NONCE_HEADER, nonce);
   let response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
   });
+  applySecurityHeaders(response, nonce);
 
   if (req.nextUrl.pathname === "/share" && req.method === "POST") {
-    return shareRedirect(req);
+    return shareRedirect(req, nonce);
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -125,6 +176,7 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
             headers: requestHeaders,
           },
         });
+        applySecurityHeaders(response, nonce);
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });
@@ -137,8 +189,8 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
   } = await supabase.auth.getUser();
 
   if (user) return response;
-  if (isProtectedApiRequest(req)) return unauthorized(response);
-  if (isProtectedPageRoute(req.nextUrl.pathname)) return loginRedirect(req, response);
+  if (isProtectedApiRequest(req)) return unauthorized(response, nonce);
+  if (isProtectedPageRoute(req.nextUrl.pathname)) return loginRedirect(req, response, nonce);
 
   return response;
 }

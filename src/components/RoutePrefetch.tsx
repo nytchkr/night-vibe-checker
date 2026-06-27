@@ -7,11 +7,28 @@ type RoutePrefetchProps = {
   href: string;
 };
 
+type NavigatorWithConnection = Navigator & {
+  connection?: {
+    effectiveType?: string;
+  };
+};
+
+export function canPrefetchRoute() {
+  if (typeof navigator === "undefined") return false;
+  const connection = (navigator as NavigatorWithConnection).connection;
+  return connection?.effectiveType !== "2g";
+}
+
+export function prefetchRoute(router: { prefetch: (href: string) => void }, href: string) {
+  if (!canPrefetchRoute()) return;
+  router.prefetch(href);
+}
+
 export function RoutePrefetch({ href }: RoutePrefetchProps) {
   const router = useRouter();
 
   useEffect(() => {
-    router.prefetch(href);
+    prefetchRoute(router, href);
   }, [href, router]);
 
   return null;

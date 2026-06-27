@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { SearchX } from "lucide-react";
+import { SearchX, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
+import { prefetchRoute } from "@/components/RoutePrefetch";
 import SkeletonCard from "@/components/SkeletonCard";
 import {
   ExploreSortFilter,
@@ -163,7 +165,6 @@ function venueMatchesSearchQuery(venue: ConsumerVenue, query: string): boolean {
 
   const searchableText = [
     venue.name,
-    venue.category,
     getVenueNeighborhoodName(venue),
   ].map(normalizeSearchText).join(" ");
 
@@ -216,7 +217,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   return (
     <>
       {beforeMatch}
-      <mark className="rounded bg-white/15 px-0.5 text-white">{match}</mark>
+      <mark className="rounded bg-[#8B6CFF]/45 px-0.5 text-white ring-1 ring-[#8B6CFF]/45">{match}</mark>
       {afterMatch}
     </>
   );
@@ -462,7 +463,13 @@ function ExploreQuietEmptyState() {
   );
 }
 
-function ExploreNoMatchState({ onClear }: { onClear: () => void }) {
+function ExploreNoMatchState({ query, onClear }: { query: string; onClear: () => void }) {
+  const trimmedQuery = query.trim();
+  const title = trimmedQuery ? `No results for "${trimmedQuery}"` : "No spots match your filters";
+  const description = trimmedQuery
+    ? "Try a venue name or neighborhood nearby."
+    : "Reset the filters to see what's live tonight.";
+
   return (
     <div className="rounded-[18px] border border-[#8B6CFF]/25 bg-[linear-gradient(135deg,rgba(139,108,255,0.12),rgba(0,245,212,0.07)_48%,rgba(240,86,140,0.08))] px-6 py-9 text-center shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
       <div className="relative mx-auto h-20 w-24" aria-hidden="true">
@@ -472,8 +479,8 @@ function ExploreNoMatchState({ onClear }: { onClear: () => void }) {
           <SearchX className="h-5 w-5" strokeWidth={2.1} />
         </span>
       </div>
-      <h2 className="mt-3 text-[17px] font-black leading-6 text-white">No spots match your filters</h2>
-      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">Reset the filters to see what&apos;s live tonight.</p>
+      <h2 className="mt-3 text-[17px] font-black leading-6 text-white">{title}</h2>
+      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">{description}</p>
       <button
         type="button"
         onClick={onClear}
@@ -694,6 +701,7 @@ function VenueFeedCard({
 }
 
 export function ExplorePageClient() {
+  const router = useRouter();
   const trackPageView = useTrack();
   const prefersReduced =
     typeof window !== "undefined" &&
@@ -714,17 +722,16 @@ export function ExplorePageClient() {
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const { savedIds } = useSavedVenues();
   const hasLoadedVenuesRef = useRef(false);
+  const hasPrefetchedInitialVenuesRef = useRef(false);
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchVenues = useCallback(async ({
     reset = false,
-    searchTerm = "",
     signal,
   }: {
     reset?: boolean;
-    searchTerm?: string;
     signal?: AbortSignal;
   } = {}) => {
     if (reset) setVenues(undefined);
@@ -732,8 +739,6 @@ export function ExplorePageClient() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      const trimmedSearchTerm = searchTerm.trim();
-      if (trimmedSearchTerm) params.set("q", trimmedSearchTerm);
       const selectedZoneIds = NEIGHBORHOOD_EXPLORE_FILTERS
         .filter((filter) => exploreFilters.has(filter))
         .map((filter) => EXPLORE_FILTER_ZONE_IDS[filter])
@@ -754,8 +759,8 @@ export function ExplorePageClient() {
   }, [exploreFilters]);
 
   const refreshVenues = useCallback(async () => {
-    await fetchVenues({ searchTerm: debouncedSearchQuery });
-  }, [debouncedSearchQuery, exploreFilters, fetchVenues]);
+    await fetchVenues();
+  }, [fetchVenues]);
 
   const fetchActivity = useCallback(async () => {
     try {
@@ -881,7 +886,7 @@ export function ExplorePageClient() {
   }, [debouncedSearchQuery, exploreFilters, exploreSort]);
 
   useEffect(() => {
-    const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
+    const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 200);
     return () => window.clearTimeout(id);
   }, [searchQuery]);
 
@@ -903,11 +908,10 @@ export function ExplorePageClient() {
     const controller = new AbortController();
     void fetchVenues({
       reset: !hasLoadedVenuesRef.current,
-      searchTerm: debouncedSearchQuery,
       signal: controller.signal,
     });
     return () => controller.abort();
-  }, [debouncedSearchQuery, fetchVenues, hasInitializedExploreFilters]);
+  }, [fetchVenues, hasInitializedExploreFilters]);
 
   useEffect(() => {
     if (!hasInitializedExploreFilters) return;
@@ -1000,6 +1004,15 @@ export function ExplorePageClient() {
       return a.name.localeCompare(b.name);
     });
   }, [debouncedSearchQuery, effectiveExploreSort, exploreFilters, savedIds, trendingVenueIds, userLocation, venues]);
+
+  useEffect(() => {
+    if (hasPrefetchedInitialVenuesRef.current || sortedVenues.length === 0) return;
+    hasPrefetchedInitialVenuesRef.current = true;
+
+    for (const venue of sortedVenues.slice(0, 3)) {
+      prefetchRoute(router, `/venues/${encodeURIComponent(venue.id)}`);
+    }
+  }, [router, sortedVenues]);
 
   const hottestVenues = useMemo(() => {
     if (venues === undefined) return [];
@@ -1246,7 +1259,7 @@ export function ExplorePageClient() {
                   className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-all duration-200 ease-out hover:bg-white/15 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                   aria-label="Clear search"
                 >
-                  ×
+                  <X className="h-4 w-4" strokeWidth={2.4} />
                 </button>
               )}
             </div>
@@ -1330,12 +1343,12 @@ export function ExplorePageClient() {
 
         {venues !== undefined && !error && !isSearchingVenues && venues.length === 0 && (
           trimmedSearchQuery ? (
-            <ExploreNoMatchState onClear={clearFilters} />
+            <ExploreNoMatchState query={trimmedSearchQuery} onClear={clearSearch} />
           ) : <ExploreQuietEmptyState />
         )}
 
         {venues !== undefined && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
-          <ExploreNoMatchState onClear={clearFilters} />
+          <ExploreNoMatchState query={trimmedSearchQuery} onClear={trimmedSearchQuery ? clearSearch : clearFilters} />
         )}
 
         {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && (
@@ -1346,7 +1359,7 @@ export function ExplorePageClient() {
                   <VenueFeedCard
                     key={venue.id}
                     venue={venue}
-                    searchQuery={searchQuery}
+                    searchQuery={debouncedSearchQuery}
                     distance={venueDistances.get(venue.id) ?? null}
                     index={index}
                     prefersReduced={prefersReduced}

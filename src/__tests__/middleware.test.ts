@@ -1,12 +1,40 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { isProtectedApiRequest, isProtectedPageRoute, middleware } from "@/middleware";
+import {
+  contentSecurityPolicy,
+  isProtectedApiRequest,
+  isProtectedPageRoute,
+  middleware,
+} from "@/middleware";
 
 function request(method: string, pathname: string): NextRequest {
   return new NextRequest(`http://localhost${pathname}`, { method });
 }
 
 describe("middleware route protection", () => {
+  it("builds a nonce-based CSP with trusted script domains only", () => {
+    const csp = contentSecurityPolicy("test-nonce");
+    const scriptSrc = csp.split("; ").find((directive) => directive.startsWith("script-src"));
+
+    expect(scriptSrc).toBe("script-src 'self' 'nonce-test-nonce' https://maps.googleapis.com https://va.vercel-scripts.com");
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+    expect(scriptSrc).not.toContain("'unsafe-eval'");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
+    expect(csp).toContain("base-uri 'self'");
+    expect(csp).toContain("upgrade-insecure-requests");
+  });
+
+  it("adds a fresh nonce CSP header to middleware responses", async () => {
+    const firstResponse = await middleware(new NextRequest("https://nytchkr.com/map"));
+    const secondResponse = await middleware(new NextRequest("https://nytchkr.com/map"));
+    const firstCsp = firstResponse.headers.get("content-security-policy");
+    const secondCsp = secondResponse.headers.get("content-security-policy");
+
+    expect(firstCsp).toMatch(/script-src 'self' 'nonce-[^']+' https:\/\/maps\.googleapis\.com https:\/\/va\.vercel-scripts\.com/);
+    expect(secondCsp).toMatch(/script-src 'self' 'nonce-[^']+' https:\/\/maps\.googleapis\.com https:\/\/va\.vercel-scripts\.com/);
+    expect(firstCsp).not.toBe(secondCsp);
+  });
+
   it("protects authenticated-only page routes and nested paths", () => {
     expect(isProtectedPageRoute("/vibe-check")).toBe(true);
     expect(isProtectedPageRoute("/vibe-check/history")).toBe(true);

@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import dynamic from "next/dynamic";
 import { Inter, Space_Grotesk } from "next/font/google";
+import { headers } from "next/headers";
 import Script from "next/script";
 import { AppOnboardingGate } from "@/components/AppOnboardingGate";
 import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
+import { RoutePrefetch } from "@/components/RoutePrefetch";
 import "./globals.css";
 
 const siteUrl = "https://nytchkr.com";
@@ -84,11 +86,14 @@ export const viewport: Viewport = {
 
 const isDev = process.env.NEXT_PUBLIC_ENV === "development";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} bg-[#0A0A0E] text-white`} suppressHydrationWarning>
       <head>
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `
   (function() {
@@ -130,6 +135,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         )}
         <div className="app-shell h-screen-safe">
+          <RoutePrefetch href="/map" />
+          <RoutePrefetch href="/explore" />
           <SidebarNav />
           <OnboardingGateProvider>
             <main
@@ -146,7 +153,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <PWAInstallBanner />
         </PWAInstallVisitTracker>
         <BottomNav />
-        <Script id="service-worker-registration" strategy="afterInteractive">
+        <Script id="service-worker-registration" nonce={nonce} strategy="afterInteractive">
           {`if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`}
         </Script>
       </body>

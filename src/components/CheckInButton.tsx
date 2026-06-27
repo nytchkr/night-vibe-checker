@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Loader2, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabase-browser";
+import { triggerHapticFeedback } from "@/lib/haptics";
 import { formatRewardMessages } from "@/lib/rewardMessages";
 import { Toast } from "@/components/Toast";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -181,6 +182,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
       });
       const now = Date.now();
       lockCheckIn(now);
+      triggerHapticFeedback([8, 50, 8]);
       setConfirmOpen(false);
       setToast({
         tone: "success",
@@ -219,6 +221,11 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
     if (!loading) setConfirmOpen(false);
   });
 
+  function handleCheckInButtonTap() {
+    triggerHapticFeedback(12);
+    setConfirmOpen(true);
+  }
+
   if (state === "requires-auth") {
     const returnTo = `/venues/${encodeURIComponent(venueId)}`;
     return (
@@ -239,7 +246,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
         </span>
         <button
           type="button"
-          onClick={() => setConfirmOpen(true)}
+          onClick={handleCheckInButtonTap}
           disabled={loading || checkedIn}
           aria-label={checkedIn ? `Checked in at ${venueName}` : `Check in at ${venueName}`}
           className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed ${

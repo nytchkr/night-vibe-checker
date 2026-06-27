@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, HelpCircle, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+import { triggerHapticFeedback } from "@/lib/haptics";
 import {
   LEGACY_ONBOARDING_STORAGE_KEY,
   ONBOARDING_STORAGE_KEY,
@@ -61,6 +62,7 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
   const selectZone = (zone: OnboardingZone) => {
     if (selectedZoneId) return;
     suppressTapRef.current = true;
+    triggerHapticFeedback(6);
     setSelectedZoneId(zone.id);
     window.localStorage.setItem(PREFERRED_ZONE_STORAGE_KEY, zone.id);
     window.localStorage.setItem(ONBOARDING_STORAGE_KEY, "true");

@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Flame } from "lucide-react";
+import { prefetchRoute } from "@/components/RoutePrefetch";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import type { APIResponse, ConsumerVenue } from "@/types";
@@ -100,6 +102,7 @@ function TrendingVenueCard({ venue, trendingRank }: { venue: ConsumerVenue; tren
 }
 
 export function TrendingRow() {
+  const router = useRouter();
   const [venues, setVenues] = useState<ConsumerVenue[] | null>(null);
   const rerankTimerRef = useRef<number | null>(null);
 
@@ -131,6 +134,14 @@ export function TrendingRow() {
       if (rerankTimerRef.current) window.clearTimeout(rerankTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!venues?.length) return;
+
+    for (const venue of venues) {
+      prefetchRoute(router, `/venues/${encodeURIComponent(venue.id)}`);
+    }
+  }, [router, venues]);
 
   return (
     <section className="space-y-3" aria-label="Trending Now">
