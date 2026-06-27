@@ -21,6 +21,7 @@ import { Toast } from "@/components/Toast";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { VenuePredictionCard } from "@/components/VenuePredictionCard";
 import { VenueRating } from "@/components/VenueRating";
+import { VenuePhoto } from "@/components/VenuePhoto";
 import { VenueTips } from "@/components/VenueTips";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getNeighborhood } from "@/lib/neighborhood";
@@ -488,7 +489,15 @@ function AuthRequiredReportAction({ venueId, venueName }: { venueId: string; ven
   );
 }
 
-function VenuePhotoCarousel({ venueId, venueName }: { venueId: string; venueName: string }) {
+function VenuePhotoCarousel({
+  fallbackPhotoUrl,
+  venueId,
+  venueName,
+}: {
+  fallbackPhotoUrl?: string | null;
+  venueId: string;
+  venueName: string;
+}) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [shouldFetch, setShouldFetch] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -528,6 +537,7 @@ function VenuePhotoCarousel({ venueId, venueName }: { venueId: string; venueName
     async function fetchPhotos() {
       try {
         const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}/photos`, {
+          cache: "no-store",
           credentials: "same-origin",
         });
         if (!response.ok) throw new Error(`${response.status}`);
@@ -577,9 +587,12 @@ function VenuePhotoCarousel({ venueId, venueName }: { venueId: string; venueName
           ))}
         </div>
       ) : (
-        <div className="flex h-full w-full items-center justify-center" aria-hidden="true">
-          <span className="font-display text-6xl font-black text-white/28">{initialFor(venueName)}</span>
-        </div>
+        <VenuePhoto
+          name={venueName}
+          photoUrl={fallbackPhotoUrl}
+          className="h-full w-full"
+          sizes="100vw"
+        />
       )}
 
       {loading && visiblePhotos.length === 0 && (
@@ -1211,7 +1224,11 @@ export function VenuePageClient({
         <>
           <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
             <div className="relative h-[200px] w-full overflow-hidden">
-              <VenuePhotoCarousel venueId={venue.id} venueName={venue.name} />
+              <VenuePhotoCarousel
+                venueId={venue.id}
+                venueName={venue.name}
+                fallbackPhotoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
+              />
               <button
                 type="button"
                 onClick={goBackToMap}

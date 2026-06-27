@@ -322,7 +322,6 @@ export default function VibeCheckClient({
           venueId: effectiveVenueId || undefined,
           venueName: effectiveVenueName || undefined,
           busyness: selectedBusyness?.submitValue,
-          // TODO: remove crowdLevel once dev-tech-agent updates the API to accept the visible four-choice UI directly.
           crowdLevel: selectedBusyness?.crowdLevel,
           crowdFeel: crowdFeel ?? "mixed",
           note: note.trim() || undefined,

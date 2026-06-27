@@ -4,6 +4,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
@@ -11,8 +12,10 @@ import type { APIResponse } from "@/types";
 
 const ACTIVITY_WINDOW_HOURS = 3;
 const ACTIVITY_LIMIT = 10;
-const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, max-age=60",
+export const dynamic = "force-dynamic";
+
+const DYNAMIC_HEADERS = {
+  "Cache-Control": "private, no-store",
 };
 
 export interface VenueActivityItem {
@@ -69,9 +72,12 @@ async function getPublicProfile(userId: string): Promise<PublicProfile> {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const rate = publicRateLimit(req, "venue-activity", 60);
+  if (rate.response) return rate.response;
+  const headers = { ...DYNAMIC_HEADERS, ...rate.headers };
   const requestId = uuidv4();
   const generatedAt = new Date().toISOString();
   const meta = { cached: true, generatedAt, requestId };
@@ -85,7 +91,7 @@ export async function GET(
         error: { code: "MISSING_ID", message: "Venue id is required." },
         meta,
       },
-      { status: 400, headers: PUBLIC_CACHE_HEADERS }
+      { status: 400, headers }
     );
   }
 
@@ -98,7 +104,7 @@ export async function GET(
         error: { code: "VENUE_NOT_FOUND", message: "Venue was not found." },
         meta,
       },
-      { status: 404, headers: PUBLIC_CACHE_HEADERS }
+      { status: 404, headers }
     );
   }
 
@@ -121,7 +127,7 @@ export async function GET(
         error: { code: "DB_ERROR", message: "Could not fetch venue activity." },
         meta,
       },
-      { status: 500, headers: PUBLIC_CACHE_HEADERS }
+      { status: 500, headers }
     );
   }
 
@@ -148,6 +154,6 @@ export async function GET(
       data: { activity },
       meta,
     },
-    { status: 200, headers: PUBLIC_CACHE_HEADERS }
+    { status: 200, headers }
   );
 }

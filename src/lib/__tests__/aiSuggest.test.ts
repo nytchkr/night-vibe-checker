@@ -91,6 +91,13 @@ describe("aiSuggest real-data guardrails", () => {
     expect(result.fallbackReason).toBe("vague_vibe_intent");
   });
 
+  it("extracts time preference and group size from deterministic intent fallback", async () => {
+    const result = await getFilterFromIntent("late night spot for a group of friends");
+
+    expect(result.filter.timePreference).toBe("late");
+    expect(result.filter.groupSize).toBe("group");
+  });
+
   it("returns a blocklist fallback event with adjective and venue details", async () => {
     const result = await explainRankedVenue(ranked(venue({ id: "venue-blocked", name: "Blocked Bar" })), async () =>
       "Blocked Bar has a cozy romantic vibe tonight.",
@@ -121,6 +128,23 @@ describe("aiSuggest real-data guardrails", () => {
     expect(first.picks).toHaveLength(1);
     expect(second.picks).toHaveLength(1);
     expect(second.picks[0].venue.id).not.toBe(first.picks[0].venue.id);
+  });
+
+  it("weights surprise picks toward unseen categories after repeated spins", () => {
+    const venues = [
+      venue({ id: "venue-a", name: "Alpha", category: "bar", rating: 4.9, googleRating: 4.9 }),
+      venue({ id: "venue-b", name: "Beta", category: "bar", rating: 4.8, googleRating: 4.8 }),
+      venue({ id: "venue-c", name: "Charlie", category: "bar", rating: 4.7, googleRating: 4.7 }),
+      venue({ id: "venue-d", name: "Delta", category: "lounge", rating: 4.2, googleRating: 4.2 }),
+    ];
+
+    const ranked = filterAndRankVenues(venues, DEFAULT_AI_SUGGEST_FILTER, {
+      excludeVenueIds: ["venue-a", "venue-b", "venue-c"],
+      diversifyFromVenueIds: ["venue-a", "venue-b", "venue-c"],
+    });
+
+    expect(ranked[0].venue.id).toBe("venue-d");
+    expect(ranked[0].scoreReasons).toContain("new category");
   });
 
   it("returns three ranked picks for help me decide", () => {

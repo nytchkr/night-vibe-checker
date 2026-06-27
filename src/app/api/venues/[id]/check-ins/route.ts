@@ -5,13 +5,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 
 const CHECK_IN_LIMIT = 10;
 const RECENT_CHECK_IN_HOURS = 4;
-const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, max-age=30",
+export const dynamic = "force-dynamic";
+
+const DYNAMIC_HEADERS = {
+  "Cache-Control": "private, no-store",
 };
 
 type RecentCheckInRow = {
@@ -109,9 +112,12 @@ async function fetchRecentCheckIns(venueId: string): Promise<{ data: RecentCheck
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
+  const rate = publicRateLimit(req, "venue-check-ins", 60);
+  if (rate.response) return rate.response;
+  const headers = { ...DYNAMIC_HEADERS, ...rate.headers };
   const requestId = uuidv4();
   const { id: rawId } = await params;
   const requestedVenueId = normalizeVenueLookupId(rawId);
@@ -119,7 +125,7 @@ export async function GET(
   if (!requestedVenueId) {
     return NextResponse.json(
       { error: { code: "MISSING_ID", message: "Venue id is required." }, requestId },
-      { status: 400, headers: PUBLIC_CACHE_HEADERS },
+      { status: 400, headers },
     );
   }
 
@@ -127,7 +133,7 @@ export async function GET(
   if (!venueId) {
     return NextResponse.json(
       { error: { code: "VENUE_NOT_FOUND", message: "Venue was not found." }, requestId },
-      { status: 404, headers: PUBLIC_CACHE_HEADERS },
+      { status: 404, headers },
     );
   }
 
@@ -136,12 +142,12 @@ export async function GET(
     console.error("[venue-check-ins GET] DB error:", error);
     return NextResponse.json(
       { error: { code: "DB_ERROR", message: "Could not fetch recent check-ins." }, requestId },
-      { status: 500, headers: PUBLIC_CACHE_HEADERS },
+      { status: 500, headers },
     );
   }
 
   return NextResponse.json((data ?? []).map(mapCheckIn), {
     status: 200,
-    headers: PUBLIC_CACHE_HEADERS,
+    headers,
   });
 }

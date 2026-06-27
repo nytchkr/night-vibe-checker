@@ -41,6 +41,10 @@ function jsonResponse<T>(
   return NextResponse.json(body, { status, headers });
 }
 
+function sanitizeIntent(value: unknown): string {
+  return typeof value === "string" ? value.trim().slice(0, 240) : "";
+}
+
 function extractOpenAIText(payload: unknown): string | null {
   const candidate = payload as ChatCompletionPayload | null;
   return candidate?.choices?.[0]?.message?.content?.trim() || null;
@@ -79,7 +83,7 @@ async function translateIntentWithLLM(intent: string): Promise<unknown> {
       {
         role: "system",
         content:
-          "Translate a nightlife venue request into ONLY strict JSON. Do not mention venues. Schema: {\"max_distance_km\": number|null, \"price_level_max\": 1|2|3|4|null, \"category\": string[], \"busyness_preference\": \"dead\"|\"moderate\"|\"any\", \"requires_live_data\": boolean}. Do not invent vibe or atmosphere filters.",
+          "Translate a nightlife venue request into ONLY strict JSON. Do not mention venues. Schema: {\"max_distance_km\": number|null, \"price_level_max\": 1|2|3|4|null, \"category\": string[], \"busyness_preference\": \"dead\"|\"moderate\"|\"any\", \"requires_live_data\": boolean, \"time_preference\": \"early\"|\"late\"|\"now\"|\"any\", \"group_size\": \"solo\"|\"couple\"|\"group\"|\"any\"}. Do not invent vibe or atmosphere filters.",
       },
       { role: "user", content: intent },
     ],
@@ -114,7 +118,7 @@ async function explainWithLLM(facts: AISuggestExplanationFacts): Promise<string 
       {
         role: "system",
         content:
-          "Write one short recommendation sentence using ONLY the supplied JSON fields. Do not add vibe, atmosphere, crowd, date, music, or neighborhood claims unless that exact fact appears in the JSON. If busyness fields are absent, do not mention busyness or crowd. Return plain text only.",
+          "Write one short recommendation sentence using at least two supplied JSON fields. Use ONLY the supplied JSON fields. Do not add vibe, atmosphere, crowd, date, music, or neighborhood claims unless that exact fact appears in the JSON. If busyness fields are absent, do not mention busyness or crowd. Return plain text only.",
       },
       { role: "user", content: JSON.stringify(compact) },
     ],
@@ -212,7 +216,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const result = await suggestVenues(
       {
         mode,
-        intent: typeof body.intent === "string" ? body.intent : "",
+        intent: sanitizeIntent(body.intent),
         userLat: parseOptionalNumber(body.userLat ?? body.lat),
         userLng: parseOptionalNumber(body.userLng ?? body.lng),
         excludeVenueIds: parseExcludeVenueIds(body.excludeVenueIds),

@@ -57,7 +57,7 @@ describe("GET /api/venues/[id]/check-ins", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=30");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(json).toEqual([
       {
         id: "check-1",

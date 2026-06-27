@@ -4,6 +4,7 @@ import {
   fetchBestTimeDayRawForecast,
   type BestTimeCrowdTrend,
 } from "@/lib/besttime";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 
 export const dynamic = "force-dynamic";
@@ -172,10 +173,14 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const rate = publicRateLimit(req, "venue-prediction", 30);
+  if (rate.response) return rate.response;
+  const headers = { ...rate.headers, "Cache-Control": "private, no-store" };
+
   const { id: rawId } = await params;
   const lookupId = normalizeVenueLookupId(rawId);
   if (!lookupId) {
-    return NextResponse.json({ error: "venue_id_required" }, { status: 400 });
+    return NextResponse.json({ error: "venue_id_required" }, { status: 400, headers });
   }
 
   const generatedAt = new Date().toISOString();
@@ -183,7 +188,7 @@ export async function GET(
   const venue = data as VenuePredictionRow | null;
 
   if (error || !venue) {
-    return NextResponse.json({ error: "venue_not_found" }, { status: 404 });
+    return NextResponse.json({ error: "venue_not_found" }, { status: 404, headers });
   }
 
   const besttimeVenueId = typeof venue.besttime_venue_id === "string" && venue.besttime_venue_id.trim()
@@ -208,7 +213,7 @@ export async function GET(
       available: false,
       reason: "No forecast data for this venue",
     };
-    return NextResponse.json(body, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json(body, { headers });
   }
 
   const body: VenuePredictionResponse = {
@@ -219,5 +224,5 @@ export async function GET(
     prediction,
   };
 
-  return NextResponse.json(body, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json(body, { headers });
 }

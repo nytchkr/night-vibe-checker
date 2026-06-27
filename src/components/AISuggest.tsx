@@ -6,6 +6,7 @@ import { ListChecks, RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { VenuePhoto } from "@/components/VenuePhoto";
 import type { AISuggestMode, AISuggestPick, AISuggestResult } from "@/lib/aiSuggest";
 import type { APIResponse } from "@/types";
 
@@ -38,9 +39,10 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
   const [shownVenueIds, setShownVenueIds] = useState<string[]>([]);
 
   const fallbackLabel = useMemo(() => {
+    if (result?.aiStatus === "unavailable") return "AI unavailable - showing best cached picks";
     if (!result?.filterFallbackReason) return null;
     return "Showing nearby options";
-  }, [result?.filterFallbackReason]);
+  }, [result?.aiStatus, result?.filterFallbackReason]);
 
   async function runSuggest(nextMode: AISuggestMode, spinAgain = false) {
     setStatus("loading");
@@ -141,7 +143,19 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
             {status === "loading" ? "Checking..." : modeLabel(mode)}
           </Button>
           {fallbackLabel ? <p className="text-xs text-white/55">{fallbackLabel}</p> : null}
-          {error ? <p className="text-sm text-[#FF5B6A]">{error}</p> : null}
+          {error ? (
+            <div className="rounded-2xl border border-[#F0568C]/30 bg-[#F0568C]/10 p-3">
+              <p className="text-sm text-[#FFC0D4]">{error}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => runSuggest(mode)}
+                className="mt-3 min-h-10 rounded-full bg-white/[0.06] px-4 text-white transition-all duration-200 ease-out hover:bg-white/[0.1] active:scale-95"
+              >
+                Retry
+              </Button>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -150,16 +164,31 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
           {result.picks.map((pick) => (
             <Card key={pick.venue.id} className="border-white/[0.06] bg-white/[0.04] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
               <CardContent className="space-y-3 p-4">
+                <VenuePhoto
+                  name={pick.venue.name}
+                  photoUrl={pick.venue.photoUrl ?? pick.venue.photoUrls?.[0]}
+                  className="-mx-1 h-28 rounded-[14px] border border-white/[0.06]"
+                  sizes="(max-width: 640px) calc(100vw - 2.5rem), 420px"
+                />
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-base font-semibold tracking-tight text-[#F4F5F8]">{pick.venue.name}</p>
                     <p className="mt-1 text-xs text-white/55">{pick.venue.category}</p>
                   </div>
                   <span className="shrink-0 rounded-full bg-[#00F5D4]/10 px-2 py-1 text-[11px] font-semibold text-[#00F5D4]">
-                    Suggested
+                    {result.aiStatus === "unavailable" ? "AI unavailable" : "Suggested"}
                   </span>
                 </div>
                 <p className="text-sm leading-6 text-white/75">{pick.explanation}</p>
+                <details className="rounded-2xl border border-white/[0.06] bg-white/[0.035] px-4 py-3 text-sm text-white/70">
+                  <summary className="cursor-pointer text-sm font-semibold text-white">Why this pick?</summary>
+                  <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-white/55">
+                    <div><dt className="text-white/40">Category</dt><dd>{pick.facts.category ?? "Unknown"}</dd></div>
+                    <div><dt className="text-white/40">Rating</dt><dd>{pick.facts.rating?.toFixed(1) ?? "No rating"}</dd></div>
+                    <div><dt className="text-white/40">Distance</dt><dd>{pick.facts.distanceKm == null ? "Nearby" : `${pick.facts.distanceKm.toFixed(1)} km`}</dd></div>
+                    <div><dt className="text-white/40">Crowd source</dt><dd>{pick.facts.busynessSource ?? "No live source"}</dd></div>
+                  </dl>
+                </details>
                 <div className="flex flex-wrap items-center gap-2">
                   <Button asChild variant="ghost" className="h-10 rounded-full bg-white/[0.06] px-4 text-white transition-all duration-200 ease-out hover:bg-white/[0.1] active:scale-95">
                     <Link href={venueHref(pick)}>View venue</Link>

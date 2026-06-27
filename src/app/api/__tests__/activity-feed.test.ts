@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NextRequest } from "next/server";
 
 const mockFrom = vi.fn();
 
@@ -64,7 +65,7 @@ describe("GET /api/activity/feed", () => {
       }));
 
     const { GET } = await import("../activity/feed/route");
-    const req = new Request("http://localhost/api/activity/feed") as import("next/server").NextRequest;
+    const req = new Request("http://localhost/api/activity/feed") as NextRequest;
     const res = await GET(req);
     const json = await res.json();
 
@@ -110,7 +111,7 @@ describe("GET /api/activity/feed", () => {
       }));
 
     const { GET } = await import("../activity/feed/route");
-    const req = new Request("http://localhost/api/activity/feed") as import("next/server").NextRequest;
+    const req = new Request("http://localhost/api/activity/feed") as NextRequest;
     const res = await GET(req);
     const json = await res.json();
 

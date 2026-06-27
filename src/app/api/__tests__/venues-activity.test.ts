@@ -79,7 +79,7 @@ describe("GET /api/venues/[id]/activity", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(json.status).toBe("success");
     expect(json.data.activity).toEqual([
       {

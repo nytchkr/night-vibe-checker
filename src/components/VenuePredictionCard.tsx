@@ -23,7 +23,7 @@ type VenuePredictionCardProps = {
 type PredictionState =
   | { status: "loading" }
   | { status: "ready"; response: PredictionResponse }
-  | { status: "empty" };
+  | { status: "empty"; reason?: "no_data" | "forecast_unavailable" };
 
 type LockedChipConfig = {
   title: string;
@@ -148,13 +148,13 @@ export function VenuePredictionCard({
         throw new Error("Prediction unavailable");
       }
       if (!json.data.predictions.bestTimeToVisit) {
-        setState({ status: "empty" });
+        setState({ status: "empty", reason: json.data.dataQuality.hasBestTimeData ? "no_data" : "forecast_unavailable" });
         return;
       }
       setState({ status: "ready", response: json });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      setState({ status: "empty" });
+      setState({ status: "empty", reason: "forecast_unavailable" });
     }
   }, [venueId]);
 
@@ -178,6 +178,9 @@ export function VenuePredictionCard({
   if (state.status === "loading") return <PredictionSkeleton />;
 
   if (state.status === "empty") {
+    const emptyCopy = state.reason === "forecast_unavailable"
+      ? "Forecast unavailable - check back later"
+      : EMPTY_COPY;
     return (
       <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4" aria-label="AI forecast">
         <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#8B6CFF]">
@@ -185,7 +188,7 @@ export function VenuePredictionCard({
           AI forecast
         </div>
         <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#0A0A0E] p-4">
-          <p className="text-sm font-black text-white">{EMPTY_COPY}</p>
+          <p className="text-sm font-black text-white">{emptyCopy}</p>
         </div>
       </section>
     );

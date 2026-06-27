@@ -9,6 +9,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
@@ -29,6 +30,9 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  const rate = publicRateLimit(req, "venue-signal", 60);
+  if (rate.response) return rate.response;
+  const headers = rate.headers;
   const requestId = uuidv4();
   const generatedAt = new Date().toISOString();
   const meta = { cached: false, generatedAt, requestId };
@@ -43,7 +47,7 @@ export async function GET(
         error: { code: "MISSING_ID", message: "Venue id is required." },
         meta,
       },
-      { status: 400 }
+      { status: 400, headers }
     );
   }
 
@@ -57,7 +61,7 @@ export async function GET(
         error: { code: "VENUE_NOT_FOUND", message: "Venue was not found." },
         meta,
       },
-      { status: 404 }
+      { status: 404, headers }
     );
   }
 
@@ -77,7 +81,7 @@ export async function GET(
         error: { code: "DB_ERROR", message: "Could not fetch signal." },
         meta,
       },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 
@@ -96,6 +100,6 @@ export async function GET(
 
   return NextResponse.json<APIResponse<VenueSignalResponse>>(
     { status: "success", data: response, meta },
-    { status: 200 }
+    { status: 200, headers }
   );
 }

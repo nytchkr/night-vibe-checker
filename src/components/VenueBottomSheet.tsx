@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Clock3, MapPin, Star, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +8,7 @@ import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRa
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
+import { VenuePhoto } from "@/components/VenuePhoto";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
 import { getBusynessState } from "@/lib/busyness";
@@ -320,25 +320,12 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
           <div className="scroll-touch mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
             {!isPeek && (
-              <div className="mb-4 overflow-hidden rounded-[14px] border border-white/[0.08] bg-white/[0.035]">
-                {photoUrl ? (
-                  <div className="relative h-40 w-full">
-                    <Image
-                      src={photoUrl}
-                      alt=""
-                      fill
-                      sizes="100vw"
-                      loading="lazy"
-                      priority={false}
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-40 items-center justify-center bg-white/[0.035]">
-                    <span className="font-display text-5xl font-semibold text-white/18">{venue.name.slice(0, 1)}</span>
-                  </div>
-                )}
-              </div>
+              <VenuePhoto
+                name={venue.name}
+                photoUrl={photoUrl}
+                alt=""
+                className="mb-4 h-40 w-full rounded-[14px] border border-white/[0.08]"
+              />
             )}
 
             <div className="flex items-start justify-between gap-3">

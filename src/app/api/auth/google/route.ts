@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 
 function safeReturnUrl(value: string | null): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
@@ -9,6 +10,9 @@ function safeReturnUrl(value: string | null): string {
 }
 
 export async function GET(req: NextRequest) {
+  const rate = publicRateLimit(req, "auth-google", 20);
+  if (rate.response) return rate.response;
+
   const { searchParams, origin } = new URL(req.url);
   const rawReturn = searchParams.get("return");
   const returnUrl = safeReturnUrl(rawReturn);
@@ -51,11 +55,11 @@ export async function GET(req: NextRequest) {
   if (error || !data.url) {
     const url = new URL("/login", siteOrigin);
     url.searchParams.set("error", "oauth_start_failed");
-    return NextResponse.redirect(url.toString());
+    return NextResponse.redirect(url.toString(), { headers: rate.headers });
   }
 
   // Redirect to Google with the code_verifier cookie set server-side.
-  const response = NextResponse.redirect(data.url);
+  const response = NextResponse.redirect(data.url, { headers: rate.headers });
   cookiesToSet.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, options as Parameters<typeof response.cookies.set>[2]);
   });

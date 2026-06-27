@@ -19,8 +19,10 @@ import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { DiscoveredVenue } from "@/lib/places";
 
-const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+export const dynamic = "force-dynamic";
+
+const DYNAMIC_HEADERS = {
+  "Cache-Control": "private, no-store",
 };
 
 function isAuthorized(req: NextRequest): boolean {
@@ -120,7 +122,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       status: "success",
       data: { zone: LAUNCH_ZONE, discovered: discovered.length },
       meta: { cached: false, generatedAt, requestId },
-    }, { headers: PUBLIC_CACHE_HEADERS });
+    }, { headers: DYNAMIC_HEADERS });
   }
 
   const venues: ConsumerVenue[] = ((venueRows ?? []) as Record<string, unknown>[]).map((row) => ({
@@ -159,5 +161,5 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     status: "success",
     data: { zone: LAUNCH_ZONE, venues, discovered: discovered.length },
     meta: { cached: false, generatedAt, requestId },
-  }, { headers: PUBLIC_CACHE_HEADERS });
+  }, { headers: DYNAMIC_HEADERS });
 }

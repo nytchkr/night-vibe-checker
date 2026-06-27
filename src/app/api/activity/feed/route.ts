@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const ACTIVITY_LIMIT = 20;
-const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+const DYNAMIC_HEADERS = {
+  "Cache-Control": "private, no-store",
 };
 
 export type ActivityFeedItem = {
@@ -105,7 +107,11 @@ async function loadPublicProfiles(userIds: string[]): Promise<Map<string, Profil
   return new Map();
 }
 
-export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } | { error: string }>> {
+export async function GET(req: NextRequest): Promise<NextResponse<{ items: ActivityFeedItem[] } | { error: string }>> {
+  const rate = publicRateLimit(req, "activity-feed", 60);
+  if (rate.response) return rate.response as NextResponse<{ items: ActivityFeedItem[] } | { error: string }>;
+  const headers = { ...DYNAMIC_HEADERS, ...rate.headers };
+
   const { data, error } = await supabaseAdmin
     .from("check_ins")
     .select("id, user_id, venue_id, created_at")
@@ -117,7 +123,7 @@ export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } 
     console.error("[activity/feed GET] DB error:", error);
     return NextResponse.json(
       { error: "Could not fetch activity feed." },
-      { status: 500, headers: PUBLIC_CACHE_HEADERS }
+      { status: 500, headers }
     );
   }
 
@@ -159,5 +165,5 @@ export async function GET(): Promise<NextResponse<{ items: ActivityFeedItem[] } 
     }];
   });
 
-  return NextResponse.json({ items }, { headers: PUBLIC_CACHE_HEADERS });
+  return NextResponse.json({ items }, { headers });
 }

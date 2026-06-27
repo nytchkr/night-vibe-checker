@@ -3,6 +3,8 @@ import type { ConsumerVenue } from "@/types";
 
 export type AISuggestMode = "surprise" | "decide";
 export type AISuggestBusynessPreference = "dead" | "moderate" | "any";
+export type AISuggestTimePreference = "early" | "late" | "now" | "any";
+export type AISuggestGroupSize = "solo" | "couple" | "group" | "any";
 
 export type AISuggestFilter = {
   maxDistanceKm: number | null;
@@ -10,6 +12,8 @@ export type AISuggestFilter = {
   categories: string[];
   busynessPreference: AISuggestBusynessPreference;
   requiresLiveData: boolean;
+  timePreference: AISuggestTimePreference;
+  groupSize: AISuggestGroupSize;
 };
 
 export type AISuggestRequest = {
@@ -62,6 +66,7 @@ export type AISuggestResult = {
   mode: AISuggestMode;
   filter: AISuggestFilter;
   filterFallbackReason: string | null;
+  aiStatus: "ready" | "unavailable";
   picks: AISuggestPick[];
   blocklistEvents: AISuggestBlocklistEvent[];
 };
@@ -75,6 +80,8 @@ export const DEFAULT_AI_SUGGEST_FILTER: AISuggestFilter = {
   categories: [],
   busynessPreference: "any",
   requiresLiveData: false,
+  timePreference: "any",
+  groupSize: "any",
 };
 
 const MAX_DISTANCE_KM_LIMIT = 25;
@@ -117,6 +124,14 @@ function isBusynessPreference(value: unknown): value is AISuggestBusynessPrefere
   return value === "dead" || value === "moderate" || value === "any";
 }
 
+function isTimePreference(value: unknown): value is AISuggestTimePreference {
+  return value === "early" || value === "late" || value === "now" || value === "any";
+}
+
+function isGroupSize(value: unknown): value is AISuggestGroupSize {
+  return value === "solo" || value === "couple" || value === "group" || value === "any";
+}
+
 export function stripJsonFence(text: string): string {
   const trimmed = text.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -156,6 +171,10 @@ export function parseAISuggestFilterPayload(payload: unknown): AISuggestFilter |
 
   const busynessValue = record.busyness_preference ?? record.busynessPreference;
   const busynessPreference = isBusynessPreference(busynessValue) ? busynessValue : "any";
+  const timeValue = record.time_preference ?? record.timePreference;
+  const timePreference = isTimePreference(timeValue) ? timeValue : "any";
+  const groupValue = record.group_size ?? record.groupSize;
+  const groupSize = isGroupSize(groupValue) ? groupValue : "any";
 
   return {
     maxDistanceKm,
@@ -163,6 +182,8 @@ export function parseAISuggestFilterPayload(payload: unknown): AISuggestFilter |
     categories,
     busynessPreference,
     requiresLiveData: Boolean(record.requires_live_data ?? record.requiresLiveData),
+    timePreference,
+    groupSize,
   };
 }
 
@@ -192,6 +213,13 @@ export function inferIntentFilter(intent: string): AISuggestFilter {
   if (/\b(live|right now|currently|tonight)\b/.test(normalized)) {
     next.requiresLiveData = true;
   }
+  if (/\b(now|right now|currently)\b/.test(normalized)) next.timePreference = "now";
+  else if (/\b(early|before 9|before nine|happy hour)\b/.test(normalized)) next.timePreference = "early";
+  else if (/\b(late|after 10|after ten|after midnight)\b/.test(normalized)) next.timePreference = "late";
+
+  if (/\b(solo|alone|by myself)\b/.test(normalized)) next.groupSize = "solo";
+  else if (/\b(date|couple|two of us|with my partner)\b/.test(normalized)) next.groupSize = "couple";
+  else if (/\b(group|crew|friends|party|birthday)\b/.test(normalized)) next.groupSize = "group";
 
   return next;
 }
@@ -221,7 +249,9 @@ export async function getFilterFromIntent(
     !inferred.priceLevelMax &&
     !inferred.maxDistanceKm &&
     inferred.busynessPreference === "any" &&
-    !inferred.requiresLiveData;
+    !inferred.requiresLiveData &&
+    inferred.timePreference === "any" &&
+    inferred.groupSize === "any";
 
   return {
     filter: isVagueVibeOnly ? DEFAULT_AI_SUGGEST_FILTER : inferred,
@@ -266,10 +296,18 @@ export function filterAndRankVenues(
     userLng?: number | null;
     excludeVenueIds?: string[];
     scoreJitterPercent?: number;
+    diversifyFromVenueIds?: string[];
     random?: () => number;
   } = {},
 ): AISuggestRankedVenue[] {
   const excluded = new Set(options.excludeVenueIds ?? []);
+  const diversifiedFrom = new Set(options.diversifyFromVenueIds ?? []);
+  const seenCategories = new Set(
+    venues
+      .filter((venue) => diversifiedFrom.has(venue.id) || diversifiedFrom.has(venue.placeId))
+      .map((venue) => normalizeCategory(venue.category ?? ""))
+      .filter(Boolean),
+  );
   const jitterPercent = clampNumber(options.scoreJitterPercent ?? 0, 0, 0.05);
   const random = options.random ?? Math.random;
 
@@ -311,6 +349,10 @@ export function filterAndRankVenues(
       if (filter.busynessPreference === "dead" && bucket === "dead") score += 25;
       if (filter.busynessPreference === "moderate" && bucket === "moderate") score += 25;
       if (filter.busynessPreference === "any" && bucket === "moderate") score += 10;
+      if (seenCategories.size >= 1 && !seenCategories.has(normalizeCategory(venue.category ?? ""))) {
+        score += 12;
+        scoreReasons.push("new category");
+      }
       if (jitterPercent > 0 && score > 0) {
         const jitterMultiplier = 1 + (random() * 2 - 1) * jitterPercent;
         score *= jitterMultiplier;
@@ -352,6 +394,7 @@ export function buildExplanationFacts(ranked: AISuggestRankedVenue): AISuggestEx
 
 export function buildTemplateExplanation(facts: AISuggestExplanationFacts): string {
   const reasons: string[] = [];
+  if (facts.category) reasons.push(facts.category);
   if (facts.distanceKm != null) reasons.push(`${facts.distanceKm.toFixed(1)} km away`);
   if (facts.priceLevel != null) reasons.push(`price level ${facts.priceLevel}`);
   if (facts.rating != null) reasons.push(`rated ${facts.rating.toFixed(1)}`);
@@ -364,7 +407,7 @@ export function buildTemplateExplanation(facts: AISuggestExplanationFacts): stri
   }
 
   const fallback = facts.category ? `${facts.category} with real venue data` : "real venue data";
-  return `Picked for: ${reasons.length ? reasons.join(", ") : fallback}.`;
+  return `Picked for: ${reasons.length >= 2 ? reasons.join(", ") : fallback}.`;
 }
 
 export function validateExplanation(
@@ -444,10 +487,15 @@ export async function suggestVenues(
   } = {},
 ): Promise<AISuggestResult> {
   const { filter, fallbackReason } = await getFilterFromIntent(request.intent, llm.filter);
+  const diversifyFromVenueIds =
+    request.mode === "surprise" && (request.excludeVenueIds?.length ?? 0) >= 3
+      ? request.excludeVenueIds
+      : [];
   const ranked = filterAndRankVenues(venues, filter, {
     userLat: request.userLat,
     userLng: request.userLng,
     excludeVenueIds: request.excludeVenueIds,
+    diversifyFromVenueIds,
     scoreJitterPercent: request.mode === "surprise" ? 0.05 : 0,
   });
   const limit = request.mode === "decide" ? 3 : 1;
@@ -457,6 +505,7 @@ export async function suggestVenues(
     mode: request.mode,
     filter,
     filterFallbackReason: fallbackReason,
+    aiStatus: fallbackReason === "llm_filter_unavailable" ? "unavailable" : "ready",
     picks: explained.map((item) => item.pick),
     blocklistEvents: explained
       .map((item) => item.blocklistEvent)

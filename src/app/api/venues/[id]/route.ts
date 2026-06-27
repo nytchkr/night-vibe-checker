@@ -33,8 +33,10 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
-const PUBLIC_CACHE_HEADERS = {
-  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+export const dynamic = "force-dynamic";
+
+const DYNAMIC_HEADERS = {
+  "Cache-Control": "private, no-store",
 };
 
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
@@ -206,7 +208,7 @@ export async function GET(
         data: { venue: mapVenue(data as Record<string, unknown>) },
         meta: { cached: true, generatedAt, requestId },
       },
-      { headers: { ...headers, ...PUBLIC_CACHE_HEADERS } }
+      { headers: { ...headers, ...DYNAMIC_HEADERS } }
     );
   } catch (error) {
     console.error("[venues detail] unexpected error:", error);

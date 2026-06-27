@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 
 type HealthPayload = {
@@ -61,7 +62,11 @@ async function getVenueHealthRows(): Promise<VenueHealthRow[] | null> {
   }
 }
 
-export async function GET() {
+export async function GET(req?: NextRequest) {
+  const rate = req ? publicRateLimit(req, "health", 120) : null;
+  if (rate?.response) return rate.response;
+  const headers = { ...NO_STORE_HEADERS, ...(rate?.headers ?? {}) };
+
   const [venueCount, signalsCount, venueRows] = await Promise.all([
     countRows("venues"),
     countRows("venue_signals"),
@@ -92,5 +97,5 @@ export async function GET() {
     staleSince,
   };
 
-  return NextResponse.json(payload, { status: 200, headers: NO_STORE_HEADERS });
+  return NextResponse.json(payload, { status: 200, headers });
 }

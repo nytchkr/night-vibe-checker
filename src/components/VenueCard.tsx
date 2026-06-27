@@ -14,14 +14,12 @@
 // CompactCard: map popup variant — unchanged from prior version.
 // ============================================================
 
-// TODO(NV-076): VenueBasic removed with vibe.ts — prop type will be replaced by ConsumerVenue
-import Image from "next/image";
 import { VibeTagBadge } from "./VibeTagBadge";
 import { SaveVenueButton } from "./SaveVenueButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { StarRating } from "./StarRating";
+import { VenuePhoto } from "@/components/VenuePhoto";
 
 // --------------- Crowd types --------------------------------
 
@@ -125,22 +123,12 @@ function CompactCard({
           />
         )}
         <div className="flex items-center gap-3">
-          {venue.photoUrl ? (
-            <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-2xl bg-white/[0.06]">
-              <Image
-                src={venue.photoUrl}
-                alt={venue.name}
-                width={72}
-                height={72}
-                sizes="72px"
-                loading="lazy"
-                priority={false}
-                placeholder="blur"
-                blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          ) : null}
+          <VenuePhoto
+            name={venue.name}
+            photoUrl={venue.photoUrl}
+            className="h-[72px] w-[72px] shrink-0 rounded-2xl"
+            sizes="72px"
+          />
           <div className="min-w-0 pr-10">
             <p className="font-display truncate text-[19px] font-semibold leading-tight tracking-tight text-[#F4F5F8]">{venue.name}</p>
             <div className="mt-1 flex min-w-0 items-center gap-2 text-xs">
@@ -211,6 +199,13 @@ function FullCard({
           className="absolute right-2 top-2 z-10 h-11 w-11"
         />
       )}
+
+      <VenuePhoto
+        name={venue.name}
+        photoUrl={venue.photoUrl}
+        className="h-28 w-full border-b border-white/[0.06]"
+        sizes="(max-width: 640px) calc(100vw - 2rem), 420px"
+      />
 
       {/* Crowd color bar */}
       {crowd ? (

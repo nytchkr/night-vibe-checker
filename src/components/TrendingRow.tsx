@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { VenuePhoto } from "@/components/VenuePhoto";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 const VIOLET = "#8B6CFF";
@@ -38,10 +39,16 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
   return (
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
-      className="group flex min-h-[112px] w-40 shrink-0 snap-start flex-col justify-between rounded-[18px] border border-white/[0.08] bg-white/[0.045] p-3 transition-colors hover:border-white/[0.16] hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/65"
+      className="group flex min-h-[148px] w-40 shrink-0 snap-start flex-col overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.05] active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/65"
       aria-label={`Open ${venue.name}`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <VenuePhoto
+        name={venue.name}
+        photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
+        className="h-16 w-full border-b border-white/[0.06]"
+        sizes="160px"
+      />
+      <div className="flex items-start justify-between gap-2 px-3 pt-3">
         <span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-2 py-1 text-[11px] font-black leading-none text-white/70">
           {busyness == null ? "No data" : `${busyness}%`}
         </span>
@@ -56,11 +63,11 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
         ) : null}
       </div>
 
-      <h2 className="mt-3 line-clamp-2 text-[15px] font-black leading-tight text-white">
+      <h2 className="mt-3 line-clamp-2 px-3 text-[15px] font-black leading-tight tracking-tight text-white">
         {venue.name}
       </h2>
 
-      <div className="mt-3" aria-label={busyness == null ? "No busyness data" : `${busyness}% busy`}>
+      <div className="mt-auto px-3 pb-3 pt-3" aria-label={busyness == null ? "No busyness data" : `${busyness}% busy`}>
         <div className="h-2 overflow-hidden rounded-full bg-white/[0.09]">
           <div
             className="h-full rounded-full transition-[width]"
@@ -93,13 +100,15 @@ export function TrendingRow() {
     return () => controller.abort();
   }, []);
 
-  if (venues !== null && venues.length === 0) return null;
-
   return (
     <section className="space-y-3" aria-label="Trending Now">
-      <h2 className="font-display text-sm font-black text-white">Trending Now 🔥</h2>
+      <h2 className="font-display text-sm font-black tracking-tight text-white">Trending Now 🔥</h2>
       {venues === null ? (
         <TrendingSkeleton />
+      ) : venues.length === 0 ? (
+        <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-4 text-sm font-semibold text-white/55 shadow-lg shadow-black/10 backdrop-blur-sm">
+          Check back tonight for trending spots
+        </div>
       ) : (
         <div className="scroll-touch flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
           {venues.map((venue) => (

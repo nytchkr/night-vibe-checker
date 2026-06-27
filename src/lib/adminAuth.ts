@@ -25,6 +25,29 @@ async function userHasAdminRole(userId: string): Promise<boolean> {
   return (data as RoleRow).role === "admin";
 }
 
+async function hasAdminPassword(req: NextRequest): Promise<boolean> {
+  const expected = process.env.ADMIN_PASSWORD?.trim();
+  if (!expected) return false;
+
+  const headerPassword = req.headers.get("x-admin-password")?.trim();
+  if (headerPassword && headerPassword === expected) return true;
+
+  const auth = req.headers.get("authorization") ?? "";
+  if (auth.startsWith("Bearer ") && auth.slice(7).trim() === expected) return true;
+
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/x-www-form-urlencoded") && !contentType.includes("multipart/form-data")) {
+    return false;
+  }
+
+  try {
+    const form = await req.clone().formData();
+    return String(form.get("admin_password") ?? "").trim() === expected;
+  } catch {
+    return false;
+  }
+}
+
 async function getCookieUserForPage(): Promise<AdminUser | null> {
   assertSupabaseServerEnv();
 
@@ -66,6 +89,8 @@ export async function requireAdminPage(returnPath = "/admin"): Promise<AdminUser
 }
 
 export async function requireAdminApi(req: NextRequest): Promise<{ userId: string } | NextResponse> {
+  if (await hasAdminPassword(req)) return { userId: "admin-password" };
+
   const userId = await getAuthenticatedUserId(req);
 
   if (!userId) {

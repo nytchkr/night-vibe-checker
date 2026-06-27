@@ -20,6 +20,7 @@ import {
 import { TrendingRow } from "@/components/TrendingRow";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
+import { VenuePhoto } from "@/components/VenuePhoto";
 import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { getNeighborhood } from "@/lib/neighborhood";
@@ -28,7 +29,6 @@ import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { inZone } from "@/lib/zone";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
-import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerVenue } from "@/types";
@@ -175,10 +175,6 @@ function getInitials(name: string): string {
   return initials || "NV";
 }
 
-function getVenueInitial(name: string): string {
-  return name.trim()[0]?.toUpperCase() ?? "N";
-}
-
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
@@ -279,7 +275,6 @@ function ActivityCard({ item }: { item: ActivityFeedItem }) {
 }
 
 function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number }) {
-  const [photoFailed, setPhotoFailed] = useState(false);
   const busyness = getActiveBusyness(venue) ?? 0;
   const label = getTonightPickLabel(busyness);
   const color = getTonightPickColor(label);
@@ -291,24 +286,14 @@ function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number
       className="group relative h-[180px] w-[140px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       aria-label={`Open ${venue.name}, ${label}, ${busyness}% busy`}
     >
-      {venue.photoUrl && !photoFailed ? (
-        <Image
-          src={venue.photoUrl}
-          alt={venue.name}
-          fill
-          sizes="140px"
-          loading={index === 0 ? undefined : "lazy"}
-          priority={index === 0}
-          placeholder="blur"
-          blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-          onError={() => setPhotoFailed(true)}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-[#8B6CFF]/18 text-5xl font-black text-[#8B6CFF]" aria-hidden="true">
-          {getVenueInitial(venue.name)}
-        </div>
-      )}
+      <VenuePhoto
+        name={venue.name}
+        photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
+        className="h-full w-full"
+        imageClassName="transition-transform duration-300 group-hover:scale-[1.04]"
+        sizes="140px"
+        priority={index === 0}
+      />
       <div className="absolute inset-x-0 bottom-0 min-h-[104px] bg-gradient-to-t from-[#050507] via-[#050507]/78 to-transparent" aria-hidden="true" />
       <div className="absolute inset-x-0 bottom-0 space-y-2 p-3">
         <span
@@ -381,9 +366,9 @@ function ExploreQuietEmptyState() {
     <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
       <span aria-hidden="true" className="block text-5xl leading-none">🌙</span>
       <h2 className="mt-4 font-display text-[22px] font-black tracking-tight text-[#F4F5F8]">
-        Nothing popping off right now
+        No venues found — try adjusting filters
       </h2>
-      <p className="mt-2 text-sm font-semibold text-white/50">Check back after 9pm</p>
+      <p className="mt-2 text-sm font-semibold text-white/50">Clear search or filters to show South End spots.</p>
       <Link
         href="/map"
         className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.1] hover:shadow-lg hover:shadow-violet/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
@@ -508,7 +493,6 @@ function VenueFeedCard({
   prefersReduced: boolean;
   isTrending: boolean;
 }) {
-  const [photoFailed, setPhotoFailed] = useState(false);
   const signal = venue.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const rating = venue.rating ?? venue.googleRating;
@@ -547,26 +531,14 @@ function VenueFeedCard({
         aria-label={`Open ${venue.name}`}
       >
         {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
-        <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-[#8B6CFF]/20 sm:h-[72px] sm:w-[72px] sm:aspect-auto">
-          {venue.photoUrl && !photoFailed ? (
-            <Image
-              src={venue.photoUrl}
-              alt={venue.name}
-              fill
-              sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
-              loading={index === 0 ? undefined : "lazy"}
-              priority={index === 0}
-              placeholder="blur"
-              blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-              onError={() => setPhotoFailed(true)}
-              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xl font-black text-[#8B6CFF]" aria-hidden="true">
-              {getVenueInitial(venue.name)}
-            </div>
-          )}
-        </div>
+        <VenuePhoto
+          name={venue.name}
+          photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
+          className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto"
+          imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
+          sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
+          priority={index === 0}
+        />
 
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
           <div className="min-w-0 space-y-1">
@@ -796,7 +768,7 @@ export function ExplorePageClient() {
       signal: controller.signal,
     });
     return () => controller.abort();
-  }, [debouncedSearchQuery, exploreFilters, fetchVenues]);
+  }, [debouncedSearchQuery, fetchVenues]);
 
   useEffect(() => {
     const client = createBrowserClient();
@@ -1157,8 +1129,9 @@ export function ExplorePageClient() {
           trimmedSearchQuery ? (
             <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
               <h2 className="font-display text-[19px] font-semibold tracking-tight text-[#F4F5F8]">
-                {`No venues found for "${trimmedSearchQuery}"`}
+                No venues found — try adjusting filters
               </h2>
+              <p className="mt-2 text-sm font-semibold text-white/50">{`No matches for "${trimmedSearchQuery}"`}</p>
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
@@ -1175,7 +1148,7 @@ export function ExplorePageClient() {
             <div className="px-6 py-12 text-center text-white/60">
               <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
               <h2 className="mt-3 text-[15px] font-semibold leading-6">
-                No spots match this filter.
+                No venues found — try adjusting filters
               </h2>
               <button
                 type="button"

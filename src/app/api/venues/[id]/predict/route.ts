@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchBestTimeDayRawForecast, type BestTimeDayForecast } from "@/lib/besttime";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type {
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 const MODEL = "gpt-4o-mini" as const;
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const PREDICT_RATE_LIMIT_MAX = 20;
+const PREDICT_RATE_LIMIT_WINDOW_MS = 60_000;
 const SYSTEM_PROMPT =
   "You are an AI analyst for a nightlife venue app. You receive REAL data about a venue - BestTime hourly busyness forecasts and user check-in reports. Your job is to summarize patterns and produce honest predictions based ONLY on the data provided. Never invent numbers. If data is missing, say so. Return only valid JSON.";
 
@@ -238,21 +241,42 @@ async function callOpenAI(context: unknown): Promise<Partial<PredictionResponse[
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const generatedAt = new Date().toISOString();
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "anonymous";
+  const rate = checkRateLimit(`venues-predict:${ip}`, PREDICT_RATE_LIMIT_MAX, PREDICT_RATE_LIMIT_WINDOW_MS);
+  const headers = rateLimitHeaders(rate);
+
+  if (!rate.allowed) {
+    const retrySeconds = Math.ceil((rate.retryAfterMs ?? PREDICT_RATE_LIMIT_WINDOW_MS) / 1000);
+    return NextResponse.json(
+      { status: "error", error: { code: "RATE_LIMITED", message: "Too many prediction requests." } },
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } },
+    );
+  }
+
   const { id: rawId } = await params;
   const lookupId = normalizeVenueLookupId(rawId);
 
   if (!lookupId) {
-    return NextResponse.json({ status: "error", error: { code: "MISSING_ID", message: "Venue id is required." } }, { status: 400 });
+    return NextResponse.json(
+      { status: "error", error: { code: "MISSING_ID", message: "Venue id is required." } },
+      { status: 400, headers },
+    );
   }
 
   const { data, error } = await findVisibleVenueByIdOrPlaceId(lookupId, VENUE_SELECT);
   const venue = data as VenuePredictionRow | null;
   if (error || !venue) {
-    return NextResponse.json({ status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue was not found." } }, { status: 404 });
+    return NextResponse.json(
+      { status: "error", error: { code: "VENUE_NOT_FOUND", message: "Venue was not found." } },
+      { status: 404, headers },
+    );
   }
 
   try {
@@ -285,7 +309,7 @@ export async function GET(
       },
     };
 
-    return NextResponse.json(body, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json(body, { headers: { ...headers, "Cache-Control": "private, no-store" } });
   } catch (err) {
     const isKeyMissing = err instanceof Error && err.message.includes("OPENAI_API_KEY");
     console.error("[predict] error:", err instanceof Error ? err.message : String(err));
@@ -295,7 +319,7 @@ export async function GET(
     const status = isKeyMissing ? 503 : 502;
     return NextResponse.json(
       { status: "error", error: { code: "PREDICTION_UNAVAILABLE", message } },
-      { status },
+      { status, headers },
     );
   }
 }

@@ -11,7 +11,6 @@
 // from GET /api/venues?q=nearby.
 // ============================================================
 
-// TODO(NV-076): pending rebuild — GoogleMapsView and VenueCard removed; new map-first flow to be implemented
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Toast } from "@/components/Toast";
@@ -115,7 +114,6 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
 
 export default function DiscoverPage() {
   const router = useRouter();
-  // TODO(NV-076): replace with ConsumerVenue type once new data model is in place
   const [venues, setVenues] = useState<Array<{ placeId: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -185,7 +183,7 @@ export default function DiscoverPage() {
 
       {/* Body */}
       <div className="max-w-lg mx-auto px-4 py-5 space-y-5 pb-32">
-        {/* Map section — TODO(NV-076): new map-first flow to replace this placeholder */}
+        {/* Map section placeholder for the consumer map-first flow. */}
         <section aria-label="Map view">
           <MapPreviewFallback />
         </section>
@@ -261,7 +259,7 @@ export default function DiscoverPage() {
             <EmptyState onRefresh={fetchVenues} />
           )}
 
-          {/* TODO(NV-076): VenueCard removed — replace with new consumer venue card once data model ships */}
+          {/* Lightweight venue rows for this legacy discover surface. */}
           {!isLoading && !fetchError && venues.length > 0 && (
             <div className="space-y-3">
               {venues.map((venue) => (

@@ -1,15 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { supabase } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 const CACHE_HEADERS = {
-  "Cache-Control": "public, max-age=300",
+  "Cache-Control": "private, no-store",
 };
 
 type CheckInVenueRow = {
   venue_id: string | null;
 };
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const rate = publicRateLimit(req, "stats-tonight", 60);
+  if (rate.response) return rate.response;
+  const headers = { ...CACHE_HEADERS, ...rate.headers };
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { data, error, count } = await supabase
@@ -21,7 +27,7 @@ export async function GET(): Promise<NextResponse> {
     console.warn("[stats/tonight] Failed to load check-in stats:", error);
     return NextResponse.json(
       { checkInsTonight: 0, venuesActive: 0 },
-      { status: 500, headers: CACHE_HEADERS }
+      { status: 500, headers }
     );
   }
 
@@ -36,6 +42,6 @@ export async function GET(): Promise<NextResponse> {
       checkInsTonight: count ?? data?.length ?? 0,
       venuesActive: venueIds.size,
     },
-    { headers: CACHE_HEADERS }
+    { headers }
   );
 }

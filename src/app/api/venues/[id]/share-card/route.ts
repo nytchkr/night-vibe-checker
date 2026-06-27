@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { publicRateLimit } from "@/lib/apiRateLimit";
 import { getBusynessState } from "@/lib/busyness";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 
@@ -18,14 +19,16 @@ function buildShareText(venueName: string, busynessScore: number | null | undefi
 }
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ShareCardResponse | { error: string }>> {
+  const rate = publicRateLimit(request, "venue-share-card", 60);
+  if (rate.response) return rate.response as NextResponse<ShareCardResponse | { error: string }>;
   const { id } = await params;
   const venue = await getConsumerVenueById(id);
 
   if (!venue) {
-    return NextResponse.json({ error: "Venue not found" }, { status: 404 });
+    return NextResponse.json({ error: "Venue not found" }, { status: 404, headers: rate.headers });
   }
 
   const shareUrl = `${siteUrl}/venues/${encodeURIComponent(venue.id)}?ref=share`;
@@ -34,5 +37,5 @@ export async function GET(
   return NextResponse.json({
     shareUrl,
     text: buildShareText(venue.name, busynessScore),
-  });
+  }, { headers: rate.headers });
 }

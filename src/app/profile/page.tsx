@@ -244,7 +244,7 @@ function SavedVenuesSection({ venues, loading }: { venues: SavedVenue[]; loading
 
         {!loading && venues.length === 0 && (
           <Card className="rounded-[18px] border-white/[0.08] bg-white/[0.04] p-4 text-sm leading-6 text-white/60">
-            No saved venues yet. Tap ♡ on any venue to save it.
+            You haven&apos;t saved any venues yet
           </Card>
         )}
       </div>
@@ -287,15 +287,18 @@ function TopSpotCard({ topSpot, loading }: { topSpot: { venueId: string; venueNa
 }
 
 function ProfileCompletionNudge({ savedCount, checkInCount }: { savedCount: number; checkInCount: number }) {
-  if (savedCount > 0 && checkInCount > 0) return null;
+  if (savedCount > 0 || checkInCount > 0) return null;
 
   return (
     <section className="rounded-[18px] border border-[#8B6CFF]/40 bg-gradient-to-r from-[#8B6CFF]/10 to-[#F0568C]/10 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-semibold leading-6 text-white">Complete your vibe profile - save a spot or log your first check-in</p>
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight text-white">Get started</h2>
+          <p className="mt-1 text-sm leading-6 text-white/75">Save a venue or log your first check-in to build your nightlife profile.</p>
+        </div>
         <Button
           asChild
-          className="h-10 rounded-full bg-white text-sm font-bold text-[#111118] hover:bg-white/90 focus-visible:ring-[#8B6CFF]/70"
+          className="min-h-11 rounded-full bg-[#8B6CFF] text-sm font-bold text-white transition-transform active:scale-95 hover:bg-[#9B82FF] focus-visible:ring-[#8B6CFF]/70"
         >
           <Link href="/explore">Explore</Link>
         </Button>

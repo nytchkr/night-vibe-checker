@@ -1066,6 +1066,7 @@ export function VenueMap({
   }, [activeBusynessFilter, activeCategoryFilter, normalizedSearchQuery, openNowFilter, visibleVenues]);
   const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < visibleVenues.length;
   const showEmptyState = !loading && !error && visibleVenues.length === 0;
+  const showNoVenuesInView = !loading && !error && visibleVenues.length > 0 && filteredVenues.length === 0;
   const hasActiveFilters = activeCategoryFilter !== "All" || activeBusynessFilter !== "All" || openNowFilter;
   const detailVenue = useMemo(
     () => (detailVenueId ? venues.find((venue) => venue.id === detailVenueId) ?? null : null),
@@ -1220,7 +1221,21 @@ export function VenueMap({
           <div className="w-full max-w-xs text-center text-white/60">
             <MapPin aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
             <p className="mt-3 text-sm font-semibold leading-5">
-              No spots found nearby. Try zooming out.
+              No venues in view
+            </p>
+          </div>
+        </div>
+      )}
+
+      {showNoVenuesInView && (
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[999] flex -translate-y-1/2 justify-center px-6">
+          <div className="w-full max-w-xs rounded-[18px] border border-white/[0.06] bg-[#0A0A0E]/88 p-4 text-center text-white/60 shadow-2xl backdrop-blur-sm">
+            <MapPin aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
+            <p className="mt-3 text-sm font-semibold leading-5">
+              No venues in view
+            </p>
+            <p className="mt-1 text-xs font-medium text-white/45">
+              Clear filters or search to show South End spots.
             </p>
           </div>
         </div>
