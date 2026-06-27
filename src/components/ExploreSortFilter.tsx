@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { useHaptic } from "@/hooks/useHaptic";
 
-export type ExploreSortOption = "hottest" | "top-rated" | "trending" | "nearby";
+export type ExploreSortOption = "trending" | "most-active" | "highest-rated";
 export type ExploreFilterOption =
   | "open-now"
   | "saved"
@@ -18,10 +18,9 @@ export type ExploreFilterOption =
   | "South Park";
 
 const SORT_OPTIONS: { value: ExploreSortOption; label: string }[] = [
-  { value: "hottest", label: "Hottest" },
-  { value: "top-rated", label: "Top Rated" },
   { value: "trending", label: "Trending" },
-  { value: "nearby", label: "Near Me" },
+  { value: "most-active", label: "Most Active" },
+  { value: "highest-rated", label: "Highest Rated" },
 ];
 
 const FILTER_OPTIONS: { value: ExploreFilterOption; label: string; comingSoon?: boolean }[] = [
@@ -35,7 +34,6 @@ const FILTER_OPTIONS: { value: ExploreFilterOption; label: string; comingSoon?: 
 type ExploreSortFilterProps = {
   selectedSort: ExploreSortOption;
   selectedFilters: Set<ExploreFilterOption>;
-  nearbyLoading?: boolean;
   savedCount?: number;
   onSortChange: (sort: ExploreSortOption) => void;
   onFilterToggle: (filter: ExploreFilterOption) => void;
@@ -49,6 +47,7 @@ function Chip({
   pressed,
   count,
   comingSoon = false,
+  activeClassName,
 }: {
   active: boolean;
   disabled?: boolean;
@@ -57,6 +56,7 @@ function Chip({
   pressed: boolean;
   count?: number;
   comingSoon?: boolean;
+  activeClassName?: string;
 }) {
   return (
     <button
@@ -68,7 +68,7 @@ function Chip({
       className={cn(
         "inline-flex min-h-[38px] shrink-0 items-center rounded-full border px-4 text-sm font-semibold backdrop-blur-sm transition-all duration-200 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70",
         active
-          ? "border-[#8B6CFF] bg-violet-600 text-white shadow-[0_0_18px_rgba(139,108,255,0.3)]"
+          ? activeClassName ?? "border-[#8B6CFF] bg-violet-600 text-white shadow-[0_0_18px_rgba(139,108,255,0.3)]"
           : "border-white/[0.06] bg-white/10 text-[#D8DCE5] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.14] hover:text-white hover:shadow-lg hover:shadow-violet/10",
         (disabled || comingSoon) && "cursor-not-allowed opacity-35 hover:translate-y-0 hover:border-white/[0.06] hover:bg-white/10 hover:text-[#D8DCE5] hover:shadow-none active:scale-100",
       )}
@@ -95,7 +95,6 @@ function Chip({
 export function ExploreSortFilter({
   selectedSort,
   selectedFilters,
-  nearbyLoading = false,
   savedCount = 0,
   onSortChange,
   onFilterToggle,
@@ -111,7 +110,7 @@ export function ExploreSortFilter({
             label={option.label}
             active={selectedSort === option.value}
             pressed={selectedSort === option.value}
-            disabled={option.value === "nearby" && nearbyLoading}
+            activeClassName="border-[#8B6CFF]/50 bg-[#8B6CFF]/20 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.16)]"
             onClick={() => {
               haptic.light();
               onSortChange(option.value);

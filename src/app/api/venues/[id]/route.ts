@@ -11,6 +11,9 @@ import { mapGoogleOpeningHours } from "@/lib/venueHours";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
+const GOOGLE_PLACES_BASE = "https://maps.googleapis.com/maps/api/place";
+const MAX_GOOGLE_PLACE_PHOTOS = 5;
+
 const VENUE_SELECT = `
   id, place_id, zone_id, name, address, lat, lng, venue_type, category,
   slug,
@@ -77,6 +80,72 @@ function mapVenuePhotoUrls(row: Record<string, unknown>): string[] | undefined {
   return urls.size ? Array.from(urls) : undefined;
 }
 
+function hasPhotoUrl(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasPhotoUrls(value: unknown): boolean {
+  return Array.isArray(value) && value.some((item) => typeof item === "string" && item.trim().length > 0);
+}
+
+type GooglePlaceDetailsPhotosResponse = {
+  status?: string;
+  result?: {
+    photos?: { photo_reference?: string }[];
+  };
+};
+
+function buildGooglePhotoUrl(photoReference: string, key: string): string {
+  const params = new URLSearchParams({
+    maxwidth: "800",
+    photoreference: photoReference,
+    key,
+  });
+  return `${GOOGLE_PLACES_BASE}/photo?${params}`;
+}
+
+async function fetchGooglePhotoUrls(placeId: string | undefined): Promise<string[]> {
+  const key = process.env.GOOGLE_PLACES_API_KEY;
+  if (!key || !placeId) return [];
+
+  const params = new URLSearchParams({
+    place_id: placeId,
+    fields: "photos",
+    key,
+  });
+
+  const response = await fetch(`${GOOGLE_PLACES_BASE}/details/json?${params}`, {
+    cache: "no-store",
+  });
+  if (!response.ok) return [];
+
+  const payload = (await response.json().catch(() => null)) as GooglePlaceDetailsPhotosResponse | null;
+  if (payload?.status !== "OK") return [];
+
+  return (payload.result?.photos ?? [])
+    .map((photo) => photo.photo_reference)
+    .filter((reference): reference is string => typeof reference === "string" && reference.length > 0)
+    .slice(0, MAX_GOOGLE_PLACE_PHOTOS)
+    .map((reference) => buildGooglePhotoUrl(reference, key));
+}
+
+async function hydrateMissingGooglePhotos(row: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (hasPhotoUrl(row.photo_url) && hasPhotoUrls(row.photo_urls)) return row;
+
+  try {
+    const googlePhotoUrls = await fetchGooglePhotoUrls(row.place_id as string | undefined);
+    if (!googlePhotoUrls.length) return row;
+
+    return {
+      ...row,
+      photo_url: hasPhotoUrl(row.photo_url) ? row.photo_url : googlePhotoUrls[0],
+      photo_urls: hasPhotoUrls(row.photo_urls) ? row.photo_urls : googlePhotoUrls,
+    };
+  } catch {
+    return row;
+  }
+}
+
 function mapVenue(row: Record<string, unknown>): ConsumerVenue {
   const sig = row.venue_signals;
   const signalRow: Record<string, unknown> | undefined = Array.isArray(sig)
@@ -85,6 +154,8 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
       ? (sig as Record<string, unknown>)
       : undefined;
   const signal = mapSignal(signalRow);
+
+  const photoUrls = mapVenuePhotoUrls(row);
 
   return {
     id: row.id as string,
@@ -103,7 +174,8 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     priceLevel: row.price_level == null ? null : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
     photoUrl: mapPhotoUrl(row.photo_url),
-    photoUrls: mapVenuePhotoUrls(row),
+    photoUrls,
+    photo_urls: photoUrls,
     phone: (row.phone ?? row.phone_number ?? undefined) as string | undefined,
     phoneNumber: (row.phone_number ?? row.phone ?? undefined) as string | undefined,
     website: (row.website ?? undefined) as string | undefined,
@@ -208,7 +280,7 @@ export async function GET(
     return NextResponse.json<APIResponse<{ venue: ConsumerVenue }>>(
       {
         status: "success",
-        data: { venue: mapVenue(data as Record<string, unknown>) },
+        data: { venue: mapVenue(await hydrateMissingGooglePhotos(data as Record<string, unknown>)) },
         meta: { cached: true, generatedAt, requestId },
       },
       { headers: { ...headers, ...EDGE_CACHE_HEADERS } }

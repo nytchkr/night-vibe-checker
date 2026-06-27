@@ -183,6 +183,9 @@ function createVenue({
   name,
   category,
   rating,
+  googleRating = rating,
+  currentPopularity = null,
+  vibeScore = null,
   lat = 35.2123,
   lng = -80.859,
   signal = null,
@@ -191,6 +194,9 @@ function createVenue({
   name: string;
   category: string;
   rating: number;
+  googleRating?: number;
+  currentPopularity?: number | null;
+  vibeScore?: number | null;
   lat?: number;
   lng?: number;
   signal?: VenueSignal | null;
@@ -206,12 +212,12 @@ function createVenue({
     neighborhood: "South End",
     category,
     rating,
-    googleRating: rating,
+    googleRating,
     userRatingCount: 120,
     priceLevel: 2,
     openNow: true,
-    current_popularity: null,
-    vibe_score: null,
+    current_popularity: currentPopularity,
+    vibe_score: vibeScore,
     trending: false,
     hidden: false,
     signal,
@@ -355,61 +361,36 @@ describe("ExplorePageClient venue search", () => {
     expect(within(results).queryByRole("link", { name: /^Open Neon Lounge/ })).toBeNull();
   });
 
-  it("sorts by Near Me and shows distance badges after geolocation succeeds", async () => {
-    const nearMeVenues = [
-      createVenue({ id: "far-lounge", name: "Far Lounge", category: "lounge", rating: 4.8, lat: 35.23, lng: -80.88 }),
-      createVenue({ id: "near-bar", name: "Near Bar", category: "bar", rating: 4.1, lat: 35.2165, lng: -80.859 }),
-      createVenue({ id: "middle-cafe", name: "Middle Cafe", category: "coffee", rating: 4.6, lat: 35.22, lng: -80.859 }),
-    ];
-    mockFetchWithVenues(nearMeVenues);
-    vi.mocked(navigator.geolocation.getCurrentPosition).mockImplementation((success) => {
-      success({
-        coords: {
-          latitude: 35.2123,
-          longitude: -80.859,
-          accuracy: 12,
-          altitude: null,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-          toJSON() { return {}; },
-        } as GeolocationCoordinates,
-        timestamp: Date.now(),
-        toJSON() { return {}; },
-      } as GeolocationPosition);
-    });
-
-    await renderExplore();
-    fireEvent.click(screen.getByRole("button", { name: "Near Me" }));
-
-    await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByText("0.3 mi")).toBeTruthy());
-
-    const resultLinks = within(venueResults()).getAllByRole("link", { name: /^Open / });
-    expect(resultLinks.map((link) => link.getAttribute("href"))).toEqual([
-      "/venues/near-bar",
-      "/venues/middle-cafe",
-      "/venues/far-lounge",
+  it("sorts by Trending, Most Active, and Highest Rated client-side", async () => {
+    mockFetchWithVenues([
+      createVenue({ id: "low-vibe", name: "Low Vibe", category: "lounge", rating: 4.8, googleRating: 4.8, currentPopularity: 72, vibeScore: 20 }),
+      createVenue({ id: "active-bar", name: "Active Bar", category: "bar", rating: 4.1, googleRating: 4.1, currentPopularity: 96, vibeScore: 40 }),
+      createVenue({ id: "top-rated", name: "Top Rated", category: "coffee", rating: 4.9, googleRating: 4.9, currentPopularity: 44, vibeScore: 92 }),
     ]);
-  });
-
-  it("falls back to the default sort and explains when geolocation is denied", async () => {
-    vi.mocked(navigator.geolocation.getCurrentPosition).mockImplementation((_success, error) => {
-      error?.({
-        code: 1,
-        message: "User denied Geolocation",
-        PERMISSION_DENIED: 1,
-        POSITION_UNAVAILABLE: 2,
-        TIMEOUT: 3,
-      });
-    });
 
     await renderExplore();
-    fireEvent.click(screen.getByRole("button", { name: "Near Me" }));
 
-    expect(await screen.findByText("Location access was denied. Enable location to sort nearby spots.")).toBeTruthy();
-    expect(within(venueResults()).queryByText(/ mi$/)).toBeNull();
-    expect(screen.getByRole("button", { name: "Hottest" }).getAttribute("aria-pressed")).toBe("true");
+    const resultLinks = () => within(venueResults()).getAllByRole("link", { name: /^Open / });
+    expect(screen.getByRole("button", { name: "Trending" }).getAttribute("aria-pressed")).toBe("true");
+    expect(resultLinks().map((link) => link.getAttribute("href"))).toEqual([
+      "/venues/top-rated",
+      "/venues/active-bar",
+      "/venues/low-vibe",
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Most Active" }));
+    expect(resultLinks().map((link) => link.getAttribute("href"))).toEqual([
+      "/venues/active-bar",
+      "/venues/low-vibe",
+      "/venues/top-rated",
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Highest Rated" }));
+    expect(resultLinks().map((link) => link.getAttribute("href"))).toEqual([
+      "/venues/top-rated",
+      "/venues/low-vibe",
+      "/venues/active-bar",
+    ]);
   });
 
   it("manually prefetches venue detail routes once on hover and touch", async () => {

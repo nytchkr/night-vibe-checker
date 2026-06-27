@@ -3,9 +3,9 @@ import dynamic from "next/dynamic";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
 import Script from "next/script";
-import { AppOnboardingGate } from "@/components/AppOnboardingGate";
 import { BottomNav, SidebarNav, YouStreakProvider } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 import { PWAInstallRuntime } from "@/components/PWAInstallRuntime";
 import { RoutePrefetch } from "@/components/RoutePrefetch";
 import { ToastProvider } from "@/hooks/useToast";
@@ -149,7 +149,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 >
                   {children}
                 </main>
-                <AppOnboardingGate />
+                <OnboardingWizard />
               </OnboardingGateProvider>
             </div>
             <PWAInstallRuntime />

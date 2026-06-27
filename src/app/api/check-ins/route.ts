@@ -31,10 +31,14 @@ const POST_RATE_LIMIT_MAX = 10;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const USER_POST_RATE_LIMIT_MAX = 10;
 const USER_POST_RATE_LIMIT_WINDOW_MS = 60 * 60_000;
+const CHECK_IN_RATE_LIMIT_MAX = 3;
+const CHECK_IN_RATE_LIMIT_WINDOW_MS = 60 * 60_000;
 const WRITE_ID_ALLOWLIST = /[^a-zA-Z0-9_-]/g;
 const PRIVATE_GET_CACHE_HEADERS = {
   "Cache-Control": "private, no-cache",
 };
+
+const checkInRateLimit = new Map<string, { count: number; resetAt: number }>();
 
 const BusynessSchema = z.union([
   z.enum(["dead", "moderate", "packed"]),
@@ -273,6 +277,29 @@ function duplicateRetryAfterSeconds(createdAt: string): number {
   return Math.max(1, Math.ceil(retryMs / 1000));
 }
 
+function consumeCheckInRateLimit(userId: string): { allowed: boolean; retryAfter: number } {
+  const now = Date.now();
+  for (const [key, entry] of checkInRateLimit.entries()) {
+    if (entry.resetAt < now) checkInRateLimit.delete(key);
+  }
+
+  const windowId = Math.floor(now / CHECK_IN_RATE_LIMIT_WINDOW_MS);
+  const resetAt = (windowId + 1) * CHECK_IN_RATE_LIMIT_WINDOW_MS;
+  const key = `${userId}:${windowId}`;
+  const entry = checkInRateLimit.get(key);
+  const retryAfter = Math.max(1, Math.ceil(((entry?.resetAt ?? resetAt) - now) / 1000));
+
+  if (entry && entry.count >= CHECK_IN_RATE_LIMIT_MAX) {
+    return { allowed: false, retryAfter };
+  }
+
+  checkInRateLimit.set(key, {
+    count: (entry?.count ?? 0) + 1,
+    resetAt: entry?.resetAt ?? resetAt,
+  });
+  return { allowed: true, retryAfter };
+}
+
 async function getReporterGender(userId: string): Promise<"male" | "female" | null> {
   const { data, error } = await supabaseAdmin
     .from("profiles")
@@ -369,6 +396,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         meta,
       },
       { status: 400, headers: userHeaders }
+    );
+  }
+
+  const checkInRate = consumeCheckInRateLimit(userId);
+  if (!checkInRate.allowed) {
+    return NextResponse.json(
+      { error: "Check-in limit reached. Try again later." },
+      { status: 429, headers: { ...userHeaders, "Retry-After": String(checkInRate.retryAfter) } }
     );
   }
 

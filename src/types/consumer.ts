@@ -104,6 +104,7 @@ export interface ConsumerVenue {
   photoReference?: string;
   photoUrl?: string;
   photoUrls?: string[];
+  photo_urls?: string[];
   phone?: string;
   phoneNumber?: string;
   website?: string;

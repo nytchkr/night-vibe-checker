@@ -23,7 +23,6 @@ import { TrendingBadge } from "@/components/TrendingBadge";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import { getBusynessState } from "@/lib/busyness";
-import { distanceMiles } from "@/lib/distance";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { fetchTrendingVenueIds } from "@/lib/clientTrendingVenueIds";
@@ -41,8 +40,6 @@ const AISuggest = dynamic(
 
 const MotionLink = motion.create(Link);
 
-type UserLocation = { lat: number; lng: number };
-type LocationSortStatus = "idle" | "requesting" | "granted" | "denied" | "unsupported";
 type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
 type TonightPickLabel = "Moderate" | "Packed" | "Wild";
 type ZoneStatsSummary = {
@@ -64,7 +61,7 @@ type ActivityFeedItem = {
 
 const EXPLORE_SORT_STORAGE_KEY = "nv_explore_sort";
 const EXPLORE_SEARCH_STORAGE_KEY = "nv_explore_search";
-const DEFAULT_EXPLORE_SORT: ExploreSortOption = "hottest";
+const DEFAULT_EXPLORE_SORT: ExploreSortOption = "trending";
 const NEIGHBORHOOD_EXPLORE_FILTERS: ExploreFilterOption[] = ["South End", "Uptown", "NoDa", "Dilworth", "South Park"];
 const CATEGORY_EXPLORE_FILTERS: ExploreFilterOption[] = ["bars", "restaurants", "clubs", "coffee"];
 const EXPLORE_FILTER_ZONE_IDS: Partial<Record<ExploreFilterOption, string>> = {
@@ -124,7 +121,7 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
 }
 
 function isExploreSortOption(value: string | null): value is ExploreSortOption {
-  return value === "hottest" || value === "top-rated" || value === "trending" || value === "nearby";
+  return value === "trending" || value === "most-active" || value === "highest-rated";
 }
 
 function getExploreZoneFilter(value: string | null): ExploreFilterOption | null {
@@ -132,22 +129,31 @@ function getExploreZoneFilter(value: string | null): ExploreFilterOption | null 
 }
 
 function getVenueVibeScore(venue: ConsumerVenue): number | null {
-  const score = venue.vibe_score ?? venue.current_popularity ?? venue.signal?.busyness0To100 ?? null;
+  const score = venue.vibe_score ?? null;
   return score == null || !Number.isFinite(score) ? null : score;
 }
 
-function getVenueRating(venue: ConsumerVenue): number | null {
-  const rating = venue.rating ?? venue.googleRating ?? null;
+function getVenueCurrentPopularity(venue: ConsumerVenue): number | null {
+  const popularity = venue.current_popularity ?? null;
+  return popularity == null || !Number.isFinite(popularity) ? null : popularity;
+}
+
+function getVenueGoogleRating(venue: ConsumerVenue): number | null {
+  const rating = venue.googleRating ?? null;
   return rating == null || !Number.isFinite(rating) ? null : rating;
 }
 
-function compareVenueRatingThenName(a: ConsumerVenue, b: ConsumerVenue): number {
-  const aRating = getVenueRating(a);
-  const bRating = getVenueRating(b);
-  if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
-  if (aRating == null) return 1;
-  if (bRating == null) return -1;
-  return bRating - aRating || a.name.localeCompare(b.name);
+function compareVenueMetricThenName(
+  a: ConsumerVenue,
+  b: ConsumerVenue,
+  getMetric: (venue: ConsumerVenue) => number | null,
+): number {
+  const aMetric = getMetric(a);
+  const bMetric = getMetric(b);
+  if (aMetric == null && bMetric == null) return a.name.localeCompare(b.name);
+  if (aMetric == null) return 1;
+  if (bMetric == null) return -1;
+  return bMetric - aMetric || a.name.localeCompare(b.name);
 }
 
 function getVenueOpenNow(venue: ConsumerVenue): boolean | null {
@@ -795,8 +801,6 @@ export function ExplorePageClient() {
   const [exploreSort, setExploreSort] = useState<ExploreSortOption>(DEFAULT_EXPLORE_SORT);
   const [exploreFilters, setExploreFilters] = useState<Set<ExploreFilterOption>>(() => new Set());
   const [hasInitializedExploreFilters, setHasInitializedExploreFilters] = useState(false);
-  const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [locationSortStatus, setLocationSortStatus] = useState<LocationSortStatus>("idle");
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
@@ -886,7 +890,7 @@ export function ExplorePageClient() {
 
   useEffect(() => {
     const storedSort = localStorage.getItem(EXPLORE_SORT_STORAGE_KEY);
-    if (isExploreSortOption(storedSort) && storedSort !== "nearby") setExploreSort(storedSort);
+    if (isExploreSortOption(storedSort)) setExploreSort(storedSort);
 
     const params = new URLSearchParams(window.location.search);
     const initialSearchQuery = params.get("q") ?? sessionStorage.getItem(EXPLORE_SEARCH_STORAGE_KEY) ?? "";
@@ -1027,8 +1031,6 @@ export function ExplorePageClient() {
     };
   }, []);
 
-  const effectiveExploreSort = exploreSort === "nearby" && userLocation ? "nearby" : exploreSort === "nearby" ? DEFAULT_EXPLORE_SORT : exploreSort;
-
   const sortedVenues = useMemo(() => {
     if (venues === undefined) return [];
 
@@ -1051,42 +1053,21 @@ export function ExplorePageClient() {
         activeNeighborhoodFilters.length === 0 || activeNeighborhoodFilters.includes(neighborhoodName as ExploreFilterOption);
       return matchesSearch && matchesOpenNow && matchesCategory && matchesSaved && matchesExploreNeighborhood;
     }).sort((a, b) => {
-      if (effectiveExploreSort === "top-rated") {
-        const aRating = getVenueRating(a);
-        const bRating = getVenueRating(b);
-        if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
-        if (aRating == null) return 1;
-        if (bRating == null) return -1;
-        return bRating - aRating || a.name.localeCompare(b.name);
+      if (exploreSort === "highest-rated") {
+        return compareVenueMetricThenName(a, b, getVenueGoogleRating);
       }
 
-      if (effectiveExploreSort === "trending") {
-        const aTrending = Boolean(a.trending) || trendingVenueIds.has(a.id);
-        const bTrending = Boolean(b.trending) || trendingVenueIds.has(b.id);
-        if (aTrending !== bTrending) return aTrending ? -1 : 1;
-        const aScore = getVenueVibeScore(a) ?? 0;
-        const bScore = getVenueVibeScore(b) ?? 0;
-        return bScore - aScore || compareVenueRatingThenName(a, b);
+      if (exploreSort === "most-active") {
+        return compareVenueMetricThenName(a, b, getVenueCurrentPopularity);
       }
 
-      if (effectiveExploreSort === "nearby" && userLocation) {
-        const aDistance = distanceMiles(userLocation.lat, userLocation.lng, a.lat, a.lng);
-        const bDistance = distanceMiles(userLocation.lat, userLocation.lng, b.lat, b.lng);
-        return aDistance - bDistance || a.name.localeCompare(b.name);
-      }
-
-      if (effectiveExploreSort === "hottest") {
-        const aScore = getVenueVibeScore(a);
-        const bScore = getVenueVibeScore(b);
-        if (aScore == null && bScore == null) return compareVenueRatingThenName(a, b);
-        if (aScore == null) return 1;
-        if (bScore == null) return -1;
-        return bScore - aScore || compareVenueRatingThenName(a, b);
+      if (exploreSort === "trending") {
+        return compareVenueMetricThenName(a, b, getVenueVibeScore);
       }
 
       return a.name.localeCompare(b.name);
     });
-  }, [debouncedSearchQuery, effectiveExploreSort, exploreFilters, savedIds, trendingVenueIds, userLocation, venues]);
+  }, [debouncedSearchQuery, exploreFilters, exploreSort, savedIds, venues]);
 
   const prefetchVenueDetail = useCallback((venueId: string) => {
     if (prefetchedVenueIdsRef.current.has(venueId)) return;
@@ -1105,7 +1086,7 @@ export function ExplorePageClient() {
       .sort((a, b) => {
         const aBusyness = a.signal?.busyness0To100 ?? 0;
         const bBusyness = b.signal?.busyness0To100 ?? 0;
-        return bBusyness - aBusyness || compareVenueRatingThenName(a, b);
+        return bBusyness - aBusyness || compareVenueMetricThenName(a, b, getVenueGoogleRating);
       })
       .slice(0, 5);
   }, [venues]);
@@ -1119,7 +1100,7 @@ export function ExplorePageClient() {
       .sort((a, b) => {
         const aBusyness = getActiveBusyness(a) ?? 0;
         const bBusyness = getActiveBusyness(b) ?? 0;
-        return bBusyness - aBusyness || compareVenueRatingThenName(a, b);
+        return bBusyness - aBusyness || compareVenueMetricThenName(a, b, getVenueGoogleRating);
       })
       .slice(0, 3);
   }, [sortedVenues, venues]);
@@ -1149,18 +1130,6 @@ export function ExplorePageClient() {
     };
   }, [exploreFilters, venues]);
 
-  const showNearbyDistances = effectiveExploreSort === "nearby" && userLocation !== null;
-  const venueDistances = useMemo(() => {
-    if (!showNearbyDistances || !userLocation || venues === undefined) return new Map<string, number>();
-
-    return new Map(
-      venues.map((venue) => [
-        venue.id,
-        distanceMiles(userLocation.lat, userLocation.lng, venue.lat, venue.lng),
-      ]),
-    );
-  }, [showNearbyDistances, userLocation, venues]);
-
   const venuesCount = venues?.length ?? 0;
   const searchedLocationCenter = getSearchedLocationCenter(searchQuery);
   const showOutOfZoneSearchBanner = searchedLocationCenter
@@ -1188,41 +1157,7 @@ export function ExplorePageClient() {
     searchInputRef.current?.focus();
   }
 
-  function requestNearbySort() {
-    if (!("geolocation" in navigator)) {
-      setUserLocation(null);
-      setLocationSortStatus("unsupported");
-      setExploreSort(DEFAULT_EXPLORE_SORT);
-      trackAnalytics("explore_nearby_location_unavailable", { reason: "unsupported" });
-      return;
-    }
-
-    setLocationSortStatus("requesting");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        setLocationSortStatus("granted");
-        setExploreSort("nearby");
-        trackAnalytics("explore_nearby_location_granted", { accuracy: Math.round(position.coords.accuracy ?? 0) });
-      },
-      (positionError) => {
-        setUserLocation(null);
-        setLocationSortStatus(positionError.code === positionError.PERMISSION_DENIED ? "denied" : "unsupported");
-        setExploreSort(DEFAULT_EXPLORE_SORT);
-        trackAnalytics("explore_nearby_location_denied", { code: positionError.code });
-      },
-      { maximumAge: 5 * 60 * 1000, timeout: 8000 },
-    );
-  }
-
   function selectExploreSort(option: ExploreSortOption) {
-    if (option === "nearby") {
-      requestNearbySort();
-      return;
-    }
     setExploreSort(option);
     trackAnalytics("explore_filter_selected", { filter: option });
   }
@@ -1422,23 +1357,17 @@ export function ExplorePageClient() {
             )}
 
             <ExploreSortFilter
-              selectedSort={effectiveExploreSort}
+              selectedSort={exploreSort}
               selectedFilters={exploreFilters}
-              nearbyLoading={locationSortStatus === "requesting"}
               savedCount={savedCount}
               onSortChange={selectExploreSort}
               onFilterToggle={toggleExploreFilter}
             />
-            {(locationSortStatus === "denied" || locationSortStatus === "unsupported") && (
-              <p role="status" className="text-xs font-semibold text-[#FFB020]">
-                Location access was denied. Enable location to sort nearby spots.
-              </p>
-            )}
           </div>
 
           <AISuggest
-            userLat={userLocation?.lat ?? null}
-            userLng={userLocation?.lng ?? null}
+            userLat={null}
+            userLng={null}
             className="mt-4"
           />
 
@@ -1532,7 +1461,7 @@ export function ExplorePageClient() {
                     key={venue.id}
                     venue={venue}
                     searchQuery={debouncedSearchQuery}
-                    distance={showNearbyDistances ? venueDistances.get(venue.id) ?? null : null}
+                    distance={null}
                     index={index}
                     prefersReduced={prefersReduced}
                     isTrending={trendingVenueIds.has(venue.id)}

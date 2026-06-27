@@ -15,9 +15,11 @@ type PushOptInProps = {
   venueId?: string;
   venueName?: string;
   className?: string;
+  buttonLabel?: string;
+  onAttemptComplete?: () => void;
 };
 
-export function PushOptIn({ accessToken, venueId, venueName, className }: PushOptInProps) {
+export function PushOptIn({ accessToken, venueId, venueName, className, buttonLabel, onAttemptComplete }: PushOptInProps) {
   const haptic = useHaptic();
   const { showToast } = useToast();
   const [state, setState] = useState<PushState>("idle");
@@ -49,6 +51,7 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
     if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setState("unsupported");
       showToast("Not supported in this browser", "info");
+      onAttemptComplete?.();
       return;
     }
 
@@ -59,6 +62,7 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
       if (!token) {
         setState("error");
         showToast("Sign in to enable alerts", "error");
+        onAttemptComplete?.();
         return;
       }
 
@@ -67,6 +71,7 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
         const permission = Notification.permission;
         setState("denied");
         showToast(permission === "denied" ? "Enable notifications in browser settings" : "Notifications are unavailable here", "info");
+        onAttemptComplete?.();
         return;
       }
 
@@ -75,10 +80,12 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
       setState("success");
       showToast(venueName ? `We'll alert you when ${venueName} gets busy.` : "Busy venue alerts are on.", "success");
       haptic.success();
+      onAttemptComplete?.();
     } catch {
       setState("error");
       showToast("Could not enable alerts", "error");
       haptic.error();
+      onAttemptComplete?.();
     }
   }
 
@@ -110,7 +117,7 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
           ) : subscribed ? (
             "Enabled"
           ) : (
-            "Notify me when it gets busy"
+            buttonLabel ?? "Notify me when it gets busy"
           )}
         </Button>
       </div>

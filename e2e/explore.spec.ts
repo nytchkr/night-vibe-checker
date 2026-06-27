@@ -22,6 +22,9 @@ const venues = [
     photoUrl: null,
     openNow: true,
     hidden: false,
+    vibe_score: 91,
+    current_popularity: 68,
+    googleRating: 4.6,
     signal: {
       venueId: "explore-packed-1",
       placeId: "place-explore-packed-1",
@@ -47,6 +50,9 @@ const venues = [
     photoUrl: null,
     openNow: true,
     hidden: false,
+    vibe_score: 42,
+    current_popularity: 94,
+    googleRating: 4.2,
     signal: {
       venueId: "explore-quiet-1",
       placeId: "place-explore-quiet-1",
@@ -72,6 +78,9 @@ const venues = [
     photoUrl: null,
     openNow: true,
     hidden: false,
+    vibe_score: null,
+    current_popularity: null,
+    googleRating: 4.9,
     signal: {
       venueId: "explore-null-1",
       placeId: "place-explore-null-1",
@@ -180,9 +189,9 @@ test.describe("Explore tab", () => {
     await expect(page.getByRole("button", { name: "Restaurants" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Clubs" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Coffee" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Hottest" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Top Rated" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Trending" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Most Active" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Highest Rated" })).toBeVisible();
   });
 
   test("shows Trending Now above search and links to venue detail", async ({ page }) => {
@@ -248,83 +257,23 @@ test.describe("Explore tab", () => {
     await expect(searchBox).toBeFocused();
   });
 
-  test("sorts by busyness with null crowd data last", async ({ page }) => {
+  test("sorts by vibe score, current popularity, and Google rating", async ({ page }) => {
     await page.goto("/explore");
 
     const cards = page.getByRole("article");
     await expect(cards.first()).toContainText("Pulse Room");
     await expect(cards.nth(2)).toContainText("Zero Proof");
 
-    await page.getByRole("button", { name: "Top Rated" }).click();
+    await page.getByRole("button", { name: "Most Active" }).click();
 
-    await expect(cards.first()).toContainText("Pulse Room");
-    await expect(cards.nth(2)).toContainText("Zero Proof");
-
-    await page.getByRole("button", { name: "Hottest" }).click();
-
-    await expect(cards.first()).toContainText("Pulse Room");
-    await expect(cards.nth(2)).toContainText("Zero Proof");
-  });
-
-  test("Near Me sort requests location, sorts by distance, and shows distance badges", async ({ page }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "geolocation", {
-        configurable: true,
-        value: {
-          getCurrentPosition(success: PositionCallback) {
-            success({
-              coords: {
-                latitude: 35.214,
-                longitude: -80.863,
-                accuracy: 10,
-                altitude: null,
-                altitudeAccuracy: null,
-                heading: null,
-                speed: null,
-              },
-              timestamp: Date.now(),
-            } as GeolocationPosition);
-          },
-        },
-      });
-    });
-
-    await page.goto("/explore");
-    await page.getByRole("button", { name: "Near Me" }).click();
-
-    const cards = page.getByRole("article");
     await expect(cards.first()).toContainText("Lowlight Lounge");
-    await expect(cards.first()).toContainText("0.0 mi");
-    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toContainText(/\d\.\d mi/);
-  });
+    await expect(cards.nth(2)).toContainText("Zero Proof");
 
-  test("Near Me sort falls back to default sort when location is denied", async ({ page }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "geolocation", {
-        configurable: true,
-        value: {
-          getCurrentPosition(_success: PositionCallback, error?: PositionErrorCallback | null) {
-            error?.({
-              code: 1,
-              message: "User denied Geolocation",
-              PERMISSION_DENIED: 1,
-              POSITION_UNAVAILABLE: 2,
-              TIMEOUT: 3,
-            } as GeolocationPositionError);
-          },
-        },
-      });
-    });
+    await page.getByRole("button", { name: "Highest Rated" }).click();
 
-    await page.goto("/explore");
-    await page.getByRole("button", { name: "Near Me" }).click();
-
-    await expect(page.getByText("Enable location for nearby sorting")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Hottest" })).toHaveAttribute("aria-pressed", "true");
-
-    const cards = page.getByRole("article");
+    await expect(cards.first()).toContainText("Zero Proof");
+    await page.getByRole("button", { name: "Trending" }).click();
     await expect(cards.first()).toContainText("Pulse Room");
-    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).not.toContainText(/\d\.\d mi/);
   });
 
   test("shows honest empty venue and sparse signal states", async ({ page }) => {
