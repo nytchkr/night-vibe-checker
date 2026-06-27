@@ -10,7 +10,7 @@ import { ArrowLeft, Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "l
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { CheckInButton } from "@/components/CheckInButton";
-import { MFRatioBar, getMFRatioPercents, MIN_SAMPLE_SIZE_FOR_RATIO } from "@/components/MFRatioBar";
+import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { RatingPrompt } from "@/components/RatingPrompt";
@@ -290,7 +290,7 @@ function getCrowdFeel(malePercent: number | null): { emoji: string; label: strin
 function getBusynessColor(percent: number): string {
   if (percent >= 67) return "#FF5B6A";
   if (percent >= 34) return "#FFB020";
-  return "#5C6573";
+  return "#00F5D4";
 }
 
 function getBusynessLabel(percent: number): string {
@@ -1464,13 +1464,18 @@ export function VenuePageClient({
               )}
             </section>
 
-            <VenuePredictionCard venueId={venue.id} />
+            <VenuePredictionCard
+              venueId={venue.id}
+              checkInCount={mfSampleSize}
+              hasBestTimeVenue={Boolean(venue.besttimeVenueId)}
+              hourlyForecast={nextSixForecast}
+              hourlyLoading={bestTimeForecastLoading}
+              hourlyUpdatedOn={bestTimeForecastUpdatedOn}
+            />
 
             <VenueRating venueId={venueId} accessToken={accessToken} />
 
             <VenueTips venueId={venue.id} />
-
-            {/* BestTime forecast surfaced via VenuePredictionCard above */}
 
             <div className="grid gap-3" role="group" aria-label="Venue sharing and directions">
               <a

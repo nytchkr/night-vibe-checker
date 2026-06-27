@@ -10,11 +10,11 @@ test.describe("Onboarding overlay", () => {
 
     const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
     await expect(overlay).toBeVisible();
-    await expect(page.getByRole("button", { name: "South End" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Dilworth" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "South Park" })).toBeVisible();
+    await expect(overlay.getByRole("button", { name: /^South End\b/ })).toBeVisible();
+    await expect(overlay.getByRole("button", { name: /^Dilworth\b/ })).toBeVisible();
+    await expect(overlay.getByRole("button", { name: /^South Park\b/ })).toBeVisible();
 
-    await page.getByRole("button", { name: "Skip, show me everything" }).click();
+    await overlay.getByRole("button", { name: "Skip, show me everything" }).click();
 
     await expect(overlay).toHaveCount(0);
     await expect(page.evaluate(() => window.localStorage.getItem("nv_onboarded"))).resolves.toBe("true");
@@ -28,7 +28,9 @@ test.describe("Onboarding overlay", () => {
     });
     await page.goto("/map");
 
-    await page.getByRole("button", { name: "South Park" }).click();
+    const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
+    await expect(overlay).toBeVisible();
+    await overlay.getByRole("button", { name: /^South Park\b/ }).click();
 
     await expect(page).toHaveURL(/\/explore\?zone=south-park-charlotte/);
     await expect(page.evaluate(() => window.localStorage.getItem("nv_onboarded"))).resolves.toBe("true");

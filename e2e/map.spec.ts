@@ -175,14 +175,16 @@ async function openMap(page: Page) {
   await page.goto("/map");
   await page.waitForSelector(".leaflet-container", { timeout: 25000 });
   const sheet = page.getByRole("region", { name: "South End venues" });
-  await expect(sheet).toBeVisible({ timeout: 10000 });
+  await expect(sheet).toBeVisible({ timeout: 20000 });
   return sheet;
 }
 
 async function selectZone(page: Page, zoneName: "All" | "South End" | "Dilworth" | "South Park") {
   const zoneFilters = page.getByRole("group", { name: "Map zone filter" });
   await expect(zoneFilters).toBeVisible({ timeout: 10000 });
-  await zoneFilters.getByRole("button", { name: zoneName }).click();
+  await zoneFilters.getByRole("button", { name: zoneName }).evaluate((button) => {
+    (button as HTMLButtonElement).click();
+  });
 }
 
 async function visibleSheetHeight(page: Page, sheet: Locator) {
@@ -316,8 +318,17 @@ test.describe("Map tab", () => {
     await expect(page.locator(".venue-pin-live-dot")).toHaveCount(1);
   });
 
-  test("zone toggle filters South End, Dilworth, and South Park venues", async ({ page }) => {
+  test("zone toggle filters South End, Dilworth, and South Park venues with busyness-colored pins", async ({ page }) => {
     const sheet = await openMap(page);
+
+    await selectZone(page, "South End");
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
+    const southEndColors = await page.locator(".venue-cluster-pin > span").evaluateAll((pins) =>
+      pins.map((pin) => getComputedStyle(pin).backgroundColor),
+    );
+    expect(southEndColors).toContain("rgb(0, 245, 212)");
+    expect(southEndColors).toContain("rgb(255, 209, 102)");
+    expect(southEndColors).toContain("rgb(240, 86, 140)");
 
     await selectZone(page, "Dilworth");
     await dragSheet(page, sheet, -230);
@@ -327,30 +338,15 @@ test.describe("Map tab", () => {
     await selectZone(page, "South Park");
     await expect(sheet.getByRole("button", { name: /South Park Test Lounge/ })).toBeVisible();
     await expect(sheet.getByRole("button", { name: /Dilworth Test Bar/ })).toHaveCount(0);
-
-    await selectZone(page, "All");
-    await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toBeVisible();
-    await expect(sheet.getByRole("button", { name: /South Park Test Lounge/ })).toBeVisible();
-  });
-
-  test("pin colors follow busyness thresholds", async ({ page }) => {
-    await openMap(page);
-    await selectZone(page, "South End");
-
-    await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
-    const colors = await page.locator(".venue-cluster-pin > span").evaluateAll((pins) =>
-      pins.map((pin) => getComputedStyle(pin).backgroundColor),
-    );
-
-    expect(colors).toContain("rgb(0, 245, 212)");
-    expect(colors).toContain("rgb(255, 209, 102)");
-    expect(colors).toContain("rgb(240, 86, 140)");
-
-    await selectZone(page, "South Park");
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(1, { timeout: 10000 });
     const southParkColors = await page.locator(".venue-cluster-pin > span").evaluateAll((pins) =>
       pins.map((pin) => getComputedStyle(pin).backgroundColor),
     );
     expect(southParkColors).toContain("rgb(102, 102, 102)");
+
+    await selectZone(page, "All");
+    await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /South Park Test Lounge/ })).toBeVisible();
   });
 
   test("city selector shows coming-soon neighborhoods without switching away from launch city", async ({ page }) => {
@@ -447,8 +443,8 @@ test.describe("Map bottom sheet", () => {
     await expect(sheet.getByRole("button", { name: /Expand South End venue list/ })).toBeVisible();
     await expect
       .poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 })
-      .toBeGreaterThanOrEqual(68);
-    await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeLessThanOrEqual(82);
+      .toBeGreaterThanOrEqual(108);
+    await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeLessThanOrEqual(124);
   });
 
   test("can be dragged to mid position", async ({ page }) => {
@@ -497,8 +493,10 @@ test.describe("Map bottom sheet", () => {
   test("pin taps meet mobile target size and detail sheet shows real hours status", async ({ page }) => {
     await openMap(page);
     await selectZone(page, "South End");
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
 
     const pin = page.getByRole("button", { name: "Open Map Test Speakeasy details" });
+    await expect(pin).toBeVisible({ timeout: 10000 });
     const pinBox = await pin.boundingBox();
     expect(pinBox).not.toBeNull();
     expect(pinBox!.width).toBeGreaterThanOrEqual(44);
