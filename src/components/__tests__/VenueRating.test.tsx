@@ -85,7 +85,7 @@ describe("VenueRating", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("prompts signed-out users to sign in instead of submitting", async () => {
+  it("prompts signed-out users to sign in instead of showing rating controls", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       status: "success",
       data: { averageRating: 4, ratingCount: 2, userRating: null },
@@ -94,10 +94,8 @@ describe("VenueRating", () => {
 
     renderVenueRating({ accessToken: null, userId: null });
 
-    await waitFor(() => expect(screen.getByRole("button", { name: "Rate 3 stars" }).hasAttribute("disabled")).toBe(false));
-    await userEvent.click(screen.getByRole("button", { name: "Rate 3 stars" }));
-
-    await waitFor(() => expect(screen.getAllByText("Sign in to rate")).toHaveLength(2));
+    await screen.findByText("Sign in to rate");
+    expect(screen.queryByRole("button", { name: /Rate \d stars?/ })).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

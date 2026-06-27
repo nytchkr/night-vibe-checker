@@ -28,7 +28,7 @@ import { VenueTips } from "@/components/VenueTips";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { createBrowserClient } from "@/lib/supabase-browser";
-import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
+import { fetchTrendingVenueIds } from "@/lib/clientTrendingVenueIds";
 import { summarizeVenueHours } from "@/lib/venueHours";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";

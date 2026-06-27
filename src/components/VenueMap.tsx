@@ -9,6 +9,8 @@ import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
+import { AnimatePresence } from "framer-motion";
+import { aside as MotionAside } from "framer-motion/client";
 import { Check, ChevronDown, LocateFixed, MapPin, RefreshCw, Search, X } from "lucide-react";
 import { Circle, CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
@@ -20,17 +22,13 @@ import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
 import { prefetchRoute } from "@/components/RoutePrefetch";
-import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
+import { fetchTrendingVenueIds } from "@/lib/clientTrendingVenueIds";
 import { useDevice } from "@/lib/useDevice";
 import type { City, CityId } from "@/lib/cities";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { MapSheetSnap } from "@/components/MapBottomSheet";
 
 const MapBottomSheet = dynamic(() => import("@/components/MapBottomSheet"), {
-  ssr: false,
-  loading: () => null,
-});
-const VenueBottomSheet = dynamic(() => import("@/components/VenueBottomSheet"), {
   ssr: false,
   loading: () => null,
 });
@@ -292,6 +290,14 @@ function UserLocationDot({ location }: { location: [number, number] | null }) {
   );
 }
 
+function DismissMapPopupOnBackgroundTap({ onDismiss }: { onDismiss: () => void }) {
+  useMapEvents({
+    click: onDismiss,
+  });
+
+  return null;
+}
+
 function ViewportVenueCountTracker({
   onCountChange,
   venues,
@@ -423,7 +429,10 @@ function ClusteredVenueMarkers({
       marker.on("mouseover", () => {
         prefetchRoute(router, `/venues/${encodeURIComponent(venue.id)}`);
       });
-      marker.on("click", () => onVenueClick(venue));
+      marker.on("click", (event) => {
+        L.DomEvent.stop(event);
+        onVenueClick(venue);
+      });
       clusterGroup.addLayer(marker);
     });
 
@@ -981,6 +990,87 @@ function FilterFab({
   );
 }
 
+function venueHref(venue: ConsumerVenue) {
+  return `/venues/${encodeURIComponent(venue.slug || venue.id)}`;
+}
+
+function MarkerVenuePopup({
+  onClose,
+  venue,
+}: {
+  onClose: () => void;
+  venue: ConsumerVenue | null;
+}) {
+  const busyness = venue?.signal?.busyness0To100;
+  const busynessPct = typeof busyness === "number" && Number.isFinite(busyness)
+    ? Math.max(0, Math.min(100, busyness))
+    : 0;
+  const busynessLabel = venue ? getBusynessState(busyness).label : "No data yet";
+
+  return (
+    <AnimatePresence>
+      {venue && (
+        <MotionAside
+          key={venue.id}
+          role="dialog"
+          aria-modal="false"
+          aria-label={`${venue.name} map preview`}
+          className="fixed inset-x-0 bottom-0 z-[1200] px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4"
+          initial={{ y: "110%", opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: "110%", opacity: 0 }}
+          transition={{ type: "spring", stiffness: 420, damping: 36, mass: 0.9 }}
+        >
+          <div className="mx-auto w-full max-w-lg rounded-t-[18px] border border-white/[0.08] bg-[#0A0A0E]/96 p-4 shadow-[0_-24px_70px_rgba(0,0,0,0.66),0_0_32px_rgba(139,108,255,0.14)] backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <h2 className="truncate text-xl font-black leading-tight text-white">{venue.name}</h2>
+                  {venue.openNow && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#00F5D4]/35 bg-[#00F5D4]/12 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-[#00F5D4]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#00F5D4] shadow-[0_0_10px_rgba(0,245,212,0.7)]" aria-hidden="true" />
+                      Open now
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 truncate text-xs font-semibold text-white/50">{venue.category}</p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close venue popup"
+                onClick={onClose}
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                <X aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-4" aria-label={`Busyness ${busynessPct}%`}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-black uppercase text-white/45">Busyness</span>
+                <span className="text-xs font-black text-white/70">{busyness == null ? busynessLabel : `${busynessPct}%`}</span>
+              </div>
+              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/[0.08]">
+                <div
+                  className="venue-fill-motion h-full rounded-full bg-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.55)]"
+                  style={{ width: `${busynessPct}%` }}
+                />
+              </div>
+            </div>
+
+            <Link
+              href={venueHref(venue)}
+              className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_22px_rgba(139,108,255,0.34)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+            >
+              View Details
+            </Link>
+          </div>
+        </MotionAside>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function VenueFilterSheet({
   activeCategoryFilter,
   isOpen,
@@ -1127,7 +1217,7 @@ export function VenueMap({
   const { isDesktop } = useDevice();
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
-  const [detailVenueId, setDetailVenueId] = useState<string | null>(null);
+  const [markerPopupVenueId, setMarkerPopupVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeZoneFilter, setActiveZoneFilter] = useState<ZoneFilterId>(ALL_ZONES_FILTER);
@@ -1268,16 +1358,16 @@ export function VenueMap({
   const activeZoneLabel = activeZoneFilter === ALL_ZONES_FILTER
     ? "this zone"
     : ZONE_FILTERS.find((zone) => zone.id === activeZoneFilter)?.label ?? "this zone";
-  const detailVenue = useMemo(
-    () => (detailVenueId ? venues.find((venue) => venue.id === detailVenueId) ?? null : null),
-    [detailVenueId, venues],
+  const markerPopupVenue = useMemo(
+    () => (markerPopupVenueId ? venues.find((venue) => venue.id === markerPopupVenueId) ?? null : null),
+    [markerPopupVenueId, venues],
   );
 
   useEffect(() => {
     if (!selectedVenueId) return;
     if (filteredVenues.some((venue) => venue.id === selectedVenueId)) return;
     setSelectedVenueId(null);
-    setDetailVenueId(null);
+    setMarkerPopupVenueId(null);
   }, [filteredVenues, selectedVenueId]);
 
   useEffect(() => {
@@ -1292,6 +1382,7 @@ export function VenueMap({
   const selectVenueFromList = useCallback((venue: ConsumerVenue) => {
     haptic.light();
     setSelectedVenueId(venue.id);
+    setMarkerPopupVenueId(null);
     setSheetSnap("mid");
     mapRef.current?.flyTo([venue.lat, venue.lng], Math.max(mapRef.current.getZoom(), 16), {
       animate: true,
@@ -1310,9 +1401,13 @@ export function VenueMap({
     haptic.light();
     trackAnalytics("map_pin_tapped", { venueId: venue.id });
     setSelectedVenueId(venue.id);
-    setDetailVenueId(venue.id);
-    setSheetSnap("mid");
+    setMarkerPopupVenueId(venue.id);
+    setSheetSnap("collapsed");
   }, [haptic]);
+
+  const dismissMarkerPopup = useCallback(() => {
+    setMarkerPopupVenueId(null);
+  }, []);
 
   return (
     <main
@@ -1372,6 +1467,7 @@ export function VenueMap({
           <ZoneBoundaryCircles />
           <UserLocationDot location={userLocation} />
           <ViewportVenueCountTracker venues={filteredVenues} onCountChange={setVisibleViewportVenueCount} />
+          <DismissMapPopupOnBackgroundTap onDismiss={dismissMarkerPopup} />
 
           <ClusteredVenueMarkers
             venues={filteredVenues}
@@ -1487,11 +1583,7 @@ export function VenueMap({
         venues={filteredVenues}
       />
 
-      <VenueBottomSheet
-        loading={detailVenueId !== null && !detailVenue}
-        venue={detailVenue}
-        onClose={() => setDetailVenueId(null)}
-      />
+      <MarkerVenuePopup venue={markerPopupVenue} onClose={dismissMarkerPopup} />
 
       <style jsx global>{`
         .venue-pin-packed {

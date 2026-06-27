@@ -27,7 +27,7 @@ import { getBusynessState } from "@/lib/busyness";
 import { distanceMiles } from "@/lib/distance";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
-import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
+import { fetchTrendingVenueIds } from "@/lib/clientTrendingVenueIds";
 import { inZone } from "@/lib/zone";
 import { isOnboardingZoneId, PREFERRED_ZONE_STORAGE_KEY, type OnboardingZone } from "@/lib/onboarding";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";

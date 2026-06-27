@@ -195,19 +195,21 @@ export function VenueRating({
           )}
           {readOnly && <p className="mt-1 text-[12px] text-[#9CA2AE]">Sign in to rate</p>}
         </div>
-        <div className="flex items-center gap-1.5" aria-busy={loading}>
-          {[1, 2, 3, 4, 5].map((rating) => (
-            <StarButton
-              key={rating}
-              disabled={disabled}
-              filled={(ratingState.userRating ?? 0) >= rating}
-              rating={rating}
-              onClick={() => void submitRating(rating)}
-            />
-          ))}
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-1.5" aria-busy={loading}>
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <StarButton
+                key={rating}
+                disabled={disabled}
+                filled={(ratingState.userRating ?? 0) >= rating}
+                rating={rating}
+                onClick={() => void submitRating(rating)}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      {hasNoRatings && (
+      {hasNoRatings && !readOnly && (
         <p className="text-[13px] italic text-[#9CA2AE]">Tap a star to add your rating</p>
       )}
       {error && <p className="text-[12px] text-[#FF5B6A]">{error}</p>}
