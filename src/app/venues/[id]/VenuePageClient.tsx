@@ -29,11 +29,10 @@ import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
+import { summarizeVenueHours } from "@/lib/venueHours";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
-
-const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 type VenueActivityItem = {
   displayName: string;
@@ -134,28 +133,6 @@ function timeAgo(iso: string | null | undefined): string {
   return days === 1 ? "1d ago" : `${days}d ago`;
 }
 
-function formatHoursText(hours: string): string {
-  const separatorIndex = hours.indexOf(":");
-  const value = separatorIndex >= 0 ? hours.slice(separatorIndex + 1) : hours;
-  return value.trim().replace(/\s+-\s+/, " – ");
-}
-
-function getHoursDay(hours: string): string | null {
-  return hours.match(/^([^:]+):/)?.[1]?.trim() ?? null;
-}
-
-function isClosedHours(hoursText: string): boolean {
-  return /\bclosed\b/i.test(hoursText);
-}
-
-function formatShortTime(time: string): string {
-  return time
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/:00\s*/i, " ")
-    .replace(/\b(am|pm)\b/i, (period) => period.toUpperCase());
-}
-
 function getCurrentPositionForReport(): Promise<{ lat: number; lng: number } | null> {
   if (typeof navigator === "undefined" || !navigator.geolocation) return Promise.resolve(null);
 
@@ -174,72 +151,6 @@ function rewardToast(pointsAwarded: number, events: string[]): string {
   if (events.includes("first_report")) parts.push("first report tonight +5");
   if (events.includes("streak")) parts.push("streak +20");
   return parts.join(" · ");
-}
-
-function parseTimeToMinutes(time: string): number | null {
-  const match = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
-  if (!match) return null;
-
-  const hour = Number(match[1]);
-  const minutes = Number(match[2] ?? "0");
-  const period = match[3].toUpperCase();
-  if (hour < 1 || hour > 12 || minutes < 0 || minutes > 59) return null;
-
-  const hour24 = period === "AM"
-    ? hour === 12 ? 0 : hour
-    : hour === 12 ? 12 : hour + 12;
-  return hour24 * 60 + minutes;
-}
-
-function parseHoursRange(hoursText: string): { open: string; close: string; openMinutes: number; closeMinutes: number } | null {
-  if (isClosedHours(hoursText)) return null;
-
-  const [open, close] = hoursText.split(/\s*[–-]\s*/);
-  if (!open || !close) return null;
-
-  const openMinutes = parseTimeToMinutes(open);
-  const closeMinutes = parseTimeToMinutes(close);
-  if (openMinutes == null || closeMinutes == null) return null;
-
-  return { open, close, openMinutes, closeMinutes };
-}
-
-function formatTodayHoursStatus(hoursEntry: string | undefined, previousHoursEntry: string | undefined): string {
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-  if (previousHoursEntry) {
-    const previousRange = parseHoursRange(formatHoursText(previousHoursEntry));
-    if (previousRange && previousRange.closeMinutes <= previousRange.openMinutes && nowMinutes <= previousRange.closeMinutes) {
-      return `Open until ${formatShortTime(previousRange.close)}`;
-    }
-  }
-
-  if (!hoursEntry) return "Closed";
-
-  const hoursText = formatHoursText(hoursEntry);
-  if (isClosedHours(hoursText)) return "Closed";
-
-  const range = parseHoursRange(hoursText);
-  if (!range) return hoursText;
-
-  const closeMinutes = range.closeMinutes <= range.openMinutes
-    ? range.closeMinutes + 24 * 60
-    : range.closeMinutes;
-
-  if (nowMinutes < range.openMinutes) return `Opens at ${formatShortTime(range.open)}`;
-  if (nowMinutes <= closeMinutes) return `Open until ${formatShortTime(range.close)}`;
-  return "Closed";
-}
-
-function formatWeekHours(hoursEntry: string): { day: string; hours: string; closed: boolean } {
-  const day = getHoursDay(hoursEntry) ?? "";
-  const hours = formatHoursText(hoursEntry);
-  return {
-    day,
-    hours: isClosedHours(hours) ? "Closed" : hours.split(/\s*[–-]\s*/).map(formatShortTime).join(" – "),
-    closed: isClosedHours(hours),
-  };
 }
 
 function formatReviewCount(count: number | null | undefined): string | null {
@@ -1075,20 +986,7 @@ export function VenuePageClient({
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
   const googleReviewLabel = formatReviewCount(venue?.userRatingCount ?? venue?.totalRatings);
   const neighborhood = venue ? getNeighborhood(venue.lat, venue.lng) : "Charlotte";
-  const hoursSummary = useMemo(() => {
-    const openingHours = venue?.openingHours ?? [];
-    const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
-    const previousDay = WEEKDAYS[(WEEKDAYS.indexOf(today) + WEEKDAYS.length - 1) % WEEKDAYS.length];
-    const todayHours = openingHours.find((hours) => getHoursDay(hours) === today);
-    const previousHours = openingHours.find((hours) => getHoursDay(hours) === previousDay);
-
-    return {
-      hasHours: openingHours.length > 0,
-      todayStatus: formatTodayHoursStatus(todayHours, previousHours),
-      weekHours: openingHours.map(formatWeekHours),
-      today,
-    };
-  }, [venue?.openingHours]);
+  const hoursSummary = useMemo(() => summarizeVenueHours(venue?.openingHours), [venue?.openingHours]);
   const mapsHref = useMemo(() => {
     if (!venue) return "#";
     if (venue.googleMapsUri?.includes("google.com/maps")) return venue.googleMapsUri;
@@ -1105,11 +1003,11 @@ export function VenuePageClient({
     : hoursSummary.hasHours
       ? hoursSummary.todayStatus
       : venue?.openNow == null
-        ? "Hours unknown"
+        ? "Hours not available"
         : "Open now";
   const statusClassName = statusText.startsWith("Open")
     ? "text-[#8B6CFF]"
-    : statusText === "Hours unknown"
+    : statusText === "Hours not available"
       ? "text-[#9CA2AE]"
       : "text-[#F0568C]";
   const isTrending = venue ? trendingVenueIds.has(venue.id) : false;
@@ -1291,7 +1189,7 @@ export function VenuePageClient({
                     <span>
                       <span className="block text-sm font-black text-white">Hours</span>
                       <span className="mt-1 block text-[13px] font-medium text-white/45">
-                        {hoursSummary.hasHours ? hoursSummary.todayStatus : "Hours unknown"}
+                        {hoursSummary.hasHours ? hoursSummary.todayStatus : "Hours not available"}
                       </span>
                     </span>
                     <ChevronDown
@@ -1309,7 +1207,7 @@ export function VenuePageClient({
                             <li
                               key={`${hour.day}-${index}`}
                               className={`grid grid-cols-[6.5rem_1fr] gap-3 text-[13px] ${
-                                isToday ? "text-[#8B6CFF]" : hour.closed ? "text-white/35" : "text-white/55"
+                                isToday ? "text-[#8B6CFF]" : hour.closed || !hour.available ? "text-white/35" : "text-white/55"
                               }`}
                             >
                               <span className="font-bold">{hour.day}</span>
@@ -1320,7 +1218,7 @@ export function VenuePageClient({
                       </ul>
                     ) : (
                       <p id={hoursPanelId} className="mt-2 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-[13px] font-medium text-white/45">
-                        Hours unknown
+                        Hours not available
                       </p>
                     )
                   )}

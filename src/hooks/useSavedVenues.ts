@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { subscribeToPush } from "@/lib/push";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
 export const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
@@ -37,20 +36,6 @@ function readSavedIds(json: SavedVenuesResponse): string[] {
     ...((json.savedVenues ?? json.data?.savedVenues ?? []).flatMap((item) => [item.venueId, item.placeId])),
   ];
   return ids.filter((id): id is string => typeof id === "string" && id.length > 0);
-}
-
-async function savePushSubscription(accessToken: string) {
-  const subscription = await subscribeToPush();
-  if (!subscription) return;
-
-  await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(subscription.toJSON()),
-  });
 }
 
 export function useSavedVenues() {
@@ -194,7 +179,6 @@ export function useSavedVenues() {
         }
         return next;
       });
-      if (saved) void savePushSubscription(token);
       window.dispatchEvent(new CustomEvent(SAVED_VENUES_EVENT));
       return saved;
     } catch (error) {

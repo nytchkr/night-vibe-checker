@@ -28,6 +28,23 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
   });
 }
 
+export async function savePushSubscription(accessToken: string): Promise<PushSubscription | null> {
+  const subscription = await subscribeToPush();
+  if (!subscription) return null;
+
+  const response = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(subscription.toJSON()),
+  });
+
+  if (!response.ok) throw new Error("Could not save push subscription.");
+  return subscription;
+}
+
 export async function unsubscribeFromPush(): Promise<void> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 

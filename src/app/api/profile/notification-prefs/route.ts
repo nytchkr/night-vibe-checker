@@ -10,6 +10,11 @@ const NotificationPrefsSchema = z.object({
   notifyWeeklySummary: z.boolean(),
 });
 
+const DEFAULT_NOTIFICATION_PREFS = {
+  notifyBusyVenues: false,
+  notifyWeeklySummary: false,
+} as const;
+
 async function getBearerUserId(authHeader: string | null): Promise<string | null> {
   if (!authHeader?.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7).trim();
@@ -89,4 +94,54 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     data: { notificationPrefs: parsed.data.notificationPrefs },
     meta,
   });
+}
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
+  const meta = { cached: false, generatedAt: new Date().toISOString() };
+
+  try {
+    assertSupabaseServerEnv();
+  } catch (error) {
+    if (error instanceof MissingSupabaseEnvError) {
+      return json<never>(
+        { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
+        { status: 503, headers: { "Cache-Control": "private, no-cache" } },
+      );
+    }
+    throw error;
+  }
+
+  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  if (!userId) {
+    return json<never>(
+      { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to read notification preferences." }, meta },
+      { status: 401, headers: { "Cache-Control": "private, no-cache" } },
+    );
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("user_preferences")
+    .select("notify_busy_venues, notify_weekly_summary")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    return json<never>(
+      { status: "error", error: { code: "DB_ERROR", message: "Could not read notification preferences." }, meta },
+      { status: 500, headers: { "Cache-Control": "private, no-cache" } },
+    );
+  }
+
+  const row = data as { notify_busy_venues?: unknown; notify_weekly_summary?: unknown } | null;
+  const notificationPrefs = {
+    notifyBusyVenues:
+      typeof row?.notify_busy_venues === "boolean" ? row.notify_busy_venues : DEFAULT_NOTIFICATION_PREFS.notifyBusyVenues,
+    notifyWeeklySummary:
+      typeof row?.notify_weekly_summary === "boolean" ? row.notify_weekly_summary : DEFAULT_NOTIFICATION_PREFS.notifyWeeklySummary,
+  };
+
+  return json(
+    { status: "success", data: { notificationPrefs }, meta },
+    { headers: { "Cache-Control": "private, no-cache" } },
+  );
 }
