@@ -35,6 +35,22 @@ describe("rateLimit", () => {
     expect(retryAfterSeconds(blocked, 10 * 60_000)).toBe(600);
   });
 
+  it("returns retry timing when a key hits the limit mid-window", () => {
+    expect(checkRateLimit("ip:203.0.113.25", 2, 60_000).allowed).toBe(true);
+    expect(checkRateLimit("ip:203.0.113.25", 2, 60_000).allowed).toBe(true);
+
+    vi.advanceTimersByTime(15_250);
+
+    const blocked = checkRateLimit("ip:203.0.113.25", 2, 60_000);
+    expect(blocked).toEqual({
+      allowed: false,
+      limit: 2,
+      remaining: 0,
+      retryAfterMs: 44_750,
+    });
+    expect(retryAfterSeconds(blocked, 60_000)).toBe(45);
+  });
+
   it("tracks independent keys and resets after the window expires", () => {
     expect(checkRateLimit("user:a", 1, 60_000).allowed).toBe(true);
     expect(checkRateLimit("user:a", 1, 60_000).allowed).toBe(false);
@@ -47,6 +63,30 @@ describe("rateLimit", () => {
       limit: 1,
       remaining: 0,
     });
+  });
+
+  it("resets the quota exactly when the window boundary is reached", () => {
+    expect(checkRateLimit("route:/api/check-ins", 1, 1_000).allowed).toBe(true);
+
+    vi.advanceTimersByTime(999);
+    expect(checkRateLimit("route:/api/check-ins", 1, 1_000).allowed).toBe(false);
+
+    vi.advanceTimersByTime(1);
+    expect(checkRateLimit("route:/api/check-ins", 1, 1_000)).toEqual({
+      allowed: true,
+      limit: 1,
+      remaining: 0,
+    });
+  });
+
+  it("applies the same key limit across concurrent request attempts", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => Promise.resolve(checkRateLimit("session:concurrent", 3, 60_000)))
+    );
+
+    expect(results.filter((result) => result.allowed)).toHaveLength(3);
+    expect(results.filter((result) => !result.allowed)).toHaveLength(2);
+    expect(results.map((result) => result.remaining)).toEqual([2, 1, 0, 0, 0]);
   });
 
   it("reports remaining quota and serializes rate-limit headers", () => {

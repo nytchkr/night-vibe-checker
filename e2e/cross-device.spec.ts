@@ -151,7 +151,19 @@ async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {
     const url = new URL(request.url());
     if (request.method() !== "GET") return route.continue();
 
-    if (url.pathname === "/api/venues" || url.pathname === "/api/venues/trending") {
+    if (url.pathname === "/api/venues/trending") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "success",
+          data: { venues },
+          meta,
+        }),
+      });
+    }
+
+    if (url.pathname === "/api/venues") {
       venueListRequests += 1;
       if (venueListRequests === 1 && options.delayVenuesMs) {
         await new Promise((resolve) => setTimeout(resolve, options.delayVenuesMs));
