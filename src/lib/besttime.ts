@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { LAUNCH_ZONES } from "@/lib/launchZone";
+import { LAUNCH_ZONES, type LaunchZone } from "@/lib/launchZone";
 
 type VenueRow = {
   id: string;
@@ -272,12 +272,13 @@ async function writeUnavailableBusyness(venue: VenueRow, refreshedAt: string) {
   if (signalError) throw signalError;
 }
 
-export async function refreshBusyness(limit?: number): Promise<RefreshResult[]> {
+export async function refreshBusyness(limit?: number, zoneId?: LaunchZone["id"]): Promise<RefreshResult[]> {
+  const zoneIds = zoneId ? [zoneId] : BESTTIME_ZONE_IDS;
   let query = supabaseAdmin
     .from("venues")
     .select("id, place_id, name, address, zone_id, besttime_venue_id")
     .eq("hidden", false)
-    .in("zone_id", BESTTIME_ZONE_IDS)
+    .in("zone_id", zoneIds)
     .order("last_busyness_refresh", { ascending: true, nullsFirst: true });
 
   if (limit !== undefined && Number.isFinite(limit) && limit > 0) {

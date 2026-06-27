@@ -1307,7 +1307,7 @@ export function ExplorePageClient() {
             />
             {(locationSortStatus === "denied" || locationSortStatus === "unsupported") && (
               <p role="status" className="text-xs font-semibold text-[#FFB020]">
-                Enable location for nearby sorting
+                Location access was denied. Enable location to sort nearby spots.
               </p>
             )}
           </div>

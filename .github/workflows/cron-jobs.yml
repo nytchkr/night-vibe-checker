@@ -28,8 +28,8 @@ on:
           - all
 
 jobs:
-  refresh-busyness:
-    name: Refresh busyness
+  refresh-busyness-south-end:
+    name: Refresh busyness - South End
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'refresh-busyness' || github.event.inputs.job == 'all') ||
@@ -41,11 +41,53 @@ jobs:
         github.event.schedule == '0 5 * * *'
       )
     steps:
-      - name: Trigger refresh-busyness cron
+      - name: Trigger South End refresh-busyness cron
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 600 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            https://nytchkr.com/api/cron/refresh-busyness)
+            "https://nytchkr.com/api/cron/refresh-busyness-zone?zone=south-end-charlotte")
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+  refresh-busyness-dilworth:
+    name: Refresh busyness - Dilworth
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'refresh-busyness' || github.event.inputs.job == 'all') ||
+      github.event_name == 'schedule' && (
+        github.event.schedule == '0 21 * * *' || github.event.schedule == '0 22 * * *' ||
+        github.event.schedule == '0 23 * * *' || github.event.schedule == '0 0 * * *'  ||
+        github.event.schedule == '0 1 * * *'  || github.event.schedule == '0 2 * * *'  ||
+        github.event.schedule == '0 3 * * *'  || github.event.schedule == '0 4 * * *'  ||
+        github.event.schedule == '0 5 * * *'
+      )
+    steps:
+      - name: Trigger Dilworth refresh-busyness cron
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 600 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://nytchkr.com/api/cron/refresh-busyness-zone?zone=dilworth-charlotte")
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+  refresh-busyness-south-park:
+    name: Refresh busyness - South Park
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'refresh-busyness' || github.event.inputs.job == 'all') ||
+      github.event_name == 'schedule' && (
+        github.event.schedule == '0 21 * * *' || github.event.schedule == '0 22 * * *' ||
+        github.event.schedule == '0 23 * * *' || github.event.schedule == '0 0 * * *'  ||
+        github.event.schedule == '0 1 * * *'  || github.event.schedule == '0 2 * * *'  ||
+        github.event.schedule == '0 3 * * *'  || github.event.schedule == '0 4 * * *'  ||
+        github.event.schedule == '0 5 * * *'
+      )
+    steps:
+      - name: Trigger South Park refresh-busyness cron
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 600 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://nytchkr.com/api/cron/refresh-busyness-zone?zone=south-park-charlotte")
           echo "HTTP status: $STATUS"
           [ "$STATUS" = "200" ] || exit 1
 

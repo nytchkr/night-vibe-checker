@@ -120,11 +120,15 @@ function createVenue({
   name,
   category,
   rating,
+  lat = 35.2123,
+  lng = -80.859,
 }: {
   id: string;
   name: string;
   category: string;
   rating: number;
+  lat?: number;
+  lng?: number;
 }): ConsumerVenue {
   return {
     id,
@@ -132,8 +136,8 @@ function createVenue({
     zoneId: "south-end-charlotte",
     name,
     address: "100 Camden Rd, Charlotte, NC",
-    lat: 35.2123,
-    lng: -80.859,
+    lat,
+    lng,
     neighborhood: "South End",
     category,
     rating,
@@ -166,7 +170,7 @@ function mockFetchWithVenues(nextVenues: ConsumerVenue[]) {
 
 async function renderExplore() {
   render(<ExplorePageClient />);
-  await screen.findByRole("link", { name: "Open Sports Bar" });
+  await screen.findAllByRole("link", { name: /^Open / });
 }
 
 function venueResults() {
@@ -221,9 +225,9 @@ describe("ExplorePageClient venue search", () => {
     await searchFor("Neon");
 
     const results = venueResults();
-    expect(within(results).getByRole("link", { name: "Open Neon Lounge" })).toBeTruthy();
-    expect(within(results).queryByRole("link", { name: "Open Sports Bar" })).toBeNull();
-    expect(within(results).queryByRole("link", { name: "Open Coffee House" })).toBeNull();
+    expect(within(results).getByRole("link", { name: /^Open Neon Lounge/ })).toBeTruthy();
+    expect(within(results).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
+    expect(within(results).queryByRole("link", { name: /^Open Coffee House/ })).toBeNull();
   });
 
   it("clears the search and restores the full venue list from the X button", async () => {
@@ -234,9 +238,9 @@ describe("ExplorePageClient venue search", () => {
 
     await waitFor(() => expect(input.value).toBe(""));
     const results = venueResults();
-    expect(within(results).getByRole("link", { name: "Open Sports Bar" })).toBeTruthy();
-    expect(within(results).getByRole("link", { name: "Open Neon Lounge" })).toBeTruthy();
-    expect(within(results).getByRole("link", { name: "Open Coffee House" })).toBeTruthy();
+    expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
+    expect(within(results).getByRole("link", { name: /^Open Neon Lounge/ })).toBeTruthy();
+    expect(within(results).getByRole("link", { name: /^Open Coffee House/ })).toBeTruthy();
   });
 
   it("shows the no-results empty state when no venues match", async () => {
@@ -245,7 +249,7 @@ describe("ExplorePageClient venue search", () => {
     await searchFor("zzzz");
 
     expect(screen.getByRole("heading", { name: 'No results for "zzzz"' })).toBeTruthy();
-    expect(within(venueResults()).queryByRole("link", { name: "Open Sports Bar" })).toBeNull();
+    expect(within(venueResults()).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
   });
 
   it("matches venue names case-insensitively", async () => {
@@ -254,17 +258,74 @@ describe("ExplorePageClient venue search", () => {
     await searchFor("sPoRtS");
 
     const results = venueResults();
-    expect(within(results).getByRole("link", { name: "Open Sports Bar" })).toBeTruthy();
-    expect(within(results).queryByRole("link", { name: "Open Neon Lounge" })).toBeNull();
+    expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
+    expect(within(results).queryByRole("link", { name: /^Open Neon Lounge/ })).toBeNull();
   });
 
   it("matches partial strings in venue names", async () => {
     await renderExplore();
 
-    await searchFor("bar");
+    await searchFor("port");
 
     const results = venueResults();
-    expect(within(results).getByRole("link", { name: "Open Sports Bar" })).toBeTruthy();
-    expect(within(results).queryByRole("link", { name: "Open Neon Lounge" })).toBeNull();
+    expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
+    expect(within(results).queryByRole("link", { name: /^Open Neon Lounge/ })).toBeNull();
+  });
+
+  it("sorts by Near Me and shows distance badges after geolocation succeeds", async () => {
+    const nearMeVenues = [
+      createVenue({ id: "far-lounge", name: "Far Lounge", category: "lounge", rating: 4.8, lat: 35.23, lng: -80.88 }),
+      createVenue({ id: "near-bar", name: "Near Bar", category: "bar", rating: 4.1, lat: 35.2165, lng: -80.859 }),
+      createVenue({ id: "middle-cafe", name: "Middle Cafe", category: "coffee", rating: 4.6, lat: 35.22, lng: -80.859 }),
+    ];
+    mockFetchWithVenues(nearMeVenues);
+    vi.mocked(navigator.geolocation.getCurrentPosition).mockImplementation((success) => {
+      success({
+        coords: {
+          latitude: 35.2123,
+          longitude: -80.859,
+          accuracy: 12,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+          toJSON() { return {}; },
+        } as GeolocationCoordinates,
+        timestamp: Date.now(),
+        toJSON() { return {}; },
+      } as GeolocationPosition);
+    });
+
+    await renderExplore("Far Lounge");
+    await userEvent.click(screen.getByRole("button", { name: "Near Me" }));
+
+    await waitFor(() => expect(navigator.geolocation.getCurrentPosition).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByText("0.3 mi")).toBeTruthy());
+
+    const resultLinks = within(venueResults()).getAllByRole("link", { name: /^Open / });
+    expect(resultLinks.map((link) => link.getAttribute("href"))).toEqual([
+      "/venues/near-bar",
+      "/venues/middle-cafe",
+      "/venues/far-lounge",
+    ]);
+  });
+
+  it("falls back to the default sort and explains when geolocation is denied", async () => {
+    vi.mocked(navigator.geolocation.getCurrentPosition).mockImplementation((_success, error) => {
+      error?.({
+        code: 1,
+        message: "User denied Geolocation",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      });
+    });
+
+    await renderExplore();
+    await userEvent.click(screen.getByRole("button", { name: "Near Me" }));
+
+    expect(await screen.findByText("Location access was denied. Enable location to sort nearby spots.")).toBeTruthy();
+    expect(within(venueResults()).queryByText(/ mi$/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Hottest" }).getAttribute("aria-pressed")).toBe("true");
   });
 });

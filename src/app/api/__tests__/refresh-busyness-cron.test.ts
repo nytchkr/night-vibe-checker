@@ -115,3 +115,67 @@ describe("GET /api/cron/refresh-busyness", () => {
     expect(json.updated).toBe(1);
   });
 });
+
+function zoneRequest(zone: string, secret?: string) {
+  return new NextRequest(`http://localhost/api/cron/refresh-busyness-zone?zone=${zone}`, {
+    method: "GET",
+    headers: secret ? { authorization: `Bearer ${secret}` } : undefined,
+  });
+}
+
+describe("GET /api/cron/refresh-busyness-zone", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    process.env.CRON_SECRET = "test-cron-secret";
+  });
+
+  afterEach(() => {
+    delete process.env.CRON_SECRET;
+  });
+
+  it("rejects zone refresh requests without the cron secret", async () => {
+    const { GET } = await import("../cron/refresh-busyness-zone/route");
+    const res = await GET(zoneRequest("south-end-charlotte", "wrong"));
+
+    expect(res.status).toBe(401);
+    expect(refreshBusynessMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsupported zone ids before refreshing", async () => {
+    const { GET } = await import("../cron/refresh-busyness-zone/route");
+    const res = await GET(zoneRequest("uptown-charlotte", "test-cron-secret"));
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Invalid zone");
+    expect(json.allowedZones).toContain("south-end-charlotte");
+    expect(refreshBusynessMock).not.toHaveBeenCalled();
+  });
+
+  it("refreshes only the requested zone with a max of 30 venues", async () => {
+    refreshBusynessMock.mockResolvedValue([
+      { venueId: "venue-1", ok: true },
+      { venueId: "venue-2", ok: false, reason: "No BestTime forecast available" },
+    ]);
+
+    const { GET } = await import("../cron/refresh-busyness-zone/route");
+    const res = await GET(zoneRequest("south-end-charlotte", "test-cron-secret"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(refreshBusynessMock).toHaveBeenCalledWith(30, "south-end-charlotte");
+    expect(refreshOpenNowMock).not.toHaveBeenCalled();
+    expect(json).toEqual({
+      zone: "south-end-charlotte",
+      limit: 30,
+      updated: 1,
+      errors: [{ venueId: "venue-2", error: "No BestTime forecast available" }],
+      results: [
+        { venueId: "venue-1", ok: true },
+        { venueId: "venue-2", ok: false, reason: "No BestTime forecast available" },
+      ],
+      busyError: null,
+    });
+  });
+});
