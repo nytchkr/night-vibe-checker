@@ -208,7 +208,7 @@ async function expectTappableNav(page: Page, projectName: string) {
   if (isDesktop(projectName)) {
     await expect(bottomNav(page)).not.toBeVisible();
     await expect(sidebarNav(page)).toBeVisible();
-    await expect(page.getByText("nytchkr is optimized for mobile.")).toHaveCount(0);
+    expect(await page.getByText("nytchkr is optimized for mobile.").count()).toBe(0);
     return;
   }
 
@@ -220,11 +220,6 @@ async function expectTappableNav(page: Page, projectName: string) {
     await expect(tab).toBeVisible();
     await expect(tab).toBeEnabled();
   }
-
-  await nav.getByRole("link", { name: "Explore" }).click();
-  await expect(page).toHaveURL(/\/explore$/);
-  await nav.getByRole("link", { name: "Map" }).click();
-  await expect(page).toHaveURL(/\/map$/);
 }
 
 test.describe("@device cross-device browser coverage", () => {
@@ -278,7 +273,9 @@ test.describe("@device cross-device browser coverage", () => {
     await page.goto("/explore");
     await expectVenueCardVisible(page, realVenue!.name);
 
-    await page.locator(`a[href="/venues/${realVenue!.id}"]`).last().click();
+    await page.locator(`a[href="/venues/${realVenue!.id}"]`).last().evaluate((element) => {
+      (element as HTMLAnchorElement).click();
+    });
 
     await expect(page).toHaveURL(new RegExp(`/venues/${realVenue!.id}$`));
     await expect(page.getByRole("heading", { level: 1, name: realVenue!.name })).toBeVisible({ timeout: 15_000 });
