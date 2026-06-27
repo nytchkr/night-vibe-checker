@@ -649,8 +649,7 @@ function VenueFeedCard({
         scale: 1.01,
         boxShadow: "0 0 20px rgba(139,108,255,0.15)",
       };
-  const cardTap = prefersReduced ? undefined : "tap";
-  const cardVariants = prefersReduced ? undefined : { tap: { scale: 0.98 } };
+  const cardTap = prefersReduced ? undefined : { scale: 0.97 };
   const rippleVariants = prefersReduced ? undefined : { tap: { opacity: 1 } };
 
   return (
@@ -675,11 +674,10 @@ function VenueFeedCard({
         }}
         onTouchStart={() => onPrefetchVenue(venue.id)}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-colors duration-150 ease-out hover:bg-white/[0.05] active:scale-[0.98] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
+        className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-transform duration-100 ease-out hover:bg-white/[0.05] active:scale-[0.97] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
         whileHover={cardHover}
         whileTap={cardTap}
-        variants={cardVariants}
-        transition={{ duration: 0.15, ease: "easeOut" }}
+        transition={prefersReduced ? undefined : { type: "spring", stiffness: 400, damping: 20 }}
         aria-label={`Open ${venue.name}`}
       >
         <MotionSpan
