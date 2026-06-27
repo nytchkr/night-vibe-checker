@@ -13,6 +13,7 @@ import { CheckInButton } from "@/components/CheckInButton";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
+import { PushOptIn } from "@/components/PushOptIn";
 import { RatingPrompt } from "@/components/RatingPrompt";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
@@ -24,6 +25,7 @@ import { VenuePredictionCard } from "@/components/VenuePredictionCard";
 import { VenueRating } from "@/components/VenueRating";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import { VenueTips } from "@/components/VenueTips";
+import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
@@ -596,6 +598,8 @@ function VenuePhotoCarousel({
                 className="object-cover"
                 loading={index === 0 ? undefined : "lazy"}
                 priority={index === 0}
+                placeholder="blur"
+                blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
                 onError={() => {
                   setFailedPhotos((current) => new Set(current).add(photo));
                 }}
@@ -1260,6 +1264,7 @@ export function VenuePageClient({
                 )}
                 <div className="mt-5 space-y-3">
                   <CheckInButton venueId={venue.id} venueName={venue.name} />
+                  <PushOptIn accessToken={accessToken} venueId={venue.id} venueName={venue.name} />
                   {canReportVibe ? (
                     <button
                       type="button"

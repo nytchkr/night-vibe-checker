@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
 
 type VenuePhotoProps = {
@@ -48,6 +48,10 @@ export function VenuePhoto({
   const [failed, setFailed] = useState(false);
   const showPhoto = Boolean(photoUrl) && !failed;
   const accent = PHOTO_COLORS[hashName(name) % PHOTO_COLORS.length];
+
+  useEffect(() => {
+    setFailed(false);
+  }, [photoUrl]);
 
   return (
     <div

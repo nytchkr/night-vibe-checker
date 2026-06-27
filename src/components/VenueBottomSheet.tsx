@@ -321,6 +321,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
               photoUrl={photoUrl}
               alt=""
               className={`${isPeek ? "mb-3 h-16" : "mb-4 h-40"} w-full rounded-[14px] border border-white/[0.08]`}
+              sizes="(max-width: 640px) calc(100vw - 2rem), 512px"
             />
 
             <div className="flex items-start justify-between gap-3">
