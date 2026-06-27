@@ -12,9 +12,13 @@ export type UserStreakResponse = {
   lastCheckinDate: string | null;
 };
 
+type UserStreakErrorResponse =
+  | { error: string }
+  | { status: "error"; error: { code: "DB_ERROR"; message: string } };
+
 const ET_TIME_ZONE = "America/New_York";
 
-export async function GET(req: NextRequest): Promise<NextResponse<UserStreakResponse | { error: string }>> {
+export async function GET(req: NextRequest): Promise<NextResponse<UserStreakResponse | UserStreakErrorResponse>> {
   try {
     assertSupabaseServerEnv();
   } catch (error) {
@@ -36,7 +40,10 @@ export async function GET(req: NextRequest): Promise<NextResponse<UserStreakResp
 
   if (error) {
     console.error("[user/streak GET] check_ins DB error:", error);
-    return NextResponse.json({ error: "Could not fetch streak." }, { status: 500 });
+    return NextResponse.json(
+      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch streak." } },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json(calculateUserStreak((data ?? []) as CheckInRow[]), {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mockAdminGetUser = vi.fn();
@@ -75,11 +75,82 @@ describe("streak calculation", () => {
 });
 
 describe("GET /api/user/streak", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-27T16:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns streak=0 for a user with no check-ins", async () => {
+    mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+    mockFrom.mockReturnValue(checkInsQuery({ data: [], error: null }));
+
+    const { GET } = await import("../user/streak/route");
+    const res = await GET(request("token"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ streak: 0, lastCheckinDate: null });
+  });
+
+  it("returns streak=1 for a single check-in today", async () => {
+    mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+    mockFrom.mockReturnValue(checkInsQuery({
+      data: [{ created_at: "2026-06-27T23:30:00.000Z" }],
+      error: null,
+    }));
+
+    const { GET } = await import("../user/streak/route");
+    const res = await GET(request("token"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ streak: 1, lastCheckinDate: "2026-06-27" });
+  });
+
+  it("returns streak=3 for 3 consecutive nights", async () => {
+    mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+    mockFrom.mockReturnValue(checkInsQuery({
+      data: [
+        { created_at: "2026-06-27T23:30:00.000Z" },
+        { created_at: "2026-06-26T23:30:00.000Z" },
+        { created_at: "2026-06-25T23:30:00.000Z" },
+      ],
+      error: null,
+    }));
+
+    const { GET } = await import("../user/streak/route");
+    const res = await GET(request("token"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ streak: 3, lastCheckinDate: "2026-06-27" });
+  });
+
+  it("breaks the streak when yesterday has no check-in", async () => {
+    mockAdminGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+    mockFrom.mockReturnValue(checkInsQuery({
+      data: [
+        { created_at: "2026-06-27T23:30:00.000Z" },
+        { created_at: "2026-06-25T23:30:00.000Z" },
+        { created_at: "2026-06-24T23:30:00.000Z" },
+      ],
+      error: null,
+    }));
+
+    const { GET } = await import("../user/streak/route");
+    const res = await GET(request("token"));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ streak: 1, lastCheckinDate: "2026-06-27" });
+  });
+
   it("returns 401 without a bearer token", async () => {
     const { GET } = await import("../user/streak/route");
     const res = await GET(request());
 
     expect(res.status).toBe(401);
+    await expect(res.json()).resolves.toEqual({ error: "Authentication required." });
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
@@ -113,6 +184,10 @@ describe("GET /api/user/streak", () => {
     const res = await GET(request("token"));
 
     expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toEqual({
+      status: "error",
+      error: { code: "DB_ERROR", message: "Could not fetch streak." },
+    });
   });
 });
 
