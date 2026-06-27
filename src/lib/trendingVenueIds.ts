@@ -1,5 +1,6 @@
 import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { mapConsumerVenue } from "@/lib/consumerVenue";
+import { getCharlotteTimeParts } from "@/lib/openNow";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ConsumerVenue } from "@/types";
 
@@ -88,19 +89,40 @@ function getBusyness0To100(venue: ConsumerVenue): number {
   return Math.max(0, Math.min(100, busyness));
 }
 
+function getNightHoursMultiplier(now = new Date()): number {
+  const charlotteTime = getCharlotteTimeParts(now);
+  const isWeekendNight = charlotteTime.day === 5 || charlotteTime.day === 6;
+  const weekendMultiplier = isWeekendNight ? 1.2 : 1;
+
+  if (charlotteTime.hour >= 21 || charlotteTime.hour <= 2) {
+    return 1.3 * weekendMultiplier;
+  }
+
+  if (charlotteTime.hour >= 18 && charlotteTime.hour < 21) {
+    return 1.1 * weekendMultiplier;
+  }
+
+  return 1;
+}
+
 export function scoreTrendingVenue(
   venue: ConsumerVenue,
   checkInsLast2h: number,
   maxCheckIns: number,
+  now = new Date(),
 ): number {
   const busynessScore = (getBusyness0To100(venue) / 100) * 0.5;
   const checkInScore = maxCheckIns > 0 ? (checkInsLast2h / maxCheckIns) * 0.3 : 0;
   const openNowScore = venue.openNow === true ? 0.2 : 0;
-  const baseScore = busynessScore + checkInScore + openNowScore;
+  const baseScore = (busynessScore + checkInScore + openNowScore) * getNightHoursMultiplier(now);
   return checkInsLast2h > 0 ? baseScore * 1.5 : baseScore;
 }
 
-export function rankTrendingVenueRows(rows: TrendingVenueRow[], limit = TRENDING_VENUE_LIMIT): TrendingVenueScore[] {
+export function rankTrendingVenueRows(
+  rows: TrendingVenueRow[],
+  limit = TRENDING_VENUE_LIMIT,
+  now = new Date(),
+): TrendingVenueScore[] {
   const mapped = rows
     .filter((row) => row.hidden !== true)
     .filter((row) => row.open_now !== false)
@@ -115,7 +137,7 @@ export function rankTrendingVenueRows(rows: TrendingVenueRow[], limit = TRENDING
   return mapped
     .map((item) => ({
       ...item,
-      score: scoreTrendingVenue(item.venue, item.checkInsLast2h, maxCheckIns),
+      score: scoreTrendingVenue(item.venue, item.checkInsLast2h, maxCheckIns, now),
     }))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
@@ -160,5 +182,5 @@ export async function getTrendingVenues(now = new Date()): Promise<ConsumerVenue
     throw new Error(error instanceof Error ? error.message : String((error as { message?: unknown }).message ?? error));
   }
 
-  return rankTrendingVenueRows(rows ?? []).map((item) => item.venue);
+  return rankTrendingVenueRows(rows ?? [], TRENDING_VENUE_LIMIT, now).map((item) => item.venue);
 }

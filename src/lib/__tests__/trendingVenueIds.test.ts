@@ -31,8 +31,10 @@ const CLOSED_MONDAY_NIGHT_HOURS = {
   weekdayDescriptions: ["Monday: 11:00 AM - 2:00 PM"],
 };
 
-const SCORING_NOW = new Date("2026-06-23T02:00:00.000Z");
-const UPDATED_AT = "2026-06-23T01:30:00.000Z";
+const SCORING_NOW = new Date("2026-06-23T16:00:00.000Z");
+const FRIDAY_PEAK_NOW = new Date("2026-06-27T01:00:00.000Z");
+const SATURDAY_PREGAME_NOW = new Date("2026-06-27T22:00:00.000Z");
+const UPDATED_AT = "2026-06-23T15:30:00.000Z";
 
 function queryResult(resolved: { data?: unknown; error?: unknown }) {
   const promise = Promise.resolve({
@@ -177,6 +179,39 @@ describe("trending venue scoring", () => {
     expect(ranked[1].score).toBeCloseTo(0.35 + 0.2);
   });
 
+  it("boosts scores during ET peak night hours", async () => {
+    const rows = [
+      venueRow({ id: "venue-peak", name: "Peak", busyness: 100, checkInCount: 0 }),
+    ];
+
+    const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
+    const ranked = rankTrendingVenueRows(rows, 5, new Date("2026-06-24T01:00:00.000Z"));
+
+    expect(ranked[0].score).toBeCloseTo((0.5 + 0.2) * 1.3);
+  });
+
+  it("applies the additional Friday or Saturday boost during ET night hours", async () => {
+    const rows = [
+      venueRow({ id: "venue-friday", name: "Friday Peak", busyness: 100, checkInCount: 0 }),
+    ];
+
+    const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
+    const ranked = rankTrendingVenueRows(rows, 5, FRIDAY_PEAK_NOW);
+
+    expect(ranked[0].score).toBeCloseTo((0.5 + 0.2) * 1.3 * 1.2);
+  });
+
+  it("applies the Saturday pre-game ET boost before peak hours", async () => {
+    const rows = [
+      venueRow({ id: "venue-pregame", name: "Pregame", busyness: 100, checkInCount: 0 }),
+    ];
+
+    const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
+    const ranked = rankTrendingVenueRows(rows, 5, SATURDAY_PREGAME_NOW);
+
+    expect(ranked[0].score).toBeCloseTo((0.5 + 0.2) * 1.1 * 1.2);
+  });
+
   it("ranks venues with no busyness data by check-in velocity", async () => {
     const rows = [
       venueRow({ id: "venue-low-velocity", name: "Low Velocity", busyness: null, checkInCount: 1 }),
@@ -231,7 +266,7 @@ describe("trending venue scoring", () => {
       "dilworth-charlotte",
       "south-park-charlotte",
     ]);
-    expect(query.gte).toHaveBeenCalledWith("check_ins.created_at", "2026-06-23T00:00:00.000Z");
+    expect(query.gte).toHaveBeenCalledWith("check_ins.created_at", "2026-06-23T14:00:00.000Z");
     expect(query.eq).toHaveBeenCalledWith("check_ins.hidden", false);
     expect(query.limit).toHaveBeenCalledWith(100);
   });
