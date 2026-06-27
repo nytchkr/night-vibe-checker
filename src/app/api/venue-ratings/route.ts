@@ -3,6 +3,7 @@ import { z } from "zod";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
+// Uses service role — bypasses RLS intentionally for server-side validation and writes.
 type VenueRatingsData = {
   averageRating: number | null;
   ratingCount: number;

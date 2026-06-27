@@ -24,6 +24,7 @@ import { recomputeVenueSignal } from "@/lib/signals";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
+// Uses service role — bypasses RLS intentionally for server-side validation and writes.
 const MAX_VENUE_ID_LENGTH = 200;
 const DUPLICATE_WINDOW_MINUTES = 60;
 const POST_RATE_LIMIT_MAX = 10;
