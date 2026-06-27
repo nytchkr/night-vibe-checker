@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 
 const mockGetConsumerVenueById = vi.fn();
 
@@ -43,7 +44,7 @@ describe("GET /api/venues/[id]/share-card", () => {
     mockGetConsumerVenueById.mockResolvedValueOnce(venue(72));
 
     const { GET } = await import("../venues/[id]/share-card/route");
-    const res = await GET(new Request("http://localhost/api/venues/venue-1/share-card"), params());
+    const res = await GET(new NextRequest("http://localhost/api/venues/venue-1/share-card"), params());
     const json = await res.json();
 
     expect(res.status).toBe(200);
@@ -57,7 +58,7 @@ describe("GET /api/venues/[id]/share-card", () => {
     mockGetConsumerVenueById.mockResolvedValueOnce(venue(null));
 
     const { GET } = await import("../venues/[id]/share-card/route");
-    const res = await GET(new Request("http://localhost/api/venues/venue-1/share-card"), params());
+    const res = await GET(new NextRequest("http://localhost/api/venues/venue-1/share-card"), params());
     const json = await res.json();
 
     expect(res.status).toBe(200);
@@ -68,7 +69,7 @@ describe("GET /api/venues/[id]/share-card", () => {
     mockGetConsumerVenueById.mockResolvedValueOnce(null);
 
     const { GET } = await import("../venues/[id]/share-card/route");
-    const res = await GET(new Request("http://localhost/api/venues/missing/share-card"), params("missing"));
+    const res = await GET(new NextRequest("http://localhost/api/venues/missing/share-card"), params("missing"));
 
     expect(res.status).toBe(404);
   });

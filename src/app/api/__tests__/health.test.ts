@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 
 const mockFrom = vi.fn();
 
@@ -53,7 +54,7 @@ describe("GET /api/health", () => {
       ]));
 
     const { GET } = await import("../health/route");
-    const res = await GET();
+    const res = await GET(new NextRequest("http://localhost/api/health"));
     const json = await res.json();
 
     expect(res.status).toBe(200);
@@ -75,7 +76,7 @@ describe("GET /api/health", () => {
       ]));
 
     const { GET } = await import("../health/route");
-    const res = await GET();
+    const res = await GET(new NextRequest("http://localhost/api/health"));
     const json = await res.json();
 
     expect(json.status).toBe("degraded");
@@ -89,7 +90,7 @@ describe("GET /api/health", () => {
       .mockReturnValueOnce(rowsQuery([venueRow("2026-06-21T14:21:27.265Z")]));
 
     const { GET } = await import("../health/route");
-    const res = await GET();
+    const res = await GET(new NextRequest("http://localhost/api/health"));
     const json = await res.json();
 
     expect(json.status).toBe("degraded");
