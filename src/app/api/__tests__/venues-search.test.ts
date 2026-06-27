@@ -121,6 +121,41 @@ describe("GET /api/venues search", () => {
     expect(json.data.venues).toEqual([]);
   });
 
+  it("returns venues that match the search term by category", async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: "venue-bar", search_rank: 0.6 }],
+      error: null,
+    });
+    const query = chain({
+      data: [
+        venue("venue-bar", "Vinyl", {
+          category: "bar",
+          address: "Camden Road",
+          neighborhood: "South End",
+        }),
+      ],
+    });
+    mockFrom.mockReturnValueOnce(query);
+
+    const { GET } = await import("../venues/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues?q=bar"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
+      search_query: "bar",
+      search_zone_id: null,
+      search_category: null,
+      center_lat: null,
+      center_lng: null,
+      radius_m: null,
+      max_results: 100,
+    });
+    expect(query.in).toHaveBeenCalledWith("id", ["venue-bar"]);
+    expect(json.data.venues).toHaveLength(1);
+    expect(json.data.venues[0]).toMatchObject({ id: "venue-bar", category: "bar" });
+  });
+
   it("passes through supported zone filters", async () => {
     mockRpc.mockResolvedValueOnce({
       data: [{ id: "venue-sp", search_rank: 1 }],
