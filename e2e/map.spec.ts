@@ -210,6 +210,29 @@ async function dragSheet(page: Page, sheet: Locator, deltaY: number) {
   await page.mouse.up();
 }
 
+async function visibleDialogHeight(page: Page, dialog: Locator) {
+  const dialogBox = await dialog.boundingBox();
+  const viewport = page.viewportSize();
+  expect(dialogBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+
+  return Math.round(Math.min(dialogBox!.height, viewport!.height - dialogBox!.y));
+}
+
+async function dragVenueDetailSheet(page: Page, dialog: Locator, deltaY: number) {
+  const handle = dialog.locator('[aria-label="Drag venue details"]');
+  const box = await handle.boundingBox();
+  expect(box).not.toBeNull();
+
+  const x = box!.x + box!.width / 2;
+  const y = box!.y + box!.height / 2;
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + deltaY, { steps: 10 });
+  await page.mouse.up();
+}
+
 async function expectTopFiveVenues(sheet: Locator) {
   for (const name of topFiveVenueNames) {
     await expect(sheet.getByRole("button", { name: new RegExp(name) })).toBeVisible();
@@ -525,7 +548,7 @@ test.describe("Map bottom sheet", () => {
     await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("pin taps meet mobile target size and detail sheet shows real hours status", async ({ page }) => {
+  test("pin taps open venue detail sheet with peek, full, and fast-close snaps", async ({ page }) => {
     await openMap(page);
     await selectZone(page, "South End");
     await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
@@ -542,7 +565,19 @@ test.describe("Map bottom sheet", () => {
     const detailSheet = page.getByRole("dialog", { name: "Map Test Speakeasy details" });
     await expect(detailSheet).toBeVisible();
     await expect(detailSheet.getByText("Closed now")).toBeVisible();
+    await expect(detailSheet.getByLabel("Busyness: Quiet")).toBeVisible();
+    await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeGreaterThan(300);
+    await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeLessThan(460);
+    await expect(detailSheet.getByRole("link", { name: "View Venue" })).toHaveCount(0);
+
+    await dragVenueDetailSheet(page, detailSheet, -420);
+
+    await expect(detailSheet.getByText("Closed now")).toBeVisible();
     await expect(detailSheet.getByText(/PM/)).toBeVisible();
     await expect(detailSheet.getByRole("link", { name: "View Venue" }).first()).toBeVisible();
+    await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeGreaterThan(600);
+
+    await dragVenueDetailSheet(page, detailSheet, 460);
+    await expect(detailSheet).toHaveCount(0);
   });
 });

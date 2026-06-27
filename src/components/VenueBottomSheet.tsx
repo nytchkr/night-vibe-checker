@@ -274,7 +274,9 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
     const downwardDrag = dragRef.current.currentY - dragRef.current.startY;
     const elapsed = Math.max(1, performance.now() - dragRef.current.startedAt);
     const velocity = downwardDrag / elapsed;
-    const shouldClose = downwardDrag > FAST_CLOSE_DISTANCE && velocity >= FAST_CLOSE_VELOCITY;
+    const shouldClose =
+      downwardDrag > FAST_CLOSE_DISTANCE &&
+      (velocity >= FAST_CLOSE_VELOCITY || dragRef.current.currentHeight <= getSnapHeightPx("peek") - 72);
 
     if (shouldClose) {
       dragRef.current.pointerId = -1;
