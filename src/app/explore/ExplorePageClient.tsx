@@ -772,17 +772,18 @@ function PullToRefreshIndicator({
     >
       <div className="mb-3 flex justify-center">
         <div className="flex min-h-[68px] min-w-[104px] flex-col items-center justify-center rounded-[18px] border border-[#8B6CFF]/20 bg-[#0A0A0E]/92 px-5 py-3 shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur">
+          <span className="sr-only">{refreshing ? "Refreshing venues" : "Pull to refresh venues"}</span>
           <span
-            className="h-7 w-7 animate-spin rounded-full border-[3px] border-[#8B6CFF] border-t-transparent"
+            className="relative h-3 w-16 overflow-hidden rounded-full bg-white/[0.04]"
             aria-hidden="true"
-          />
+          >
+            <span className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-white/[0.08] to-white/[0.04] bg-[length:400%_100%] animate-shimmer" />
+          </span>
           {refreshing ? (
             <span className="mt-2 text-xs font-semibold text-[#8B6CFF]">
               Refreshing...
             </span>
-          ) : (
-            <span className="sr-only">Pull to refresh venues</span>
-          )}
+          ) : null}
         </div>
       </div>
     </MotionDiv>
@@ -1445,9 +1446,7 @@ export function ExplorePageClient() {
 
         {(venues === undefined || isSearchingVenues) && !error && (
           <div role="status" aria-label={isSearchingVenues ? "Searching venues" : "Loading venues"}>
-            <p className="mb-3 text-sm font-semibold text-white/55">
-              {isSearchingVenues ? "Searching..." : "Loading venues..."}
-            </p>
+            <span className="sr-only">{isSearchingVenues ? "Searching venues" : "Loading venues"}</span>
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         )}

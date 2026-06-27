@@ -1,3 +1,14 @@
+function ShimmerBlock({ className }: { className: string }) {
+  return (
+    <div className={`relative overflow-hidden bg-white/[0.04] ${className}`}>
+      <span
+        className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-white/[0.08] to-white/[0.04] bg-[length:400%_100%] animate-shimmer"
+        aria-hidden="true"
+      />
+    </div>
+  );
+}
+
 export default function SkeletonCard() {
   return (
     <div
@@ -9,28 +20,28 @@ export default function SkeletonCard() {
     >
       <span className="sr-only">Loading...</span>
       <div className="relative flex w-full flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="aspect-video w-full shrink-0 animate-pulse rounded-xl bg-white/[0.06] sm:h-[72px] sm:w-[72px] sm:aspect-auto" />
+        <ShimmerBlock className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto" />
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
           <div className="min-w-0 space-y-2">
             <div className="flex min-w-0 items-start justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <div className="h-4 w-44 max-w-[70%] animate-pulse rounded bg-white/[0.06]" />
-                <div className="h-5 w-16 shrink-0 animate-pulse rounded-full bg-white/[0.06]" />
+                <ShimmerBlock className="h-4 w-44 max-w-[70%] rounded" />
+                <ShimmerBlock className="h-5 w-16 shrink-0 rounded-full" />
               </div>
-              <div className="h-5 w-20 shrink-0 animate-pulse rounded-full bg-white/[0.06]" />
+              <ShimmerBlock className="h-5 w-20 shrink-0 rounded-full" />
             </div>
-            <div className="h-3 w-24 animate-pulse rounded bg-white/[0.06]" />
+            <ShimmerBlock className="h-3 w-24 rounded" />
             <div className="flex gap-2">
-              <div className="h-5 w-20 animate-pulse rounded-full bg-white/[0.06]" />
-              <div className="h-4 w-12 animate-pulse rounded bg-white/[0.06]" />
+              <ShimmerBlock className="h-5 w-20 rounded-full" />
+              <ShimmerBlock className="h-4 w-12 rounded" />
             </div>
           </div>
           <div className="flex gap-2">
-            <div className="h-6 w-28 animate-pulse rounded-full bg-white/[0.06]" />
+            <ShimmerBlock className="h-6 w-28 rounded-full" />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="h-4 w-56 max-w-full animate-pulse rounded bg-white/[0.06]" />
-            <div className="h-4 w-28 animate-pulse rounded-full bg-white/[0.06]" />
+            <ShimmerBlock className="h-4 w-56 max-w-full rounded" />
+            <ShimmerBlock className="h-4 w-28 rounded-full" />
           </div>
         </div>
       </div>
