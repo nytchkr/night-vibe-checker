@@ -1,7 +1,20 @@
-const RUNTIME_CACHE = "nightvibe-v1";
+const RUNTIME_CACHE = "nightvibe-v2";
 const OFFLINE_URL = "/offline";
 const STATIC_URLS = ["/", "/map", "/explore", OFFLINE_URL];
 const CACHE_FIRST_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cartocdn.com"];
+const GOOGLE_MAPS_TILE_HOSTS = [
+  "maps.googleapis.com",
+  "maps.gstatic.com",
+  "khms0.googleapis.com",
+  "khms1.googleapis.com",
+  "khms2.googleapis.com",
+  "khms3.googleapis.com",
+  "mt0.google.com",
+  "mt1.google.com",
+  "mt2.google.com",
+  "mt3.google.com",
+];
+const VENUE_LIST_MAX_AGE_MS = 5 * 60 * 1000;
 const VENUE_DETAIL_TIMEOUT_MS = 5000;
 
 self.addEventListener("install", (event) => {
@@ -24,7 +37,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   if (isVenueListRequest(url)) {
-    event.respondWith(staleWhileRevalidate(request));
+    event.respondWith(staleWhileRevalidate(request, VENUE_LIST_MAX_AGE_MS, event));
     return;
   }
 
@@ -33,7 +46,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (isCacheFirstAsset(request, url)) {
+  if (isGoogleMapsTileRequest(request, url) || isSupabaseStoragePhotoRequest(request, url) || isCacheFirstAsset(request, url)) {
     event.respondWith(cacheFirst(request));
     return;
   }
@@ -62,12 +75,33 @@ function isCacheFirstAsset(request, url) {
   return CACHE_FIRST_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
 }
 
-async function staleWhileRevalidate(request) {
+function isGoogleMapsTileRequest(request, url) {
+  if (request.destination !== "image") return false;
+  if (!GOOGLE_MAPS_TILE_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) return false;
+  return (
+    url.pathname.includes("/maps/vt") ||
+    url.pathname.includes("/vt") ||
+    url.pathname.includes("/maps/api/staticmap") ||
+    url.pathname.includes("/mapfiles/")
+  );
+}
+
+function isSupabaseStoragePhotoRequest(request, url) {
+  if (request.destination !== "image") return false;
+  return url.hostname.endsWith(".supabase.co") && url.pathname.includes("/storage/v1/object/");
+}
+
+async function staleWhileRevalidate(request, maxAgeMs, event) {
   const cache = await caches.open(RUNTIME_CACHE);
   const cached = await cache.match(request);
   const refresh = fetchAndCache(request, cache).catch(() => undefined);
-  if (cached) return cached;
-  return (await refresh) || Response.error();
+  event?.waitUntil(refresh);
+
+  if (cached && isFresh(cached, maxAgeMs)) return cached;
+
+  const response = await refresh;
+  if (response) return response;
+  return cached || Response.error();
 }
 
 async function networkFirst(request, timeoutMs) {
@@ -107,10 +141,25 @@ async function handleDocumentOrStaticRequest(request, acceptsHtml) {
 }
 
 async function putAndReturn(cache, request, response) {
-  if (response && response.ok) {
-    cache.put(request, response.clone());
+  if (response && (response.ok || response.type === "opaque")) {
+    cache.put(request, withCacheTimestamp(response));
   }
   return response;
+}
+
+function withCacheTimestamp(response) {
+  const headers = new Headers(response.headers);
+  headers.set("x-nightvibe-sw-cached-at", Date.now().toString());
+  return new Response(response.clone().body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+function isFresh(response, maxAgeMs) {
+  const cachedAt = Number(response.headers.get("x-nightvibe-sw-cached-at") || 0);
+  return cachedAt > 0 && Date.now() - cachedAt <= maxAgeMs;
 }
 
 function fetchWithTimeout(request, timeoutMs) {
