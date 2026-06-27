@@ -44,6 +44,11 @@ export default defineConfig({
       grepInvert: /@device/,
     },
     {
+      name: "Mobile Chrome",
+      use: { ...devices["Pixel 7"] },
+      grepInvert: /@device/,
+    },
+    {
       name: "device-iphone-13-safari",
       testMatch: ["**/cross-device.spec.ts", "**/photo-fallback.spec.ts"],
       grep: /@device/,
