@@ -49,6 +49,21 @@ function mapPhotoUrls(value: unknown): string[] | undefined {
   return urls.length ? urls : undefined;
 }
 
+function mapPhotoUrl(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function mapVenuePhotoUrls(row: Record<string, unknown>): string[] | undefined {
+  const urls = new Set<string>();
+  if (Array.isArray(row.photo_url)) {
+    for (const item of row.photo_url) {
+      if (typeof item === "string" && item.length > 0) urls.add(item);
+    }
+  }
+  for (const item of mapPhotoUrls(row.photo_urls) ?? []) urls.add(item);
+  return urls.size ? Array.from(urls) : undefined;
+}
+
 export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
   const sig = row.venue_signals;
   const signalRow: Record<string, unknown> | undefined = Array.isArray(sig)
@@ -75,8 +90,8 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     userRatingCount: row.user_rating_count == null ? null : Number(row.user_rating_count),
     priceLevel: row.price_level == null ? null : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
-    photoUrl: (row.photo_url ?? undefined) as string | undefined,
-    photoUrls: mapPhotoUrls(row.photo_urls),
+    photoUrl: mapPhotoUrl(row.photo_url),
+    photoUrls: mapVenuePhotoUrls(row),
     phone: (row.phone ?? row.phone_number ?? undefined) as string | undefined,
     phoneNumber: (row.phone_number ?? row.phone ?? undefined) as string | undefined,
     website: (row.website ?? undefined) as string | undefined,

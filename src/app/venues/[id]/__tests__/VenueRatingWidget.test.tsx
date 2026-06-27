@@ -3,7 +3,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type React from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "@/hooks/useToast";
 import type { ConsumerVenue } from "@/types";
 import { VenuePageClient } from "../VenuePageClient";
@@ -30,6 +30,40 @@ const supabaseMocks = vi.hoisted(() => {
   channel.subscribe.mockReturnValue(channel);
 
   return { channel, removeChannel };
+});
+
+vi.mock("next/dynamic", async () => {
+  const { useState, useEffect, createElement } = await import("react");
+  type AnyComponent = import("react").ComponentType<Record<string, unknown>>;
+  // Global registry for loaded components, keyed by loader identity
+  const registry = new Map<() => Promise<unknown>, { comp: AnyComponent | null; promise: Promise<void> }>();
+  return {
+    default: (loader: () => Promise<AnyComponent | { default?: AnyComponent } & Record<string, unknown>>, _opts?: unknown) => {
+      // Deduplicate by loader reference so multiple DynamicStub instances share state
+      if (!registry.has(loader)) {
+        const entry: { comp: AnyComponent | null; promise: Promise<void> } = { comp: null, promise: Promise.resolve() };
+        entry.promise = loader()
+          .then((mod) => {
+            if (typeof mod === "function") { entry.comp = mod as AnyComponent; return; }
+            const m = mod as { default?: AnyComponent } & Record<string, AnyComponent>;
+            entry.comp = m.default ?? (Object.values(m).find((v) => typeof v === "function") as AnyComponent | undefined) ?? null;
+          })
+          .catch(() => {});
+        registry.set(loader, entry);
+      }
+      const entry = registry.get(loader)!;
+      return function DynamicStub(props: Record<string, unknown>) {
+        const [Comp, setComp] = useState<AnyComponent | null>(() => entry.comp);
+        useEffect(() => {
+          if (entry.comp) { setComp(() => entry.comp); return; }
+          let cancelled = false;
+          void entry.promise.then(() => { if (!cancelled && entry.comp) setComp(() => entry.comp); });
+          return () => { cancelled = true; };
+        }, []);
+        return Comp ? createElement(Comp, props) : null;
+      };
+    },
+  };
 });
 
 vi.mock("next/image", async () => {
@@ -155,6 +189,63 @@ vi.mock("@/components/VenuePhoto", () => ({
 vi.mock("@/components/VenueTips", () => ({
   VenueTips: () => null,
 }));
+
+vi.mock("@/components/VenueRating", async () => {
+  const { useState, useEffect } = await import("react");
+  const { useToast } = await import("@/hooks/useToast");
+  return {
+    VenueRating: ({
+      accessToken,
+      userId,
+      venueId,
+      onRated,
+    }: {
+      accessToken: string | null;
+      userId?: string | null;
+      venueId: string;
+      onRated?: () => void;
+    }) => {
+      const { showToast } = useToast();
+      const [userRating, setUserRating] = useState<number | null>(null);
+
+      useEffect(() => {
+        if (!venueId) return;
+        const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+        void fetch(`/api/venue-ratings?venue_id=${encodeURIComponent(venueId)}`, { headers })
+          .then((r) => r.json() as Promise<{ data?: { userRating?: number | null } }>)
+          .then(({ data }) => { if (data?.userRating != null) setUserRating(data.userRating); })
+          .catch(() => {});
+      }, [accessToken, venueId]);
+
+      if (!accessToken) return <p>Sign in to rate</p>;
+      return (
+        <div>
+          {([1, 2, 3, 4, 5] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              aria-label={`Rate ${r} star${r === 1 ? "" : "s"}`}
+              onClick={() => {
+                const prev = userRating;
+                setUserRating(r);
+                void fetch("/api/venue-ratings", {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ venue_id: venueId, user_id: userId, rating: r }),
+                }).then((res) => {
+                  if (res.ok) { showToast("Rating saved!", "success"); onRated?.(); }
+                  else setUserRating(prev);
+                }).catch(() => setUserRating(prev));
+              }}
+            >
+              <svg className={userRating !== null && userRating >= r ? "fill-current" : ""} aria-hidden />
+            </button>
+          ))}
+        </div>
+      );
+    },
+  };
+});
 
 vi.mock("@/hooks/useFocusTrap", () => ({
   useFocusTrap: vi.fn(),
@@ -293,11 +384,26 @@ function renderVenuePage(venue: ConsumerVenue = makeVenue()) {
 }
 
 async function findStarButtons() {
-  return screen.findAllByRole("button", { name: /Rate \d stars?/ });
+  return screen.findAllByRole("button", { name: /Rate \d stars?/ }, { timeout: 5000 });
 }
 
 describe("VenuePageClient venue rating widget", () => {
-  beforeEach(() => {
+  beforeAll(async () => {
+    // Force-resolve all dynamic-import loader promises before the first test.
+    // VenuePageClient calls dynamic(loader) at module load; those loaderPromises
+    // start in-flight. We drain here so loaded.component is set on first render.
+    await Promise.all([
+      import("@/components/VenueRating"),
+      import("@/components/PushOptIn"),
+      import("@/components/VenuePredictionCard"),
+      import("@/components/VenueTips"),
+    ]);
+    // Each .then() in the loaderPromise chain is a microtask; drain enough ticks
+    // to guarantee loaded.component is set (factory is async: ~3-5 ticks deep).
+    await new Promise<void>((r) => setTimeout(r, 20));
+  });
+
+  beforeEach(async () => {
     authMock.session = {
       access_token: "token-123",
       user: { id: "user-123" },

@@ -25,6 +25,25 @@ const DYNAMIC_HEADERS = {
   "Cache-Control": "private, no-store",
 };
 
+function mapPhotoUrl(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function mapPhotoUrls(row: Record<string, unknown>): string[] | undefined {
+  const urls = new Set<string>();
+  if (Array.isArray(row.photo_url)) {
+    for (const item of row.photo_url) {
+      if (typeof item === "string" && item.length > 0) urls.add(item);
+    }
+  }
+  if (Array.isArray(row.photo_urls)) {
+    for (const item of row.photo_urls) {
+      if (typeof item === "string" && item.length > 0) urls.add(item);
+    }
+  }
+  return urls.size ? Array.from(urls) : undefined;
+}
+
 function isAuthorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
@@ -139,10 +158,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     totalRatings: row.total_ratings == null ? undefined : Number(row.total_ratings),
     priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
     photoReference: (row.photo_reference ?? undefined) as string | undefined,
-    photoUrl: (row.photo_url ?? undefined) as string | undefined,
-    photoUrls: Array.isArray(row.photo_urls)
-      ? row.photo_urls.filter((item): item is string => typeof item === "string" && item.length > 0)
-      : undefined,
+    photoUrl: mapPhotoUrl(row.photo_url),
+    photoUrls: mapPhotoUrls(row),
     openingHours: Array.isArray(row.opening_hours)
       ? row.opening_hours.filter((item): item is string => typeof item === "string" && item.length > 0)
       : row.opening_hours && typeof row.opening_hours === "object" && !Array.isArray(row.opening_hours) && Array.isArray((row.opening_hours as { weekday_text?: unknown }).weekday_text)

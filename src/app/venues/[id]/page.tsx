@@ -50,14 +50,24 @@ function getVenueOgImage(venue: ConsumerVenue): string | undefined {
   return venue.photoUrls?.[0] ?? venue.photoUrl;
 }
 
-function mapPhotoUrls(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+function addPhotoUrls(urls: string[], value: unknown) {
+  if (Array.isArray(value)) {
+    for (const item of value) addPhotoUrls(urls, item);
+    return;
+  }
+  if (typeof value === "string" && value.length > 0 && !urls.includes(value)) urls.push(value);
+}
+
+function mapPhotoUrls(row: Record<string, unknown>): string[] {
+  const urls: string[] = [];
+  addPhotoUrls(urls, row.photo_url);
+  addPhotoUrls(urls, row.photo_urls);
+  return urls;
 }
 
 function mapVenueMetadataRow(row: Record<string, unknown>): VenueMetadataRow {
   const photoUrl = typeof row.photo_url === "string" && row.photo_url.length > 0 ? row.photo_url : null;
-  const photoUrls = mapPhotoUrls(row.photo_urls);
+  const photoUrls = mapPhotoUrls(row);
 
   return {
     id: String(row.id ?? ""),
@@ -67,7 +77,7 @@ function mapVenueMetadataRow(row: Record<string, unknown>): VenueMetadataRow {
     neighborhood: typeof row.neighborhood === "string" ? row.neighborhood : null,
     lat: row.lat == null ? null : Number(row.lat),
     lng: row.lng == null ? null : Number(row.lng),
-    photos: photoUrl ? [photoUrl, ...photoUrls] : photoUrls,
+    photos: photoUrl ? [photoUrl, ...photoUrls.filter((photo) => photo !== photoUrl)] : photoUrls,
   };
 }
 
