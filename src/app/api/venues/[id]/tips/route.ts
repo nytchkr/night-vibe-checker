@@ -188,9 +188,11 @@ async function fetchRecentCheckIns(venueId: string): Promise<VenueTipCheckIn[]> 
 
 async function generateAiVenueTips(venue: VenueTipVenue, checkIns: VenueTipCheckIn[]): Promise<string[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || checkIns.length === 0) return [];
+  if (!apiKey) return [];
 
-  const summary = summarizeCheckIns(checkIns);
+  const summary = checkIns.length
+    ? summarizeCheckIns(checkIns)
+    : "No recent check-ins yet. Generate generic visitor tips from venue name and category only.";
   const category = venue.category?.trim() || "venue";
   const prompt = `Based on these check-in patterns for ${venue.name} (a ${category} in Charlotte NC): ${summary}. Write 2-3 short insider tips for visitors. Be specific and honest. Max 60 words total.`;
 

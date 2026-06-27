@@ -123,9 +123,12 @@ describe("GET /api/venues/[id]/tips", () => {
     expect(anthropicBody.model).toBe("claude-haiku-4-5-20251001");
     expect(anthropicBody.messages[0].content).toContain("Night Spot");
     const json = await res.json();
-    expect(json).toEqual({
-      tips: ["Arrive before midnight for easier entry.", "Expect packed energy around 8-10pm."],
-    });
+    expect(json.tips).toHaveLength(2);
+    for (const tip of json.tips) {
+      expect(typeof tip).toBe("string");
+      expect(tip.trim().length).toBeGreaterThan(0);
+    }
+    expect(json.tips).toEqual(["Arrive before midnight for easier entry.", "Expect packed energy around 8-10pm."]);
   });
 
   it("returns empty tips when the Anthropic API key is missing", async () => {
@@ -140,6 +143,55 @@ describe("GET /api/venues/[id]/tips", () => {
     expect(res.status).toBe(200);
     expect(mockFetch).not.toHaveBeenCalled();
     expect(await res.json()).toEqual({ tips: [] });
+  });
+
+  it("returns empty tips when Anthropic returns an error", async () => {
+    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
+    const checkInsChain = chain({ data: [{ busyness: "packed", created_at: "2026-06-21T00:00:00.000Z" }] });
+    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: vi.fn().mockResolvedValue({ error: { message: "upstream failed" } }),
+    });
+
+    const { GET } = await import("../venues/[id]/tips/route");
+    const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toContain("s-maxage=3600");
+    expect(await res.json()).toEqual({ tips: [] });
+  });
+
+  it("generates generic tips when the venue has no check-ins", async () => {
+    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
+    const checkInsChain = chain({ data: [] });
+    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        content: [
+          {
+            type: "text",
+            text: "1. Check the door policy before you go.\n2. Arrive earlier if you want a quieter first round.\n3. Budget extra time for parking.",
+          },
+        ],
+      }),
+    });
+
+    const { GET } = await import("../venues/[id]/tips/route");
+    const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
+
+    expect(res.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalled();
+    const anthropicBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(anthropicBody.messages[0].content).toContain("No recent check-ins yet");
+    const json = await res.json();
+    expect(json.tips).toHaveLength(3);
+    for (const tip of json.tips) {
+      expect(typeof tip).toBe("string");
+      expect(tip.trim().length).toBeGreaterThan(0);
+    }
   });
 });
 
