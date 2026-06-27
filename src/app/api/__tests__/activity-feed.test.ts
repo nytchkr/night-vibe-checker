@@ -17,6 +17,7 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
   const builder = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
     not: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -30,37 +31,37 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-21T03:30:00.000Z"));
 });
 
 describe("GET /api/activity/feed", () => {
-  it("returns the latest public check-ins with profile and venue data", async () => {
+  it("returns anonymous recent check-in signals with venue data", async () => {
+    const checkInsChain = chain({
+      data: [
+        {
+          id: "check-in-1",
+          venue_id: "venue-1",
+          busyness: "packed",
+          crowd_feel: "balanced",
+          created_at: "2026-06-21T03:10:00.000Z",
+          user_id: "must-not-leak",
+        },
+        {
+          id: "check-in-2",
+          venue_id: "venue-2",
+          busyness: "dead",
+          crowd_feel: "mixed",
+          created_at: "2026-06-21T03:05:00.000Z",
+        },
+      ],
+    });
     mockFrom
+      .mockReturnValueOnce(checkInsChain)
       .mockReturnValueOnce(chain({
         data: [
-          {
-            id: "check-in-1",
-            user_id: "user-a",
-            venue_id: "venue-1",
-            created_at: "2026-06-21T03:10:00.000Z",
-          },
-          {
-            id: "check-in-2",
-            user_id: "user-b",
-            venue_id: "venue-2",
-            created_at: "2026-06-21T03:05:00.000Z",
-          },
-        ],
-      }))
-      .mockReturnValueOnce(chain({
-        data: [
-          { id: "venue-1", name: "The Neon Room" },
-          { id: "venue-2", name: "Vault" },
-        ],
-      }))
-      .mockReturnValueOnce(chain({
-        data: [
-          { id: "user-a", display_name: "Avery", avatar_url: "https://example.com/a.jpg", is_private: false },
-          { id: "user-b", display_name: "Blake", avatar_url: null, is_private: true },
+          { id: "venue-1", name: "The Neon Room", hidden: false },
+          { id: "venue-2", name: "Vault", hidden: true },
         ],
       }));
 
@@ -75,40 +76,25 @@ describe("GET /api/activity/feed", () => {
       items: [
         {
           id: "check-in-1",
-          user: { name: "Avery", avatar_url: "https://example.com/a.jpg" },
           venue: { id: "venue-1", name: "The Neon Room" },
+          busyness: "packed",
+          crowd_feel: "balanced",
           checked_in_at: "2026-06-21T03:10:00.000Z",
         },
       ],
     });
+    expect(JSON.stringify(json)).not.toContain("must-not-leak");
     expect(mockFrom).toHaveBeenNthCalledWith(1, "check_ins");
     expect(mockFrom).toHaveBeenNthCalledWith(2, "venues");
-    expect(mockFrom).toHaveBeenNthCalledWith(3, "profiles");
+    expect(mockFrom).not.toHaveBeenCalledWith("profiles");
+    expect(checkInsChain.gte).toHaveBeenCalledWith("created_at", "2026-06-21T01:30:00.000Z");
+    expect(checkInsChain.limit).toHaveBeenCalledWith(10);
   });
 
-  it("falls back to user_id profiles when profiles.id is unavailable", async () => {
+  it("returns an empty feed when no recent check-ins exist", async () => {
     mockFrom
-      .mockReturnValueOnce(chain({
-        data: [
-          {
-            id: "check-in-1",
-            user_id: "user-a",
-            venue_id: "venue-1",
-            created_at: "2026-06-21T03:10:00.000Z",
-          },
-        ],
-      }))
-      .mockReturnValueOnce(chain({
-        data: [
-          { id: "venue-1", name: "The Neon Room" },
-        ],
-      }))
-      .mockReturnValueOnce(chain({ error: { message: "column profiles.id does not exist" } }))
-      .mockReturnValueOnce(chain({
-        data: [
-          { user_id: "user-a", display_name: "Avery", avatar_url: null, is_private: false },
-        ],
-      }));
+      .mockReturnValueOnce(chain({ data: [] }))
+      .mockReturnValueOnce(chain({ data: [] }));
 
     const { GET } = await import("../activity/feed/route");
     const req = new Request("http://localhost/api/activity/feed") as NextRequest;
@@ -116,13 +102,6 @@ describe("GET /api/activity/feed", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.items).toEqual([
-      {
-        id: "check-in-1",
-        user: { name: "Avery", avatar_url: null },
-        venue: { id: "venue-1", name: "The Neon Room" },
-        checked_in_at: "2026-06-21T03:10:00.000Z",
-      },
-    ]);
+    expect(json.items).toEqual([]);
   });
 });

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { track } from "@vercel/analytics";
 import { SearchX } from "lucide-react";
@@ -39,14 +38,12 @@ type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
 type TonightPickLabel = "Moderate" | "Packed" | "Wild";
 type ActivityFeedItem = {
   id: string;
-  user: {
-    name: string;
-    avatar_url: string | null;
-  };
   venue: {
     id: string;
     name: string;
   };
+  busyness: "dead" | "moderate" | "packed";
+  crowd_feel: string;
   checked_in_at: string;
 };
 
@@ -204,17 +201,6 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   );
 }
 
-function getInitials(name: string): string {
-  const initials = name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-  return initials || "NV";
-}
-
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
 }
@@ -281,36 +267,50 @@ function getRelativeTimeLabel(value: string): string {
   return `${days}d ago`;
 }
 
+function getActivityBusynessLabel(busyness: ActivityFeedItem["busyness"]): "packed" | "moderate" | "quiet" {
+  if (busyness === "packed") return "packed";
+  if (busyness === "moderate") return "moderate";
+  return "quiet";
+}
+
+function getActivityBusynessColor(label: "packed" | "moderate" | "quiet"): string {
+  if (label === "packed") return "#FF5B6A";
+  if (label === "moderate") return "#FFB020";
+  return "#00F5D4";
+}
+
+function formatCrowdFeel(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function ActivityCard({ item }: { item: ActivityFeedItem }) {
+  const busynessLabel = getActivityBusynessLabel(item.busyness);
+  const busynessColor = getActivityBusynessColor(busynessLabel);
+
   return (
-    <article className="w-48 flex-shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
-      <div className="flex items-center gap-3">
-        {item.user.avatar_url ? (
-          <Image
-            src={item.user.avatar_url}
-            alt={`${item.user.name} avatar`}
-            width={40}
-            height={40}
-            sizes="40px"
-            loading="lazy"
-            className="h-10 w-10 shrink-0 rounded-full object-cover"
-          />
-        ) : (
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-xs font-black text-white/75">
-            {getInitials(item.user.name)}
-          </div>
-        )}
+    <Link
+      href={`/venues/${encodeURIComponent(item.venue.id)}`}
+      className="w-56 flex-shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      aria-label={`Open ${item.venue.name}, ${busynessLabel}, ${formatCrowdFeel(item.crowd_feel)}, ${getRelativeTimeLabel(item.checked_in_at)}`}
+    >
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="line-clamp-2 text-xs font-semibold leading-4 text-white/75">
-            <span className="font-black text-white">{item.user.name}</span>{" "}
-            checked into <span className="font-black text-white">{item.venue.name}</span>
-          </p>
-          <time dateTime={item.checked_in_at} className="mt-1 block text-[11px] font-semibold text-white/55">
-            {getRelativeTimeLabel(item.checked_in_at)}
-          </time>
+          <p className="truncate text-sm font-black text-white">{item.venue.name}</p>
+          <p className="mt-1 truncate text-xs font-semibold text-white/55">{formatCrowdFeel(item.crowd_feel)}</p>
         </div>
+        <span
+          className="shrink-0 rounded-full border px-2 py-1 text-[10px] font-black uppercase leading-none"
+          style={{ borderColor: `${busynessColor}55`, backgroundColor: `${busynessColor}1F`, color: busynessColor }}
+        >
+          {busynessLabel}
+        </span>
       </div>
-    </article>
+      <time dateTime={item.checked_in_at} className="mt-3 block text-[11px] font-semibold text-white/55">
+        {getRelativeTimeLabel(item.checked_in_at)}
+      </time>
+    </Link>
   );
 }
 
@@ -713,7 +713,7 @@ export function ExplorePageClient() {
       const res = await fetch("/api/activity/feed", { cache: "no-store" });
       if (!res.ok) throw new Error(`${res.status}`);
       const json = (await res.json()) as { items?: ActivityFeedItem[] };
-      setActivityItems(Array.isArray(json.items) ? json.items.slice(0, 8) : []);
+      setActivityItems(Array.isArray(json.items) ? json.items.slice(0, 10) : []);
     } catch {
       setActivityItems([]);
     } finally {
@@ -1294,20 +1294,19 @@ export function ExplorePageClient() {
         ref={activitySectionRef}
         className="mx-auto max-w-lg px-4 pb-32"
         role="region"
-        aria-label="Recent check-ins"
+        aria-label="What's happening now"
       >
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 animate-pulse rounded-full bg-[#22C55E]" aria-hidden="true" />
           <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
-            Recent check-ins
+            What&apos;s happening now
           </h2>
         </div>
 
         {activityLoaded && activityItems.length === 0 ? (
           <div className="mt-4 px-4 py-8 text-center text-white/60">
-            <span aria-hidden="true" className="block text-2xl leading-none">👋</span>
             <p className="mt-3 text-sm font-semibold leading-5">
-              Be the first to check in tonight.
+              Be the first to check in tonight
             </p>
           </div>
         ) : (

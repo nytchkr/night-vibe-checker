@@ -5,117 +5,43 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const ACTIVITY_LIMIT = 20;
+const ACTIVITY_LIMIT = 10;
+const RECENT_ACTIVITY_WINDOW_MS = 2 * 60 * 60 * 1000;
 const DYNAMIC_HEADERS = {
   "Cache-Control": "private, no-store",
 };
 
 export type ActivityFeedItem = {
   id: string;
-  user: {
-    name: string;
-    avatar_url: string | null;
-  };
   venue: {
     id: string;
     name: string;
   };
+  busyness: "dead" | "moderate" | "packed";
+  crowd_feel: string;
   checked_in_at: string;
 };
 
 type CheckInFeedRow = {
   id: string;
-  user_id: string | null;
   venue_id: string | null;
+  busyness: "dead" | "moderate" | "packed" | null;
+  crowd_feel: string | null;
   created_at: string;
-  venues?: { id?: string | null; name?: string | null; hidden?: boolean | null } | { id?: string | null; name?: string | null; hidden?: boolean | null }[] | null;
 };
-
-type ProfileRow = {
-  id?: string | null;
-  user_id?: string | null;
-  display_name?: string | null;
-  avatar_url?: string | null;
-  is_private?: boolean | null;
-  private?: boolean | null;
-  visibility?: string | null;
-  profile_visibility?: string | null;
-};
-
-type ProfileSelectAttempt = {
-  key: "id" | "user_id";
-  columns: string;
-  privacyColumn?: keyof Pick<ProfileRow, "is_private" | "private" | "visibility" | "profile_visibility">;
-};
-
-const PROFILE_SELECT_ATTEMPTS: ProfileSelectAttempt[] = [
-  { key: "id", columns: "id, display_name, avatar_url, is_private", privacyColumn: "is_private" },
-  { key: "user_id", columns: "user_id, display_name, avatar_url, is_private", privacyColumn: "is_private" },
-  { key: "id", columns: "id, display_name, avatar_url, private", privacyColumn: "private" },
-  { key: "user_id", columns: "user_id, display_name, avatar_url, private", privacyColumn: "private" },
-  { key: "id", columns: "id, display_name, avatar_url, visibility", privacyColumn: "visibility" },
-  { key: "user_id", columns: "user_id, display_name, avatar_url, visibility", privacyColumn: "visibility" },
-  { key: "id", columns: "id, display_name, avatar_url, profile_visibility", privacyColumn: "profile_visibility" },
-  { key: "user_id", columns: "user_id, display_name, avatar_url, profile_visibility", privacyColumn: "profile_visibility" },
-  { key: "id", columns: "id, display_name, avatar_url" },
-  { key: "user_id", columns: "user_id, display_name, avatar_url" },
-];
-
-function readVenue(row: CheckInFeedRow): { id: string; name: string; hidden: boolean } | null {
-  const venue = Array.isArray(row.venues) ? row.venues[0] : row.venues;
-  const id = venue?.id?.trim() || row.venue_id?.trim();
-  const name = venue?.name?.trim();
-  if (!id || !name) return null;
-  return { id, name, hidden: Boolean(venue?.hidden) };
-}
-
-function fallbackName(userId: string): string {
-  return `Explorer ${userId.slice(0, 6)}`;
-}
-
-function isPublicProfile(row: ProfileRow, privacyColumn?: ProfileSelectAttempt["privacyColumn"]): boolean {
-  if (!privacyColumn) return true;
-  const value = row[privacyColumn];
-  if (typeof value === "boolean") return !value;
-  if (typeof value === "string") return !["private", "hidden"].includes(value.toLowerCase());
-  return true;
-}
-
-async function loadPublicProfiles(userIds: string[]): Promise<Map<string, ProfileRow>> {
-  if (userIds.length === 0) return new Map();
-
-  for (const attempt of PROFILE_SELECT_ATTEMPTS) {
-    const { data, error } = await supabaseAdmin
-      .from("profiles")
-      .select(attempt.columns)
-      .in(attempt.key, userIds);
-
-    if (error) continue;
-
-    const rows = (data ?? []) as ProfileRow[];
-    if (rows.length === 0) continue;
-
-    const profiles = new Map<string, ProfileRow>();
-    for (const row of rows) {
-      if (!isPublicProfile(row, attempt.privacyColumn)) continue;
-      const key = attempt.key === "id" ? row.id : row.user_id;
-      if (key) profiles.set(key, row);
-    }
-    return profiles;
-  }
-
-  return new Map();
-}
 
 export async function GET(req: NextRequest): Promise<NextResponse<{ items: ActivityFeedItem[] } | { error: string }>> {
   const rate = publicRateLimit(req, "activity-feed", 60);
   if (rate.response) return rate.response as NextResponse<{ items: ActivityFeedItem[] } | { error: string }>;
   const headers = { ...DYNAMIC_HEADERS, ...rate.headers };
+  const since = new Date(Date.now() - RECENT_ACTIVITY_WINDOW_MS).toISOString();
 
   const { data, error } = await supabaseAdmin
     .from("check_ins")
-    .select("id, user_id, venue_id, created_at")
-    .not("user_id", "is", null)
+    .select("id, venue_id, busyness, crowd_feel, created_at")
+    .not("venue_id", "is", null)
+    .eq("hidden", false)
+    .gte("created_at", since)
     .order("created_at", { ascending: false })
     .limit(ACTIVITY_LIMIT);
 
@@ -128,39 +54,34 @@ export async function GET(req: NextRequest): Promise<NextResponse<{ items: Activ
   }
 
   const rawRows = (data ?? []) as CheckInFeedRow[];
-  const validRows = rawRows.filter((row) => row.id && row.user_id && row.venue_id);
-
-  // Fetch venue names in a separate query
-  const venueIds = Array.from(new Set(validRows.map((r) => r.venue_id as string)));
-  const { data: venueData } = venueIds.length
-    ? await supabaseAdmin.from("venues").select("id, name").in("id", venueIds)
-    : { data: [] };
-  const venueMap = new Map<string, string>(
-    ((venueData ?? []) as { id: string; name: string }[]).map((v) => [v.id, v.name])
+  const validRows = rawRows.filter(
+    (row) => row.id && row.venue_id && row.created_at && row.busyness && row.crowd_feel
   );
 
-  const userIds = Array.from(new Set(validRows.map((row) => row.user_id as string)));
-  const profiles = await loadPublicProfiles(userIds);
+  const venueIds = Array.from(new Set(validRows.map((r) => r.venue_id as string)));
+  const { data: venueData } = venueIds.length
+    ? await supabaseAdmin.from("venues").select("id, name, hidden").in("id", venueIds)
+    : { data: [] };
+  const venueMap = new Map<string, { name: string; hidden: boolean }>(
+    ((venueData ?? []) as { id: string; name: string; hidden?: boolean | null }[]).map((v) => [
+      v.id,
+      { name: v.name, hidden: Boolean(v.hidden) },
+    ])
+  );
 
   const items = validRows.flatMap((row): ActivityFeedItem[] => {
-    const userId = row.user_id as string;
-    const profile = profiles.get(userId);
-    if (!profile) return [];
-
     const venueId = row.venue_id as string;
-    const venueName = venueMap.get(venueId);
-    if (!venueName) return [];
+    const venue = venueMap.get(venueId);
+    if (!venue || venue.hidden) return [];
 
     return [{
       id: row.id,
-      user: {
-        name: profile.display_name?.trim() || fallbackName(userId),
-        avatar_url: profile.avatar_url?.trim() || null,
-      },
       venue: {
         id: venueId,
-        name: venueName,
+        name: venue.name,
       },
+      busyness: row.busyness as ActivityFeedItem["busyness"],
+      crowd_feel: row.crowd_feel as string,
       checked_in_at: row.created_at,
     }];
   });
