@@ -103,6 +103,7 @@ export function scoreTrendingVenue(
 export function rankTrendingVenueRows(rows: TrendingVenueRow[], limit = TRENDING_VENUE_LIMIT): TrendingVenueScore[] {
   const mapped = rows
     .filter((row) => row.hidden !== true)
+    .filter((row) => row.open_now !== false)
     .map((row) => ({
       venue: mapConsumerVenue(row),
       checkInsLast2h: countRecentCheckIns(row),
