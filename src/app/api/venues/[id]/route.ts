@@ -75,6 +75,8 @@ function mapVenuePhotoUrls(row: Record<string, unknown>): string[] | undefined {
     for (const item of row.photo_url) {
       if (typeof item === "string" && item.length > 0) urls.add(item);
     }
+  } else if (typeof row.photo_url === "string" && row.photo_url.length > 0) {
+    urls.add(row.photo_url);
   }
   for (const item of mapPhotoUrls(row.photo_urls) ?? []) urls.add(item);
   return urls.size ? Array.from(urls) : undefined;
@@ -130,7 +132,7 @@ async function fetchGooglePhotoUrls(placeId: string | undefined): Promise<string
 }
 
 async function hydrateMissingGooglePhotos(row: Record<string, unknown>): Promise<Record<string, unknown>> {
-  if (hasPhotoUrl(row.photo_url) && hasPhotoUrls(row.photo_urls)) return row;
+  if (hasPhotoUrl(row.photo_url)) return row;
 
   try {
     const googlePhotoUrls = await fetchGooglePhotoUrls(row.place_id as string | undefined);
