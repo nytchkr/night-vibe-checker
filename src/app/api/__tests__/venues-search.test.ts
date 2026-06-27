@@ -82,7 +82,8 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
+    expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
     expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
       search_query: "rooftop",
       search_zone_id: null,
@@ -170,11 +171,50 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
+    expect(res.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
+    expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
       "venue-b",
       "venue-c",
       "venue-a",
     ]);
+  });
+
+  it("uses private no-cache for authenticated venue list responses", async () => {
+    const query = chain({ data: [venue("venue-a", "Alpha")] });
+    mockFrom.mockReturnValueOnce(query);
+
+    const { GET } = await import("../venues/route");
+    const res = await GET(
+      new NextRequest("http://localhost/api/venues", {
+        headers: { Authorization: "Bearer test-token" },
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-cache");
+    expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
+  });
+
+  it("returns 304 when If-None-Match matches the venue list etag", async () => {
+    mockFrom.mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha")] }));
+    mockFrom.mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha")] }));
+
+    const { GET } = await import("../venues/route");
+    const first = await GET(new NextRequest("http://localhost/api/venues"));
+    const etag = first.headers.get("ETag");
+
+    expect(etag).toBeTruthy();
+
+    const second = await GET(
+      new NextRequest("http://localhost/api/venues", {
+        headers: { "If-None-Match": etag ?? "" },
+      })
+    );
+
+    expect(second.status).toBe(304);
+    expect(second.headers.get("Cache-Control")).toBe("public, s-maxage=60, stale-while-revalidate=120");
+    expect(second.headers.get("ETag")).toBe(etag);
+    expect(await second.text()).toBe("");
   });
 });

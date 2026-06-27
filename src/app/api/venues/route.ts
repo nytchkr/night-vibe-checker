@@ -5,6 +5,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
@@ -42,9 +43,8 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
-const EDGE_CACHE_HEADERS = {
-  "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
-};
+const PUBLIC_CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=120";
+const PRIVATE_CACHE_CONTROL = "private, no-cache";
 
 type VenueQueryResult = {
   data: Record<string, unknown>[] | null;
@@ -55,6 +55,22 @@ type VenueSearchRow = {
   id: string;
   search_rank: number;
 };
+
+function isAuthenticatedRequest(req: NextRequest): boolean {
+  return Boolean(req.headers.get("authorization")?.trim());
+}
+
+function cacheHeaders(authenticated: boolean, etag?: string): Record<string, string> {
+  return {
+    "Cache-Control": authenticated ? PRIVATE_CACHE_CONTROL : PUBLIC_CACHE_CONTROL,
+    ...(etag ? { ETag: etag } : {}),
+  };
+}
+
+function createVenueListEtag(venues: ConsumerVenue[]): string {
+  const digest = createHash("sha256").update(JSON.stringify(venues)).digest("base64url");
+  return `"venues-${digest}"`;
+}
 
 function parseOptionalNumber(value: string | null): number | null {
   if (!value) return null;
@@ -210,6 +226,7 @@ async function loadVenueRows(
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const generatedAt = new Date().toISOString();
+  const authenticated = isAuthenticatedRequest(req);
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
@@ -270,11 +287,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       searchRankById = new Map(rankedRows.map((row) => [row.id, Number(row.search_rank ?? 0)]));
 
       if (searchIds.length === 0) {
+        const venues: ConsumerVenue[] = [];
+        const etag = createVenueListEtag(venues);
+        const responseHeaders = { ...headers, ...cacheHeaders(authenticated, etag) };
+        if (req.headers.get("if-none-match") === etag) {
+          return new NextResponse(null, { status: 304, headers: responseHeaders });
+        }
+
         return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
           status: "success",
-          data: { zone: LAUNCH_ZONE, venues: [] },
+          data: { zone: LAUNCH_ZONE, venues },
           meta: { cached: false, generatedAt, requestId },
-        }, { headers: { ...headers, ...EDGE_CACHE_HEADERS } });
+        }, { headers: responseHeaders });
       }
     }
 
@@ -334,11 +358,17 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         return bRating - aRating || a.name.localeCompare(b.name);
       });
 
+    const etag = createVenueListEtag(venues);
+    const responseHeaders = { ...headers, ...cacheHeaders(authenticated, etag) };
+    if (req.headers.get("if-none-match") === etag) {
+      return new NextResponse(null, { status: 304, headers: responseHeaders });
+    }
+
     return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
       status: "success",
       data: { zone: LAUNCH_ZONE, venues },
       meta: { cached: false, generatedAt, requestId },
-    }, { headers: { ...headers, ...EDGE_CACHE_HEADERS } });
+    }, { headers: responseHeaders });
   } catch (error) {
     console.error("[venues] unexpected error:", error);
     return NextResponse.json<APIResponse<never>>(
