@@ -728,6 +728,51 @@ function VenueFeedCard({
   );
 }
 
+function PullToRefreshIndicator({
+  refreshing,
+  pullDistance,
+  prefersReduced,
+}: {
+  refreshing: boolean;
+  pullDistance: number;
+  prefersReduced: boolean;
+}) {
+  const pullOffset = Math.min(10, Math.max(0, pullDistance / 10));
+
+  return (
+    <MotionDiv
+      key="explore-pull-to-refresh"
+      role={refreshing ? "status" : undefined}
+      aria-live="polite"
+      initial={prefersReduced ? false : { opacity: 0, y: -18, height: 0 }}
+      animate={{
+        opacity: 1,
+        y: prefersReduced ? 0 : pullOffset,
+        height: "auto",
+      }}
+      exit={prefersReduced ? undefined : { opacity: 0, y: -12, height: 0 }}
+      transition={{ duration: prefersReduced ? 0 : 0.22, ease: "easeOut" }}
+      className="overflow-hidden"
+    >
+      <div className="mb-3 flex justify-center">
+        <div className="flex min-h-[68px] min-w-[104px] flex-col items-center justify-center rounded-[18px] border border-[#8B6CFF]/20 bg-[#0A0A0E]/92 px-5 py-3 shadow-[0_16px_34px_rgba(0,0,0,0.26)] backdrop-blur">
+          <span
+            className="h-7 w-7 animate-spin rounded-full border-[3px] border-[#8B6CFF] border-t-transparent"
+            aria-hidden="true"
+          />
+          {refreshing ? (
+            <span className="mt-2 text-xs font-semibold text-[#8B6CFF]">
+              Refreshing...
+            </span>
+          ) : (
+            <span className="sr-only">Pull to refresh venues</span>
+          )}
+        </div>
+      </div>
+    </MotionDiv>
+  );
+}
+
 export function ExplorePageClient() {
   const router = useRouter();
   const trackPageView = useTrack();
@@ -802,7 +847,7 @@ export function ExplorePageClient() {
     }
   }, []);
 
-  const { pulling, refreshing } = usePullToRefresh(refreshVenues);
+  const { pulling, refreshing, pullDistance } = usePullToRefresh(refreshVenues);
 
   useEffect(() => {
     void fetchActivity();
@@ -1183,25 +1228,6 @@ export function ExplorePageClient() {
 
   return (
     <div className="min-h-screen-safe bg-[#0A0A0E]">
-      {(pulling || refreshing) && (
-        <div
-          className="fixed left-0 right-0 top-0 z-50 flex justify-center px-4 pt-3"
-          role={refreshing ? "status" : undefined}
-          aria-live="polite"
-        >
-          <div className="rounded-full border border-white/10 bg-[#0A0A0E]/90 px-4 py-2 text-xs font-semibold text-white/50 shadow-2xl backdrop-blur">
-            {refreshing ? (
-              <span className="flex items-center gap-2">
-                <span className="h-6 w-6 animate-spin rounded-full border-2 border-[#8B6CFF] border-t-transparent" aria-hidden="true" />
-                <span className="sr-only">Refreshing venues...</span>
-              </span>
-            ) : (
-              "Pull to refresh"
-            )}
-          </div>
-        </div>
-      )}
-
       <header className="px-4 pb-5 pt-10" role="region" aria-label="Explore filters">
         <div className="mx-auto max-w-lg">
           <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/55">
@@ -1367,6 +1393,16 @@ export function ExplorePageClient() {
       </div>
 
       <section className="mx-auto max-w-lg space-y-3 px-4 pb-6" role="region" aria-label="Venue results">
+        <AnimatePresence initial={false}>
+          {(pulling || refreshing) ? (
+            <PullToRefreshIndicator
+              refreshing={refreshing}
+              pullDistance={pullDistance}
+              prefersReduced={prefersReduced}
+            />
+          ) : null}
+        </AnimatePresence>
+
         {error && (
           <div
             role="alert"

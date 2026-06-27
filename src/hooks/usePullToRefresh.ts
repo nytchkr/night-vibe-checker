@@ -24,6 +24,7 @@ export function usePullToRefresh(onRefresh: () => Promise<void>, threshold = 80)
   const onRefreshRef = useRef(onRefresh);
   const [pulling, setPulling] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
 
   useEffect(() => {
     onRefreshRef.current = onRefresh;
@@ -36,6 +37,7 @@ export function usePullToRefresh(onRefresh: () => Promise<void>, threshold = 80)
   useEffect(() => {
     const resetPull = () => {
       setPulling(false);
+      setPullDistance(0);
       startY.current = 0;
       startX.current = 0;
       activePointerId.current = null;
@@ -71,6 +73,7 @@ export function usePullToRefresh(onRefresh: () => Promise<void>, threshold = 80)
 
       if (deltaY > PULL_ACTIVATION_PX) {
         setPulling(true);
+        setPullDistance(Math.min(deltaY, threshold * 1.25));
       }
     };
 
@@ -110,5 +113,5 @@ export function usePullToRefresh(onRefresh: () => Promise<void>, threshold = 80)
     };
   }, [threshold]);
 
-  return { pulling, refreshing };
+  return { pulling, refreshing, pullDistance };
 }
