@@ -1,6 +1,6 @@
 "use client";
 
-import * as motion from "framer-motion/client";
+import { div as MotionDiv } from "framer-motion/client";
 import type { ReactNode } from "react";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
@@ -13,13 +13,13 @@ export function PageTransition({ children, className }: PageTransitionProps) {
   const prefersReduced = useReducedMotion();
 
   return (
-    <motion.div
+    <MotionDiv
       initial={prefersReduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: prefersReduced ? 0 : 0.18, ease: "easeOut" }}
       className={className}
     >
       {children}
-    </motion.div>
+    </MotionDiv>
   );
 }

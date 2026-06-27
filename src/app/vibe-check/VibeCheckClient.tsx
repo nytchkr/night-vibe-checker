@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import * as motion from "framer-motion/client";
+import { button as MotionButton } from "framer-motion/client";
 import { Share2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
@@ -762,7 +762,7 @@ export default function VibeCheckClient({
         </section>
 
         {/* ── SUBMIT ────────────────────────────────────────────── */}
-        <motion.button
+        <MotionButton
           type="button"
           disabled={!canSubmit}
           onClick={handleSubmit}
@@ -772,7 +772,7 @@ export default function VibeCheckClient({
           className="min-h-[56px] w-full rounded-xl bg-[#8B6CFF] px-4 py-4 text-base font-black text-[#0A0A0E] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Submitting..." : canSubmit ? "✓ Submit Vibe" : "Select a vibe to continue"}
-        </motion.button>
+        </MotionButton>
 
         {/* Inline errors */}
         {submitError && (

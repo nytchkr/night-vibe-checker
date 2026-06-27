@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { SearchX, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
-import * as motion from "framer-motion/client";
+import { div as MotionDiv, li as MotionLi, span as MotionSpan } from "framer-motion/client";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
@@ -431,7 +431,7 @@ function ZoneStatsBar({ stats, prefersReduced }: { stats: ZoneStatsSummary; pref
   const busynessLabel = stats.averageBusyness == null ? "avg busyness --" : `avg busyness ${stats.averageBusyness}%`;
 
   return (
-    <motion.div
+    <MotionDiv
       key={`${stats.zoneName}-${stats.spotCount}-${stats.openNowCount}-${stats.averageBusyness ?? "na"}`}
       className="mt-4 rounded-[16px] border border-[#00F5D4]/15 bg-[#00F5D4]/[0.055] px-4 py-3 shadow-[0_14px_34px_rgba(0,0,0,0.18)] backdrop-blur-sm"
       initial={prefersReduced ? false : { opacity: 0, y: -6 }}
@@ -444,7 +444,7 @@ function ZoneStatsBar({ stats, prefersReduced }: { stats: ZoneStatsSummary; pref
       <p className="truncate text-[13px] font-black text-[#F4F5F8]">
         {stats.spotCount} {stats.spotCount === 1 ? "spot" : "spots"} · {stats.openNowCount} open now · {busynessLabel}
       </p>
-    </motion.div>
+    </MotionDiv>
   );
 }
 
@@ -628,7 +628,7 @@ function VenueFeedCard({
   const neighborhood = getNeighborhood(venue.lat, venue.lng);
 
   return (
-    <motion.li
+    <MotionLi
       className="h-auto sm:h-[126px]"
       role="article"
       initial={prefersReduced ? false : { opacity: 0, y: 8 }}
@@ -703,7 +703,7 @@ function VenueFeedCard({
           {signalConfidenceLabel ? <p className="sr-only">{signalConfidenceLabel}</p> : null}
         </div>
       </Link>
-    </motion.li>
+    </MotionLi>
   );
 }
 
@@ -1219,14 +1219,14 @@ export function ExplorePageClient() {
 
           <div className="mt-4 flex items-center gap-2">
             <h1 className="font-display text-[34px] font-semibold tracking-tight">
-              <motion.span
+              <MotionSpan
                 className="inline-block bg-[linear-gradient(100deg,#F4F5F8_0%,#F4F5F8_34%,#00F5D4_50%,#FF2D78_64%,#F4F5F8_82%)] bg-[length:220%_100%] bg-clip-text text-transparent"
                 initial={prefersReduced ? false : { backgroundPosition: "0% 50%" }}
                 animate={prefersReduced ? undefined : { backgroundPosition: "100% 50%" }}
                 transition={{ duration: prefersReduced ? 0 : 1.35, ease: "easeOut", delay: prefersReduced ? 0 : 0.08 }}
               >
                 South End
-              </motion.span>
+              </MotionSpan>
             </h1>
             <span className="rounded-full bg-[#22C55E]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#22C55E]">
               LIVE

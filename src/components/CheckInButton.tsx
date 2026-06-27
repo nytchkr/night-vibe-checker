@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
-import * as motion from "framer-motion/client";
+import { div as MotionDiv } from "framer-motion/client";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import { formatRewardMessages } from "@/lib/rewardMessages";
@@ -267,7 +267,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
         </button>
         <AnimatePresence>
           {rewardAnimation ? (
-            <motion.div
+            <MotionDiv
               key={rewardAnimation.id}
               aria-live="polite"
               aria-atomic="true"
@@ -290,7 +290,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
                   {rewardAnimation.streakBadge}
                 </span>
               ) : null}
-            </motion.div>
+            </MotionDiv>
           ) : null}
         </AnimatePresence>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import * as motion from "framer-motion/client";
+import { div as MotionDiv } from "framer-motion/client";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 type MFBarSource = "live" | "forecast" | null;
@@ -44,14 +44,14 @@ export function MFBar({ malePercent, sampleSize, source, showWhenRatioPresent = 
         aria-valuenow={male}
         aria-valuetext={`${male}% guys, ${female}% girls`}
       >
-        <motion.div
+        <MotionDiv
           layoutId={`${layoutId}-male`}
           className="h-full bg-[#8B6CFF]"
           initial={prefersReducedMotion ? false : { width: "0%" }}
           animate={{ width: `${male}%` }}
           transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
         />
-        <motion.div
+        <MotionDiv
           layoutId={`${layoutId}-female`}
           className="h-full flex-1 bg-[#F0568C]"
           initial={prefersReducedMotion ? false : { width: "0%" }}

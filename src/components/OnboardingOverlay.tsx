@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, HelpCircle, MapPin } from "lucide-react";
-import * as motion from "framer-motion/client";
+import { div as MotionDiv, span as MotionSpan } from "framer-motion/client";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { triggerHapticFeedback } from "@/lib/haptics";
@@ -96,7 +96,7 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex flex-1 flex-col justify-center">
-          <motion.div
+          <MotionDiv
             initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: "easeOut" }}
@@ -166,20 +166,20 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
                         </span>
                         <span className="mt-1 block text-sm font-semibold leading-5 text-white/56">{zone.description}</span>
                       </span>
-                      <motion.span
+                      <MotionSpan
                         className="text-xl font-black text-white/35 transition-colors group-hover:text-white/70"
                         aria-hidden="true"
                         animate={isSelected && !prefersReducedMotion ? { scale: [1, 1.18, 1], color: "rgba(255,255,255,0.9)" } : { scale: 1 }}
                         transition={{ duration: prefersReducedMotion ? 0 : 0.28, ease: "easeOut" }}
                       >
                         {isSelected ? "✓" : "→"}
-                      </motion.span>
+                      </MotionSpan>
                     </span>
                   </button>
                 );
               })}
             </div>
-          </motion.div>
+          </MotionDiv>
         </div>
 
         <div className="pt-5">
