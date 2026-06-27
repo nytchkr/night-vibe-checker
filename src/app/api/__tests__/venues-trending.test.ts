@@ -84,10 +84,10 @@ function venue(
   };
 }
 
-function checkIn(venueId: string) {
+function checkIn(venueId: string, createdAt = "2026-06-23T01:00:00.000Z") {
   return {
     venue_id: venueId,
-    created_at: "2026-06-23T01:00:00.000Z",
+    created_at: createdAt,
   };
 }
 
@@ -103,7 +103,7 @@ afterEach(() => {
 });
 
 describe("GET /api/venues/trending", () => {
-  it("returns the top 5 visible launch-zone venues sorted by recent check-in count, then busyness, rating, and name", async () => {
+  it("returns the top 5 visible launch-zone venues sorted by weighted recent trend score, then busyness, rating, and name", async () => {
     const checkInsQuery = chain({
       data: [
         checkIn("venue-a"),
@@ -148,9 +148,9 @@ describe("GET /api/venues/trending", () => {
       "venue-f",
     ]);
     expect(mockFrom).toHaveBeenNthCalledWith(1, "check_ins");
-    expect(checkInsQuery.gte).toHaveBeenCalledWith("created_at", "2026-06-22T02:00:00.000Z");
+    expect(checkInsQuery.gte).toHaveBeenCalledWith("created_at", "2026-06-16T02:00:00.000Z");
     expect(checkInsQuery.eq).toHaveBeenCalledWith("hidden", false);
-    expect(checkInsQuery.limit).toHaveBeenCalledWith(500);
+    expect(checkInsQuery.limit).toHaveBeenCalledWith(2000);
     expect(mockFrom).toHaveBeenNthCalledWith(2, "venues");
     expect(venuesQuery.eq).toHaveBeenCalledWith("hidden", false);
     expect(venuesQuery.in).toHaveBeenCalledWith("zone_id", [
@@ -184,7 +184,7 @@ describe("GET /api/venues/trending", () => {
     expect(mockFrom).toHaveBeenCalledTimes(1);
   });
 
-  it("excludes venues that are currently closed by Google opening hours", async () => {
+  it("boosts venues that are currently open above closed venues with similar activity", async () => {
     mockFrom.mockReturnValueOnce(
       chain({
         data: [checkIn("venue-open"), checkIn("venue-closed")],
@@ -204,11 +204,12 @@ describe("GET /api/venues/trending", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open"]);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open", "venue-closed"]);
     expect(json.data.venues[0].openNow).toBe(true);
+    expect(json.data.venues[1].openNow).toBe(false);
   });
 
-  it("excludes venues with missing or unparsable hours instead of assuming they are open", async () => {
+  it("keeps unknown-hour venues behind currently open venues instead of assuming they are open", async () => {
     mockFrom.mockReturnValueOnce(
       chain({
         data: [checkIn("venue-open"), checkIn("venue-missing-hours"), checkIn("venue-unparsable-hours")],
@@ -229,10 +230,16 @@ describe("GET /api/venues/trending", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open"]);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
+      "venue-open",
+      "venue-missing-hours",
+      "venue-unparsable-hours",
+    ]);
+    expect(json.data.venues[0].openNow).toBe(true);
+    expect(json.data.venues[1].openNow).toBe(null);
   });
 
-  it("excludes venues with stale hours even when cached open_now is true", async () => {
+  it("keeps stale-hour venues behind currently open venues even when cached open_now is true", async () => {
     mockFrom.mockReturnValueOnce(
       chain({
         data: [checkIn("venue-open"), checkIn("venue-stale")],
@@ -255,7 +262,64 @@ describe("GET /api/venues/trending", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open"]);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-open", "venue-stale"]);
+    expect(json.data.venues[0].openNow).toBe(true);
+    expect(json.data.venues[1].openNow).toBe(null);
+  });
+
+  it("weights last-2-hour check-ins three times older same-day check-ins", async () => {
+    mockFrom.mockReturnValueOnce(
+      chain({
+        data: [
+          checkIn("venue-fast", "2026-06-23T01:30:00.000Z"),
+          checkIn("venue-slow", "2026-06-22T21:00:00.000Z"),
+          checkIn("venue-slow", "2026-06-22T20:00:00.000Z"),
+        ],
+      })
+    );
+    mockFrom.mockReturnValueOnce(
+      chain({
+        data: [
+          venue("venue-slow", "Slow Build", 70),
+          venue("venue-fast", "Fast Spike", 20),
+        ],
+      })
+    );
+
+    const { GET } = await import("../venues/trending/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-fast", "venue-slow"]);
+  });
+
+  it("boosts venues gaining check-ins faster than their seven-day average", async () => {
+    const baselineHistory = Array.from({ length: 20 }, () => checkIn("venue-baseline", "2026-06-20T01:00:00.000Z"));
+    mockFrom.mockReturnValueOnce(
+      chain({
+        data: [
+          ...baselineHistory,
+          checkIn("venue-baseline", "2026-06-23T01:30:00.000Z"),
+          checkIn("venue-surge", "2026-06-23T01:30:00.000Z"),
+        ],
+      })
+    );
+    mockFrom.mockReturnValueOnce(
+      chain({
+        data: [
+          venue("venue-baseline", "Baseline", 95),
+          venue("venue-surge", "Surge", 10),
+        ],
+      })
+    );
+
+    const { GET } = await import("../venues/trending/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues/trending"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-surge", "venue-baseline"]);
   });
 
   it("returns DB_ERROR when venues cannot be loaded", async () => {
