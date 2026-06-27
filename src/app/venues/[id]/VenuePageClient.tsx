@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import Image from "next/image";
+import dynamic from "next/dynamic";
+import NextImage from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
@@ -15,7 +16,6 @@ import { CheckInButton } from "@/components/CheckInButton";
 import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
-import { PushOptIn } from "@/components/PushOptIn";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
@@ -23,11 +23,8 @@ import { SkeletonVenueDetail } from "@/components/SkeletonVenueDetail";
 import { StarRating } from "@/components/StarRating";
 import { Toast } from "@/components/Toast";
 import { TrendingBadge } from "@/components/TrendingBadge";
-import { VenuePredictionCard } from "@/components/VenuePredictionCard";
-import { VenueRating } from "@/components/VenueRating";
 import { VenuePhoto } from "@/components/VenuePhoto";
-import { VenueTips } from "@/components/VenueTips";
-import { VENUE_PHOTO_BLUR_DATA_URL } from "@/lib/imagePlaceholders";
+import { VenueRating } from "@/components/VenueRating";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { fetchTrendingVenueIds } from "@/lib/clientTrendingVenueIds";
@@ -35,6 +32,19 @@ import { summarizeVenueHours } from "@/lib/venueHours";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import type { ConsumerVenue, CrowdFeel, ReportedBusyness } from "@/types";
+
+const PushOptIn = dynamic(() => import("@/components/PushOptIn").then((mod) => mod.PushOptIn), {
+  ssr: false,
+  loading: () => null,
+});
+const VenuePredictionCard = dynamic(() => import("@/components/VenuePredictionCard").then((mod) => mod.VenuePredictionCard), {
+  ssr: false,
+  loading: () => <div className="h-40 rounded-2xl border border-white/[0.06] bg-white/[0.04]" aria-hidden="true" />,
+});
+const VenueTips = dynamic(() => import("@/components/VenueTips").then((mod) => mod.VenueTips), {
+  ssr: false,
+  loading: () => <div className="h-28 rounded-2xl border border-white/[0.06] bg-white/[0.04]" aria-hidden="true" />,
+});
 
 type VenueActivityItem = {
   displayName: string;
@@ -54,10 +64,6 @@ type RecentCheckIn = {
 type BestTimeHourlyForecast = {
   hour: number;
   busyness: number;
-};
-
-type VenuePhotosResponse = {
-  photos?: string[];
 };
 
 type VenueReportReason = "wrong_hours" | "wrong_location" | "permanently_closed" | "duplicate" | "other";
@@ -337,7 +343,7 @@ function WhoHereSection({ activity }: { activity: VenueActivityItem[] }) {
             >
               <span aria-hidden="true">{initialFor(item.displayName)}</span>
               {item.avatarUrl && (
-                <Image
+                <NextImage
                   src={item.avatarUrl}
                   alt={item.displayName}
                   width={36}
@@ -444,131 +450,6 @@ function AuthRequiredReportAction({ venueId, venueName }: { venueId: string; ven
     >
       Sign in to report vibe
     </a>
-  );
-}
-
-function VenuePhotoCarousel({
-  fallbackPhotoUrl,
-  venueId,
-  venueName,
-}: {
-  fallbackPhotoUrl?: string | null;
-  venueId: string;
-  venueName: string;
-}) {
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const [shouldFetch, setShouldFetch] = useState(false);
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    const element = rootRef.current;
-    if (!element || shouldFetch) return;
-
-    if (typeof IntersectionObserver === "undefined") {
-      setShouldFetch(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        setShouldFetch(true);
-        observer.disconnect();
-      },
-      { rootMargin: "160px 0px" }
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [shouldFetch]);
-
-  useEffect(() => {
-    if (!shouldFetch || !venueId) return;
-
-    let cancelled = false;
-    setLoading(true);
-    setPhotos([]);
-    setFailedPhotos(new Set());
-
-    async function fetchPhotos() {
-      try {
-        const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}/photos`, {
-          cache: "no-store",
-          credentials: "same-origin",
-        });
-        if (!response.ok) throw new Error(`${response.status}`);
-        const json = (await response.json()) as VenuePhotosResponse;
-        const nextPhotos = Array.isArray(json.photos)
-          ? json.photos.filter((photo): photo is string => typeof photo === "string" && photo.length > 0).slice(0, 5)
-          : [];
-        if (!cancelled) setPhotos(nextPhotos);
-      } catch {
-        if (!cancelled) setPhotos([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void fetchPhotos();
-    return () => {
-      cancelled = true;
-    };
-  }, [shouldFetch, venueId]);
-
-  const visiblePhotos = photos.filter((photo) => !failedPhotos.has(photo));
-
-  return (
-    <div
-      ref={rootRef}
-      className="relative h-[200px] w-full overflow-hidden bg-gradient-to-br from-[#1A1A2E] to-[#2A1A3E]"
-      aria-label={`${venueName} photos`}
-    >
-      {visiblePhotos.length > 0 ? (
-        <div className="scroll-touch flex h-full w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
-          {visiblePhotos.map((photo, index) => (
-            <div key={photo} className="relative h-[200px] min-w-full snap-center">
-              <Image
-                src={photo}
-                alt={`${venueName} photo ${index + 1}`}
-                fill
-                sizes="(max-width: 768px) 100vw, 768px"
-                className="object-cover"
-                loading="lazy"
-                placeholder="blur"
-                blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
-                onError={() => {
-                  setFailedPhotos((current) => new Set(current).add(photo));
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <VenuePhoto
-          name={venueName}
-          photoUrl={fallbackPhotoUrl}
-          className="h-full w-full"
-          sizes="(max-width: 768px) 100vw, 768px"
-          loading="lazy"
-        />
-      )}
-
-      {loading && visiblePhotos.length === 0 && (
-        <div className="absolute inset-x-0 bottom-0 h-1 overflow-hidden bg-white/10" aria-hidden="true">
-          <div className="h-full w-1/2 animate-pulse bg-[#00F5D4]/60" />
-        </div>
-      )}
-
-      {visiblePhotos.length > 1 && (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5" aria-hidden="true">
-          {visiblePhotos.map((photo) => (
-            <span key={photo} className="h-1.5 w-1.5 rounded-full bg-white/70 shadow" />
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -690,7 +571,8 @@ export function VenuePageClient({
 
   const fetchLiveCheckInCount = useCallback(async (targetVenueId: string, isCancelled?: () => boolean) => {
     try {
-      const { count, error } = await createBrowserClient()
+      const client = createBrowserClient();
+      const { count, error } = await client
         .from("check_ins")
         .select("id", { count: "exact", head: true })
         .eq("venue_id", targetVenueId)
@@ -783,6 +665,8 @@ export function VenuePageClient({
     if (!realtimeVenueId) return;
 
     let cancelled = false;
+    let removeRealtimeChannel: (() => void) | undefined;
+
     const client = createBrowserClient();
     const refresh = () => {
       void fetchLiveCheckInCount(realtimeVenueId, () => cancelled);
@@ -801,11 +685,14 @@ export function VenuePageClient({
       )
       .subscribe();
 
+    removeRealtimeChannel = () => {
+      void client.removeChannel(channel);
+    };
     refresh();
 
     return () => {
       cancelled = true;
-      void client.removeChannel(channel);
+      removeRealtimeChannel?.();
     };
   }, [fetchLiveCheckInCount, venue?.id, venueId]);
 
@@ -834,9 +721,9 @@ export function VenuePageClient({
 
   useEffect(() => {
     let cancelled = false;
-    const client = createBrowserClient();
 
     async function fetchAuthState() {
+      const client = createBrowserClient();
       const { data } = await client.auth.getSession();
       const token = data.session?.access_token ?? null;
       const sessionUserId = data.session?.user?.id ?? null;
@@ -847,6 +734,9 @@ export function VenuePageClient({
       setAuthChecked(true);
     }
 
+    let unsubscribe: (() => void) | undefined;
+
+    const client = createBrowserClient();
     void fetchAuthState();
 
     const {
@@ -858,10 +748,11 @@ export function VenuePageClient({
       setUserId(sessionUserId);
       setAuthChecked(true);
     });
+    unsubscribe = () => subscription.unsubscribe();
 
     return () => {
       cancelled = true;
-      subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
@@ -915,8 +806,8 @@ export function VenuePageClient({
 
   async function getActiveAccessToken(): Promise<string | null> {
     if (accessToken) return accessToken;
-    const client = createBrowserClient();
     try {
+      const client = createBrowserClient();
       const { data } = await client.auth.getSession();
       const token = data.session?.access_token ?? null;
       if (token) {

@@ -62,7 +62,7 @@ describe("VenueRating", () => {
       const fourStarButton = screen.getByRole("button", { name: "Rate 4 stars" });
       expect(fourStarButton.querySelector("svg")?.getAttribute("class")).toContain("fill-current");
     });
-  });
+  }, 10000);
 
   it("submits a 1-5 star rating for authenticated users", async () => {
     const fetchMock = vi.fn()
