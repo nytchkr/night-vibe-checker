@@ -137,8 +137,8 @@ function MiniMFRatio({ venue }: { venue: ConsumerVenue }) {
   return (
     <div className="flex min-w-0 items-center gap-2" role="img" aria-label={`${percents.male}% male, ${percents.female}% female`}>
       <div className="flex h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
-        <span className="h-full bg-[#8B6CFF]" style={{ width: `${percents.male}%` }} />
-        <span className="h-full bg-[#F0568C]" style={{ width: `${percents.female}%` }} />
+        <span className="venue-fill-motion h-full bg-[#8B6CFF]" style={{ width: `${percents.male}%` }} />
+        <span className="venue-fill-motion h-full bg-[#F0568C]" style={{ width: `${percents.female}%` }} />
       </div>
       <span className="truncate text-[12px] font-semibold text-white/58">
         {percents.male}% M · {percents.female}% F

@@ -1,6 +1,3 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
 import { BusynessBadge } from "@/components/BusynessBadge";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import type { BusynessSource } from "@/types";
@@ -24,7 +21,6 @@ function getBusynessConfig(value: number) {
 }
 
 export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null, className }: BusynessMeterProps) {
-  const prefersReducedMotion = useReducedMotion();
   const confidenceLabel = formatSignalConfidenceLabel({ busynessSource: source, sampleSize });
 
   if (value == null || !Number.isFinite(value)) {
@@ -57,12 +53,9 @@ export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null
         aria-valuenow={percent}
         aria-valuetext={`${percent}% busy`}
       >
-        <motion.div
-          className="h-full rounded-full"
-          initial={prefersReducedMotion ? false : { width: "0%" }}
-          animate={{ width: `${percent}%` }}
-          transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
-          style={{ backgroundColor: config.color }}
+        <div
+          className="venue-fill-motion h-full rounded-full"
+          style={{ width: `${percent}%`, backgroundColor: config.color }}
         />
       </div>
       <p className="mt-1.5 text-xs text-[#9CA2AE]">{confidenceLabel}</p>

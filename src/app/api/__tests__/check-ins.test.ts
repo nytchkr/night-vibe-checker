@@ -492,6 +492,30 @@ describe("POST /api/check-ins", () => {
     const json = await res.json();
     expect(json.error.code).toBe("RATE_LIMITED");
   });
+
+  it("rate limits check-in attempts by authenticated user per hour", async () => {
+    const { POST } = await import("../check-ins/route");
+    const body = { venueId: "v", busyness: "wild" };
+
+    for (let i = 0; i < 10; i += 1) {
+      const res = await POST(
+        request("POST", "http://localhost/api/check-ins", body, "token", { "x-forwarded-for": `203.0.113.${i}` })
+      );
+      expect(res.status).toBe(400);
+      expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
+    }
+
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", body, "token", { "x-forwarded-for": "203.0.113.99" })
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBeTruthy();
+    expect(res.headers.get("X-RateLimit-Limit")).toBe("10");
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
+    const json = await res.json();
+    expect(json.error.code).toBe("RATE_LIMITED");
+    expect(json.error.message).toBe("Too many check-ins. Try again later.");
+  });
 });
 
 describe("GET /api/check-ins", () => {

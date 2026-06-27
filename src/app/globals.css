@@ -158,8 +158,14 @@
   .live-pin,
   .venue-pin-live-pulse,
   .venue-pin-live-dot,
-  .pulse-fast {
+  .pulse-fast,
+  .venue-fill-motion,
+  .venue-trending-dot {
     animation: none !important;
+  }
+
+  .venue-fill-motion {
+    transform: scaleX(1) !important;
   }
 }
 
