@@ -1412,6 +1412,9 @@ export function VenueMap({
       {(loading || mapTilesLoading) && (
         <div className="pointer-events-none absolute inset-0 z-[1000]">
           <MapLoadingSkeleton className="h-full" style={{ height: "100%", minHeight: "100%" }} />
+          <p className="sr-only" role="status" aria-live="polite">
+            Loading Charlotte nightlife...
+          </p>
           {slowLoad && (
             <p className="absolute inset-x-0 bottom-28 text-center text-xs font-semibold text-white/55">
               Taking longer than usual...

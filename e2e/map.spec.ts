@@ -555,10 +555,12 @@ test.describe("Map bottom sheet", () => {
 
     const pin = page.getByRole("button", { name: "Open Map Test Speakeasy details" });
     await expect(pin).toBeVisible({ timeout: 10000 });
-    const pinBox = await pin.boundingBox();
-    expect(pinBox).not.toBeNull();
-    expect(pinBox!.width).toBeGreaterThanOrEqual(44);
-    expect(pinBox!.height).toBeGreaterThanOrEqual(44);
+    const pinBox = await pin.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return { height: rect.height, width: rect.width };
+    });
+    expect(pinBox.width).toBeGreaterThanOrEqual(44);
+    expect(pinBox.height).toBeGreaterThanOrEqual(44);
 
     await pin.click();
 
