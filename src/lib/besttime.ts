@@ -355,105 +355,100 @@ export async function fetchBestTimeDayRawForecast(
   return { venueId, dayInt, updatedOn, hours };
 }
 
+async function refreshSingleVenueRow(venue: VenueRow, key: string): Promise<RefreshResult> {
+  try {
+    let bestTimeVenueId = venue.besttime_venue_id;
+    let needsRegister = !bestTimeVenueId;
+    let busynessValue: number | null = null;
+    let registeredForecast: number | null = null;
+    let source: BusynessSource = "forecast";
+    let fallbackReason: string | undefined;
+
+    try {
+      for (let attempt = 0; attempt <= 1; attempt++) {
+        if (needsRegister) {
+          const registration = await registerVenue(venue, key);
+          bestTimeVenueId = registration.venueId;
+          registeredForecast = registration.currentForecast;
+          needsRegister = false;
+        }
+
+        try {
+          busynessValue = await fetchLiveHour(bestTimeVenueId!, key);
+        } catch {
+          busynessValue = null;
+        }
+        if (busynessValue !== null) {
+          source = "live";
+          break;
+        }
+
+        try {
+          busynessValue = await fetchForecastHour(bestTimeVenueId!, key);
+          source = "forecast";
+          break;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "";
+          if (message.includes("HTTP 404") && attempt === 0) {
+            needsRegister = true;
+            bestTimeVenueId = null;
+            registeredForecast = null;
+            const { error } = await supabaseAdmin
+              .from("venues")
+              .update({ besttime_venue_id: null })
+              .eq("id", venue.id);
+            if (error) throw error;
+            fallbackReason = "Stale BestTime ID cleared; re-registering";
+          } else {
+            if (registeredForecast !== null) {
+              busynessValue = registeredForecast;
+              source = "forecast";
+              fallbackReason = fallbackReason ?? "Using current forecast from new BestTime registration";
+              break;
+            }
+            throw err;
+          }
+        }
+      }
+    } catch (err) {
+      fallbackReason = err instanceof Error ? err.message : "Unknown BestTime error";
+    }
+
+    if (busynessValue === null) {
+      if (fallbackReason && isBestTimeForecastUnavailable(fallbackReason)) {
+        await writeUnavailableBusyness(venue, new Date().toISOString());
+        return { venueId: venue.id, ok: false, reason: NO_BESTTIME_FORECAST_REASON };
+      }
+      return {
+        venueId: venue.id,
+        ok: false,
+        reason: fallbackReason ?? "BestTime did not return live or forecast busyness.",
+      };
+    }
+
+    const refreshedAt = new Date().toISOString();
+    const busyness = busynessScoreForStorage(busynessValue);
+    await writeBusyness(venue, bestTimeVenueId, busyness, source, refreshedAt);
+    return { venueId: venue.id, ok: true, reason: fallbackReason };
+  } catch (err) {
+    return {
+      venueId: venue.id,
+      ok: false,
+      reason: err instanceof Error ? err.message : "Unknown error",
+    };
+  }
+}
+
+const REFRESH_CONCURRENCY = 5;
+
 async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {
   const key = apiKey();
   const results: RefreshResult[] = [];
 
-  for (const venue of venues) {
-    try {
-      let bestTimeVenueId = venue.besttime_venue_id;
-      let needsRegister = !bestTimeVenueId;
-      let busynessValue: number | null = null;
-      let registeredForecast: number | null = null;
-      let source: BusynessSource = "forecast";
-      let fallbackReason: string | undefined;
-
-      try {
-        for (let attempt = 0; attempt <= 1; attempt++) {
-          if (needsRegister) {
-            const registration = await registerVenue(venue, key);
-            bestTimeVenueId = registration.venueId;
-            registeredForecast = registration.currentForecast;
-            needsRegister = false;
-          }
-
-          try {
-            busynessValue = await fetchLiveHour(bestTimeVenueId!, key);
-          } catch {
-            busynessValue = null;
-          }
-          if (busynessValue !== null) {
-            source = "live";
-            break;
-          }
-
-          try {
-            busynessValue = await fetchForecastHour(bestTimeVenueId!, key);
-            source = "forecast";
-            break;
-          } catch (err) {
-            const message = err instanceof Error ? err.message : "";
-            if (message.includes("HTTP 404") && attempt === 0) {
-              needsRegister = true;
-              bestTimeVenueId = null;
-              registeredForecast = null;
-              const { error } = await supabaseAdmin
-                .from("venues")
-                .update({ besttime_venue_id: null })
-                .eq("id", venue.id);
-              if (error) throw error;
-              fallbackReason = "Stale BestTime ID cleared; re-registering";
-            } else {
-              if (registeredForecast !== null) {
-                busynessValue = registeredForecast;
-                source = "forecast";
-                fallbackReason = fallbackReason ?? "Using current forecast from new BestTime registration";
-                break;
-              }
-              throw err;
-            }
-          }
-        }
-      } catch (err) {
-        fallbackReason = err instanceof Error ? err.message : "Unknown BestTime error";
-      }
-
-      if (busynessValue === null) {
-        if (fallbackReason && isBestTimeForecastUnavailable(fallbackReason)) {
-          await writeUnavailableBusyness(venue, new Date().toISOString());
-          results.push({
-            venueId: venue.id,
-            ok: false,
-            reason: NO_BESTTIME_FORECAST_REASON,
-          });
-          continue;
-        }
-
-        results.push({
-          venueId: venue.id,
-          ok: false,
-          reason: fallbackReason ?? "BestTime did not return live or forecast busyness.",
-        });
-        continue;
-      }
-
-      const refreshedAt = new Date().toISOString();
-      const busyness = busynessScoreForStorage(busynessValue);
-
-      await writeBusyness(venue, bestTimeVenueId, busyness, source, refreshedAt);
-
-      results.push({
-        venueId: venue.id,
-        ok: true,
-        reason: fallbackReason,
-      });
-    } catch (err) {
-      results.push({
-        venueId: venue.id,
-        ok: false,
-        reason: err instanceof Error ? err.message : "Unknown error",
-      });
-    }
+  for (let i = 0; i < venues.length; i += REFRESH_CONCURRENCY) {
+    const batch = venues.slice(i, i + REFRESH_CONCURRENCY);
+    const batchResults = await Promise.all(batch.map((venue) => refreshSingleVenueRow(venue, key)));
+    results.push(...batchResults);
   }
 
   return results;
