@@ -107,16 +107,21 @@ protected refresh-busyness cron cache live/forecast values in venue_signals.
 */
 
 // Register venue with BestTime, returns venue_id and the current-hour forecast when present.
+const BESTTIME_FETCH_TIMEOUT_MS = 8000;
+
 async function registerVenue(venue: VenueRow, key: string): Promise<BestTimeRegistration> {
   const params = new URLSearchParams({
     api_key_private: key,
     venue_name: venue.name,
     venue_address: venue.address,
   });
+  const regController = new AbortController();
+  const regTimer = setTimeout(() => regController.abort(), BESTTIME_FETCH_TIMEOUT_MS);
   const res = await fetch(`https://besttime.app/api/v1/forecasts?${params}`, {
     method: "POST",
     cache: "no-store",
-  });
+    signal: regController.signal,
+  }).finally(() => clearTimeout(regTimer));
   const data = await res.json();
   if (!res.ok || data.status === "Error") {
     const message = typeof data.message === "string" ? data.message : JSON.stringify(data.message ?? {});
@@ -127,10 +132,18 @@ async function registerVenue(venue: VenueRow, key: string): Promise<BestTimeRegi
   return { venueId, currentForecast: currentForecastFromRegistration(data) };
 }
 
+function timedFetch(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BESTTIME_FETCH_TIMEOUT_MS);
+  return fetch(url, { cache: "no-store", signal: controller.signal }).finally(() =>
+    clearTimeout(timer)
+  );
+}
+
 // Fetch live busyness for current hour
 async function fetchLiveHour(venueId: string, key: string): Promise<number | null> {
   const params = new URLSearchParams({ venue_id: venueId, api_key_private: key });
-  const res = await fetch(`https://besttime.app/api/v1/forecasts/live/hour/now?${params}`, { cache: "no-store" });
+  const res = await timedFetch(`https://besttime.app/api/v1/forecasts/live/hour/now?${params}`);
   if (!res.ok) throw new Error(`BestTime live HTTP ${res.status}`);
   const data = await res.json();
   const value: unknown = data.analysis?.venue_live_busyness;
@@ -140,7 +153,7 @@ async function fetchLiveHour(venueId: string, key: string): Promise<number | nul
 // Fetch forecast busyness for current hour (fallback)
 async function fetchForecastHour(venueId: string, key: string): Promise<number | null> {
   const params = new URLSearchParams({ venue_id: venueId, api_key_private: key });
-  const res = await fetch(`https://besttime.app/api/v1/forecasts/hour/now?${params}`, { cache: "no-store" });
+  const res = await timedFetch(`https://besttime.app/api/v1/forecasts/hour/now?${params}`);
   if (!res.ok) throw new Error(`BestTime forecast HTTP ${res.status}`);
   const data = await res.json();
   const value: unknown = data.analysis?.hour_analysis?.busyness_score;
@@ -440,7 +453,7 @@ async function refreshSingleVenueRow(venue: VenueRow, key: string): Promise<Refr
   }
 }
 
-const REFRESH_CONCURRENCY = 5;
+const REFRESH_CONCURRENCY = 15;
 
 async function refreshVenueRows(venues: VenueRow[]): Promise<RefreshResult[]> {
   const key = apiKey();
