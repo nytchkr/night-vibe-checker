@@ -202,10 +202,14 @@ describe("POST /api/check-ins", () => {
     expect(mockRecomputeVenueSignal).toHaveBeenCalledWith(VENUE.id);
   });
 
-  it("accepts a lightweight venue_id check-in and returns the button response shape", async () => {
+  it("accepts a lightweight venue_id check-in and returns the reward-aware button response shape", async () => {
     const venueChain = chain({ data: VENUE });
     const duplicateChain = chain({ data: [] });
     const insertChain = chain({ data: { id: "simple-check-in-1" } });
+    mockCheckFirstReportOfNight.mockResolvedValueOnce(true);
+    mockCheckStreakBonus.mockResolvedValueOnce(true);
+    mockRefreshStreakCount.mockResolvedValueOnce(3);
+    mockGetUserScore.mockResolvedValueOnce({ points_total: 30, level: "regular" });
     mockFrom
       .mockReturnValueOnce(venueChain)
       .mockReturnValueOnce(duplicateChain)
@@ -220,7 +224,19 @@ describe("POST /api/check-ins", () => {
 
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ success: true, id: "simple-check-in-1" });
+    expect(json).toMatchObject({
+      success: true,
+      id: "simple-check-in-1",
+      status: "success",
+      data: {
+        id: "simple-check-in-1",
+        pointsAwarded: 30,
+        events: ["checkin", "first_report", "streak"],
+        streakCount: 3,
+        newTotal: 30,
+        level: "regular",
+      },
+    });
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         venue_id: VENUE.id,
@@ -229,6 +245,10 @@ describe("POST /api/check-ins", () => {
       })
     );
     expect(insertChain.select).toHaveBeenCalledWith("id");
+    expect(mockUpdateUserScore).toHaveBeenCalledWith("user-123", 5, "checkin", "Venue check-in", "simple-check-in-1");
+    expect(mockUpdateUserScore).toHaveBeenCalledWith("user-123", 5, "first_report", "First report for this venue tonight", "simple-check-in-1");
+    expect(mockUpdateUserScore).toHaveBeenCalledWith("user-123", 20, "streak", "Three-night reporting streak", "simple-check-in-1");
+    expect(mockRefreshStreakCount).toHaveBeenCalledWith("user-123");
     expect(mockRecomputeVenueSignal).not.toHaveBeenCalled();
   });
 

@@ -130,7 +130,7 @@ type BusynessMapFilter = (typeof BUSYNESS_FILTERS)[number];
 
 function getBusynessColor(pct: number | null): string {
   if (pct == null) return "#666";
-  if (pct < 35) return "#00F5D4";
+  if (pct < 35) return "#35F58A";
   if (pct <= 65) return "#FFD166";
   return "#F0568C";
 }
@@ -323,7 +323,7 @@ function createVenueClusterIcon(cluster: L.MarkerCluster) {
   const size = count < 5 ? 40 : count < 20 ? 56 : 72;
 
   return L.divIcon({
-    html: `<span>${count}</span>`,
+    html: `<span class="venue-cluster-count">${count}</span>`,
     className: "venue-cluster-icon",
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -382,16 +382,21 @@ function ClusteredVenueMarkers({
       const cluster = event.layer;
       const venueCount = cluster?.getChildCount();
       if (typeof venueCount !== "number") return;
+      L.DomEvent.stop(event);
       trackAnalytics("map_cluster_expanded", { venue_count: venueCount });
 
       const currentZoom = map.getZoom();
       const maxZoom = map.getMaxZoom();
-      const targetZoom = Number.isFinite(maxZoom) ? Math.min(currentZoom + 2, maxZoom) : currentZoom + 2;
+      const targetZoom = Number.isFinite(maxZoom)
+        ? Math.min(Math.max(currentZoom + 2, MAP_CLUSTER_DISABLE_ZOOM), maxZoom)
+        : Math.max(currentZoom + 2, MAP_CLUSTER_DISABLE_ZOOM);
 
       map.flyTo(cluster.getLatLng(), targetZoom, {
         animate: true,
-        duration: 0.45,
+        duration: 0.6,
+        easeLinearity: 0.2,
       });
+      window.setTimeout(() => map.invalidateSize({ pan: false }), 650);
     });
 
     venues.forEach((venue) => {
@@ -1535,16 +1540,38 @@ export function VenueMap({
 
         .venue-cluster-icon {
           align-items: center;
-          background: #8B6CFF;
+          background-color: #8B6CFF;
+          background-image: linear-gradient(135deg, #8B6CFF 0%, #F0568C 100%);
           border: 2px solid rgba(255, 255, 255, 0.88);
           border-radius: 9999px;
-          box-shadow: 0 0 24px rgba(139, 108, 255, 0.42), 0 10px 30px rgba(0, 0, 0, 0.52);
+          box-shadow:
+            0 0 0 6px rgba(139, 108, 255, 0.18),
+            0 0 26px rgba(240, 86, 140, 0.42),
+            0 10px 30px rgba(0, 0, 0, 0.52);
           color: #ffffff;
           display: flex;
           font-size: 14px;
           font-weight: 900;
           justify-content: center;
           line-height: 1;
+          transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+
+        .venue-cluster-icon:hover {
+          box-shadow:
+            0 0 0 7px rgba(139, 108, 255, 0.22),
+            0 0 34px rgba(240, 86, 140, 0.48),
+            0 12px 34px rgba(0, 0, 0, 0.56);
+          transform: scale(1.04);
+        }
+
+        .venue-cluster-count {
+          align-items: center;
+          display: flex;
+          height: 100%;
+          justify-content: center;
+          text-shadow: 0 1px 8px rgba(10, 10, 14, 0.45);
+          width: 100%;
         }
 
         .venue-cluster-pin {

@@ -51,11 +51,11 @@ export function MFRatioBar({ mfRatio, sampleSize, compact = false, className }: 
     >
       <div className={cn("flex h-2 w-full overflow-hidden rounded-full bg-white/[0.08]", compact && "h-1.5")} aria-hidden="true">
         <div
-          className="h-full bg-[#8B6CFF]"
+          className="venue-fill-motion h-full bg-[#8B6CFF]"
           style={{ width: `${male}%` }}
         />
         <div
-          className="h-full bg-[#F0568C]"
+          className="venue-fill-motion h-full bg-[#F0568C]"
           style={{ width: `${female}%` }}
         />
       </div>

@@ -36,6 +36,12 @@ import type { BusynessSource, ConsumerVenue } from "@/types";
 type UserLocation = { lat: number; lng: number };
 type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
 type TonightPickLabel = "Moderate" | "Packed" | "Wild";
+type ZoneStatsSummary = {
+  zoneName: string;
+  spotCount: number;
+  openNowCount: number;
+  averageBusyness: number | null;
+};
 type ActivityFeedItem = {
   id: string;
   venue: {
@@ -56,6 +62,11 @@ const EXPLORE_FILTER_ZONE_IDS: Partial<Record<ExploreFilterOption, string>> = {
   "South End": "south-end-charlotte",
   Dilworth: "dilworth-charlotte",
   "South Park": "south-park-charlotte",
+};
+const EXPLORE_ZONE_LABELS_BY_ID: Record<OnboardingZone["id"], string> = {
+  "south-end-charlotte": "South End",
+  "dilworth-charlotte": "Dilworth",
+  "south-park-charlotte": "South Park",
 };
 const EXPLORE_FILTER_CATEGORY_MATCHERS: Partial<Record<ExploreFilterOption, string[]>> = {
   bars: ["bar", "pub", "lounge", "brewery"],
@@ -126,6 +137,11 @@ function compareVenueRatingThenName(a: ConsumerVenue, b: ConsumerVenue): number 
 
 function getVenueOpenNow(venue: ConsumerVenue): boolean | null {
   return venue.openNow ?? null;
+}
+
+function getVenueBusynessPercent(venue: ConsumerVenue): number | null {
+  const value = venue.signal?.busyness0To100 ?? venue.current_popularity ?? venue.vibe_score ?? null;
+  return value == null || !Number.isFinite(value) ? null : clampPercent(value);
 }
 
 function getVenueNeighborhoodName(venue: ConsumerVenue): string {
@@ -229,8 +245,8 @@ function getHottestBusynessColor(label: HottestBusynessLabel): string {
 }
 
 function getActiveBusyness(venue: ConsumerVenue): number | null {
-  const value = venue.signal?.busyness0To100;
-  return value != null && Number.isFinite(value) && value > 0 ? clampPercent(value) : null;
+  const value = getVenueBusynessPercent(venue);
+  return value != null && value > 0 ? value : null;
 }
 
 function getTonightPickLabel(level: number): TonightPickLabel {
@@ -399,6 +415,27 @@ function NeighborhoodHeatRow({ venues }: { venues: ConsumerVenue[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ZoneStatsBar({ stats, prefersReduced }: { stats: ZoneStatsSummary; prefersReduced: boolean }) {
+  const busynessLabel = stats.averageBusyness == null ? "avg busyness --" : `avg busyness ${stats.averageBusyness}%`;
+
+  return (
+    <motion.div
+      key={`${stats.zoneName}-${stats.spotCount}-${stats.openNowCount}-${stats.averageBusyness ?? "na"}`}
+      className="mt-4 rounded-[16px] border border-[#00F5D4]/15 bg-[#00F5D4]/[0.055] px-4 py-3 shadow-[0_14px_34px_rgba(0,0,0,0.18)] backdrop-blur-sm"
+      initial={prefersReduced ? false : { opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={prefersReduced ? undefined : { opacity: 0, y: -4 }}
+      transition={{ duration: prefersReduced ? 0 : 0.22, ease: "easeOut" }}
+      role="status"
+      aria-label={`${stats.zoneName} stats: ${stats.spotCount} spots, ${stats.openNowCount} open now, ${busynessLabel}`}
+    >
+      <p className="truncate text-[13px] font-black text-[#F4F5F8]">
+        {stats.spotCount} {stats.spotCount === 1 ? "spot" : "spots"} · {stats.openNowCount} open now · {busynessLabel}
+      </p>
+    </motion.div>
   );
 }
 
@@ -985,6 +1022,31 @@ export function ExplorePageClient() {
       .slice(0, 3);
   }, [sortedVenues, venues]);
 
+  const activeZoneStats = useMemo<ZoneStatsSummary | null>(() => {
+    if (venues === undefined) return null;
+
+    const activeZoneIds = NEIGHBORHOOD_EXPLORE_FILTERS
+      .filter((filter) => exploreFilters.has(filter))
+      .map((filter) => EXPLORE_FILTER_ZONE_IDS[filter])
+      .filter((zoneId): zoneId is OnboardingZone["id"] => isOnboardingZoneId(zoneId ?? null));
+    const activeZoneId = activeZoneIds.length === 1 ? activeZoneIds[0] : "south-end-charlotte";
+    const zoneVenues = venues.filter((venue) => !venue.hidden && venue.zoneId === activeZoneId);
+
+    const busynessValues = zoneVenues
+      .map(getVenueBusynessPercent)
+      .filter((value): value is number => value !== null);
+    const averageBusyness = busynessValues.length > 0
+      ? Math.round(busynessValues.reduce((sum, value) => sum + value, 0) / busynessValues.length)
+      : null;
+
+    return {
+      zoneName: EXPLORE_ZONE_LABELS_BY_ID[activeZoneId],
+      spotCount: zoneVenues.length,
+      openNowCount: zoneVenues.filter((venue) => getVenueOpenNow(venue) === true).length,
+      averageBusyness,
+    };
+  }, [exploreFilters, venues]);
+
   const venueDistances = useMemo(() => {
     if (!userLocation || venues === undefined) return new Map<string, number>();
 
@@ -1009,6 +1071,7 @@ export function ExplorePageClient() {
   const resultCountLabel = `${sortedVenues.length} spot${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
   const trimmedSearchQuery = debouncedSearchQuery.trim();
   const isSearchingVenues = isFetchingVenues && trimmedSearchQuery.length > 0;
+  const showZoneStats = venues !== undefined && trimmedSearchQuery.length === 0 && activeZoneStats !== null;
   function clearFilters() {
     setSearchQuery("");
     setDebouncedSearchQuery("");
@@ -1123,6 +1186,12 @@ export function ExplorePageClient() {
             </span>
           </div>
           <p className="mt-1 text-sm text-white/55">{venuesCount} spots tracked tonight</p>
+
+          <AnimatePresence initial={false}>
+            {showZoneStats ? (
+              <ZoneStatsBar stats={activeZoneStats} prefersReduced={prefersReduced} />
+            ) : null}
+          </AnimatePresence>
 
           <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
             <div className="relative">

@@ -40,7 +40,7 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
   return (
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
-      className="group flex min-h-[148px] w-40 shrink-0 snap-start flex-col overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.05] active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="venue-card-motion group flex min-h-[148px] w-40 shrink-0 snap-start flex-col overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm hover:-translate-y-0.5 hover:bg-white/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       aria-label={`Open ${venue.name}`}
     >
       <VenuePhoto
@@ -58,7 +58,7 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
             className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black leading-none text-[#0A0A0E]"
             style={{ backgroundColor: PINK }}
           >
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#0A0A0E]" aria-hidden="true" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#0A0A0E] venue-trending-dot" aria-hidden="true" />
             LIVE
           </span>
         ) : null}
@@ -71,7 +71,7 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
       <div className="mt-auto px-3 pb-3 pt-3" aria-label={busyness == null ? "No busyness data" : `${busyness}% busy`}>
         <div className="h-2 overflow-hidden rounded-full bg-white/[0.09]">
           <div
-            className="h-full rounded-full transition-[width]"
+            className="venue-fill-motion h-full rounded-full"
             style={{ width: `${barWidth}%`, backgroundColor: VIOLET }}
           />
         </div>

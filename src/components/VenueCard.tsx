@@ -111,7 +111,7 @@ function CompactCard({
       role="article"
       tabIndex={0}
       aria-label={`${venue.name} venue card`}
-      className="relative w-56 overflow-hidden rounded-[18px] border-white/[0.06] text-[#F4F5F8] shadow-2xl backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="venue-card-motion relative w-56 overflow-hidden rounded-[18px] border border-white/[0.06] text-[#F4F5F8] shadow-2xl backdrop-blur-sm hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       style={{ background: "rgba(255,255,255,0.035)" }}
     >
       <CardContent className="p-4">
@@ -192,7 +192,7 @@ function FullCard({
       role="article"
       tabIndex={0}
       aria-label={`${venue.name} venue card`}
-      className={`relative overflow-hidden rounded-[18px] border border-white/[0.06] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${className ?? ""}`}
+      className={`venue-card-motion relative overflow-hidden rounded-[18px] border border-white/[0.06] shadow-lg shadow-black/10 backdrop-blur-sm hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${className ?? ""}`}
       style={{ background: "rgba(255,255,255,0.035)" }}
     >
       {venue.id && (

@@ -61,7 +61,7 @@ export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null
           className="h-full rounded-full"
           initial={prefersReducedMotion ? false : { width: "0%" }}
           animate={{ width: `${percent}%` }}
-          transition={{ duration: prefersReducedMotion ? 0 : 0.55, ease: "easeOut" }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
           style={{ backgroundColor: config.color }}
         />
       </div>

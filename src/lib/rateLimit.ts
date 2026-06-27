@@ -64,6 +64,13 @@ export function rateLimitHeaders(rate: RateLimitResult): Record<string, string> 
   };
 }
 
+export function retryAfterSeconds(
+  rate: Pick<RateLimitResult, "retryAfterMs">,
+  fallbackWindowMs: number
+): number {
+  return Math.max(1, Math.ceil((rate.retryAfterMs ?? fallbackWindowMs) / 1000));
+}
+
 /**
  * Return how many requests remain in the current window for `key`.
  * Returns `max` for unknown keys (no requests made yet).

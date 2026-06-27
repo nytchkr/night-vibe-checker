@@ -12,6 +12,13 @@ import { v4 as uuidv4 } from "uuid";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import {
+  checkFirstReportOfNight,
+  checkStreakBonus,
+  getUserScore,
+  refreshStreakCount,
+  updateUserScore,
+} from "@/lib/rewards";
 import { recomputeVenueSignal } from "@/lib/signals";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
@@ -346,6 +353,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   if (isSimpleCheckIn(parsed.data)) {
+    const firstReport = await checkFirstReportOfNight(venue.id, userId).catch((error) => {
+      console.error("[check-ins POST] first report lookup failed:", error);
+      return false;
+    });
     const { data, error } = await supabaseAdmin
       .from("check_ins")
       .insert({
@@ -365,7 +376,54 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    return NextResponse.json({ success: true, id: (data as { id: string }).id }, { status: 200, headers });
+    const checkInId = (data as { id: string }).id;
+    const events: string[] = [];
+    let pointsAwarded = 0;
+    let streakCount = 0;
+
+    try {
+      await updateUserScore(userId, 5, "checkin", "Venue check-in", checkInId);
+      pointsAwarded += 5;
+      events.push("checkin");
+
+      if (firstReport) {
+        await updateUserScore(userId, 5, "first_report", "First report for this venue tonight", checkInId);
+        pointsAwarded += 5;
+        events.push("first_report");
+      }
+
+      if (await checkStreakBonus(userId)) {
+        await updateUserScore(userId, 20, "streak", "Three-night reporting streak", checkInId);
+        pointsAwarded += 20;
+        events.push("streak");
+      }
+
+      streakCount = await refreshStreakCount(userId);
+    } catch (error) {
+      console.error("[check-ins POST] rewards update failed:", error);
+    }
+
+    let userScore: Awaited<ReturnType<typeof getUserScore>> = null;
+    try {
+      userScore = await getUserScore(userId);
+    } catch (error) {
+      console.error("[check-ins POST] score lookup failed:", error);
+    }
+
+    return NextResponse.json({
+      success: true,
+      id: checkInId,
+      status: "success",
+      data: {
+        id: checkInId,
+        pointsAwarded,
+        events,
+        streakCount,
+        newTotal: userScore?.points_total ?? pointsAwarded,
+        level: userScore?.level ?? "newcomer",
+      },
+      meta,
+    }, { status: 200, headers });
   }
 
   const reporterGender = await getReporterGender(userId);
