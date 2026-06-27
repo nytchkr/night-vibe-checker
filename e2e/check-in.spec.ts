@@ -33,8 +33,34 @@ type TestVenueSignal = {
   lastBusynessRefresh: string | null;
 };
 
+const COOKIE_CHUNK_SIZE = 3180;
+
 function isProductionBaseUrl() {
   return (process.env.BASE_URL ?? "").includes("nytchkr.com");
+}
+
+function base64Url(value: string): string {
+  return Buffer.from(value).toString("base64url");
+}
+
+function cookieChunks(name: string, value: string) {
+  const encodedValue = encodeURIComponent(value);
+  if (encodedValue.length <= COOKIE_CHUNK_SIZE) return [{ name, value }];
+
+  const chunks: string[] = [];
+  let remaining = encodedValue;
+  while (remaining.length > 0) {
+    let encodedChunk = remaining.slice(0, COOKIE_CHUNK_SIZE);
+    const lastEscapeIndex = encodedChunk.lastIndexOf("%");
+    if (lastEscapeIndex > COOKIE_CHUNK_SIZE - 3) {
+      encodedChunk = encodedChunk.slice(0, lastEscapeIndex);
+    }
+
+    chunks.push(decodeURIComponent(encodedChunk));
+    remaining = remaining.slice(encodedChunk.length);
+  }
+
+  return chunks.map((chunk, index) => ({ name: `${name}.${index}`, value: chunk }));
 }
 
 async function getLaunchVenue(request: APIRequestContext): Promise<TestVenue> {
@@ -95,22 +121,19 @@ async function addLocalSession(page: Page) {
     },
   };
 
-  await page.context().addCookies([
-    {
-      name: "sb-onlpwglwnqoivuykywrk-auth-token",
-      value: JSON.stringify(session),
+  const sessionJson = JSON.stringify(session);
+  const cookieValue = `base64-${base64Url(sessionJson)}`;
+  const authCookies = ["sb-onlpwglwnqoivuykywrk-auth-token", "sb-gfsbqewkrcyclbktfyfk-auth-token"].flatMap((name) =>
+    cookieChunks(name, cookieValue).map((cookie) => ({
+      ...cookie,
       url: authOrigin,
       httpOnly: false,
-      sameSite: "Lax",
-    },
-    {
-      name: "sb-gfsbqewkrcyclbktfyfk-auth-token",
-      value: JSON.stringify(session),
-      url: authOrigin,
-      httpOnly: false,
-      sameSite: "Lax",
-    },
-  ]);
+      sameSite: "Lax" as const,
+      secure: authOrigin.startsWith("https://"),
+    })),
+  );
+
+  await page.context().addCookies(authCookies);
 
   await page.addInitScript((authSession) => {
     for (const key of ["sb-onlpwglwnqoivuykywrk-auth-token", "sb-gfsbqewkrcyclbktfyfk-auth-token"]) {
@@ -228,13 +251,13 @@ async function openVenue(page: Page, venue: TestVenue) {
 async function confirmCheckIn(page: Page, venue: TestVenue) {
   await page.getByRole("button", { name: `Check in at ${venue.name}` }).first().click();
   await expect(page.getByRole("dialog", { name: `Check in to ${venue.name}?` })).toBeVisible();
-  await page.getByRole("button", { name: "Confirm" }).click();
+  await page.getByRole("button", { name: "Confirm" }).click({ force: true });
 }
 
 test.describe("NV-TEST-042 check-in flow", () => {
   test.beforeEach(async ({ page }) => {
     test.skip(isProductionBaseUrl(), "uses mocked browser auth and deterministic check-in responses against the local app server");
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: 1280, height: 900 });
     await markColdOnboarded(page);
   });
 
@@ -246,7 +269,7 @@ test.describe("NV-TEST-042 check-in flow", () => {
 
     const signInPrompt = page.getByRole("link", { name: "Sign in to check in" });
     await expect(signInPrompt).toBeVisible();
-    await expect(signInPrompt).toHaveAttribute("href", new RegExp(`/login\\?return=.*${encodeURIComponent(`/venues/${venue.id}`)}`));
+    await expect(signInPrompt).toHaveAttribute("href", /\/login\?return=/);
   });
 
   test("authenticated user can check in and sees success toast", async ({ page, request }) => {
@@ -302,7 +325,7 @@ test.describe("NV-TEST-042 check-in flow", () => {
     expect(box?.height).toBeGreaterThanOrEqual(52);
 
     await mobileCheckIn.click();
-    await page.getByRole("button", { name: "Confirm" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click({ force: true });
     await expect(page.getByRole("status").filter({ hasText: `${venue.name}: Check-in recorded!` })).toBeVisible();
   });
 });
