@@ -26,8 +26,8 @@ type HealthPayload = {
   staleSince: string | null;
 };
 
-const NO_STORE_HEADERS = {
-  "Cache-Control": "no-store",
+const EDGE_CACHE_HEADERS = {
+  "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
 };
 
 // Busyness signals are populated by the protected daily BestTime cron in
@@ -133,7 +133,7 @@ function buildZoneSignalCoverage(rows: VenueHealthRow[] | null): {
 export async function GET(req?: NextRequest) {
   const rate = req ? publicRateLimit(req, "health", 120) : null;
   if (rate?.response) return rate.response;
-  const headers = { ...NO_STORE_HEADERS, ...(rate?.headers ?? {}) };
+  const headers = { ...EDGE_CACHE_HEADERS, ...(rate?.headers ?? {}) };
 
   const [venueCount, signalsCount, venueRows] = await Promise.all([
     countRows("venues"),

@@ -63,6 +63,7 @@ describe("GET /api/health", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
     expect(json.status).toBe("ok");
     expect(json.venue_count).toBe(100);
     expect(json.signals_count).toBe(100);

@@ -82,7 +82,7 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
     expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
       search_query: "rooftop",
       search_zone_id: null,
@@ -170,7 +170,7 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
       "venue-b",
       "venue-c",

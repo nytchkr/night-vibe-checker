@@ -51,12 +51,20 @@ type ActivityFeedItem = {
 };
 
 const EXPLORE_SORT_STORAGE_KEY = "nv_explore_sort";
+const EXPLORE_SEARCH_STORAGE_KEY = "nv_explore_search";
 const DEFAULT_EXPLORE_SORT: ExploreSortOption = "hottest";
 const NEIGHBORHOOD_EXPLORE_FILTERS: ExploreFilterOption[] = ["South End", "Uptown", "NoDa", "Dilworth", "South Park"];
+const CATEGORY_EXPLORE_FILTERS: ExploreFilterOption[] = ["bars", "restaurants", "clubs", "coffee"];
 const EXPLORE_FILTER_ZONE_IDS: Partial<Record<ExploreFilterOption, string>> = {
   "South End": "south-end-charlotte",
   Dilworth: "dilworth-charlotte",
   "South Park": "south-park-charlotte",
+};
+const EXPLORE_FILTER_CATEGORY_MATCHERS: Partial<Record<ExploreFilterOption, string[]>> = {
+  bars: ["bar", "pub", "lounge", "brewery"],
+  restaurants: ["restaurant", "food", "diner"],
+  clubs: ["club", "night club", "night_club", "nightclub", "dance"],
+  coffee: ["coffee", "cafe", "café"],
 };
 const EXPLORE_ZONE_FILTERS_BY_ID: Record<OnboardingZone["id"], ExploreFilterOption> = {
   "south-end-charlotte": "South End",
@@ -129,6 +137,28 @@ function getVenueNeighborhoodName(venue: ConsumerVenue): string {
 
 function normalizeSearchText(value: string | null | undefined): string {
   return (value ?? "").toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function venueMatchesSearchQuery(venue: ConsumerVenue, query: string): boolean {
+  const normalizedQuery = normalizeSearchText(query.trim());
+  if (!normalizedQuery) return true;
+
+  const searchableText = [
+    venue.name,
+    venue.category,
+    getVenueNeighborhoodName(venue),
+  ].map(normalizeSearchText).join(" ");
+
+  return searchableText.includes(normalizedQuery);
+}
+
+function venueMatchesCategoryFilters(venue: ConsumerVenue, filters: ExploreFilterOption[]): boolean {
+  if (filters.length === 0) return true;
+
+  const category = normalizeSearchText(venue.category);
+  return filters.some((filter) => (
+    EXPLORE_FILTER_CATEGORY_MATCHERS[filter]?.some((term) => category.includes(term)) ?? false
+  ));
 }
 
 function getSearchedLocationCenter(query: string): [number, number] | null {
@@ -303,6 +333,7 @@ function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number
         imageClassName="transition-transform duration-300 group-hover:scale-[1.04]"
         sizes="140px"
         priority={index === 0}
+        loading={index === 0 ? undefined : "lazy"}
       />
       <div className="absolute inset-x-0 bottom-0 min-h-[104px] bg-gradient-to-t from-[#050507] via-[#050507]/78 to-transparent" aria-hidden="true" />
       <div className="absolute inset-x-0 bottom-0 space-y-2 p-3">
@@ -548,6 +579,7 @@ function VenueFeedCard({
           imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
           sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
           priority={index === 0}
+          loading={index === 0 ? undefined : "lazy"}
         />
 
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
@@ -619,6 +651,7 @@ export function ExplorePageClient() {
   const hasLoadedVenuesRef = useRef(false);
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchVenues = useCallback(async ({
     reset = false,
@@ -719,6 +752,10 @@ export function ExplorePageClient() {
     if (isExploreSortOption(storedSort)) setExploreSort(storedSort);
 
     const params = new URLSearchParams(window.location.search);
+    const initialSearchQuery = params.get("q") ?? sessionStorage.getItem(EXPLORE_SEARCH_STORAGE_KEY) ?? "";
+    setSearchQuery(initialSearchQuery);
+    setDebouncedSearchQuery(initialSearchQuery);
+
     const zoneFilter = getExploreZoneFilter(params.get("zone")) ?? getExploreZoneFilter(localStorage.getItem(PREFERRED_ZONE_STORAGE_KEY));
     if (zoneFilter) {
       setExploreFilters((current) => {
@@ -785,6 +822,19 @@ export function ExplorePageClient() {
 
   useEffect(() => {
     if (!hasInitializedExploreFilters) return;
+
+    const trimmedSearchQuery = debouncedSearchQuery.trim();
+    if (trimmedSearchQuery) sessionStorage.setItem(EXPLORE_SEARCH_STORAGE_KEY, trimmedSearchQuery);
+    else sessionStorage.removeItem(EXPLORE_SEARCH_STORAGE_KEY);
+
+    const url = new URL(window.location.href);
+    if (trimmedSearchQuery) url.searchParams.set("q", trimmedSearchQuery);
+    else url.searchParams.delete("q");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [debouncedSearchQuery, hasInitializedExploreFilters]);
+
+  useEffect(() => {
+    if (!hasInitializedExploreFilters) return;
     const controller = new AbortController();
     void fetchVenues({
       reset: !hasLoadedVenuesRef.current,
@@ -831,19 +881,23 @@ export function ExplorePageClient() {
     if (venues === undefined) return [];
 
     const activeNeighborhoodFilters = NEIGHBORHOOD_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
+    const activeCategoryFilters = CATEGORY_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
+    const query = debouncedSearchQuery;
 
     return venues.filter((venue) => {
       if (venue.hidden) return false;
 
       const neighborhoodName = getVenueNeighborhoodName(venue);
+      const matchesSearch = venueMatchesSearchQuery(venue, query);
       const matchesOpenNow = !exploreFilters.has("open-now") || getVenueOpenNow(venue) === true;
+      const matchesCategory = venueMatchesCategoryFilters(venue, activeCategoryFilters);
       const matchesSaved =
         !exploreFilters.has("saved") ||
         savedIds.has(venue.id) ||
         Boolean(venue.placeId && savedIds.has(venue.placeId));
       const matchesExploreNeighborhood =
         activeNeighborhoodFilters.length === 0 || activeNeighborhoodFilters.includes(neighborhoodName as ExploreFilterOption);
-      return matchesOpenNow && matchesSaved && matchesExploreNeighborhood;
+      return matchesSearch && matchesOpenNow && matchesCategory && matchesSaved && matchesExploreNeighborhood;
     }).sort((a, b) => {
       if (effectiveExploreSort === "top-rated") {
         const aRating = getVenueRating(a);
@@ -880,7 +934,7 @@ export function ExplorePageClient() {
 
       return a.name.localeCompare(b.name);
     });
-  }, [effectiveExploreSort, exploreFilters, savedIds, trendingVenueIds, userLocation, venues]);
+  }, [debouncedSearchQuery, effectiveExploreSort, exploreFilters, savedIds, trendingVenueIds, userLocation, venues]);
 
   const hottestVenues = useMemo(() => {
     if (venues === undefined) return [];
@@ -938,8 +992,15 @@ export function ExplorePageClient() {
   const isSearchingVenues = isFetchingVenues && trimmedSearchQuery.length > 0;
   function clearFilters() {
     setSearchQuery("");
+    setDebouncedSearchQuery("");
     setExploreSort(DEFAULT_EXPLORE_SORT);
     setExploreFilters(new Set());
+  }
+
+  function clearSearch() {
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    searchInputRef.current?.focus();
   }
 
   function selectExploreSort(option: ExploreSortOption) {
@@ -1049,7 +1110,9 @@ export function ExplorePageClient() {
               <label htmlFor="venue-search" className="sr-only">
                 Search South End venues
               </label>
-              <input aria-label="Search venues"
+              <input
+                ref={searchInputRef}
+                aria-label="Search venues"
                 id="venue-search"
                 type="search"
                 value={searchQuery}
@@ -1057,26 +1120,32 @@ export function ExplorePageClient() {
                 placeholder="Search South End, Dilworth, venue name..."
                 className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-medium text-white transition-all duration-200 ease-out placeholder:text-white/30 focus:border-violet/60 focus:outline-none focus:ring-2 focus:ring-violet/40 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               />
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={18}
-                height={18}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/55"
-                aria-hidden="true"
+              <button
+                type="button"
+                onClick={() => searchInputRef.current?.focus()}
+                className="absolute left-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                aria-label="Focus venue search"
               >
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width={18}
+                  height={18}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </button>
               {searchQuery.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery("")}
+                  onClick={clearSearch}
                   className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-all duration-200 ease-out hover:bg-white/15 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                   aria-label="Clear search"
                 >
@@ -1166,12 +1235,12 @@ export function ExplorePageClient() {
           trimmedSearchQuery ? (
             <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
               <h2 className="font-display text-[19px] font-semibold tracking-tight text-[#F4F5F8]">
-                No venues found — try adjusting filters
+                No venues match
               </h2>
               <p className="mt-2 text-sm font-semibold text-white/50">{`No matches for "${trimmedSearchQuery}"`}</p>
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={clearSearch}
                 className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 Clear search
@@ -1185,7 +1254,7 @@ export function ExplorePageClient() {
             <div className="px-6 py-12 text-center text-white/60">
               <SearchX aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
               <h2 className="mt-3 text-[15px] font-semibold leading-6">
-                No venues found — try adjusting filters
+                No venues match
               </h2>
               <button
                 type="button"

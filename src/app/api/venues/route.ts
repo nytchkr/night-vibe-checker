@@ -41,8 +41,8 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
-const DYNAMIC_HEADERS = {
-  "Cache-Control": "private, no-store",
+const EDGE_CACHE_HEADERS = {
+  "Cache-Control": "s-maxage=60, stale-while-revalidate=300",
 };
 
 type VenueQueryResult = {
@@ -286,7 +286,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           status: "success",
           data: { zone: LAUNCH_ZONE, venues: [] },
           meta: { cached: false, generatedAt, requestId },
-        }, { headers: { ...headers, ...DYNAMIC_HEADERS } });
+        }, { headers: { ...headers, ...EDGE_CACHE_HEADERS } });
       }
     }
 
@@ -350,7 +350,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       status: "success",
       data: { zone: LAUNCH_ZONE, venues },
       meta: { cached: false, generatedAt, requestId },
-    }, { headers: { ...headers, ...DYNAMIC_HEADERS } });
+    }, { headers: { ...headers, ...EDGE_CACHE_HEADERS } });
   } catch (error) {
     console.error("[venues] unexpected error:", error);
     return NextResponse.json<APIResponse<never>>(
