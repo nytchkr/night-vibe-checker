@@ -100,6 +100,12 @@ describe("inferCanonicalOpenNow", () => {
         now,
       })
     ).toBe(true);
+
+    expect(
+      inferCanonicalOpenNow({
+        openingHours: { ...sampleHours, open_now: false },
+      })
+    ).toBe(false);
   });
 
   it("returns null instead of computing from Google periods", () => {
@@ -133,6 +139,10 @@ describe("inferCanonicalOpenNow", () => {
         now,
       })
     ).toBeNull();
+  });
+
+  it("returns null when opening hours are missing", () => {
+    expect(inferCanonicalOpenNow({})).toBeNull();
   });
 });
 
