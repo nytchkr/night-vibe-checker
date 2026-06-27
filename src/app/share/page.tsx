@@ -52,7 +52,7 @@ export default async function SharePage({ searchParams }: SharePageProps) {
 
         <Link
           href="/map"
-          className="mt-8 inline-flex h-12 items-center justify-center rounded-md bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] transition hover:bg-[#A896FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          className="mt-8 inline-flex h-12 items-center justify-center rounded-md bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] transition hover:bg-[#A896FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           Open map
         </Link>

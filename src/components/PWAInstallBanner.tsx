@@ -162,7 +162,7 @@ export default function PWAInstallBanner() {
             <button
               type="button"
               onClick={handleInstall}
-              className="rounded-xl bg-[#8B6CFF] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#9A7CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+              className="rounded-xl bg-[#8B6CFF] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#9A7CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Add
             </button>
@@ -170,7 +170,7 @@ export default function PWAInstallBanner() {
           <button
             type="button"
             onClick={dismissBanner}
-            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]"
+            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
           >
             Not now
           </button>

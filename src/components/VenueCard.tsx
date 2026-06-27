@@ -108,7 +108,10 @@ function CompactCard({
 
   return (
     <Card
-      className="relative w-56 overflow-hidden rounded-[18px] border-white/[0.06] text-[#F4F5F8] shadow-2xl backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10"
+      role="article"
+      tabIndex={0}
+      aria-label={`${venue.name} venue card`}
+      className="relative w-56 overflow-hidden rounded-[18px] border-white/[0.06] text-[#F4F5F8] shadow-2xl backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       style={{ background: "rgba(255,255,255,0.035)" }}
     >
       <CardContent className="p-4">
@@ -186,7 +189,10 @@ function FullCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[18px] border border-white/[0.06] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 ${className ?? ""}`}
+      role="article"
+      tabIndex={0}
+      aria-label={`${venue.name} venue card`}
+      className={`relative overflow-hidden rounded-[18px] border border-white/[0.06] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${className ?? ""}`}
       style={{ background: "rgba(255,255,255,0.035)" }}
     >
       {venue.id && (
@@ -247,7 +253,7 @@ function FullCard({
           onClick={() => onVibeCheck?.(venue)}
           disabled={isChecking}
           aria-label={`Report vibe for ${venue.name}`}
-          className="flex min-h-[44px] flex-shrink-0 items-center rounded-full border border-[#8B6CFF]/50 px-4 py-2 text-[13px] font-semibold text-[#8B6CFF] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#8B6CFF]/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-40 disabled:hover:translate-y-0 disabled:active:scale-100"
+          className="flex min-h-[44px] flex-shrink-0 items-center rounded-full border border-[#8B6CFF]/50 px-4 py-2 text-[13px] font-semibold text-[#8B6CFF] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#8B6CFF]/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-40 disabled:hover:translate-y-0 disabled:active:scale-100"
         >
           {isChecking ? "…" : "Check in →"}
         </button>

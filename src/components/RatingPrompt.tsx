@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type RatingPromptProps = {
   accessToken: string | null;
@@ -28,17 +29,11 @@ export function RatingPrompt({
   const [rating, setRating] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !submitting) onSkip();
-    }
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, onSkip, submitting]);
+  useFocusTrap(isOpen, dialogRef, () => {
+    if (!submitting) onSkip();
+  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -80,10 +75,12 @@ export function RatingPrompt({
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[90] flex items-center justify-center bg-black/65 px-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="rating-prompt-title"
+      tabIndex={-1}
     >
       <button
         type="button"
@@ -137,7 +134,7 @@ export function RatingPrompt({
           type="button"
           onClick={onSkip}
           disabled={submitting}
-          className="mt-4 w-full rounded-xl py-2 text-sm font-bold text-white/50 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+          className="mt-4 w-full rounded-xl py-2 text-sm font-bold text-white/50 transition-colors hover:text-white/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-50"
         >
           Skip
         </button>

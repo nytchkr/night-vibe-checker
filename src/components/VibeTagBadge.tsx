@@ -60,7 +60,7 @@ export function VibeTagBadge({
       className={`
         inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
         tracking-wide select-none transition-all duration-200
-        ${onClick ? "cursor-pointer hover:opacity-80 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40" : "cursor-default"}
+        ${onClick ? "cursor-pointer hover:opacity-80 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70" : "cursor-default"}
         ${className}
       `}
       style={{

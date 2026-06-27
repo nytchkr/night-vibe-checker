@@ -482,7 +482,7 @@ function CheckInFeed({ checkIns }: { checkIns: RecentCheckIn[] }) {
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="w-full rounded-xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-sm font-black text-white/70 transition-colors hover:bg-white/[0.07] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              className="w-full rounded-xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-sm font-black text-white/70 transition-colors hover:bg-white/[0.07] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Show more
             </button>
@@ -499,7 +499,7 @@ function AuthRequiredReportAction({ venueId, venueName }: { venueId: string; ven
     <a
       href={`/login?return=${encodeURIComponent(returnTo)}`}
       aria-label={`Sign in to report the vibe at ${venueName}`}
-      className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-5 text-base font-black text-[#F4F5F8] transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+      className="flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-5 text-base font-black text-[#F4F5F8] transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
     >
       Sign in to report vibe
     </a>
@@ -1160,7 +1160,7 @@ export function VenuePageClient({
             <p className="mt-1 text-sm text-[#9CA2AE]">{error}</p>
             <Link
               href="/explore"
-              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Back to Explore
             </Link>
@@ -1177,7 +1177,7 @@ export function VenuePageClient({
           </p>
           <Link
             href="/explore"
-            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-[#8B6CFF] px-6 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-[#8B6CFF] px-6 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
           >
             Back to Explore
           </Link>
@@ -1202,7 +1202,7 @@ export function VenuePageClient({
                 type="button"
                 onClick={goBackToMap}
                 aria-label="Go back"
-                className="absolute left-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur transition-colors hover:bg-black/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="absolute left-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur transition-colors hover:bg-black/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </button>
@@ -1215,7 +1215,7 @@ export function VenuePageClient({
                 <ShareButton
                   venueId={venue.id}
                   venueName={venue.name}
-                  className="h-11 w-11 border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55 hover:text-white focus-visible:ring-[#8B6CFF]/60"
+                  className="h-11 w-11 border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55 hover:text-white focus-visible:ring-[#8B6CFF]/70"
                 />
               </div>
               <div className="absolute inset-x-0 bottom-0 mx-auto max-w-lg px-4 pb-6">
@@ -1265,7 +1265,7 @@ export function VenuePageClient({
                       type="button"
                       onClick={() => void openVibeReport()}
                       aria-label="Report the vibe"
-                      className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.06] px-5 text-sm font-black text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                      className="flex min-h-[48px] w-full items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.06] px-5 text-sm font-black text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                     >
                       Report the vibe
                     </button>
@@ -1279,7 +1279,7 @@ export function VenuePageClient({
                   <button
                     type="button"
                     onClick={() => setHoursExpanded((expanded) => !expanded)}
-                    className="flex w-full items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                    className="flex w-full items-center justify-between rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                     aria-expanded={hoursExpanded}
                     aria-controls={hoursPanelId}
                   >
@@ -1437,7 +1437,7 @@ export function VenuePageClient({
                     type="button"
                     onClick={() => void openVibeReport()}
                     aria-label={checkInConfirmed ? "Check-in recorded" : "Report the vibe"}
-                    className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                    className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                       checkInConfirmed
                         ? "bg-[#0A0A0E] text-[#F4F5F8] hover:bg-[#0A0A0E]"
                         : "bg-[#8B6CFF] text-[#0A0A0E] hover:bg-[#A896FF]"
@@ -1483,7 +1483,7 @@ export function VenuePageClient({
                 href={mapsHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 <MapPin size={17} aria-hidden="true" />
                 Get Directions
@@ -1493,7 +1493,7 @@ export function VenuePageClient({
                   href={venue.website}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   <Globe size={17} aria-hidden="true" />
                   Website
@@ -1502,7 +1502,7 @@ export function VenuePageClient({
               {phoneHref && (
                 <a
                   href={phoneHref}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.06] p-3 text-sm font-bold text-white/80 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   <Phone size={17} aria-hidden="true" />
                   {venue.phoneNumber ?? venue.phone}
@@ -1517,7 +1517,7 @@ export function VenuePageClient({
                   setReportError(null);
                   setReportOpen(true);
                 }}
-                className="text-xs font-medium text-white/35 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="text-xs font-medium text-white/35 underline-offset-4 transition-colors hover:text-white/55 hover:underline focus:outline-none focus-visible:text-white focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 Report
               </button>
@@ -1566,7 +1566,7 @@ export function VenuePageClient({
                 type="button"
                 aria-label="Close report form"
                 onClick={closeReportFormWithHaptic}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-50"
                 disabled={reportSubmitting}
               >
                 <X size={17} aria-hidden="true" />
@@ -1611,7 +1611,7 @@ export function VenuePageClient({
                 maxLength={200}
                 rows={3}
                 placeholder="What should we correct?"
-                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-base text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-base text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               />
               <div className="flex items-center justify-between gap-3">
                 <span className={`text-xs ${reportCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>
@@ -1625,7 +1625,7 @@ export function VenuePageClient({
               type="button"
               onClick={submitVenueReport}
               disabled={reportSubmitting}
-              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
+              className="mt-4 flex min-h-12 w-full items-center justify-center rounded-xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
             >
               {reportSubmitting ? "Submitting" : "Submit report"}
             </button>
@@ -1674,7 +1674,7 @@ export function VenuePageClient({
                 type="button"
                 aria-label="Close vibe report"
                 onClick={closeVibeReportWithHaptic}
-                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-50"
                 disabled={vibeSubmitting}
               >
                 <X size={17} aria-hidden="true" />
@@ -1693,7 +1693,7 @@ export function VenuePageClient({
                         type="button"
                         onClick={() => chooseVibeBusyness(option)}
                         aria-pressed={selected}
-                        className="min-h-[86px] rounded-2xl border px-3 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                        className="min-h-[86px] rounded-2xl border px-3 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                         style={{
                           backgroundColor: selected ? option.selectedBackground : "rgba(255,255,255,0.03)",
                           borderColor: selected ? option.selectedBorder : "rgba(255,255,255,0.1)",
@@ -1721,7 +1721,7 @@ export function VenuePageClient({
                           type="button"
                           onClick={() => chooseVibeCrowdFeel(option)}
                           aria-pressed={selected}
-                          className={`min-h-11 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                          className={`min-h-11 rounded-full border px-4 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                             selected
                               ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-white"
                               : "border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white"
@@ -1741,7 +1741,7 @@ export function VenuePageClient({
                     setVibeError(null);
                   }}
                   disabled={vibeSubmitting}
-                  className="w-full rounded-xl py-2 text-xs font-bold text-white/40 transition-colors hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                  className="w-full rounded-xl py-2 text-xs font-bold text-white/40 transition-colors hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-50"
                 >
                   Back
                 </button>
@@ -1770,7 +1770,7 @@ export function VenuePageClient({
                         }}
                         disabled={vibeSubmitting}
                         aria-pressed={selected}
-                        className={`flex min-h-12 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:opacity-50 ${
+                        className={`flex min-h-12 items-center justify-center rounded-2xl border px-3 text-sm font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-50 ${
                           selected
                             ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-white"
                             : "border-white/10 bg-white/[0.04] text-white/70 hover:bg-white/[0.08] hover:text-white"
@@ -1789,7 +1789,7 @@ export function VenuePageClient({
                     setVibeError(null);
                   }}
                   disabled={vibeSubmitting}
-                  className="w-full rounded-xl py-2 text-xs font-bold text-white/40 transition-colors hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                  className="w-full rounded-xl py-2 text-xs font-bold text-white/40 transition-colors hover:text-white/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-50"
                 >
                   Back
                 </button>

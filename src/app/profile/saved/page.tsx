@@ -135,7 +135,7 @@ export default function ProfileSavedPage() {
           <div className="mx-auto max-w-lg py-4">
             <Link
               href="/profile"
-              className="inline-flex min-h-11 items-center text-[13px] font-semibold text-[#9CA2AE] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              className="inline-flex min-h-11 items-center text-[13px] font-semibold text-[#9CA2AE] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               &larr; You
             </Link>
@@ -175,7 +175,7 @@ export default function ProfileSavedPage() {
                 <li key={venue.id}>
                   <Link
                     href={`/venues/${encodeURIComponent(venue.id)}`}
-                    className="group flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4 transition-colors hover:bg-white/[0.055] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                    className="group flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4 transition-colors hover:bg-white/[0.055] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>

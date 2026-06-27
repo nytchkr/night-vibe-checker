@@ -888,6 +888,30 @@ function MapOverlayStatsBar({ venueCount }: { venueCount: number }) {
   );
 }
 
+function MapEmptyStateOverlay({
+  title,
+  message,
+  icon,
+}: {
+  title: string;
+  message: string;
+  icon: "map" | "search";
+}) {
+  const Icon = icon === "search" ? Search : MapPin;
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[999] flex -translate-y-1/2 justify-center px-6">
+      <div className="w-full max-w-xs rounded-[20px] border border-[#8B6CFF]/25 bg-[#0A0A0E]/90 p-5 text-center shadow-[0_24px_70px_rgba(0,0,0,0.58),0_0_34px_rgba(139,108,255,0.16)] backdrop-blur-md">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#F0568C]/35 bg-[#F0568C]/15 text-[#F0568C] shadow-[0_0_24px_rgba(240,86,140,0.18)]">
+          <Icon aria-hidden="true" className="h-5 w-5" strokeWidth={2.1} />
+        </span>
+        <p className="mt-4 text-base font-black leading-6 text-white">{title}</p>
+        <p className="mt-2 text-sm font-semibold leading-5 text-white/60">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 function CrowdLegend() {
   const rows = [
     { label: "Quiet", className: "bg-[#00F5D4]" },
@@ -1230,6 +1254,9 @@ export function VenueMap({
   const showEmptyState = !loading && !error && zoneVenues.length === 0;
   const showNoVenuesInView = !loading && !error && zoneVenues.length > 0 && filteredVenues.length === 0;
   const hasActiveFilters = activeZoneFilter !== ALL_ZONES_FILTER || activeCategoryFilter !== "All" || activeBusynessFilter !== "All" || openNowFilter;
+  const activeZoneLabel = activeZoneFilter === ALL_ZONES_FILTER
+    ? "this zone"
+    : ZONE_FILTERS.find((zone) => zone.id === activeZoneFilter)?.label ?? "this zone";
   const detailVenue = useMemo(
     () => (detailVenueId ? venues.find((venue) => venue.id === detailVenueId) ?? null : null),
     [detailVenueId, venues],
@@ -1388,28 +1415,19 @@ export function VenueMap({
       )}
 
       {showEmptyState && (
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[999] flex -translate-y-1/2 justify-center px-6">
-          <div className="w-full max-w-xs text-center text-white/60">
-            <MapPin aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
-            <p className="mt-3 text-sm font-semibold leading-5">
-              No venues in this area
-            </p>
-          </div>
-        </div>
+        <MapEmptyStateOverlay
+          icon="map"
+          title={`No venues in ${activeZoneLabel} yet.`}
+          message="We're adding more live spots here soon. Check another zone for tonight's reads."
+        />
       )}
 
       {showNoVenuesInView && (
-        <div className="pointer-events-none absolute inset-x-0 top-1/2 z-[999] flex -translate-y-1/2 justify-center px-6">
-          <div className="w-full max-w-xs rounded-[18px] border border-white/[0.06] bg-[#0A0A0E]/88 p-4 text-center text-white/60 shadow-2xl backdrop-blur-sm">
-            <MapPin aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
-            <p className="mt-3 text-sm font-semibold leading-5">
-              No venues in this area
-            </p>
-            <p className="mt-1 text-xs font-medium text-white/45">
-              Clear filters or search to show venues in this area.
-            </p>
-          </div>
-        </div>
+        <MapEmptyStateOverlay
+          icon="search"
+          title="No spots found."
+          message="Try a different filter or search to show more venues in this zone."
+        />
       )}
 
       {error && !loading && (

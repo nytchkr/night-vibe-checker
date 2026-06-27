@@ -241,7 +241,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                 type="button"
                 aria-label="Close sign-in prompt"
                 onClick={closeGate}
-                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 <X size={17} aria-hidden="true" />
               </button>
@@ -289,7 +289,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                     onKeyDown={(event) => event.key === "Enter" && handleEmailSignIn()}
                     placeholder="you@email.com"
                     autoComplete="email"
-                    className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white placeholder:text-white/55 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                    className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white placeholder:text-white/55 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                   />
                   <button
                     type="button"
@@ -311,7 +311,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
 
             <Link
               href={`/login?return=${encodeURIComponent(pendingAction?.returnTo ?? currentPath())}`}
-              className="mt-4 block text-center text-xs font-bold text-white/55 underline-offset-4 hover:text-white/70 hover:underline focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              className="mt-4 block text-center text-xs font-bold text-white/55 underline-offset-4 hover:text-white/70 hover:underline focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Open full sign-in page
             </Link>

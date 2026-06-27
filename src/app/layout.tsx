@@ -116,7 +116,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-screen-safe bg-[#0A0A0E] text-white font-sans antialiased">
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10000] focus:rounded-full focus:bg-[#8B6CFF] focus:px-4 focus:py-2 focus:text-[13px] focus:font-medium focus:text-[#0A0A0E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[10000] focus:rounded-full focus:bg-[#8B6CFF] focus:px-4 focus:py-2 focus:text-[13px] focus:font-medium focus:text-[#0A0A0E] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           Skip to main content
         </a>

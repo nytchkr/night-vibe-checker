@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Loader2, X } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { Toast } from "@/components/Toast";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type CheckInState = "idle" | "loading" | "checked-in" | "error" | "requires-auth";
 
@@ -77,6 +78,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
   const [checkedInUntil, setCheckedInUntil] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [toast, setToast] = useState<CheckInToast | null>(null);
+  const confirmDialogRef = useRef<HTMLDivElement | null>(null);
 
   function lockCheckIn(timestamp: number) {
     storeCheckInAt(venueId, timestamp);
@@ -200,21 +202,25 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
     }
   }
 
+  const checkedIn = state === "checked-in";
+  const loading = state === "loading";
+  const error = state === "error";
+
+  useFocusTrap(confirmOpen, confirmDialogRef, () => {
+    if (!loading) setConfirmOpen(false);
+  });
+
   if (state === "requires-auth") {
     const returnTo = `/venues/${encodeURIComponent(venueId)}`;
     return (
       <Link
         href={`/login?return=${encodeURIComponent(returnTo)}`}
-        className="flex min-h-[54px] w-full items-center justify-center rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-5 text-base font-black text-[#F4F5F8] transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+        className="flex min-h-[54px] w-full items-center justify-center rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-5 text-base font-black text-[#F4F5F8] transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         Sign in to check in
       </Link>
     );
   }
-
-  const checkedIn = state === "checked-in";
-  const loading = state === "loading";
-  const error = state === "error";
 
   return (
     <>
@@ -223,7 +229,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
         onClick={() => setConfirmOpen(true)}
         disabled={loading || checkedIn}
         aria-label={checkedIn ? `Checked in at ${venueName}` : `Check in at ${venueName}`}
-        className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed ${
+        className={`flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full px-5 text-base font-black shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed ${
           checkedIn
             ? "bg-emerald-400 text-[#06120D] shadow-[0_0_24px_rgba(52,211,153,0.22)]"
             : error
@@ -247,10 +253,12 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
 
       {confirmOpen ? (
         <div
+          ref={confirmDialogRef}
           className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
           aria-labelledby={`check-in-confirm-${venueId}`}
+          tabIndex={-1}
         >
           <button
             type="button"
@@ -276,7 +284,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
                 aria-label="Cancel check-in"
                 onClick={() => setConfirmOpen(false)}
                 disabled={loading}
-                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-50"
               >
                 <X size={17} aria-hidden="true" />
               </button>
@@ -286,7 +294,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
                 type="button"
                 onClick={() => setConfirmOpen(false)}
                 disabled={loading}
-                className="min-h-12 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:opacity-50"
+                className="min-h-12 rounded-full border border-white/10 bg-white/[0.04] px-4 text-sm font-black text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-50"
               >
                 Not now
               </button>
@@ -294,7 +302,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
                 type="button"
                 onClick={() => void checkIn()}
                 disabled={loading}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading ? (
                   <>

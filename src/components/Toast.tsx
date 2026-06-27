@@ -59,7 +59,7 @@ export function Toast({ message, onDone, actionLabel, onAction, durationMs = 250
         <button
           type="button"
           onClick={onAction}
-          className="ml-3 rounded-full border border-white/25 px-3 py-1 text-xs font-black text-white transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+          className="ml-3 rounded-full border border-white/25 px-3 py-1 text-xs font-black text-white transition-colors hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           {actionLabel}
         </button>

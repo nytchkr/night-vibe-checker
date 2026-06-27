@@ -193,7 +193,7 @@ export function VenueTips({ venueId }: { venueId: string }) {
       ) : (
         <a
           href={`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`}
-          className="block rounded-xl border border-[#8B6CFF]/30 bg-[#8B6CFF]/10 p-3 text-center text-sm font-bold text-white transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          className="block rounded-xl border border-[#8B6CFF]/30 bg-[#8B6CFF]/10 p-3 text-center text-sm font-bold text-white transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           Sign in to leave a tip
         </a>

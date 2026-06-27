@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MapPin, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 export const WELCOME_SEEN_STORAGE_KEY = "nightvibe.welcomeSeen";
 
@@ -28,14 +29,18 @@ const bullets = [
 
 export function WelcomeOverlay({ onDismiss }: WelcomeOverlayProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setIsVisible(true));
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
+  useFocusTrap(true, dialogRef, onDismiss);
+
   return (
     <div
+      ref={dialogRef}
       className={`fixed inset-0 z-50 flex min-h-screen-safe items-center justify-center bg-black/80 px-4 py-8 text-white backdrop-blur-sm transition-opacity duration-300 ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
@@ -43,6 +48,7 @@ export function WelcomeOverlay({ onDismiss }: WelcomeOverlayProps) {
       aria-modal="true"
       aria-labelledby="welcome-overlay-title"
       aria-describedby="welcome-overlay-tagline"
+      tabIndex={-1}
     >
       <div className="w-full max-w-sm rounded-2xl border border-white/[0.12] bg-[#0A0A0E] p-6 text-center shadow-[0_28px_90px_rgba(0,0,0,0.55),0_0_40px_rgba(139,108,255,0.18)]">
         <p

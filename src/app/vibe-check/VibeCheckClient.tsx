@@ -585,7 +585,7 @@ export default function VibeCheckClient({
                 placeholder="Search South End venues"
                 aria-describedby={venuesError ? "venue-search-error" : undefined}
                 aria-invalid={venuesError ? "true" : "false"}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               />
 
               <div className="scroll-touch max-h-64 space-y-2 overflow-y-auto pr-1 [will-change:scroll-position]">
@@ -611,7 +611,7 @@ export default function VibeCheckClient({
                         setSelectedVenueId(venue.id);
                         setVenueSearch(venue.name);
                       }}
-                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 ${
+                      className={`w-full rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                         selected
                           ? "border-2 border-[#8B6CFF] bg-[#8B6CFF]/18"
                           : "border-white/10 bg-white/[0.04] hover:bg-white/[0.07]"
@@ -714,7 +714,7 @@ export default function VibeCheckClient({
             maxLength={NOTE_MAX_LENGTH}
             rows={4}
             placeholder="Add a vibe note (optional)..."
-            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
           />
           <p className="mt-1 text-right text-[11px] text-white/35">{note.length} / {NOTE_MAX_LENGTH}</p>
         </section>
@@ -770,7 +770,7 @@ export default function VibeCheckClient({
           whileTap={prefersReduced ? undefined : { scale: 0.96 }}
           transition={{ duration: prefersReduced ? 0 : 0.12, ease: "easeOut" }}
           aria-describedby={submitError ? "submit-error" : undefined}
-          className="min-h-[56px] w-full rounded-xl bg-[#8B6CFF] px-4 py-4 text-base font-black text-[#0A0A0E] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-40"
+          className="min-h-[56px] w-full rounded-xl bg-[#8B6CFF] px-4 py-4 text-base font-black text-[#0A0A0E] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting ? "Submitting..." : canSubmit ? "✓ Submit Vibe" : "Select a vibe to continue"}
         </motion.button>

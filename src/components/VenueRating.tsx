@@ -59,7 +59,7 @@ function RatingButton({
       disabled={disabled}
       aria-pressed={active}
       aria-label={`${label}: ${count}`}
-      className={`inline-flex h-10 min-w-[5.25rem] items-center justify-center gap-2 rounded-full border px-3 text-[14px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60 disabled:cursor-not-allowed ${
+      className={`inline-flex h-10 min-w-[5.25rem] items-center justify-center gap-2 rounded-full border px-3 text-[14px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed ${
         active
           ? "border-[#8B6CFF]/60 bg-[#8B6CFF]/20 text-[#8B6CFF]"
           : "border-white/10 bg-white/[0.04] text-white/65 hover:border-white/20 hover:text-white disabled:hover:border-white/10 disabled:hover:text-white/65"

@@ -157,7 +157,7 @@ function CheckInRow({ item }: { item: CheckInItem }) {
   );
 
   const cardClassName =
-    "block rounded-[18px] border border-white/10 bg-white/5 p-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60";
+    "block rounded-[18px] border border-white/10 bg-white/5 p-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70";
 
   if (!item.venueId) {
     return <li className={cardClassName}>{cardContent}</li>;
@@ -252,7 +252,7 @@ export default function ProfileCheckInsPage() {
           <div className="mx-auto max-w-lg py-4">
             <Link
               href="/profile"
-              className="inline-flex min-h-11 items-center text-[13px] font-semibold text-[#9CA2AE] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+              className="inline-flex min-h-11 items-center text-[13px] font-semibold text-[#9CA2AE] transition-colors hover:text-[#F4F5F8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               &larr; You
             </Link>

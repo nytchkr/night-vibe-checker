@@ -370,7 +370,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                 />
                 <Link
                   href={`/venues/${encodeURIComponent(venue.id)}`}
-                  className="text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   View Venue
                 </Link>
@@ -407,7 +407,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
                 <Link
                   href={`/venues/${encodeURIComponent(venue.id)}`}
-                  className="flex min-h-[54px] w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                  className="flex min-h-[54px] w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   View Venue
                 </Link>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { motion } from "framer-motion";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 import {
   LEGACY_ONBOARDING_STORAGE_KEY,
   ONBOARDING_STORAGE_KEY,
@@ -29,6 +30,7 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
   const router = useRouter();
   const [isReady, setIsReady] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const suppressTapRef = useRef(false);
 
   const close = useCallback(() => {
@@ -43,16 +45,7 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
     setIsVisible(forceOpen || !hasCompletedOnboarding());
   }, [forceOpen]);
 
-  useEffect(() => {
-    if (!isVisible) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") close();
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [close, isVisible]);
+  useFocusTrap(isVisible, dialogRef, close);
 
   if (!isReady || !isVisible) return null;
 
@@ -72,11 +65,13 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[10000] flex max-h-dvh overflow-y-auto bg-[#0A0A0E]/96 text-white backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="onboarding-title"
       aria-describedby="onboarding-body"
+      tabIndex={-1}
       onClick={handleBackdropClick}
     >
       <div
@@ -128,7 +123,7 @@ export function OnboardingOverlay({ forceOpen = false, onClose }: OnboardingOver
           <button
             type="button"
             onClick={close}
-            className="flex min-h-[52px] w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-6 text-sm font-black text-white/75 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            className="flex min-h-[52px] w-full items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.06] px-6 text-sm font-black text-white/75 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
           >
             Skip, show me everything
           </button>
