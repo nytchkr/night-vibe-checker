@@ -28,9 +28,42 @@ type CheckInRow = {
   venue_id: string | null;
   user_id: string | null;
   busyness: ReportedBusyness | null;
+  crowd_feel?: string | null;
   created_at: string;
   venues?: VenueRelation | VenueRelation[] | null;
 };
+
+type CheckInWeekGroup = {
+  key: string;
+  label: string;
+  checkIns: CheckInRow[];
+};
+
+const EASTERN_TIME_ZONE = "America/New_York";
+const UNKNOWN_WEEK_KEY = "unknown-week";
+
+const easternDatePartsFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: EASTERN_TIME_ZONE,
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+});
+
+const checkInDateFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: EASTERN_TIME_ZONE,
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+});
+
+const weekHeaderFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
+  month: "short",
+  day: "numeric",
+});
 
 function getSupabaseEnv() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -64,27 +97,69 @@ function venueFrom(row: CheckInRow): VenueRelation | null {
   return relation ?? null;
 }
 
-function formatTimeAgo(value: string): string {
+function getEasternDateParts(date: Date): { year: number; month: number; day: number } | null {
+  if (!Number.isFinite(date.getTime())) return null;
+
+  const parts = easternDatePartsFormatter.formatToParts(date);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+
+  if (!year || !month || !day) return null;
+  return { year, month, day };
+}
+
+function weekInfoFor(value: string): { key: string; label: string } {
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "recently";
+  const easternParts = getEasternDateParts(date);
+  if (!easternParts) return { key: UNKNOWN_WEEK_KEY, label: "Unknown week" };
 
-  const diffSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diffSeconds < 60) return "just now";
+  const easternDay = new Date(Date.UTC(easternParts.year, easternParts.month - 1, easternParts.day));
+  const daysSinceMonday = (easternDay.getUTCDay() + 6) % 7;
+  const monday = new Date(easternDay);
+  monday.setUTCDate(easternDay.getUTCDate() - daysSinceMonday);
 
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  if (diffMinutes < 60) return `${diffMinutes} ${diffMinutes === 1 ? "minute" : "minutes"} ago`;
+  return {
+    key: monday.toISOString().slice(0, 10),
+    label: `Week of ${weekHeaderFormatter.format(monday)}`,
+  };
+}
 
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
+function groupCheckInsByWeek(checkIns: CheckInRow[]): CheckInWeekGroup[] {
+  const groupByKey = new Map<string, CheckInWeekGroup>();
 
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+  for (const checkIn of checkIns) {
+    const week = weekInfoFor(checkIn.created_at);
+    const existingGroup = groupByKey.get(week.key);
 
-  const diffMonths = Math.floor(diffDays / 30);
-  if (diffMonths < 12) return `${diffMonths} ${diffMonths === 1 ? "month" : "months"} ago`;
+    if (existingGroup) {
+      existingGroup.checkIns.push(checkIn);
+    } else {
+      groupByKey.set(week.key, { ...week, checkIns: [checkIn] });
+    }
+  }
 
-  const diffYears = Math.floor(diffDays / 365);
-  return `${diffYears} ${diffYears === 1 ? "year" : "years"} ago`;
+  return Array.from(groupByKey.values());
+}
+
+function formatCheckInDate(value: string): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Date unavailable";
+
+  return checkInDateFormatter
+    .format(date)
+    .replace(",", "")
+    .replace(/\s([AP])M$/, (_, meridiem: string) => meridiem.toLowerCase() + "m");
+}
+
+function vibeEmoji(value: string | null | undefined): string | null {
+  if (value === "chill") return "😌";
+  if (value === "hyped") return "🔥";
+  if (value === "mixed") return "✨";
+  if (value === "dead") return "🌙";
+  if (value === "packed") return "⚡";
+  if (value === "mostly_male" || value === "mostly_female" || value === "balanced") return "👥";
+  return null;
 }
 
 function busynessLabel(value: ReportedBusyness | null): string {
@@ -126,6 +201,7 @@ async function loadCheckIns(): Promise<CheckInRow[]> {
 
 export default async function VibeCheckHistoryPage() {
   const checkIns = await loadCheckIns();
+  const weekGroups = groupCheckInsByWeek(checkIns);
 
   return (
     <div className="min-h-screen-safe bg-[#0A0A0F] px-4 py-6 text-white">
@@ -167,42 +243,80 @@ export default async function VibeCheckHistoryPage() {
             </CardContent>
           </Card>
         ) : (
-          <ul className="space-y-3">
-            {checkIns.map((checkIn) => {
-              const venue = venueFrom(checkIn);
-              const venueName = venue?.name ?? "Unknown venue";
-              const address = venue?.address ?? "Address not available";
+          <div>
+            {weekGroups.map((group) => (
+              <section key={group.key} aria-labelledby={`check-ins-${group.key}`}>
+                <h2
+                  id={`check-ins-${group.key}`}
+                  className="mt-6 mb-2 text-[11px] uppercase tracking-widest text-white/40"
+                >
+                  {group.label}
+                </h2>
+                <ul className="space-y-3">
+                  {group.checkIns.map((checkIn) => {
+                    const venue = venueFrom(checkIn);
+                    const venueName = venue?.name ?? "Unknown venue";
+                    const hasVenueName = Boolean(venue?.name);
+                    const address = venue?.address ?? "Address not available";
+                    const emoji = vibeEmoji(checkIn.crowd_feel);
 
-              return (
-                <li key={checkIn.id}>
-                  <Card className="border-white/[0.08] bg-[#111118] shadow-[0_16px_40px_rgba(0,0,0,0.22)]">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h2 className="truncate text-base font-black text-white">{venueName}</h2>
-                          <p className="mt-1 flex items-start gap-1.5 text-sm leading-5 text-white/55">
-                            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#00F5D4]" aria-hidden="true" />
-                            <span>{address}</span>
-                          </p>
-                        </div>
-                        <Badge className={`shrink-0 ${busynessClassName(checkIn.busyness)}`}>
-                          {busynessLabel(checkIn.busyness)}
-                        </Badge>
-                      </div>
+                    return (
+                      <li key={checkIn.id}>
+                        <Card className="border-white/[0.08] bg-[#111118] shadow-[0_16px_40px_rgba(0,0,0,0.22)]">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  {emoji ? (
+                                    <span className="shrink-0 text-base leading-none" aria-hidden="true">
+                                      {emoji}
+                                    </span>
+                                  ) : null}
+                                  {checkIn.venue_id ? (
+                                    <Link
+                                      href={`/venues/${checkIn.venue_id}`}
+                                      className={`truncate text-base font-black transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00F5D4]/70 ${
+                                        hasVenueName ? "text-white" : "text-white/40"
+                                      }`}
+                                    >
+                                      {venueName}
+                                    </Link>
+                                  ) : (
+                                    <span
+                                      className={`truncate text-base font-black ${
+                                        hasVenueName ? "text-white" : "text-white/40"
+                                      }`}
+                                    >
+                                      {venueName}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="mt-1 flex items-start gap-1.5 text-sm leading-5 text-white/55">
+                                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#00F5D4]" aria-hidden="true" />
+                                  <span>{address}</span>
+                                </p>
+                              </div>
+                              <Badge className={`shrink-0 ${busynessClassName(checkIn.busyness)}`}>
+                                {busynessLabel(checkIn.busyness)}
+                              </Badge>
+                            </div>
 
-                      <time
-                        dateTime={checkIn.created_at}
-                        className="mt-4 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-white/45"
-                      >
-                        <Clock className="h-3.5 w-3.5 text-[#FF2D78]" aria-hidden="true" />
-                        {formatTimeAgo(checkIn.created_at)}
-                      </time>
-                    </CardContent>
-                  </Card>
-                </li>
-              );
-            })}
-          </ul>
+                            <time
+                              dateTime={checkIn.created_at}
+                              className="mt-4 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-white/45"
+                            >
+                              <Clock className="h-3.5 w-3.5 text-[#FF2D78]" aria-hidden="true" />
+                              {formatCheckInDate(checkIn.created_at)}
+                            </time>
+                          </CardContent>
+                        </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
       </div>
     </div>

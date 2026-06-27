@@ -1,25 +1,8 @@
-const STATIC_CACHE = "nightvibe-static-v4";
-const RUNTIME_CACHE = "nightvibe-runtime-v3";
-const OFFLINE_URL = "/offline";
-const STATIC_URLS = ["/", "/explore", "/map", "/vibe-check", OFFLINE_URL];
-const CACHE_FIRST_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cartocdn.com"];
-const GOOGLE_MAPS_TILE_HOSTS = [
-  "maps.googleapis.com",
-  "maps.gstatic.com",
-  "khms0.googleapis.com",
-  "khms1.googleapis.com",
-  "khms2.googleapis.com",
-  "khms3.googleapis.com",
-  "mt0.google.com",
-  "mt1.google.com",
-  "mt2.google.com",
-  "mt3.google.com",
-];
-const VENUE_LIST_TIMEOUT_MS = 30000;
-const VENUE_DETAIL_TIMEOUT_MS = 5000;
+const APP_SHELL_CACHE = "nightvibe-app-shell-v1";
+const APP_SHELL_ROUTES = ["/", "/explore", "/vibe-check", "/profile"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(STATIC_URLS)));
+  event.waitUntil(caches.open(APP_SHELL_CACHE).then((cache) => cache.addAll(APP_SHELL_ROUTES)));
   self.skipWaiting();
 });
 
@@ -27,168 +10,37 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((key) => ![STATIC_CACHE, RUNTIME_CACHE].includes(key)).map((key) => caches.delete(key))),
-      ),
+      .then((keys) => Promise.all(keys.filter((key) => key !== APP_SHELL_CACHE).map((key) => caches.delete(key)))),
   );
   self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  const url = new URL(request.url);
   if (request.method !== "GET") return;
 
-  if (isVenueListRequest(url)) {
-    event.respondWith(networkFirst(request, VENUE_LIST_TIMEOUT_MS));
-    return;
-  }
+  const url = new URL(request.url);
+  if (!isAppShellRoute(request, url)) return;
 
-  if (isVenueDetailRequest(url)) {
-    event.respondWith(networkFirst(request, VENUE_DETAIL_TIMEOUT_MS));
-    return;
-  }
-
-  if (isGoogleMapsTileRequest(request, url) || isSupabaseStoragePhotoRequest(request, url) || isCacheFirstAsset(request, url)) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  if (url.origin !== location.origin) return;
-
-  const acceptsHtml = request.headers.get("accept")?.includes("text/html");
-  if (request.mode === "navigate" || acceptsHtml) {
-    event.respondWith(networkOnlyNavigation(request));
-    return;
-  }
-
-  const staticAsset = ["script", "style"].includes(request.destination);
-  if (staticAsset) {
-    event.respondWith(handleStaticRequest(request));
-  }
+  event.respondWith(cacheFirstAppShell(request, url.pathname));
 });
 
-function isVenueListRequest(url) {
-  return url.origin === location.origin && url.pathname === "/api/venues";
-}
-
-function isVenueDetailRequest(url) {
+function isAppShellRoute(request, url) {
   if (url.origin !== location.origin) return false;
-  const segments = url.pathname.split("/").filter(Boolean);
-  return segments.length === 3 && segments[0] === "api" && segments[1] === "venues";
+  if (!APP_SHELL_ROUTES.includes(url.pathname)) return false;
+  return request.mode === "navigate" || request.headers.get("accept")?.includes("text/html");
 }
 
-function isCacheFirstAsset(request, url) {
-  if (!["font", "image"].includes(request.destination)) return false;
-  return CACHE_FIRST_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
-}
-
-function isGoogleMapsTileRequest(request, url) {
-  if (request.destination !== "image") return false;
-  if (!GOOGLE_MAPS_TILE_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) return false;
-  return (
-    url.pathname.includes("/maps/vt") ||
-    url.pathname.includes("/vt") ||
-    url.pathname.includes("/maps/api/staticmap") ||
-    url.pathname.includes("/mapfiles/")
-  );
-}
-
-function isSupabaseStoragePhotoRequest(request, url) {
-  if (request.destination !== "image") return false;
-  return url.hostname.endsWith(".supabase.co") && url.pathname.includes("/storage/v1/object/");
-}
-
-async function staleWhileRevalidate(request, maxAgeMs, event) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request);
-  const refresh = fetchAndCache(request, cache).catch(() => undefined);
-  event?.waitUntil(refresh);
-
-  if (cached && isFresh(cached, maxAgeMs)) return cached;
-
-  const response = await refresh;
-  if (response) return response;
-  return cached || Response.error();
-}
-
-async function networkFirst(request, timeoutMs) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  try {
-    return await fetchWithTimeout(request, timeoutMs).then((response) => putAndReturn(cache, request, response));
-  } catch {
-    return (await cache.match(request)) || Response.error();
-  }
-}
-
-async function cacheFirst(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request);
-  return cached || fetchAndCache(request, cache);
-}
-
-async function fetchAndCache(request, cachePromise) {
-  const cache = cachePromise || (await caches.open(RUNTIME_CACHE));
-  const response = await fetch(request);
-  return putAndReturn(cache, request, response);
-}
-
-async function networkOnlyNavigation(request) {
-  try {
-    return await fetch(request);
-  } catch {
-    const offline = await caches.match(OFFLINE_URL);
-    return offline || Response.error();
-  }
-}
-
-async function handleStaticRequest(request) {
-  const cached = await caches.match(request);
+async function cacheFirstAppShell(request, pathname) {
+  const cache = await caches.open(APP_SHELL_CACHE);
+  const cached = await cache.match(pathname);
   if (cached) return cached;
 
-  try {
-    return await fetchAndCache(request);
-  } catch {
-    return Response.error();
-  }
-}
-
-async function putAndReturn(cache, request, response) {
-  if (response && (response.ok || response.type === "opaque")) {
-    cache.put(request, withCacheTimestamp(response));
+  const response = await fetch(request);
+  if (response.ok) {
+    cache.put(pathname, response.clone());
   }
   return response;
-}
-
-function withCacheTimestamp(response) {
-  const headers = new Headers(response.headers);
-  headers.set("x-nightvibe-sw-cached-at", Date.now().toString());
-  return new Response(response.clone().body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
-function isFresh(response, maxAgeMs) {
-  const cachedAt = Number(response.headers.get("x-nightvibe-sw-cached-at") || 0);
-  return cachedAt > 0 && Date.now() - cachedAt <= maxAgeMs;
-}
-
-function fetchWithTimeout(request, timeoutMs) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error("Network timeout")), timeoutMs);
-    fetch(request).then(
-      (response) => {
-        clearTimeout(timeout);
-        resolve(response);
-      },
-      (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      },
-    );
-  });
 }
 
 self.addEventListener("push", (event) => {

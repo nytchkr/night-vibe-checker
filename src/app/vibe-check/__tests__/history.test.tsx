@@ -119,10 +119,10 @@ describe("VibeCheckHistoryPage", () => {
 
     await renderHistory();
 
-    expect(screen.getByRole("heading", { name: "Trio" })).not.toBeNull();
-    expect(screen.getByRole("heading", { name: "Lost & Found" })).not.toBeNull();
-    expect(screen.getByText("2 hours ago")).not.toBeNull();
-    expect(screen.getByText("1 day ago")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Trio" })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Lost & Found" })).not.toBeNull();
+    expect(screen.getByText(/Jun 27/)).not.toBeNull();
+    expect(screen.getByText(/Jun 26/)).not.toBeNull();
     expect(mockFrom).toHaveBeenCalledWith("check_ins");
     expect(query.select).toHaveBeenCalledWith("*, venues!inner(name,address)");
     expect(query.eq).toHaveBeenCalledWith("user_id", "user-123");
@@ -168,9 +168,9 @@ describe("VibeCheckHistoryPage", () => {
 
     await renderHistory();
 
-    const packedCard = screen.getByRole("heading", { name: "Packed Room" }).closest("li");
-    const moderateCard = screen.getByRole("heading", { name: "Middle Bar" }).closest("li");
-    const quietCard = screen.getByRole("heading", { name: "Quiet Corner" }).closest("li");
+    const packedCard = screen.getByRole("link", { name: "Packed Room" }).closest("li");
+    const moderateCard = screen.getByRole("link", { name: "Middle Bar" }).closest("li");
+    const quietCard = screen.getByRole("link", { name: "Quiet Corner" }).closest("li");
 
     expect(packedCard).not.toBeNull();
     expect(moderateCard).not.toBeNull();

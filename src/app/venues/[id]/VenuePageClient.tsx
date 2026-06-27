@@ -7,9 +7,7 @@ import NextImage from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { AnimatePresence } from "framer-motion";
-import { div as MotionDiv } from "framer-motion/client";
-import { ArrowLeft, Check, ChevronDown, Clock, Globe, MapPin, Phone, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronLeft, Clock, Globe, MapPin, Phone, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { CheckInButton } from "@/components/CheckInButton";
@@ -466,11 +464,10 @@ export function VenuePageClient({
   const { consumePendingAction, requireAuth } = useOnboardingGate();
   const haptic = useHaptic();
   const trackedVenueView = useRef(false);
-  const heroRef = useRef<HTMLDivElement | null>(null);
   const [venue, setVenue] = useState<ConsumerVenue | null | undefined>(initialVenue ?? undefined);
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
-  const [showStickyHeader, setShowStickyHeader] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -541,29 +538,11 @@ export function VenuePageClient({
   }, [venue?.category, venue?.name, venueId]);
 
   useEffect(() => {
-    if (!venue) {
-      setShowStickyHeader(false);
-      return;
-    }
-
-    function updateStickyHeader() {
-      const hero = heroRef.current;
-      if (!hero) {
-        setShowStickyHeader(false);
-        return;
-      }
-
-      setShowStickyHeader(hero.getBoundingClientRect().bottom <= 72);
-    }
-
-    updateStickyHeader();
-    window.addEventListener("scroll", updateStickyHeader, { passive: true });
-    window.addEventListener("resize", updateStickyHeader);
-    return () => {
-      window.removeEventListener("scroll", updateStickyHeader);
-      window.removeEventListener("resize", updateStickyHeader);
-    };
-  }, [venue]);
+    const onScroll = () => setScrolled(window.scrollY > 120);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     setLiveCheckInCount(normalizeLiveCheckInCount(initialLiveCheckInCount));
@@ -1094,35 +1073,18 @@ export function VenuePageClient({
 
       {!loading && !error && venue && (
         <>
-          <AnimatePresence initial={false}>
-            {showStickyHeader && (
-              <MotionDiv
-                key="venue-sticky-header"
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.08] bg-[#0A0A0E]/90 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] shadow-lg shadow-black/20 backdrop-blur"
-              >
-                <div className="mx-auto flex max-w-lg items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={goBackToMap}
-                    aria-label="Go back"
-                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white transition-colors hover:bg-white/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                  >
-                    <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                  <p className="min-w-0 truncate font-display text-base font-black text-white">
-                    {venue.name}
-                  </p>
-                </div>
-              </MotionDiv>
-            )}
-          </AnimatePresence>
+          {scrolled && (
+            <div className="fixed top-0 inset-x-0 z-30 flex h-14 items-center gap-3 border-b border-white/[0.08] bg-[#0A0A0E]/90 px-4 backdrop-blur-md transition-all duration-200">
+              <button type="button" onClick={() => router.back()} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06]">
+                <ChevronLeft className="h-4 w-4 text-white/70" />
+              </button>
+              <span className="flex-1 truncate text-[15px] font-medium text-white">{venue.name}</span>
+              <CategoryBadge category={venue.category} />
+            </div>
+          )}
 
           <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div ref={heroRef} className="relative min-h-[340px] w-full overflow-hidden sm:min-h-[420px]">
+            <div className="relative min-h-[340px] w-full overflow-hidden sm:min-h-[420px]">
               <VenuePhoto
                 name={venue.name}
                 photoUrl={venue.photoUrl}

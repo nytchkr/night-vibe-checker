@@ -130,17 +130,17 @@ describe("trending venue scoring", () => {
 
     expect(ranked[0]).toMatchObject({
       checkInsLast2h: 4,
-      score: 1,
+      score: 1.5,
       venue: { id: "venue-busy-fast" },
     });
     expect(ranked.map((item) => item.venue.id)).toEqual([
       "venue-busy-fast",
-      "venue-busy-slow",
       "venue-calm-fast",
+      "venue-busy-slow",
     ]);
   });
 
-  it("scores a closed venue lower than an open venue with the same busyness and check-ins", async () => {
+  it("excludes closed venues from trending results", async () => {
     const rows = [
       venueRow({ id: "venue-closed", name: "Closed Bar", busyness: 80, checkInCount: 2, openingHours: CLOSED_MONDAY_NIGHT_HOURS }),
       venueRow({ id: "venue-open", name: "Open Bar", busyness: 80, checkInCount: 2 }),
@@ -149,10 +149,23 @@ describe("trending venue scoring", () => {
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
     const ranked = rankTrendingVenueRows(rows);
 
-    expect(ranked.map((item) => item.venue.id)).toEqual(["venue-open", "venue-closed"]);
+    expect(ranked.map((item) => item.venue.id)).toEqual(["venue-open"]);
     expect(ranked[0].venue.openNow).toBe(true);
-    expect(ranked[1].venue.openNow).toBe(false);
-    expect(ranked[0].score - ranked[1].score).toBeCloseTo(0.2);
+    expect(ranked.some((item) => item.venue.id === "venue-closed")).toBe(false);
+  });
+
+  it("boosts venues with a check-in inside the recent two-hour count", async () => {
+    const rows = [
+      venueRow({ id: "venue-recent", name: "Recent", busyness: 70, checkInCount: 1 }),
+      venueRow({ id: "venue-quiet", name: "Quiet", busyness: 70, checkInCount: 0 }),
+    ];
+
+    const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
+    const ranked = rankTrendingVenueRows(rows);
+
+    expect(ranked.map((item) => item.venue.id)).toEqual(["venue-recent", "venue-quiet"]);
+    expect(ranked[0].score).toBeCloseTo((0.35 + 0.3 + 0.2) * 1.5);
+    expect(ranked[1].score).toBeCloseTo(0.35 + 0.2);
   });
 
   it("ranks venues with no busyness data by check-in velocity", async () => {
@@ -165,8 +178,8 @@ describe("trending venue scoring", () => {
     const ranked = rankTrendingVenueRows(rows);
 
     expect(ranked.map((item) => item.venue.id)).toEqual(["venue-high-velocity", "venue-low-velocity"]);
-    expect(ranked[0].score).toBeCloseTo(0.5);
-    expect(ranked[1].score).toBeCloseTo(0.275);
+    expect(ranked[0].score).toBeCloseTo(0.75);
+    expect(ranked[1].score).toBeCloseTo(0.4125);
   });
 
   it("breaks equal-score ties by venue name alphabetically", async () => {

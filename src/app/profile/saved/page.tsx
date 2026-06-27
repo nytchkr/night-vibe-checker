@@ -1,21 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Heart } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createBrowserClient } from "@/lib/supabase-browser";
-import type { APIResponse, ConsumerVenue } from "@/types";
+import { useSavedVenues, type SavedVenue } from "@/hooks/useSavedVenues";
 
-type SavedVenueIdsResponse = APIResponse<{ savedVenueIds: string[] }> & {
-  place_ids?: string[];
-  venueIds?: string[];
-  savedVenueIds?: string[];
-};
-
-type VenuesResponse = APIResponse<{ venues: ConsumerVenue[] }>;
+type SavedCategoryFilter = "All" | "Bars" | "Clubs" | "Lounges" | "Restaurants";
 
 type SavedVenueItem = {
   id: string;
@@ -24,29 +16,32 @@ type SavedVenueItem = {
   address?: string;
 };
 
-function getSavedVenueIds(json: SavedVenueIdsResponse): string[] {
-  const ids = json.place_ids ?? json.venueIds ?? json.savedVenueIds ?? json.data?.savedVenueIds ?? [];
-  return Array.isArray(ids) ? ids : [];
+const CATEGORY_FILTERS: SavedCategoryFilter[] = ["All", "Bars", "Clubs", "Lounges", "Restaurants"];
+
+const CATEGORY_MATCHERS: Record<Exclude<SavedCategoryFilter, "All">, string[]> = {
+  Bars: ["bar", "pub", "brewery", "taproom"],
+  Clubs: ["club", "dance", "nightclub"],
+  Lounges: ["lounge", "cocktail"],
+  Restaurants: ["restaurant", "food", "dining", "kitchen"],
+};
+
+function toSavedVenueItem(savedVenue: SavedVenue): SavedVenueItem {
+  const venue = savedVenue.venue;
+  if (!venue) return { id: savedVenue.venueId, name: savedVenue.venueId, category: "Saved venue" };
+
+  return {
+    id: venue.id,
+    name: venue.name,
+    category: venue.category,
+    address: venue.address,
+  };
 }
 
-function joinSavedVenues(savedVenueIds: string[], venues: ConsumerVenue[]): SavedVenueItem[] {
-  const venuesById = new Map<string, ConsumerVenue>();
-  venues.forEach((venue) => {
-    venuesById.set(venue.id, venue);
-    venuesById.set(venue.placeId, venue);
-  });
+function venueMatchesCategory(venue: SavedVenueItem, filter: SavedCategoryFilter): boolean {
+  if (filter === "All") return true;
 
-  return savedVenueIds.map((id) => {
-    const venue = venuesById.get(id);
-    if (!venue) return { id, name: id, category: "Saved venue" };
-
-    return {
-      id: venue.id,
-      name: venue.name,
-      category: venue.category,
-      address: venue.address,
-    };
-  });
+  const category = venue.category.toLowerCase().replace(/[_-]+/g, " ");
+  return CATEGORY_MATCHERS[filter].some((term) => category.includes(term));
 }
 
 function LoadingRows() {
@@ -60,73 +55,14 @@ function LoadingRows() {
 }
 
 export default function ProfileSavedPage() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [savedVenueIds, setSavedVenueIds] = useState<string[]>([]);
-  const [venues, setVenues] = useState<ConsumerVenue[]>([]);
+  const { error, loading, savedVenues } = useSavedVenues();
+  const [activeFilter, setActiveFilter] = useState<SavedCategoryFilter>("All");
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSavedVenues() {
-      setLoading(true);
-      setError("");
-
-      try {
-        const client = createBrowserClient();
-        const { data } = await client.auth.getSession();
-        const session: Session | null = data.session;
-
-        if (!session?.access_token) {
-          if (!cancelled) {
-            setSavedVenueIds([]);
-            setVenues([]);
-            setError("Sign in to view your saved venues.");
-          }
-          return;
-        }
-
-        const [savedRes, venuesRes] = await Promise.all([
-          fetch("/api/saved-venues", {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-          fetch("/api/venues", { cache: "no-store" }),
-        ]);
-
-        if (!savedRes.ok || !venuesRes.ok) {
-          if (!cancelled) {
-            setSavedVenueIds([]);
-            setVenues([]);
-            setError("Could not load your saved venues right now.");
-          }
-          return;
-        }
-
-        const savedJson = (await savedRes.json()) as SavedVenueIdsResponse;
-        const venuesJson = (await venuesRes.json()) as VenuesResponse;
-
-        if (cancelled) return;
-        setSavedVenueIds(getSavedVenueIds(savedJson));
-        setVenues(Array.isArray(venuesJson.data?.venues) ? venuesJson.data.venues : []);
-      } catch {
-        if (!cancelled) {
-          setSavedVenueIds([]);
-          setVenues([]);
-          setError("Could not load your saved venues right now.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    void loadSavedVenues();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const savedVenues = useMemo(() => joinSavedVenues(savedVenueIds, venues), [savedVenueIds, venues]);
+  const venueItems = useMemo(() => savedVenues.map(toSavedVenueItem), [savedVenues]);
+  const filteredVenues = useMemo(
+    () => venueItems.filter((venue) => venueMatchesCategory(venue, activeFilter)),
+    [activeFilter, venueItems],
+  );
 
   return (
     <PageTransition>
@@ -142,6 +78,9 @@ export default function ProfileSavedPage() {
             <h1 className="mt-2 font-display text-[30px] font-semibold tracking-normal text-[#F4F5F8]">
               Saved venues
             </h1>
+            <p className="mt-1 text-sm font-semibold text-white/55">
+              {savedVenues.length} saved
+            </p>
           </div>
         </header>
 
@@ -154,7 +93,7 @@ export default function ProfileSavedPage() {
             </p>
           )}
 
-          {!loading && !error && savedVenues.length === 0 && (
+          {!loading && !error && venueItems.length === 0 && (
             <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#FF2D78]/25 bg-[#FF2D78]/10 text-[#FF8AB0]" aria-hidden="true">
                 <Heart size={24} strokeWidth={1.9} />
@@ -174,33 +113,62 @@ export default function ProfileSavedPage() {
             </section>
           )}
 
-          {!loading && !error && savedVenues.length > 0 && (
-            <ul className="space-y-3">
-              {savedVenues.map((venue) => (
-                <li key={venue.id}>
-                  <Link
-                    href={`/venues/${encodeURIComponent(venue.id)}`}
-                    className="group flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4 transition-colors hover:bg-white/[0.055] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>
-                      <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">
-                        {venue.category}
-                      </span>
-                      {venue.address && (
-                        <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">
-                          {venue.address}
+          {!loading && !error && venueItems.length > 0 && (
+            <section className="space-y-4" aria-label="Saved venues list">
+              <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="group" aria-label="Saved venue category filter">
+                {CATEGORY_FILTERS.map((filter) => {
+                  const active = activeFilter === filter;
+                  return (
+                    <button
+                      key={filter}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setActiveFilter(filter)}
+                      className={`inline-flex min-h-[38px] shrink-0 items-center rounded-full border px-4 text-sm font-semibold backdrop-blur-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                        active
+                          ? "border-[#8B6CFF]/50 bg-[#8B6CFF]/20 text-[#8B6CFF]"
+                          : "border-white/[0.08] text-white/60 hover:border-white/20 hover:text-white"
+                      }`}
+                    >
+                      {filter}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {filteredVenues.length > 0 ? (
+                <ul className="space-y-3">
+                  {filteredVenues.map((venue) => (
+                    <li key={venue.id}>
+                      <Link
+                        href={`/venues/${encodeURIComponent(venue.id)}`}
+                        className="group flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4 transition-colors hover:bg-white/[0.055] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-[15px] font-semibold text-[#F4F5F8]">{venue.name}</span>
+                          <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">
+                            {venue.category}
+                          </span>
+                          {venue.address && (
+                            <span className="mt-1 block truncate text-[12px] font-medium text-[#9CA2AE]">
+                              {venue.address}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    <ChevronRight
-                      className="h-5 w-5 shrink-0 text-[#9CA2AE] transition-colors group-hover:text-[#F4F5F8]"
-                      aria-hidden="true"
-                    />
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                        <ChevronRight
+                          className="h-5 w-5 shrink-0 text-[#9CA2AE] transition-colors group-hover:text-[#F4F5F8]"
+                          aria-hidden="true"
+                        />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rounded-[18px] border border-white/[0.08] bg-white/[0.03] p-4 text-sm font-semibold text-white/60">
+                  No saved venues match this category.
+                </p>
+              )}
+            </section>
           )}
         </main>
       </div>

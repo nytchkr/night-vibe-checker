@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExplorePageClient } from "../ExplorePageClient";
-import type { ConsumerVenue } from "@/types";
+import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
+import type { ConsumerVenue, VenueSignal } from "@/types";
 
 const routerPrefetch = vi.fn();
 
@@ -157,6 +158,22 @@ const venues: ConsumerVenue[] = [
   createVenue({ id: "coffee-house", name: "Coffee House", category: "coffee", rating: 4.4 }),
 ];
 
+function createSignal(overrides: Partial<VenueSignal> = {}): VenueSignal {
+  return {
+    venueId: "sports-bar",
+    placeId: "place-sports-bar",
+    busyness0To100: 72,
+    busynessSource: "crowd",
+    mfRatio: 62,
+    confidence0To1: 0.82,
+    sampleSize: MIN_SAMPLE_SIZE_FOR_RATIO,
+    computedAt: "2026-06-27T12:00:00.000Z",
+    updatedAt: "2026-06-27T12:00:00.000Z",
+    lastBusynessRefresh: null,
+    ...overrides,
+  };
+}
+
 function createVenue({
   id,
   name,
@@ -164,6 +181,7 @@ function createVenue({
   rating,
   lat = 35.2123,
   lng = -80.859,
+  signal = null,
 }: {
   id: string;
   name: string;
@@ -171,6 +189,7 @@ function createVenue({
   rating: number;
   lat?: number;
   lng?: number;
+  signal?: VenueSignal | null;
 }): ConsumerVenue {
   return {
     id,
@@ -191,7 +210,7 @@ function createVenue({
     vibe_score: null,
     trending: false,
     hidden: false,
-    signal: null,
+    signal,
   };
 }
 
@@ -260,6 +279,24 @@ afterEach(() => {
 });
 
 describe("ExplorePageClient venue search", () => {
+  it("filters venue results to bars from the Bars category pill", async () => {
+    mockFetchWithVenues([
+      createVenue({ id: "sports-bar", name: "Sports Bar", category: "bar", rating: 4.6 }),
+      createVenue({ id: "supper-club", name: "Supper Club", category: "restaurant", rating: 4.5 }),
+      createVenue({ id: "coffee-house", name: "Coffee House", category: "coffee", rating: 4.4 }),
+    ]);
+
+    await renderExplore();
+
+    await userEvent.click(screen.getByRole("button", { name: "Bars" }));
+
+    const results = venueResults();
+    expect(screen.getByRole("button", { name: "Bars" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
+    expect(within(results).queryByRole("link", { name: /^Open Supper Club/ })).toBeNull();
+    expect(within(results).queryByRole("link", { name: /^Open Coffee House/ })).toBeNull();
+  });
+
   it("filters venues by name as the user types", async () => {
     await renderExplore();
 
@@ -407,5 +444,63 @@ describe("ExplorePageClient venue search", () => {
     fireEvent.touchStart(sportsBar);
     expect(routerPrefetch).toHaveBeenCalledTimes(1);
     expect(routerPrefetch).toHaveBeenCalledWith("/venues/sports-bar");
+  });
+
+  it("only shows the M/F ratio pill when check-ins meet the sample threshold", async () => {
+    mockFetchWithVenues([
+      createVenue({
+        id: "sample-ready-bar",
+        name: "Sample Ready Bar",
+        category: "bar",
+        rating: 4.8,
+        signal: createSignal({
+          venueId: "sample-ready-bar",
+          placeId: "place-sample-ready-bar",
+          mfRatio: 62,
+          sampleSize: MIN_SAMPLE_SIZE_FOR_RATIO,
+        }),
+      }),
+      createVenue({
+        id: "thin-sample-bar",
+        name: "Thin Sample Bar",
+        category: "bar",
+        rating: 4.7,
+        signal: createSignal({
+          venueId: "thin-sample-bar",
+          placeId: "place-thin-sample-bar",
+          mfRatio: 58,
+          sampleSize: MIN_SAMPLE_SIZE_FOR_RATIO - 1,
+        }),
+      }),
+    ]);
+
+    await renderExplore();
+
+    const results = venueResults();
+    const sampleReadyBar = within(results).getByRole("link", { name: /^Open Sample Ready Bar/ });
+    const thinSampleBar = within(results).getByRole("link", { name: /^Open Thin Sample Bar/ });
+
+    expect(within(sampleReadyBar).getByTitle(`M/F ratio from ${MIN_SAMPLE_SIZE_FOR_RATIO} check-ins`)).toBeTruthy();
+    expect(within(sampleReadyBar).getByLabelText(/62% male, 38% female/i)).toBeTruthy();
+    expect(within(thinSampleBar).queryByTitle(/M\/F ratio from/i)).toBeNull();
+  });
+
+  it("renders skeleton venue cards during the initial load", async () => {
+    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.includes("/api/activity/feed")) {
+        return new Promise<Response>(() => {});
+      }
+
+      if (url.includes("/api/venues")) {
+        return new Promise<Response>(() => {});
+      }
+
+      return Promise.resolve(new Response("{}", { status: 200 }));
+    });
+
+    render(<ExplorePageClient />);
+
+    await waitFor(() => expect(screen.getAllByRole("status", { name: "Loading..." })).toHaveLength(6));
   });
 });

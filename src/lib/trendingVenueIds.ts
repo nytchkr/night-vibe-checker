@@ -96,7 +96,8 @@ export function scoreTrendingVenue(
   const busynessScore = (getBusyness0To100(venue) / 100) * 0.5;
   const checkInScore = maxCheckIns > 0 ? (checkInsLast2h / maxCheckIns) * 0.3 : 0;
   const openNowScore = venue.openNow === true ? 0.2 : 0;
-  return busynessScore + checkInScore + openNowScore;
+  const baseScore = busynessScore + checkInScore + openNowScore;
+  return checkInsLast2h > 0 ? baseScore * 1.5 : baseScore;
 }
 
 export function rankTrendingVenueRows(rows: TrendingVenueRow[], limit = TRENDING_VENUE_LIMIT): TrendingVenueScore[] {
@@ -105,7 +106,8 @@ export function rankTrendingVenueRows(rows: TrendingVenueRow[], limit = TRENDING
     .map((row) => ({
       venue: mapConsumerVenue(row),
       checkInsLast2h: countRecentCheckIns(row),
-    }));
+    }))
+    .filter((item) => item.venue.openNow !== false);
 
   const maxCheckIns = mapped.reduce((max, item) => Math.max(max, item.checkInsLast2h), 0);
 
