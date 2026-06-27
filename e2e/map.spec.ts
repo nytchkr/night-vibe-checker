@@ -564,7 +564,7 @@ test.describe("Map bottom sheet", () => {
 
     const detailSheet = page.getByRole("dialog", { name: "Map Test Speakeasy details" });
     await expect(detailSheet).toBeVisible();
-    await expect(detailSheet.getByText("Closed now")).toBeVisible();
+    await expect(detailSheet.getByText("Closed")).toBeVisible();
     await expect(detailSheet.getByLabel("Busyness: Quiet")).toBeVisible();
     await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeGreaterThan(300);
     await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeLessThan(460);

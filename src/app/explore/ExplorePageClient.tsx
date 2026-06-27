@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { track } from "@vercel/analytics";
 import { SearchX } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
-import { AISuggest } from "@/components/AISuggest";
 import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import SkeletonCard from "@/components/SkeletonCard";
@@ -32,6 +32,11 @@ import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerVenue } from "@/types";
+
+const AISuggest = dynamic(
+  () => import("@/components/AISuggest").then((mod) => mod.AISuggest),
+  { ssr: false },
+);
 
 type UserLocation = { lat: number; lng: number };
 type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
@@ -347,7 +352,7 @@ function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number
         photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
         className="h-full w-full"
         imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.04]"
-        sizes="140px"
+        sizes="(max-width: 767px) 140px, 160px"
         priority={index === 0}
         loading={index === 0 ? undefined : "lazy"}
       />

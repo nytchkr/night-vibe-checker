@@ -13,6 +13,7 @@ type VenuePhotoProps = {
   sizes?: string;
   priority?: boolean;
   loading?: "lazy" | "eager";
+  fetchPriority?: "high" | "low" | "auto";
 };
 
 const PHOTO_COLORS = ["#8B6CFF", "#F0568C", "#00F5D4"] as const;
@@ -41,9 +42,10 @@ export function VenuePhoto({
   alt,
   className = "",
   imageClassName = "",
-  sizes = "100vw",
+  sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
   priority = false,
   loading,
+  fetchPriority,
 }: VenuePhotoProps) {
   const [failed, setFailed] = useState(false);
   const showPhoto = Boolean(photoUrl) && !failed;
@@ -66,6 +68,7 @@ export function VenuePhoto({
           sizes={sizes}
           loading={priority ? undefined : loading ?? "lazy"}
           priority={priority}
+          fetchPriority={fetchPriority ?? (priority ? "high" : undefined)}
           placeholder="blur"
           blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
           onError={() => setFailed(true)}
