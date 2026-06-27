@@ -20,9 +20,9 @@ const TOAST_DURATION_MS = 3000;
 const MAX_TOASTS = 3;
 
 const toastStyles: Record<ToastType, string> = {
-  success: "border-[#00F5D4]/45 bg-[#062A27] text-[#DFFFFA] shadow-[#00F5D4]/20",
-  error: "border-[#FF4444]/45 bg-[#351012] text-[#FFE7E7] shadow-[#FF4444]/15",
-  info: "border-[#8B6CFF]/45 bg-[#17112E] text-[#EFEAFF] shadow-[#8B6CFF]/20",
+  success: "border-white/20 bg-[#00F5D4] text-white shadow-[#00F5D4]/25",
+  error: "border-white/20 bg-[#FF4444] text-white shadow-[#FF4444]/25",
+  info: "border-white/20 bg-[#8B6CFF] text-white shadow-[#8B6CFF]/25",
 };
 
 const accentStyles: Record<ToastType, string> = {
@@ -83,9 +83,9 @@ function ToastNotification({ toast, onDismiss }: { toast: ToastItem; onDismiss: 
   return (
     <div
       role={toast.type === "error" ? "alert" : "status"}
-      className={`pointer-events-auto flex w-full max-w-sm animate-[toast-slide-in_180ms_ease-out] items-start gap-3 rounded-[14px] border px-4 py-3 text-sm font-semibold shadow-2xl backdrop-blur ${toastStyles[toast.type]}`}
+      className={`pointer-events-auto flex w-full max-w-sm animate-[toast-slide-in_180ms_ease-out] items-start gap-3 rounded-[14px] border px-4 py-3 text-sm font-semibold shadow-2xl ${toastStyles[toast.type]}`}
     >
-      <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${accentStyles[toast.type]}`} aria-hidden="true" />
+      <span className={`mt-1 h-2 w-2 shrink-0 rounded-full border border-white/50 ${accentStyles[toast.type]}`} aria-hidden="true" />
       <span className="min-w-0 flex-1 leading-5">{toast.message}</span>
       <button
         type="button"
