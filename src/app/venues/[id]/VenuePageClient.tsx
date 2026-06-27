@@ -1065,7 +1065,7 @@ export function VenuePageClient({
   const busynessSource = signal?.busynessSource ?? null;
   const mfSampleSize = signal?.sampleSize ?? 0;
   const mfPercents = getMFRatioPercents(signal?.mfRatio);
-  const hasEnoughMfSample = mfSampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO && mfPercents !== null;
+  const hasEnoughMfSample = mfSampleSize >= DETAIL_MF_SAMPLE_THRESHOLD && mfPercents !== null;
   const crowdFeel = getCrowdFeel(hasEnoughMfSample ? mfPercents?.male ?? null : null);
   const googleRating = venue ? venue.rating ?? venue.googleRating : undefined;
   const googleRatingLabel = googleRating == null ? null : googleRating.toFixed(1);
@@ -1096,19 +1096,28 @@ export function VenuePageClient({
   const selectedVibeBusynessOption = VIBE_BUSYNESS_OPTIONS.find((option) => option.id === vibeBusynessOptionId);
   const hoursPanelId = "venue-hours-list";
   const canReportVibe = authChecked && Boolean(accessToken);
-  const statusText = hoursSummary.hasHours
-    ? hoursSummary.todayStatus
-    : venue?.openNow == null
-      ? "Hours not available"
-      : venue.openNow
-        ? "Open now"
-        : "Closed";
+  const statusText = venue?.openNow === false
+    ? "Closed"
+    : hoursSummary.hasHours
+      ? hoursSummary.todayStatus
+      : venue?.openNow == null
+        ? "Hours not available"
+        : "Open now";
   const statusClassName = statusText.startsWith("Open")
     ? "text-[#8B6CFF]"
     : statusText === "Hours not available"
       ? "text-[#9CA2AE]"
       : "text-[#F0568C]";
   const isTrending = venue ? trendingVenueIds.has(venue.id) : false;
+  const nextSixForecast = useMemo(() => {
+    if (bestTimeForecast.length === 0) return [];
+    const currentHour = new Date().getHours();
+    const upcoming = bestTimeForecast.filter((item) => item.hour >= currentHour);
+    const wrapped = upcoming.length >= 6
+      ? upcoming
+      : [...upcoming, ...bestTimeForecast.filter((item) => item.hour < currentHour)];
+    return wrapped.slice(0, 6);
+  }, [bestTimeForecast]);
 
   function goBackToMap() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -1149,26 +1158,53 @@ export function VenuePageClient({
           >
             <p className="font-medium text-[#F4F5F8]">Could not load venue</p>
             <p className="mt-1 text-sm text-[#9CA2AE]">{error}</p>
+            <Link
+              href="/explore"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+            >
+              Back to Explore
+            </Link>
           </div>
         </div>
+      )}
+
+      {!loading && !error && venue === null && (
+        <main className="mx-auto flex min-h-screen-safe max-w-lg flex-col items-center justify-center px-5 pb-36 text-center">
+          <p className="font-display text-7xl font-black text-[#8B6CFF]">404</p>
+          <h1 className="mt-5 font-display text-2xl font-black text-white">This spot doesn't exist</h1>
+          <p className="mt-3 max-w-sm text-sm font-medium leading-6 text-white/55">
+            It may have been removed from the launch-zone list, or the link may be stale.
+          </p>
+          <Link
+            href="/explore"
+            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-[#8B6CFF] px-6 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+          >
+            Back to Explore
+          </Link>
+        </main>
       )}
 
       {!loading && !error && venue && (
         <>
           <section className="w-full border-b border-white/[0.06] bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div className="relative h-[200px] w-full overflow-hidden">
-              <VenuePhotoCarousel
-                venueId={venue.id}
-                venueName={venue.name}
-                fallbackPhotoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
+            <div className="relative min-h-[340px] w-full overflow-hidden sm:min-h-[420px]">
+              <VenuePhoto
+                name={venue.name}
+                photoUrl={venue.photoUrls?.[0] ?? venue.photoUrl}
+                alt={`${venue.name} venue photo`}
+                className="absolute inset-0 h-full w-full"
+                imageClassName="scale-[1.01]"
+                sizes="100vw"
+                priority
               />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/15 to-[#0A0A0E]" aria-hidden="true" />
               <button
                 type="button"
                 onClick={goBackToMap}
                 aria-label="Go back"
-                className="absolute left-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/40 text-2xl font-black leading-none text-white shadow-lg backdrop-blur transition-colors hover:bg-black/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
+                className="absolute left-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur transition-colors hover:bg-black/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
               >
-                <span aria-hidden="true">&lt;</span>
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </button>
               <div className="absolute right-4 top-4 flex items-center gap-2">
                 <SaveButton
@@ -1182,23 +1218,35 @@ export function VenuePageClient({
                   className="h-11 w-11 border-white/15 bg-black/40 text-white/70 shadow-lg backdrop-blur hover:bg-black/55 hover:text-white focus-visible:ring-[#8B6CFF]/60"
                 />
               </div>
-            </div>
-
-            <div className="relative mx-auto max-w-lg px-4 pb-6 pt-5">
-              <div>
+              <div className="absolute inset-x-0 bottom-0 mx-auto max-w-lg px-4 pb-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <CategoryBadge category={venue.category} />
                   <PriceLevelDisplay priceLevel={venue.priceLevel} />
+                  <LiveBusynessBadge
+                    hasRead={hasBusynessRead}
+                    percent={busynessPercent}
+                    source={busynessSource}
+                  />
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <h1 className="font-display max-w-[22rem] text-3xl font-black leading-[1.03] text-white">{venue.name}</h1>
+                  <h1 className="font-display max-w-[22rem] text-4xl font-black leading-[1.02] text-white drop-shadow-lg">{venue.name}</h1>
                   <OpenNowBadge openNow={venue.openNow ?? null} />
                   {isTrending ? <TrendingBadge /> : null}
                 </div>
                 {venue.address && (
                   <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/60">{venue.address}</p>
                 )}
-                <p className="mt-1 text-sm font-semibold text-white/45">{neighborhood}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-white/55">{neighborhood}</p>
+                  <span className={`rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-black backdrop-blur ${statusClassName}`}>
+                    {statusText}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative mx-auto max-w-lg px-4 pb-6 pt-5">
+              <div>
                 {googleRatingLabel && (
                   <div
                     className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-3"
@@ -1312,18 +1360,7 @@ export function VenuePageClient({
                       className="mt-3"
                     />
                   </div>
-                ) : (
-                  <div className="min-w-[13rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
-                    <span className="text-[11.5px] font-semibold text-[#646B79]">M/F ratio</span>
-                    <div className="mt-3">
-                      <EmptySignalState
-                        compact
-                        icon={Clock}
-                        message="Not enough data yet"
-                      />
-                    </div>
-                  </div>
-                )}
+                ) : null}
 
                 <div className="min-w-[9.5rem] rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
                   <span className="text-[11.5px] font-semibold text-[#646B79]">Status</span>
@@ -1384,17 +1421,7 @@ export function VenuePageClient({
                       sampleSize={mfSampleSize}
                     />
                   </div>
-                ) : (
-                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <span className="text-sm font-black text-white">M/F ratio</span>
-                    </div>
-                    <EmptySignalState
-                      icon={Clock}
-                      message="Not enough data yet"
-                    />
-                  </div>
-                )}
+                ) : null}
 
                 <CheckInFeed checkIns={recentCheckIns} />
 

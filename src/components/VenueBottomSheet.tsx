@@ -11,7 +11,6 @@ import { ShareButton } from "@/components/ShareButton";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
-import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
@@ -55,14 +54,12 @@ function formatCategory(category: string) {
 
 function formatBusyness(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
-    return { label: "No data", color: "#5C6573" };
+    return { label: "No data", color: "#666666" };
   }
 
-  const state = getBusynessState(value);
-  return {
-    label: state.level === "packed" ? "packed" : state.level === "moderate" ? "moderate" : "dead",
-    color: state.level ? state.color : "#5C6573",
-  };
+  if (value < 35) return { label: "Quiet", color: "#00F5D4" };
+  if (value <= 65) return { label: "Moderate", color: "#FFD166" };
+  return { label: "Packed", color: "#F0568C" };
 }
 
 function formatPriceLevel(priceLevel: ConsumerVenue["priceLevel"]) {
@@ -200,7 +197,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   useEffect(() => {
     if (!venue && !loading) return;
 
-    setSnap("peek");
+    setSnap("half");
     setDragHeight(null);
     const frameId = requestAnimationFrame(() => setIsVisible(true));
     return () => {
@@ -319,14 +316,12 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
           </div>
 
           <div className="scroll-touch mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
-            {!isPeek && (
-              <VenuePhoto
-                name={venue.name}
-                photoUrl={photoUrl}
-                alt=""
-                className="mb-4 h-40 w-full rounded-[14px] border border-white/[0.08]"
-              />
-            )}
+            <VenuePhoto
+              name={venue.name}
+              photoUrl={photoUrl}
+              alt=""
+              className={`${isPeek ? "mb-3 h-16" : "mb-4 h-40"} w-full rounded-[14px] border border-white/[0.08]`}
+            />
 
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 pr-1">
@@ -377,7 +372,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   href={`/venues/${encodeURIComponent(venue.id)}`}
                   className="text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 >
-                  Open venue →
+                  View Venue
                 </Link>
               </div>
             </div>
@@ -414,7 +409,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                   href={`/venues/${encodeURIComponent(venue.id)}`}
                   className="flex min-h-[54px] w-full items-center justify-center rounded-2xl bg-[#8B6CFF] px-5 text-base font-black text-[#0A0A0E] shadow-[0_0_24px_rgba(139,108,255,0.28)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/60"
                 >
-                  Report the vibe
+                  View Venue
                 </Link>
               </div>
             )}

@@ -17,8 +17,9 @@ function makeVenue({
   name,
   openNow = true,
   source = "forecast",
+  zoneId = "south-end-charlotte",
 }: {
-  busyness: number;
+  busyness: number | null;
   category: string;
   id: string;
   lat: number;
@@ -26,11 +27,12 @@ function makeVenue({
   name: string;
   openNow?: boolean;
   source?: "crowd" | "forecast" | "live";
+  zoneId?: "south-end-charlotte" | "dilworth-charlotte" | "south-park-charlotte";
 }) {
   return {
     id,
     placeId: `place-${id}`,
-    zoneId: "south-end-charlotte",
+    zoneId,
     name,
     address: `${busyness} Map Ave`,
     lat,
@@ -113,6 +115,24 @@ const venues = [
     busyness: 22,
     openNow: false,
   }),
+  makeVenue({
+    id: "map-dilworth-1",
+    name: "Dilworth Test Bar",
+    lat: 35.204,
+    lng: -80.844,
+    category: "bar",
+    busyness: 44,
+    zoneId: "dilworth-charlotte",
+  }),
+  makeVenue({
+    id: "map-southpark-1",
+    name: "South Park Test Lounge",
+    lat: 35.1524,
+    lng: -80.8462,
+    category: "lounge",
+    busyness: null,
+    zoneId: "south-park-charlotte",
+  }),
 ];
 
 const topFiveVenueNames = venues.slice(0, 5).map((venue) => venue.name);
@@ -157,6 +177,12 @@ async function openMap(page: Page) {
   const sheet = page.getByRole("region", { name: "South End venues" });
   await expect(sheet).toBeVisible({ timeout: 10000 });
   return sheet;
+}
+
+async function selectZone(page: Page, zoneName: "All" | "South End" | "Dilworth" | "South Park") {
+  const zoneFilters = page.getByRole("group", { name: "Map zone filter" });
+  await expect(zoneFilters).toBeVisible({ timeout: 10000 });
+  await zoneFilters.getByRole("button", { name: zoneName }).click();
 }
 
 async function visibleSheetHeight(page: Page, sheet: Locator) {
@@ -212,6 +238,7 @@ test.describe("Map tab", () => {
     // Legend pill visible (premium redesign replaced "N spots" counter with legend)
     await expect(page.getByText(/Packed|Moderate|Quiet/i).first()).toBeVisible({ timeout: 25000 });
     await expect(page.getByRole("group", { name: "Map busyness filter" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Map zone filter" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Filter venues" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Recenter to South End" })).toBeVisible();
   });
@@ -239,6 +266,7 @@ test.describe("Map tab", () => {
 
   test("category pills filter the visible venue list", async ({ page }) => {
     const sheet = await openMap(page);
+    await selectZone(page, "South End");
 
     const categoryFilters = page.getByRole("group", { name: "Map category filter" });
     await expect(categoryFilters).toBeVisible();
@@ -257,8 +285,9 @@ test.describe("Map tab", () => {
 
   test("nearby venues collapse into a purple cluster when zoomed out", async ({ page }) => {
     await openMap(page);
+    await selectZone(page, "South End");
 
-    await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
 
     const cluster = page.locator(".venue-cluster-icon").first();
     const zoomOut = page.locator(".leaflet-control-zoom-out");
@@ -271,23 +300,62 @@ test.describe("Map tab", () => {
     }
 
     await expect(cluster).toBeVisible({ timeout: 10000 });
-    await expect(cluster).toContainText(String(venues.length));
+    await expect(cluster).toContainText("6");
     await expect(cluster).toHaveCSS("background-color", "rgb(139, 108, 255)");
     await expect(cluster).toHaveCSS("color", "rgb(255, 255, 255)");
 
     await cluster.click();
-    await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
   });
 
   test("only live source pins render the pulse ring class", async ({ page }) => {
     await openMap(page);
+    await selectZone(page, "South End");
 
-    await expect(page.locator(".venue-cluster-pin")).toHaveCount(venues.length, { timeout: 10000 });
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
     await expect(page.locator(".venue-pin-live-dot")).toHaveCount(1);
+  });
+
+  test("zone toggle filters South End, Dilworth, and South Park venues", async ({ page }) => {
+    const sheet = await openMap(page);
+
+    await selectZone(page, "Dilworth");
+    await dragSheet(page, sheet, -230);
+    await expect(sheet.getByRole("button", { name: /Dilworth Test Bar/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toHaveCount(0);
+
+    await selectZone(page, "South Park");
+    await expect(sheet.getByRole("button", { name: /South Park Test Lounge/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /Dilworth Test Bar/ })).toHaveCount(0);
+
+    await selectZone(page, "All");
+    await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: /South Park Test Lounge/ })).toBeVisible();
+  });
+
+  test("pin colors follow busyness thresholds", async ({ page }) => {
+    await openMap(page);
+    await selectZone(page, "South End");
+
+    await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
+    const colors = await page.locator(".venue-cluster-pin > span").evaluateAll((pins) =>
+      pins.map((pin) => getComputedStyle(pin).backgroundColor),
+    );
+
+    expect(colors).toContain("rgb(0, 245, 212)");
+    expect(colors).toContain("rgb(255, 209, 102)");
+    expect(colors).toContain("rgb(240, 86, 140)");
+
+    await selectZone(page, "South Park");
+    const southParkColors = await page.locator(".venue-cluster-pin > span").evaluateAll((pins) =>
+      pins.map((pin) => getComputedStyle(pin).backgroundColor),
+    );
+    expect(southParkColors).toContain("rgb(102, 102, 102)");
   });
 
   test("city selector shows coming-soon neighborhoods without switching away from launch city", async ({ page }) => {
     const sheet = await openMap(page);
+    await selectZone(page, "South End");
 
     await page.getByRole("button", { name: "Choose neighborhood, currently South End" }).click();
     const dialog = page.getByRole("dialog", { name: "Choose map city" });
@@ -299,7 +367,7 @@ test.describe("Map tab", () => {
 
     await expect(sheet).toBeVisible();
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("nightvibe:selected-city"))).toBe("south-end-clt");
-    await expect.poll(() => page.locator(".venue-cluster-pin").count()).toBe(venues.length);
+    await expect.poll(() => page.locator(".venue-cluster-pin").count()).toBe(6);
   });
 
   test("zip recenter control validates launch-area zip codes", async ({ page }) => {
@@ -404,6 +472,7 @@ test.describe("Map bottom sheet", () => {
 
   test("tapping a venue in mid sheet selects it on the map", async ({ page }) => {
     const sheet = await openMap(page);
+    await selectZone(page, "South End");
 
     await dragSheet(page, sheet, -230);
     const venue = sheet.getByRole("button", { name: /Map Test Rooftop/ });
@@ -415,6 +484,7 @@ test.describe("Map bottom sheet", () => {
 
   test("sheet snaps to mid when map pin is tapped", async ({ page }) => {
     const sheet = await openMap(page);
+    await selectZone(page, "South End");
 
     await page.getByRole("button", { name: "Open Map Test Club details" }).click();
 
@@ -426,6 +496,7 @@ test.describe("Map bottom sheet", () => {
 
   test("pin taps meet mobile target size and detail sheet shows real hours status", async ({ page }) => {
     await openMap(page);
+    await selectZone(page, "South End");
 
     const pin = page.getByRole("button", { name: "Open Map Test Speakeasy details" });
     const pinBox = await pin.boundingBox();
@@ -439,5 +510,6 @@ test.describe("Map bottom sheet", () => {
     await expect(detailSheet).toBeVisible();
     await expect(detailSheet.getByText("Closed now")).toBeVisible();
     await expect(detailSheet.getByText(/PM/)).toBeVisible();
+    await expect(detailSheet.getByRole("link", { name: "View Venue" }).first()).toBeVisible();
   });
 });

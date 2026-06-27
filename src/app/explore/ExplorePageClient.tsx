@@ -27,6 +27,7 @@ import { getNeighborhood } from "@/lib/neighborhood";
 import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { inZone } from "@/lib/zone";
+import { isOnboardingZoneId, PREFERRED_ZONE_STORAGE_KEY, type OnboardingZone } from "@/lib/onboarding";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { createBrowserClient } from "@/lib/supabase-browser";
@@ -56,6 +57,11 @@ const EXPLORE_FILTER_ZONE_IDS: Partial<Record<ExploreFilterOption, string>> = {
   "South End": "south-end-charlotte",
   Dilworth: "dilworth-charlotte",
   "South Park": "south-park-charlotte",
+};
+const EXPLORE_ZONE_FILTERS_BY_ID: Record<OnboardingZone["id"], ExploreFilterOption> = {
+  "south-end-charlotte": "South End",
+  "dilworth-charlotte": "Dilworth",
+  "south-park-charlotte": "South Park",
 };
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
@@ -88,6 +94,10 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
 
 function isExploreSortOption(value: string | null): value is ExploreSortOption {
   return value === "hottest" || value === "top-rated" || value === "trending" || value === "nearby";
+}
+
+function getExploreZoneFilter(value: string | null): ExploreFilterOption | null {
+  return isOnboardingZoneId(value) ? EXPLORE_ZONE_FILTERS_BY_ID[value] : null;
 }
 
 function getVenueVibeScore(venue: ConsumerVenue): number | null {
@@ -600,6 +610,7 @@ export function ExplorePageClient() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [exploreSort, setExploreSort] = useState<ExploreSortOption>(DEFAULT_EXPLORE_SORT);
   const [exploreFilters, setExploreFilters] = useState<Set<ExploreFilterOption>>(() => new Set());
+  const [hasInitializedExploreFilters, setHasInitializedExploreFilters] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
   const [activityLoaded, setActivityLoaded] = useState(false);
@@ -706,6 +717,18 @@ export function ExplorePageClient() {
   useEffect(() => {
     const storedSort = localStorage.getItem(EXPLORE_SORT_STORAGE_KEY);
     if (isExploreSortOption(storedSort)) setExploreSort(storedSort);
+
+    const params = new URLSearchParams(window.location.search);
+    const zoneFilter = getExploreZoneFilter(params.get("zone")) ?? getExploreZoneFilter(localStorage.getItem(PREFERRED_ZONE_STORAGE_KEY));
+    if (zoneFilter) {
+      setExploreFilters((current) => {
+        const next = new Set(current);
+        for (const filter of NEIGHBORHOOD_EXPLORE_FILTERS) next.delete(filter);
+        next.add(zoneFilter);
+        return next;
+      });
+    }
+    setHasInitializedExploreFilters(true);
   }, []);
 
   useEffect(() => {
@@ -761,6 +784,7 @@ export function ExplorePageClient() {
   }, [searchQuery]);
 
   useEffect(() => {
+    if (!hasInitializedExploreFilters) return;
     const controller = new AbortController();
     void fetchVenues({
       reset: !hasLoadedVenuesRef.current,
@@ -768,7 +792,20 @@ export function ExplorePageClient() {
       signal: controller.signal,
     });
     return () => controller.abort();
-  }, [debouncedSearchQuery, fetchVenues]);
+  }, [debouncedSearchQuery, fetchVenues, hasInitializedExploreFilters]);
+
+  useEffect(() => {
+    if (!hasInitializedExploreFilters) return;
+
+    const selectedZoneIds = NEIGHBORHOOD_EXPLORE_FILTERS
+      .filter((filter) => exploreFilters.has(filter))
+      .map((filter) => EXPLORE_FILTER_ZONE_IDS[filter])
+      .filter((zoneId): zoneId is OnboardingZone["id"] => isOnboardingZoneId(zoneId ?? null));
+    const url = new URL(window.location.href);
+    if (selectedZoneIds.length === 1) url.searchParams.set("zone", selectedZoneIds[0]);
+    else url.searchParams.delete("zone");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [exploreFilters, hasInitializedExploreFilters]);
 
   useEffect(() => {
     const client = createBrowserClient();

@@ -36,10 +36,42 @@ export default defineConfig({
       // Override viewport to mobile width so DesktopWarningBanner never blocks tests.
       // The app is mobile-first; tests that need desktop width set it explicitly.
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
+      grepInvert: /@device/,
     },
     {
       name: "mobile-safari",
       use: { ...devices["iPhone 14"] },
+      grepInvert: /@device/,
+    },
+    {
+      name: "device-iphone-13-safari",
+      testMatch: ["**/cross-device.spec.ts", "**/photo-fallback.spec.ts"],
+      grep: /@device/,
+      use: { ...devices["iPhone 13"] },
+    },
+    {
+      name: "device-pixel-7-chrome",
+      testMatch: ["**/cross-device.spec.ts", "**/photo-fallback.spec.ts"],
+      grep: /@device/,
+      use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "device-ipad-pro-tablet",
+      testMatch: ["**/cross-device.spec.ts", "**/photo-fallback.spec.ts"],
+      grep: /@device/,
+      use: { ...devices["iPad Pro 11"] },
+    },
+    {
+      name: "device-desktop-chrome",
+      testMatch: ["**/cross-device.spec.ts", "**/photo-fallback.spec.ts"],
+      grep: /@device/,
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      name: "device-desktop-firefox",
+      testMatch: ["**/cross-device.spec.ts", "**/photo-fallback.spec.ts"],
+      grep: /@device/,
+      use: { ...devices["Desktop Firefox"], viewport: { width: 1280, height: 800 } },
     },
   ],
 

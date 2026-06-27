@@ -12,6 +12,7 @@ import { Check, ChevronDown, MapPin, RefreshCw, Search, X } from "lucide-react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { getBusynessState } from "@/lib/busyness";
 import { CITIES } from "@/lib/cities";
+import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { inZone } from "@/lib/zone";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -61,8 +62,15 @@ const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
 const SOUTH_END_MAP_CENTER: [number, number] = [35.2178, -80.8597];
 const MAP_DEFAULT_ZOOM = 15;
-const MAP_CLUSTER_MAX_ZOOM = 14;
+const MAP_CLUSTER_DISABLE_ZOOM = 13;
 const MAP_CLUSTER_RADIUS = 50;
+const ALL_ZONES_FILTER = "all";
+const ZONE_FILTERS = [
+  { id: ALL_ZONES_FILTER, label: "All" },
+  ...LAUNCH_ZONES.map((zone) => ({ id: zone.id, label: zone.name === "Dilworth / Myers Park" ? "Dilworth" : zone.name })),
+] as const;
+
+type ZoneFilterId = (typeof ZONE_FILTERS)[number]["id"];
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -121,10 +129,10 @@ function useSwipeDownToClose(isOpen: boolean, onClose: () => void) {
 type BusynessMapFilter = (typeof BUSYNESS_FILTERS)[number];
 
 function getBusynessColor(pct: number | null): string {
-  if (pct == null) return "#4F5567";
-  if (pct <= 33) return "#5C6573";
-  if (pct <= 66) return "#FFB020";
-  return "#FF5B6A";
+  if (pct == null) return "#666";
+  if (pct < 35) return "#00F5D4";
+  if (pct <= 65) return "#FFD166";
+  return "#F0568C";
 }
 
 function hasLivePinPulse(venue: ConsumerVenue): boolean {
@@ -180,6 +188,46 @@ function CityMapCenter({ center }: { center: [number, number] }) {
       document.removeEventListener("visibilitychange", resetVisibleMap);
     };
   }, [center, map]);
+
+  return null;
+}
+
+function MapFitBounds({
+  venues,
+  zoneFilter,
+}: {
+  venues: ConsumerVenue[];
+  zoneFilter: ZoneFilterId;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    const selectedZone = LAUNCH_ZONES.find((zone) => zone.id === zoneFilter);
+    const zonePoints = (selectedZone ? [selectedZone] : LAUNCH_ZONES).map(
+      (zone) => [zone.center_lat, zone.center_lng] as [number, number],
+    );
+    const venuePoints = venues.map((venue) => [venue.lat, venue.lng] as [number, number]);
+    const boundsPoints = zoneFilter === ALL_ZONES_FILTER ? [...zonePoints, ...venuePoints] : venuePoints.length > 0 ? venuePoints : zonePoints;
+
+    if (boundsPoints.length === 0) return;
+
+    const bounds = L.latLngBounds(boundsPoints);
+    if (!bounds.isValid()) return;
+
+    if (boundsPoints.length === 1) {
+      map.setView(boundsPoints[0], MAP_DEFAULT_ZOOM, { animate: false });
+    } else {
+      map.fitBounds(bounds.pad(0.12), {
+        animate: false,
+        maxZoom: zoneFilter === ALL_ZONES_FILTER ? 12 : MAP_DEFAULT_ZOOM,
+        paddingTopLeft: [24, 170],
+        paddingBottomRight: [24, 240],
+      });
+    }
+
+    window.setTimeout(() => map.invalidateSize({ pan: false }), 0);
+    window.setTimeout(() => map.invalidateSize({ pan: false }), 250);
+  }, [map, venues, zoneFilter]);
 
   return null;
 }
@@ -256,7 +304,7 @@ function ClusteredVenueMarkers({
   useEffect(() => {
     const clusterGroup = L.markerClusterGroup({
       chunkedLoading: true,
-      disableClusteringAtZoom: MAP_CLUSTER_MAX_ZOOM + 1,
+      disableClusteringAtZoom: MAP_CLUSTER_DISABLE_ZOOM,
       iconCreateFunction: createVenueClusterIcon,
       maxClusterRadius: MAP_CLUSTER_RADIUS,
       showCoverageOnHover: false,
@@ -717,6 +765,44 @@ function CategoryFilterPills({
   );
 }
 
+function ZoneFilterToggle({
+  activeFilter,
+  onFilterChange,
+}: {
+  activeFilter: ZoneFilterId;
+  onFilterChange: (filter: ZoneFilterId) => void;
+}) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-[10.75rem] z-[1000] sm:top-[8.9rem]">
+      <div
+        aria-label="Map zone filter"
+        className="scroll-touch pointer-events-auto flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="group"
+      >
+        {ZONE_FILTERS.map((filter) => {
+          const isActive = activeFilter === filter.id;
+
+          return (
+            <button
+              key={filter.id}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onFilterChange(filter.id)}
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-black shadow-2xl backdrop-blur transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                isActive
+                  ? "border-[#00F5D4] bg-[#00F5D4] text-[#0A0A0E] shadow-[0_0_18px_rgba(0,245,212,0.22)]"
+                  : "border-white/[0.08] bg-[#0A0A0E]/90 text-[#9CA2AE] hover:bg-[#101017] hover:text-[#F4F5F8]"
+              }`}
+            >
+              {filter.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function MapOverlayStatsBar({ venueCount }: { venueCount: number }) {
   return (
     <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex items-center justify-end">
@@ -738,10 +824,10 @@ function MapOverlayStatsBar({ venueCount }: { venueCount: number }) {
 
 function CrowdLegend() {
   const rows = [
-    { label: "Dead", className: "bg-[#5C6573]" },
-    { label: "Moderate", className: "bg-[#FFB020]" },
-    { label: "Packed", className: "bg-[#FF5B6A]" },
-    { label: "Wild", className: "bg-[#FF5B6A] shadow-[0_0_12px_rgba(255,91,106,0.85)]" },
+    { label: "Quiet", className: "bg-[#00F5D4]" },
+    { label: "Moderate", className: "bg-[#FFD166]" },
+    { label: "Packed", className: "bg-[#F0568C]" },
+    { label: "No data", className: "bg-[#666]" },
   ];
 
   return (
@@ -943,6 +1029,7 @@ export function VenueMap({
   const [detailVenueId, setDetailVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeZoneFilter, setActiveZoneFilter] = useState<ZoneFilterId>(ALL_ZONES_FILTER);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<MapCategoryFilter>("All");
   const [activeBusynessFilter, setActiveBusynessFilter] = useState<BusynessMapFilter>("All");
   const [openNowFilter, setOpenNowFilter] = useState(false);
@@ -1053,21 +1140,25 @@ export function VenueMap({
   }, []);
 
   const visibleVenues = useMemo(
-    () => venues.filter((venue) => venue.zoneId === city.zoneId && Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
-    [city.zoneId, venues],
+    () => venues.filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
+    [venues],
+  );
+  const zoneVenues = useMemo(
+    () => visibleVenues.filter((venue) => activeZoneFilter === ALL_ZONES_FILTER || venue.zoneId === activeZoneFilter),
+    [activeZoneFilter, visibleVenues],
   );
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const filteredVenues = useMemo(() => {
-    return visibleVenues.filter((venue) => {
+    return zoneVenues.filter((venue) => {
       const matchesSearch = !normalizedSearchQuery || venue.name.toLowerCase().includes(normalizedSearchQuery);
       const matchesOpenNow = !openNowFilter || venue.openNow === true;
       return matchesSearch && matchesOpenNow && matchesCategoryFilter(venue, activeCategoryFilter) && matchesBusynessFilter(venue, activeBusynessFilter);
     });
-  }, [activeBusynessFilter, activeCategoryFilter, normalizedSearchQuery, openNowFilter, visibleVenues]);
-  const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < visibleVenues.length;
-  const showEmptyState = !loading && !error && visibleVenues.length === 0;
-  const showNoVenuesInView = !loading && !error && visibleVenues.length > 0 && filteredVenues.length === 0;
-  const hasActiveFilters = activeCategoryFilter !== "All" || activeBusynessFilter !== "All" || openNowFilter;
+  }, [activeBusynessFilter, activeCategoryFilter, normalizedSearchQuery, openNowFilter, zoneVenues]);
+  const showSearchCount = normalizedSearchQuery.length > 0 && filteredVenues.length < zoneVenues.length;
+  const showEmptyState = !loading && !error && zoneVenues.length === 0;
+  const showNoVenuesInView = !loading && !error && zoneVenues.length > 0 && filteredVenues.length === 0;
+  const hasActiveFilters = activeZoneFilter !== ALL_ZONES_FILTER || activeCategoryFilter !== "All" || activeBusynessFilter !== "All" || openNowFilter;
   const detailVenue = useMemo(
     () => (detailVenueId ? venues.find((venue) => venue.id === detailVenueId) ?? null : null),
     [detailVenueId, venues],
@@ -1154,13 +1245,13 @@ export function VenueMap({
             attribution='&copy; <a href="https://carto.com/">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
           />
-          <CityMapCenter center={cityCenter} />
+          <MapFitBounds venues={filteredVenues.length > 0 ? filteredVenues : zoneVenues} zoneFilter={activeZoneFilter} />
           <ZipRecenterControl />
           <VenueSearchControl
             onVenueSelect={selectVenueFromSearch}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            venues={visibleVenues}
+            venues={zoneVenues}
           />
           <RecenterButton center={cityCenter} />
 
@@ -1177,6 +1268,7 @@ export function VenueMap({
       <MapOverlayStatsBar venueCount={filteredVenues.length} />
       <BusynessFilterBar activeFilter={activeBusynessFilter} onFilterChange={setActiveBusynessFilter} />
       <CategoryFilterPills activeFilter={activeCategoryFilter} onFilterChange={setActiveCategoryFilter} />
+      <ZoneFilterToggle activeFilter={activeZoneFilter} onFilterChange={setActiveZoneFilter} />
       <FilterFab
         hasActiveFilters={hasActiveFilters}
         onClick={() => {
@@ -1199,7 +1291,7 @@ export function VenueMap({
 
       {showSearchCount && (
         <div className="pointer-events-none absolute right-4 top-4 z-[1000] rounded-[14px] border border-white/[0.08] bg-[#0A0A0E]/90 px-3 py-1.5 text-xs font-semibold text-[#9CA2AE] shadow-2xl backdrop-blur">
-          Showing {filteredVenues.length} of {visibleVenues.length}
+          Showing {filteredVenues.length} of {zoneVenues.length}
         </div>
       )}
 
@@ -1221,7 +1313,7 @@ export function VenueMap({
           <div className="w-full max-w-xs text-center text-white/60">
             <MapPin aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
             <p className="mt-3 text-sm font-semibold leading-5">
-              No venues in view
+              No venues in this area
             </p>
           </div>
         </div>
@@ -1232,10 +1324,10 @@ export function VenueMap({
           <div className="w-full max-w-xs rounded-[18px] border border-white/[0.06] bg-[#0A0A0E]/88 p-4 text-center text-white/60 shadow-2xl backdrop-blur-sm">
             <MapPin aria-hidden="true" className="mx-auto h-6 w-6" strokeWidth={1.9} />
             <p className="mt-3 text-sm font-semibold leading-5">
-              No venues in view
+              No venues in this area
             </p>
             <p className="mt-1 text-xs font-medium text-white/45">
-              Clear filters or search to show South End spots.
+              Clear filters or search to show venues in this area.
             </p>
           </div>
         </div>

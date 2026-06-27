@@ -18,6 +18,9 @@ type VenuePredictionCardProps = {
   venueId: string;
   checkInCount?: number;
   hasBestTimeVenue?: boolean;
+  hourlyForecast?: Array<{ hour: number; busyness: number }>;
+  hourlyLoading?: boolean;
+  hourlyUpdatedOn?: string | null;
 };
 
 type PredictionState =
@@ -59,6 +62,23 @@ function forecastSourceLabel(hasBestTimeData: boolean, count: number): string {
 function footerAttribution(hasBestTimeData: boolean, count: number): string {
   if (hasBestTimeData) return `Powered by BestTime + ${compactReportLabel(count)}`;
   return `Based on ${reportLabel(count)}`;
+}
+
+function clampPercent(value: number): number {
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function formatHourLabel(hour: number): string {
+  if (hour === 0) return "12 AM";
+  if (hour < 12) return `${hour} AM`;
+  if (hour === 12) return "12 PM";
+  return `${hour - 12} PM`;
+}
+
+function busynessColor(percent: number): string {
+  if (percent >= 67) return "#FF5B6A";
+  if (percent >= 34) return "#FFB020";
+  return "#00F5D4";
 }
 
 function isPredictionResponse(value: unknown): value is PredictionResponse {
@@ -127,6 +147,9 @@ export function VenuePredictionCard({
   venueId,
   checkInCount,
   hasBestTimeVenue,
+  hourlyForecast = [],
+  hourlyLoading = false,
+  hourlyUpdatedOn,
 }: VenuePredictionCardProps) {
   const [state, setState] = useState<PredictionState>({ status: "loading" });
 
@@ -234,6 +257,49 @@ export function VenuePredictionCard({
             </div>
           </div>
         </div>
+
+        {(hourlyLoading || hourlyForecast.length > 0) && (
+          <div className="rounded-2xl border border-white/10 bg-[#0A0A0E] p-4" aria-label="Next 6 hours">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-black text-white">Next 6 hours</h3>
+                <p className="mt-1 text-xs font-semibold text-white/40">BestTime hourly forecast</p>
+              </div>
+              {hourlyUpdatedOn ? (
+                <p className="shrink-0 text-[11px] font-semibold text-white/30">Updated</p>
+              ) : null}
+            </div>
+
+            {hourlyLoading ? (
+              <div className="mt-4 grid grid-cols-6 gap-2" role="status" aria-label="Loading hourly forecast">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="h-20 rounded-xl bg-white/[0.06]" />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-6 gap-2">
+                {hourlyForecast.slice(0, 6).map((item) => {
+                  const busyness = clampPercent(item.busyness);
+                  const color = busynessColor(busyness);
+                  return (
+                    <div key={item.hour} className="min-w-0 rounded-xl bg-white/[0.045] px-2 py-3 text-center">
+                      <p className="truncate text-[11px] font-black text-white/50">{formatHourLabel(item.hour)}</p>
+                      <div className="mx-auto mt-3 flex h-14 w-2 items-end rounded-full bg-white/10" aria-hidden="true">
+                        <div
+                          className="w-full rounded-full"
+                          style={{ height: `${Math.max(8, busyness)}%`, backgroundColor: color }}
+                        />
+                      </div>
+                      <p className="mt-2 text-[11px] font-black" style={{ color }}>
+                        {busyness}%
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2">
           {lockedChips.map((chip) => (

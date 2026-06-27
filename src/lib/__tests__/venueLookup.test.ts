@@ -56,4 +56,19 @@ describe("venue lookup", () => {
     expect(mockFrom).toHaveBeenCalledTimes(1);
     expect(placeIdQuery.eq).toHaveBeenNthCalledWith(1, "place_id", "google-place-id");
   });
+
+  it("falls back from place_id to slug for slug venue detail routes", async () => {
+    const placeIdQuery = chain({ data: [] });
+    const slugQuery = chain({ data: [{ id: "venue-1", slug: "lost-and-found" }] });
+    mockFrom.mockReturnValueOnce(placeIdQuery).mockReturnValueOnce(slugQuery);
+
+    const { findVisibleVenueByIdOrPlaceId } = await import("@/lib/venueLookup");
+    const result = await findVisibleVenueByIdOrPlaceId("lost-and-found", "id, slug, hidden");
+
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual({ id: "venue-1", slug: "lost-and-found" });
+    expect(mockFrom).toHaveBeenCalledTimes(2);
+    expect(placeIdQuery.eq).toHaveBeenNthCalledWith(1, "place_id", "lost-and-found");
+    expect(slugQuery.eq).toHaveBeenNthCalledWith(1, "slug", "lost-and-found");
+  });
 });

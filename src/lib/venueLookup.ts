@@ -34,7 +34,7 @@ function firstRow(data: unknown): Record<string, unknown> | null {
 }
 
 async function queryVisibleVenue(
-  column: "id" | "place_id",
+  column: "id" | "place_id" | "slug",
   id: string,
   selectClause: string
 ): Promise<VenueLookupResult> {
@@ -60,7 +60,9 @@ export async function findVisibleVenueByIdOrPlaceId(
 
   const placeResult = await queryVisibleVenue("place_id", id, selectClause);
 
-  if (placeResult.error || placeResult.data || !isUuid(id)) return placeResult;
+  if (placeResult.error || placeResult.data) return placeResult;
 
-  return queryVisibleVenue("id", id, selectClause);
+  if (isUuid(id)) return queryVisibleVenue("id", id, selectClause);
+
+  return queryVisibleVenue("slug", id, selectClause);
 }

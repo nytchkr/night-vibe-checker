@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Bell, Check, ChevronRight, Crown, Flame, LogOut, Moon, Settings, Share2, Star } from "lucide-react";
+import { Bell, Check, ChevronRight, Crown, Flame, LogOut, MapPin, Moon, Settings, Share2, Star } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
+import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import { PageTransition } from "@/components/PageTransition";
 import { Toast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
@@ -130,7 +131,15 @@ function LogoMark() {
   );
 }
 
-function LoggedOutState({ onSignIn, signingIn }: { onSignIn: () => void; signingIn: boolean }) {
+function LoggedOutState({
+  onSignIn,
+  signingIn,
+  onChangeArea,
+}: {
+  onSignIn: () => void;
+  signingIn: boolean;
+  onChangeArea: () => void;
+}) {
   return (
     <section className="flex min-h-[calc(100dvh-9rem)] flex-col items-center justify-center px-1 py-10 text-center">
       <LogoMark />
@@ -146,6 +155,14 @@ function LoggedOutState({ onSignIn, signingIn }: { onSignIn: () => void; signing
       >
         {signingIn ? "Opening Google..." : "Sign in with Google"}
       </Button>
+      <button
+        type="button"
+        onClick={onChangeArea}
+        className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-bold text-white/65 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      >
+        <MapPin className="h-4 w-4" aria-hidden="true" />
+        Change my area
+      </button>
     </section>
   );
 }
@@ -406,7 +423,7 @@ function RewardsSection({ score, loading }: { score: RewardScore; loading: boole
   );
 }
 
-function SettingsSection() {
+function SettingsSection({ onChangeArea }: { onChangeArea: () => void }) {
   const [toastVisible, setToastVisible] = useState(false);
 
   async function handleShareProfile() {
@@ -428,6 +445,17 @@ function SettingsSection() {
           </span>
           <ChevronRight className="h-4 w-4 text-white/45" aria-hidden="true" />
         </Link>
+        <button
+          type="button"
+          onClick={onChangeArea}
+          className="flex min-h-14 w-full items-center justify-between rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+        >
+          <span className="flex items-center gap-3 text-sm font-semibold text-white">
+            <MapPin className="h-4 w-4 text-[#8B6CFF]" aria-hidden="true" />
+            Change my area
+          </span>
+          <ChevronRight className="h-4 w-4 text-white/45" aria-hidden="true" />
+        </button>
         <div className="flex min-h-14 items-center gap-3 rounded-[16px] border border-white/[0.08] bg-white/[0.04] px-4 py-3">
           <Settings className="h-4 w-4 text-[#8B6CFF]" aria-hidden="true" />
           <span className="text-sm font-semibold text-white">Google account connected</span>
@@ -461,6 +489,7 @@ function LoggedInState({
   loadingCheckIns,
   loadingRewards,
   onSignOut,
+  onChangeArea,
 }: {
   session: Session;
   savedVenues: SavedVenue[];
@@ -470,6 +499,7 @@ function LoggedInState({
   loadingCheckIns: boolean;
   loadingRewards: boolean;
   onSignOut: () => void;
+  onChangeArea: () => void;
 }) {
   const email = session.user.email ?? "Signed in";
   const topSpot = useMemo(() => {
@@ -495,7 +525,7 @@ function LoggedInState({
       <TopSpotCard topSpot={topSpot} loading={loadingCheckIns} />
       <SavedVenuesSection venues={savedVenues} loading={loadingSaved} />
       <RecentCheckInsSection checkIns={checkIns} loading={loadingCheckIns} />
-      <SettingsSection />
+      <SettingsSection onChangeArea={onChangeArea} />
       <button
         type="button"
         onClick={onSignOut}
@@ -519,6 +549,7 @@ export default function ProfilePage() {
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [loadingCheckIns, setLoadingCheckIns] = useState(false);
   const [loadingRewards, setLoadingRewards] = useState(false);
+  const [showAreaPicker, setShowAreaPicker] = useState(false);
 
   const loadSavedVenues = useCallback(
     async (currentSession: Session) => {
@@ -641,7 +672,13 @@ export default function ProfilePage() {
     <PageTransition>
       <main className="mx-auto min-h-screen-safe w-full max-w-lg bg-[#0A0A0E] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 text-white">
         {!authChecked && <YouSkeleton />}
-        {authChecked && !session && <LoggedOutState onSignIn={handleGoogleSignIn} signingIn={signingIn} />}
+        {authChecked && !session && (
+          <LoggedOutState
+            onSignIn={handleGoogleSignIn}
+            signingIn={signingIn}
+            onChangeArea={() => setShowAreaPicker(true)}
+          />
+        )}
         {authChecked && session && (
           <LoggedInState
             session={session}
@@ -652,8 +689,10 @@ export default function ProfilePage() {
             loadingCheckIns={loadingCheckIns}
             loadingRewards={loadingRewards}
             onSignOut={handleSignOut}
+            onChangeArea={() => setShowAreaPicker(true)}
           />
         )}
+        {showAreaPicker && <OnboardingOverlay forceOpen onClose={() => setShowAreaPicker(false)} />}
       </main>
     </PageTransition>
   );
