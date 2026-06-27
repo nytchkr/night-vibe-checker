@@ -1234,7 +1234,8 @@ export function VenuePageClient({
             <div ref={heroRef} className="relative min-h-[340px] w-full overflow-hidden sm:min-h-[420px]">
               <VenuePhoto
                 name={venue.name}
-                photoUrl={venue.photoUrls?.[0] ?? venue.photoUrl}
+                photoUrl={venue.photoUrl}
+                photoUrls={venue.photoUrls}
                 alt={`${venue.name} venue photo`}
                 className="absolute inset-0 h-full w-full"
                 imageClassName="scale-[1.01]"
@@ -1242,7 +1243,7 @@ export function VenuePageClient({
                 priority
                 fetchPriority="high"
               />
-              <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent,#0A0A0E)]" aria-hidden="true" />
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,transparent,#0A0A0E)]" aria-hidden="true" />
               <button
                 type="button"
                 onClick={goBackToMap}
