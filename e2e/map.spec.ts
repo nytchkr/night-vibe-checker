@@ -305,7 +305,9 @@ test.describe("Map tab", () => {
 
     const zoomIn = page.locator(".leaflet-control-zoom-in");
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      await zoomIn.click();
+      await zoomIn.evaluate((button) => {
+        (button as HTMLElement).click();
+      });
       await page.waitForTimeout(300);
       if ((await page.locator(".venue-cluster-pin").count()) === 6) {
         break;
