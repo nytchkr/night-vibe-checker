@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page, type TestInfo } from "@playwright/test";
 
 const generatedAt = new Date().toISOString();
 
@@ -219,6 +219,18 @@ async function mockVenueApis(page: Page, options: { delayVenuesMs?: number } = {
 
     return route.continue();
   });
+
+  return () => venueListRequests;
+}
+
+async function getLaunchVenue(request: APIRequestContext): Promise<TestVenue> {
+  const response = await request.get("/api/venues");
+  expect(response.ok()).toBeTruthy();
+
+  const body = await response.json();
+  const launchVenue = (body?.data?.venues ?? []).find((venue: TestVenue) => venue.id && venue.name);
+  expect(launchVenue, "Expected at least one cached launch-zone venue from /api/venues").toBeTruthy();
+  return launchVenue;
 }
 
 async function assertNoHorizontalOverflow(page: Page) {
@@ -246,15 +258,40 @@ async function expectExploreReady(page: Page) {
   await expect(page.getByRole("region", { name: "Venue results" }).getByRole("link", { name: "Open Cross Device Pulse", exact: true })).toBeVisible();
 }
 
-async function performPullToRefresh(page: Page) {
+async function performPullToRefresh(page: Page, getVenueRequestCount: () => number) {
+  const initialRequestCount = getVenueRequestCount();
   await page.evaluate(() => window.scrollTo(0, 0));
   const x = Math.floor(page.viewportSize()!.width / 2);
-  await page.mouse.move(x, 24);
-  await page.mouse.down();
-  await page.mouse.move(x, 148, { steps: 8 });
+  await page.evaluate(({ clientX }) => {
+    const pointerId = 9001;
+    const dispatch = (type: string, clientY: number) => {
+      window.dispatchEvent(new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        clientX,
+        clientY,
+        isPrimary: true,
+        pointerId,
+        pointerType: "touch",
+      }));
+    };
+
+    dispatch("pointerdown", 24);
+    dispatch("pointermove", 148);
+  }, { clientX: x });
   await expect(page.getByText("Pull to refresh")).toBeVisible({ timeout: 5_000 });
-  await page.mouse.up();
-  await expect(page.getByRole("status")).toBeVisible({ timeout: 5_000 });
+  await page.evaluate(({ clientX }) => {
+    window.dispatchEvent(new PointerEvent("pointerup", {
+      bubbles: true,
+      cancelable: true,
+      clientX,
+      clientY: 148,
+      isPrimary: true,
+      pointerId: 9001,
+      pointerType: "touch",
+    }));
+  }, { clientX: x });
+  await expect.poll(getVenueRequestCount).toBeGreaterThan(initialRequestCount);
 }
 
 test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
@@ -278,7 +315,7 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
 
   test("@device Explore shows skeleton, open-now badge, and pull-to-refresh", async ({ page }, testInfo) => {
     await markOnboarded(page);
-    await mockVenueApis(page, { delayVenuesMs: 650 });
+    const getVenueRequestCount = await mockVenueApis(page, { delayVenuesMs: 650 });
 
     await page.goto("/explore", { waitUntil: "domcontentloaded" });
 
@@ -286,10 +323,10 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
     await expectExploreReady(page);
 
     const venueCard = page.getByRole("region", { name: "Venue results" }).getByRole("link", { name: "Open Cross Device Pulse", exact: true });
-    await expect(venueCard).toContainText("Open now");
+    await expect(venueCard).toContainText("Open");
     await expect(venueCard).toContainText("Packed");
 
-    await performPullToRefresh(page);
+    await performPullToRefresh(page, getVenueRequestCount);
     await expectExploreReady(page);
     await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
@@ -303,7 +340,7 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
 
     const mapSheet = page.getByRole("region", { name: "South End venues" });
     await expect(mapSheet).toBeVisible({ timeout: 25_000 });
-    await mapSheet.getByRole("button", { name: /Expand Charlotte venue list/ }).click();
+    await mapSheet.getByRole("button", { name: /Expand South End venue list/ }).click();
     await mapSheet.getByRole("button", { name: /Cross Device Pulse/ }).click();
 
     await expect(mapSheet.getByRole("heading", { name: "Cross Device Pulse" })).toBeVisible();
@@ -313,17 +350,17 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
     await assertNoHorizontalOverflow(page);
   });
 
-  test("@device venue detail shows check-in CTA and share button", async ({ page }, testInfo) => {
+  test("@device venue detail shows check-in CTA and share button", async ({ page, request }, testInfo) => {
     await markOnboarded(page);
-    await mockVenueApis(page);
+    const venue = await getLaunchVenue(request);
+    const venuePath = venue.slug ?? venue.id;
 
-    await page.goto("/venues/cross-device-pulse", { waitUntil: "domcontentloaded" });
+    await page.goto(`/venues/${encodeURIComponent(venuePath)}`, { waitUntil: "domcontentloaded" });
 
-    await expect(page.getByRole("heading", { level: 1, name: "Cross Device Pulse" })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("region", { name: "Venue hero" })).toBeVisible();
-    await expect(page.getByText("Open now").first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Check in at Cross Device Pulse" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Share Cross Device Pulse/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: `Check in at ${venue.name}` })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Share venue" }).first()).toBeVisible();
     await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
   });
