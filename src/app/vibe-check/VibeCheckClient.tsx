@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { button as MotionButton } from "framer-motion/client";
 import { Share2 } from "lucide-react";
-import { createBrowserClient } from "@/lib/supabase-browser";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -34,6 +33,11 @@ const BUSYNESS_OPTIONS: BusynessOption[] = [
   { value: "moderate", label: "Moderate", submitValue: "moderate", crowdLevel: "moderate", accent: "#FFB020", ring: "rgba(255,176,32,0.14)" },
   { value: "packed", label: "Packed", submitValue: "packed", crowdLevel: "packed", accent: "#FF5B6A", ring: "rgba(255,91,106,0.14)" },
 ];
+
+async function getSupabaseBrowserClient() {
+  const { createBrowserClient } = await import("@/lib/supabase-browser");
+  return createBrowserClient();
+}
 
 const CROWD_OPTIONS: {
   value: CrowdCompositionFeel;
@@ -196,12 +200,22 @@ export default function VibeCheckClient({
 
   // Client-side auth gate — redirect unauthenticated users to login.
   useEffect(() => {
-    const client = createBrowserClient();
-    client.auth.getSession().then(({ data }) => {
-      if (!data.session?.access_token) {
-        router.replace(`/login?return=${encodeURIComponent(returnPath)}`);
-      }
-    });
+    let cancelled = false;
+
+    void getSupabaseBrowserClient()
+      .then((client) => client.auth.getSession())
+      .then(({ data }) => {
+        if (!cancelled && !data.session?.access_token) {
+          router.replace(`/login?return=${encodeURIComponent(returnPath)}`);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) router.replace(`/login?return=${encodeURIComponent(returnPath)}`);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, returnPath]);
 
   useEffect(() => {
@@ -301,7 +315,7 @@ export default function VibeCheckClient({
     setSubmitError(null);
 
     try {
-      const client = createBrowserClient();
+      const client = await getSupabaseBrowserClient();
       const { data: sessionData } = await client.auth.getSession();
       const token = sessionData.session?.access_token;
 

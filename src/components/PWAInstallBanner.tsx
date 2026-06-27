@@ -51,26 +51,6 @@ function isStandaloneDisplay() {
   );
 }
 
-export function PWAInstallVisitTracker({ children }: { children: React.ReactNode }) {
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    try {
-      const nextVisitCount = readVisitCount() + 1;
-      localStorage.setItem(VISIT_COUNT_KEY, String(nextVisitCount));
-      window.dispatchEvent(new CustomEvent("nv-pwa-visit-count-updated"));
-    } catch {
-      // Storage can be unavailable in private browsing; the banner will stay hidden.
-    } finally {
-      setIsReady(true);
-    }
-  }, []);
-
-  if (!isReady) return null;
-
-  return <>{children}</>;
-}
-
 export default function PWAInstallBanner() {
   const installPromptRef = useRef<BeforeInstallPromptEvent | null>(null);
   const [visitCount, setVisitCount] = useState(0);

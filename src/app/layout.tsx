@@ -6,7 +6,7 @@ import Script from "next/script";
 import { AppOnboardingGate } from "@/components/AppOnboardingGate";
 import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
-import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
+import { PWAInstallRuntime } from "@/components/PWAInstallRuntime";
 import { RoutePrefetch } from "@/components/RoutePrefetch";
 import { ToastProvider } from "@/hooks/useToast";
 import "./globals.css";
@@ -151,9 +151,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <AppOnboardingGate />
             </OnboardingGateProvider>
           </div>
-          <PWAInstallVisitTracker>
-            <PWAInstallBanner />
-          </PWAInstallVisitTracker>
+          <PWAInstallRuntime />
           <BottomNav />
         </ToastProvider>
         <Script id="service-worker-registration" nonce={nonce} strategy="afterInteractive">

@@ -1,9 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 export const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
+
+async function getSupabaseBrowserClient() {
+  const { createBrowserClient } = await import("@/lib/supabase-browser");
+  return createBrowserClient();
+}
 
 type SavedVenuesResponse = {
   place_ids?: string[];
@@ -43,7 +47,7 @@ export function useSavedVenues() {
   const [loading, setLoading] = useState(true);
 
   const getAccessToken = useCallback(async () => {
-    const client = createBrowserClient();
+    const client = await getSupabaseBrowserClient();
     const { data } = await client.auth.getSession();
     return data.session?.access_token ?? null;
   }, []);
@@ -77,14 +81,22 @@ export function useSavedVenues() {
   }, [getAccessToken]);
 
   useEffect(() => {
-    const client = createBrowserClient();
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
     void refresh();
 
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange(() => {
-      void refresh();
-    });
+    void getSupabaseBrowserClient()
+      .then((client) => {
+        if (cancelled) return;
+        const {
+          data: { subscription },
+        } = client.auth.onAuthStateChange(() => {
+          void refresh();
+        });
+        unsubscribe = () => subscription.unsubscribe();
+      })
+      .catch(() => undefined);
 
     function handleSavedVenuesChanged() {
       void refresh();
@@ -93,7 +105,8 @@ export function useSavedVenues() {
     window.addEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
 
     return () => {
-      subscription.unsubscribe();
+      cancelled = true;
+      unsubscribe?.();
       window.removeEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
     };
   }, [refresh]);

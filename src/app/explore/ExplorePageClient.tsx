@@ -32,7 +32,6 @@ import { isOnboardingZoneId, PREFERRED_ZONE_STORAGE_KEY, type OnboardingZone } f
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
-import { createBrowserClient } from "@/lib/supabase-browser";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
@@ -93,6 +92,11 @@ const EXPLORE_ZONE_FILTERS_BY_ID: Record<OnboardingZone["id"], ExploreFilterOpti
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
 const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
+
+async function getSupabaseBrowserClient() {
+  const { createBrowserClient } = await import("@/lib/supabase-browser");
+  return createBrowserClient();
+}
 const LOCATION_SEARCH_CENTERS: Record<string, [number, number]> = {
   noda: [35.2396, -80.8106],
   "no da": [35.2396, -80.8106],
@@ -1000,21 +1004,37 @@ export function ExplorePageClient() {
   }, [exploreFilters, hasInitializedExploreFilters]);
 
   useEffect(() => {
-    const client = createBrowserClient();
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
-    client.auth.getSession()
-      .then(({ data }) => {
-        setSession(data.session);
+    void getSupabaseBrowserClient()
+      .then((client) => {
+        if (cancelled) return;
+
+        client.auth
+          .getSession()
+          .then(({ data }) => {
+            if (!cancelled) setSession(data.session);
+          })
+          .catch(() => {
+            if (!cancelled) setSession(null);
+          });
+
+        const {
+          data: { subscription },
+        } = client.auth.onAuthStateChange((_event, nextSession) => {
+          setSession(nextSession);
+        });
+        unsubscribe = () => subscription.unsubscribe();
       })
-      .catch(() => setSession(null));
+      .catch(() => {
+        if (!cancelled) setSession(null);
+      });
 
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
 
   const effectiveExploreSort = exploreSort === "nearby" && userLocation ? "nearby" : exploreSort === "nearby" ? DEFAULT_EXPLORE_SORT : exploreSort;
