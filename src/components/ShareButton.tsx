@@ -19,6 +19,8 @@ type VenueShareCardResponse = {
   text: string;
 };
 
+type VenueShareMethod = "native" | "clipboard" | "failed";
+
 export function buildVenueShareEndpoint(venueId: string): string {
   return `/api/venues/${encodeURIComponent(venueId)}/share-card`;
 }
@@ -29,6 +31,16 @@ export function createVenueShareData(venueName: string, shareCard: VenueShareCar
     text: shareCard.text,
     url: shareCard.shareUrl,
   };
+}
+
+export function buildVenueShareClipboardText(shareData: ShareData): string {
+  const text = shareData.text ?? "";
+  if (shareData.url && text.includes(shareData.url)) return text;
+  return [text, shareData.url].filter(Boolean).join(" ");
+}
+
+export function trackVenueShareEvent(venueId: string, method: VenueShareMethod) {
+  console.log("venue_share", { venueId, method });
 }
 
 export function ShareButton(props: ShareButtonProps) {
@@ -53,6 +65,7 @@ export function ShareButton(props: ShareButtonProps) {
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         try {
           await navigator.share(shareData);
+          trackVenueShareEvent(props.venueId, "native");
           return;
         } catch {
           // Fall back to clipboard when the native sheet is cancelled or blocked.
@@ -60,10 +73,12 @@ export function ShareButton(props: ShareButtonProps) {
       }
 
       if (typeof navigator === "undefined" || !navigator.clipboard) return;
-      await navigator.clipboard.writeText(shareCard.shareUrl);
+      await navigator.clipboard.writeText(buildVenueShareClipboardText(shareData));
+      trackVenueShareEvent(props.venueId, "clipboard");
       setToastVisible(true);
       setTimeout(() => setToastVisible(false), 2000);
     } catch {
+      trackVenueShareEvent(props.venueId, "failed");
       // Sharing is best-effort; failures should not break the venue page.
     } finally {
       setSharing(false);
