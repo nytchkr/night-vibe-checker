@@ -14,7 +14,7 @@ import "./globals.css";
 const siteUrl = "https://nytchkr.com";
 const title = "NightVibe";
 const description = "Find the hottest spots in Charlotte tonight";
-const themeColor = "#8B6CFF";
+const themeColor = "#0A0A0E";
 const canonicalUrl = "https://nytchkr.com";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
 
@@ -22,7 +22,6 @@ const OfflineBanner = dynamic(() => import("@/components/OfflineBanner"));
 const DesktopWarningBanner = dynamic(() => import("@/components/DesktopWarningBanner"));
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["500", "600"],
   variable: "--font-inter",
   display: "swap",
   preload: true,
@@ -45,6 +44,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: canonicalUrl,
   },
+  themeColor,
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.ico",
