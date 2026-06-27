@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Clock3, MapPin, Star, X } from "lucide-react";
+import { Clock3, MapPin, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
+import { StarRating } from "@/components/StarRating";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -91,10 +92,11 @@ function formatPriceLevel(priceLevel: ConsumerVenue["priceLevel"]) {
   return "$".repeat(priceLevel);
 }
 
-function formatRating(venue: ConsumerVenue) {
+function getGoogleRatingData(venue: ConsumerVenue): { rating: number; count: number } | null {
   const rating = venue.googleRating ?? venue.rating;
-  if (rating == null || !Number.isFinite(rating)) return null;
-  return rating.toFixed(1);
+  const count = venue.userRatingCount ?? venue.totalRatings;
+  if (rating == null || count == null || !Number.isFinite(rating) || !Number.isFinite(count)) return null;
+  return { rating, count };
 }
 
 function getOpenStatus(venue: ConsumerVenue) {
@@ -303,7 +305,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   const busyness = formatBusyness(signal?.busyness0To100);
   const category = formatCategory(venue.category);
   const isPeek = snap === "peek";
-  const rating = formatRating(venue);
+  const googleRatingData = getGoogleRatingData(venue);
   const priceLevel = formatPriceLevel(venue.priceLevel);
   const photoUrl = venue.photoUrl ?? venue.photoUrls?.[0] ?? null;
   const openStatus = getOpenStatus(venue);
@@ -362,6 +364,11 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
               <div className="min-w-0 pr-1">
                 <div className="flex min-w-0 items-center gap-2">
                   <h2 className="font-display truncate text-[19px] font-semibold leading-tight text-[#F4F5F8]">{venue.name}</h2>
+                  {priceLevel && (
+                    <span className="shrink-0 text-xs font-semibold text-white/55" aria-label={`Price level ${venue.priceLevel} of 4`}>
+                      {priceLevel}
+                    </span>
+                  )}
                   <OpenNowBadge openNow={venue.openNow ?? null} />
                 </div>
                 <p className="mt-1 truncate text-xs font-semibold text-white/45">{neighborhood}</p>
@@ -407,14 +414,9 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-[13px] font-semibold text-white/62">
-                  {rating && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Star className="h-4 w-4 fill-[#FFB020] text-[#FFB020]" aria-hidden="true" />
-                      {rating}
-                    </span>
-                  )}
+                  {googleRatingData && <StarRating {...googleRatingData} />}
                   {priceLevel && <span>{priceLevel}</span>}
-                  {!rating && !priceLevel && <span>Venue details pending</span>}
+                  {!googleRatingData && !priceLevel && <span>Venue details pending</span>}
                 </div>
 
                 <p className="flex min-w-0 items-center gap-2 truncate text-[13px] font-medium text-white/55">

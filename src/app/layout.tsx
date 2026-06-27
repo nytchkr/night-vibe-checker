@@ -86,7 +86,7 @@ const isDev = process.env.NEXT_PUBLIC_ENV === "development";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} bg-[#0A0A0E] text-white`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

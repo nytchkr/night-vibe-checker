@@ -71,7 +71,17 @@ function RatingButton({
   );
 }
 
-export function VenueRating({ accessToken, venueId }: { accessToken: string | null; venueId: string }) {
+export function VenueRating({
+  accessToken,
+  venueId,
+  promptAfterCheckIn = false,
+  onRated,
+}: {
+  accessToken: string | null;
+  venueId: string;
+  promptAfterCheckIn?: boolean;
+  onRated?: () => void;
+}) {
   const [ratingState, setRatingState] = useState<VenueRatingState>(EMPTY_RATING_STATE);
   const [loading, setLoading] = useState(true);
   const [pendingRating, setPendingRating] = useState<VenueRatingValue | null>(null);
@@ -131,6 +141,7 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
       });
       if (!res.ok) throw new Error(`${res.status}`);
       trackAnalytics("rating_submitted", { venue_id: venueId, rating });
+      onRated?.();
     } catch {
       setRatingState(previousState);
       setError("Could not save rating.");
@@ -143,17 +154,27 @@ export function VenueRating({ accessToken, venueId }: { accessToken: string | nu
   const disabled = readOnly || loading || pendingRating !== null;
   const tooltip = readOnly ? "Sign in to rate" : undefined;
   const hasNoRatings = !loading && ratingState.upCount === 0 && ratingState.downCount === 0;
+  const showPostCheckInPrompt = promptAfterCheckIn && !loading && ratingState.userRating === null;
 
   return (
     <section
-      className="space-y-3 border-t border-white/[0.06] pt-5"
+      className={`space-y-3 border-t pt-5 ${
+        showPostCheckInPrompt
+          ? "rounded-2xl border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 p-4 shadow-[0_0_24px_rgba(139,108,255,0.16)]"
+          : "border-white/[0.06]"
+      }`}
       role="region"
       aria-label="Would you go back rating"
       title={tooltip}
     >
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-[13px] font-medium text-[#9CA2AE]">Would you go back?</p>
+          <p className="text-[13px] font-medium text-[#9CA2AE]">
+            {showPostCheckInPrompt ? "Rate this venue" : "Would you go back?"}
+          </p>
+          {showPostCheckInPrompt && (
+            <p className="mt-1 text-[12px] font-medium text-white/55">Help the next person choose the right spot.</p>
+          )}
           {readOnly && <p className="mt-1 text-[12px] text-[#9CA2AE]">Sign in to rate</p>}
         </div>
         <div className="flex items-center gap-2" aria-busy={loading}>

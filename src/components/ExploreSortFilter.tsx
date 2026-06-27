@@ -69,8 +69,8 @@ function Chip({
         "inline-flex min-h-[38px] shrink-0 items-center rounded-full border px-4 text-sm font-semibold backdrop-blur-sm transition-all duration-200 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70",
         active
           ? "border-[#8B6CFF] bg-violet-600 text-white shadow-[0_0_18px_rgba(139,108,255,0.3)]"
-          : "border-white/[0.06] bg-white/10 text-gray-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.14] hover:text-white hover:shadow-lg hover:shadow-violet/10",
-        (disabled || comingSoon) && "cursor-not-allowed opacity-35 hover:translate-y-0 hover:border-white/[0.06] hover:bg-white/10 hover:text-gray-300 hover:shadow-none active:scale-100",
+          : "border-white/[0.06] bg-white/10 text-[#D8DCE5] hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.14] hover:text-white hover:shadow-lg hover:shadow-violet/10",
+        (disabled || comingSoon) && "cursor-not-allowed opacity-35 hover:translate-y-0 hover:border-white/[0.06] hover:bg-white/10 hover:text-[#D8DCE5] hover:shadow-none active:scale-100",
       )}
     >
       <span>{label}</span>

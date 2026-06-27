@@ -14,11 +14,11 @@ import { MFRatioBar, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { PushOptIn } from "@/components/PushOptIn";
-import { RatingPrompt } from "@/components/RatingPrompt";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { SkeletonVenueDetail } from "@/components/SkeletonVenueDetail";
+import { StarRating } from "@/components/StarRating";
 import { Toast } from "@/components/Toast";
 import { TrendingBadge } from "@/components/TrendingBadge";
 import { VenuePredictionCard } from "@/components/VenuePredictionCard";
@@ -153,10 +153,12 @@ function rewardToast(pointsAwarded: number, events: string[]): string {
   return parts.join(" · ");
 }
 
-function formatReviewCount(count: number | null | undefined): string | null {
-  if (count == null || !Number.isFinite(count)) return null;
-  const rounded = Math.round(count);
-  return `${rounded.toLocaleString()} review${rounded === 1 ? "" : "s"}`;
+function getGoogleRatingData(venue: ConsumerVenue | null | undefined): { rating: number; count: number } | null {
+  if (!venue) return null;
+  const rating = venue.googleRating ?? venue.rating;
+  const count = venue.userRatingCount ?? venue.totalRatings;
+  if (rating == null || count == null || !Number.isFinite(rating) || !Number.isFinite(count)) return null;
+  return { rating, count };
 }
 
 function EmptySignalState({
@@ -580,7 +582,7 @@ export function VenuePageClient({
   const [vibeError, setVibeError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [checkInConfirmed, setCheckInConfirmed] = useState(false);
-  const [ratingPromptOpen, setRatingPromptOpen] = useState(false);
+  const [showPostCheckInRatingPrompt, setShowPostCheckInRatingPrompt] = useState(false);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const reportDialogRef = useRef<HTMLDivElement | null>(null);
   const vibeDialogRef = useRef<HTMLDivElement | null>(null);
@@ -706,7 +708,7 @@ export function VenuePageClient({
       if (checkedVenueId !== currentVenueId) return;
 
       setCheckInConfirmed(true);
-      setRatingPromptOpen(true);
+      setShowPostCheckInRatingPrompt(true);
       void fetchRecentCheckIns(currentVenueId);
       void fetch(`/api/venues/${encodeURIComponent(currentVenueId)}`)
         .then((response) => response.ok ? response.json() : null)
@@ -947,7 +949,7 @@ export function VenuePageClient({
       setVibeGenderSelfReport("prefer_not");
       setToast(rewardToast(Number(json.data?.pointsAwarded ?? 0), json.data?.events ?? []));
       setCheckInConfirmed(true);
-      setRatingPromptOpen(true);
+      setShowPostCheckInRatingPrompt(true);
       haptic.success();
       trackAnalytics("vibe_check_submitted", {
         venue_id: reportVenueId,
@@ -1311,7 +1313,7 @@ export function VenuePageClient({
                     venueId={venue.id}
                     venueName={venue.name}
                     aria-label="Share current vibe"
-                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white/[0.04] px-5 text-sm font-black text-gray-200 shadow-none transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:ring-[#8B6CFF]/70 disabled:bg-white/10 disabled:text-white/35"
+                    className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white/[0.04] px-5 text-sm font-black text-[#E5E7EB] shadow-none transition-colors hover:bg-white/[0.08] hover:text-white focus-visible:ring-[#8B6CFF]/70 disabled:bg-white/10 disabled:text-white/35"
                   >
                     <span>Share Vibe</span>
                   </ShareButton>
@@ -1520,7 +1522,7 @@ export function VenuePageClient({
                 maxLength={200}
                 rows={3}
                 placeholder="What should we correct?"
-                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-base text-[#F4F5F8] placeholder:text-[#646B79] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="w-full resize-none rounded-[12px] border border-white/[0.08] bg-white/[0.07] px-3 py-2 text-base text-[#F4F5F8] placeholder:text-[#9CA2AE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               />
               <div className="flex items-center justify-between gap-3">
                 <span className={`text-xs ${reportCharactersRemaining < 20 ? "text-amber-300" : "text-white/35"}`}>

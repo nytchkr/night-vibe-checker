@@ -610,7 +610,7 @@ function NotificationPreferenceToggle({
           }`}
         >
           <span
-            className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-gray-500 bg-gray-800 shadow-lg transition-transform ${
+            className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-white/20 bg-[#111117] shadow-lg transition-transform ${
               prefs.notifyBusyVenues ? "translate-x-6" : "translate-x-1"
             }`}
           />

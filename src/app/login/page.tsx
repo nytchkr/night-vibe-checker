@@ -211,7 +211,7 @@ function LoginContent() {
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={googleSigningIn}
-                className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-gray-600 bg-gray-800 text-sm font-bold text-white transition-all duration-150 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-white/[0.12] bg-[#111117] text-sm font-bold text-white transition-all duration-150 hover:bg-[#171720] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 <svg aria-hidden="true" viewBox="0 0 18 18" className="h-5 w-5">
                   <path

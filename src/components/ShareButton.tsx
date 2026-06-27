@@ -98,7 +98,7 @@ export function ShareButton(props: ShareButtonProps) {
         className={[
           `
           h-11 w-11 rounded-full p-0
-          text-gray-300 hover:bg-white/10 hover:text-white
+          text-[#D8DCE5] hover:bg-white/10 hover:text-white
           focus-visible:text-white focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-60
         `,
           props.className,
@@ -112,7 +112,7 @@ export function ShareButton(props: ShareButtonProps) {
       {toastVisible ? (
         <div
           role="status"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-[1300] -translate-x-1/2 rounded-full bg-gray-800 px-4 py-2 text-sm text-white shadow-2xl shadow-black/40"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-[1300] -translate-x-1/2 rounded-full border border-white/[0.08] bg-[#111117] px-4 py-2 text-sm text-white shadow-2xl shadow-black/40"
         >
           Link copied!
         </div>

@@ -479,7 +479,7 @@ export default function VibeCheckClient({
             <button
               type="button"
               onClick={() => void handleShareCard()}
-              className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-gray-600 bg-gray-800 px-4 py-3 text-sm font-black text-white transition-colors hover:bg-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              className="mt-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-[#111117] px-4 py-3 text-sm font-black text-white transition-colors hover:bg-[#171720] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               <Share2 className="h-4 w-4" aria-hidden="true" />
               {shareCopied ? "Link copied" : "Share"}
@@ -585,7 +585,7 @@ export default function VibeCheckClient({
                 placeholder="Search South End venues"
                 aria-describedby={venuesError ? "venue-search-error" : undefined}
                 aria-invalid={venuesError ? "true" : "false"}
-                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-[#9CA2AE] focus:border-[#8B6CFF]/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               />
 
               <div className="scroll-touch max-h-64 space-y-2 overflow-y-auto pr-1 [will-change:scroll-position]">
@@ -714,7 +714,7 @@ export default function VibeCheckClient({
             maxLength={NOTE_MAX_LENGTH}
             rows={4}
             placeholder="Add a vibe note (optional)..."
-            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-white/30 focus:border-[#8B6CFF]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+            className="min-h-[112px] w-full resize-none rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-[#F9FAFB] placeholder:text-[#9CA2AE] focus:border-[#8B6CFF]/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
           />
           <p className="mt-1 text-right text-[11px] text-white/35">{note.length} / {NOTE_MAX_LENGTH}</p>
         </section>

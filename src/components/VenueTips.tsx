@@ -274,7 +274,7 @@ export function VenueTips({ venueId }: { venueId: string }) {
             onChange={(event) => setTipText(event.target.value)}
             placeholder="Leave a short tip"
             aria-label="Leave a short tip"
-            className="min-h-[88px] resize-none rounded-xl bg-white/5 text-sm text-white/80 placeholder:text-white/35"
+            className="min-h-[88px] resize-none rounded-xl bg-white/5 text-sm text-white/80 placeholder:text-[#9CA2AE]"
           />
           <div className="flex items-center justify-between gap-3">
             <span className={`text-xs font-medium ${remaining < 0 ? "text-[#F0568C]" : "text-white/40"}`}>

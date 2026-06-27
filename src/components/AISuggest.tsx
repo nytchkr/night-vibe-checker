@@ -132,7 +132,7 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
             onChange={(event) => setIntent(event.target.value)}
             placeholder="Close, not too packed, budget friendly"
             aria-label="What kind of venue do you want?"
-            className="min-h-11 border-white/[0.06] bg-white/[0.05] font-medium text-white transition-all duration-200 ease-out placeholder:text-white/35 focus:border-violet/60 focus:ring-violet/40"
+            className="min-h-11 border-white/[0.06] bg-white/[0.05] font-medium text-white transition-all duration-200 ease-out placeholder:text-[#9CA2AE] focus:border-violet/60 focus:ring-violet/40"
           />
           <Button
             type="button"
