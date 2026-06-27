@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Explore — nytchkr",
   description:
     "Discover South End Charlotte bars and clubs. See live crowd levels and find your vibe before you go.",
+  alternates: {
+    canonical: "/explore",
+  },
 };
 
 export default function ExplorePage() {

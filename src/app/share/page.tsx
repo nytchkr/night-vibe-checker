@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Share — nytchkr",
+  description: "Open a shared nytchkr venue or nightlife signal.",
+  alternates: {
+    canonical: "/share",
+  },
+};
 
 type SharePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

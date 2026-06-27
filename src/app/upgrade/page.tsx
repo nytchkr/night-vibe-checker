@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "More Signals — nytchkr",
+  description: "See future nytchkr paid features built around real venue signals.",
+  alternates: {
+    canonical: "/upgrade",
+  },
+};
 
 export default function UpgradePage() {
   return (

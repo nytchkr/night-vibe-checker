@@ -17,6 +17,7 @@ const venues = [
     address: "101 Explore Ave",
     lat: 35.212,
     lng: -80.861,
+    neighborhood: "South End",
     category: "night_club",
     photoUrl: null,
     openNow: true,
@@ -41,6 +42,7 @@ const venues = [
     address: "202 Explore Ave",
     lat: 35.214,
     lng: -80.863,
+    neighborhood: "Dilworth",
     category: "bar",
     photoUrl: null,
     openNow: true,
@@ -65,6 +67,7 @@ const venues = [
     address: "303 Explore Ave",
     lat: 35.215,
     lng: -80.864,
+    neighborhood: "South End",
     category: "lounge",
     photoUrl: null,
     openNow: true,
@@ -171,7 +174,12 @@ test.describe("Explore tab", () => {
     await page.goto("/explore");
     await page.waitForLoadState("domcontentloaded");
     await expect(page.getByRole("heading", { name: "South End" })).toBeVisible({ timeout: 10000 });
-    await expect(page.getByPlaceholder("Search venues...")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByPlaceholder("Search South End, Dilworth, venue name...")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("button", { name: "Open Now" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Bars" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Restaurants" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Clubs" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Coffee" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Busiest first" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Quietest first" })).toBeVisible();
     await expect(page.getByRole("button", { name: "A-Z" })).toBeVisible();
@@ -207,10 +215,37 @@ test.describe("Explore tab", () => {
     await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toHaveCount(0);
 
+    await searchBox.fill("bar");
+
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
+
+    await searchBox.fill("Dilworth");
+
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
+
     await searchBox.fill("Explore Ave");
 
-    await expect(page.getByText("No matches for 'Explore Ave'. Try a different name.")).toBeVisible();
+    await expect(page.getByText("No venues match")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Clear filters" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
+  });
+
+  test("search persists via URL params and search icon focuses the input", async ({ page }) => {
+    await page.goto("/explore?q=lowlight");
+
+    const searchBox = page.getByRole("searchbox", { name: "Search venues" });
+    await expect(searchBox).toHaveValue("lowlight");
+    await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
+
+    await searchBox.fill("Pulse");
+    await expect(page).toHaveURL(/q=Pulse/);
+
+    await searchBox.blur();
+    await page.getByRole("button", { name: "Focus venue search" }).click();
+    await expect(searchBox).toBeFocused();
   });
 
   test("sorts by busyness with null crowd data last", async ({ page }) => {
@@ -259,19 +294,16 @@ test.describe("Explore tab", () => {
     await expect(page.getByText("No venues in this area yet. Check back soon.")).toBeVisible();
   });
 
-  test("Packed filter shows only packed venues", async ({ page }) => {
+  test("category filters show matching venue types", async ({ page }) => {
     await page.goto("/explore");
 
-    await page.getByRole("button", { name: "Packed" }).click();
+    await page.getByRole("button", { name: "Clubs" }).click();
 
     await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toHaveCount(0);
-  });
 
-  test("Dead filter shows low-busyness venues", async ({ page }) => {
-    await page.goto("/explore");
-
-    await page.getByRole("button", { name: "Dead" }).click();
+    await page.getByRole("button", { name: "Clubs" }).click();
+    await page.getByRole("button", { name: "Bars" }).click();
 
     await expect(page.getByRole("link", { name: "Open Lowlight Lounge", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
@@ -280,9 +312,9 @@ test.describe("Explore tab", () => {
   test("empty filtered results can clear filters", async ({ page }) => {
     await page.goto("/explore");
 
-    await page.getByRole("button", { name: "Uptown" }).click();
+    await page.getByRole("button", { name: "Restaurants" }).click();
 
-    await expect(page.getByText("No spots match this filter.")).toBeVisible();
+    await expect(page.getByText("No venues match")).toBeVisible();
 
     await page.getByRole("button", { name: "Clear filters" }).click();
 

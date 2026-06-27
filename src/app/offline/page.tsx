@@ -1,3 +1,13 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Offline — nytchkr",
+  description: "nytchkr is unavailable while this device is offline.",
+  alternates: {
+    canonical: "/offline",
+  },
+};
+
 export default function OfflinePage() {
   return (
     <main className="flex min-h-screen-safe items-center justify-center bg-[#0A0A0E] px-6 text-center text-white">

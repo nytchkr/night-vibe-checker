@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/auth-helpers-nextjs";
@@ -7,6 +8,18 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { NotificationsClient, type NotificationPrefs } from "./NotificationsClient";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Notifications — nytchkr",
+  description: "Manage nytchkr venue alerts and nightlife notification settings.",
+  alternates: {
+    canonical: "/notifications",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 const DEFAULT_PREFS: NotificationPrefs = {
   notifyBusyVenues: true,

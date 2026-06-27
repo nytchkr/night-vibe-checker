@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: "Map — nytchkr",
   description:
     "Discover South End Charlotte bars and clubs. Search by zip, see live crowd levels, and find your vibe before you go.",
+  alternates: {
+    canonical: "/map",
+  },
 };
 
 export default function MapPage() {

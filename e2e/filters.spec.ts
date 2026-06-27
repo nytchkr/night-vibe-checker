@@ -113,9 +113,11 @@ test.describe("Home filters", () => {
   test("filter chips visible on home", async ({ page }) => {
     await page.goto("/explore");
 
-    await expect(page.getByRole("button", { name: "All" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Packed" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Moderate" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open Now" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Bars" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Restaurants" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Clubs" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Coffee" })).toBeVisible();
   });
 
   test("search filters venues", async ({ page }) => {

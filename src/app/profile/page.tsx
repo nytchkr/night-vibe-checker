@@ -654,6 +654,7 @@ export default function ProfilePage() {
     if (!session) return;
 
     function refreshProfileCheckIns() {
+      if (!session) return;
       void loadCheckIns(session);
       void loadRewards(session);
     }
