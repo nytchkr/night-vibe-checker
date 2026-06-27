@@ -20,23 +20,26 @@ type VenueBottomSheetProps = {
   onClose: () => void;
 };
 
-type VenueSheetSnap = "peek" | "half" | "full";
+type VenueSheetSnap = "peek" | "full";
+
+const PEEK_RATIO = 0.5;
+const FULL_RATIO = 0.9;
+const FAST_CLOSE_VELOCITY = 0.85;
+const FAST_CLOSE_DISTANCE = 56;
 
 const SNAP_HEIGHTS: Record<VenueSheetSnap, string> = {
-  peek: "120px",
-  half: "45dvh",
+  peek: "50dvh",
   full: "90dvh",
 };
 
 function getSnapHeightPx(snap: VenueSheetSnap) {
-  if (typeof window === "undefined") return snap === "peek" ? 120 : snap === "half" ? 360 : 720;
-  if (snap === "peek") return 120;
-  if (snap === "half") return window.innerHeight * 0.45;
-  return window.innerHeight * 0.9;
+  if (typeof window === "undefined") return snap === "peek" ? 360 : 720;
+  if (snap === "peek") return window.innerHeight * PEEK_RATIO;
+  return window.innerHeight * FULL_RATIO;
 }
 
 function getNearestSnap(height: number): VenueSheetSnap {
-  const snaps: VenueSheetSnap[] = ["peek", "half", "full"];
+  const snaps: VenueSheetSnap[] = ["peek", "full"];
   return snaps.reduce((nearest, candidate) => {
     const nearestDistance = Math.abs(height - getSnapHeightPx(nearest));
     const candidateDistance = Math.abs(height - getSnapHeightPx(candidate));
@@ -60,6 +63,27 @@ function formatBusyness(value: number | null | undefined) {
   if (value < 35) return { label: "Quiet", color: "#00F5D4" };
   if (value <= 65) return { label: "Moderate", color: "#FFD166" };
   return { label: "Packed", color: "#F0568C" };
+}
+
+function BusynessBar({ color, label, value }: { color: string; label: string; value: number | null | undefined }) {
+  const width = value == null || !Number.isFinite(value) ? 0 : Math.max(0, Math.min(100, value));
+
+  return (
+    <div className="mt-3" aria-label={`Busyness: ${label}`}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[11px] font-black uppercase text-white/45">Busyness</span>
+        <span className="text-xs font-black" style={{ color }}>
+          {label}
+        </span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+        <div
+          className="venue-fill-motion h-full rounded-full"
+          style={{ width: `${width}%`, backgroundColor: color, boxShadow: `0 0 18px ${color}66` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 function formatPriceLevel(priceLevel: ConsumerVenue["priceLevel"]) {
@@ -189,7 +213,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   const haptic = useHaptic();
   const sheetRef = useRef<HTMLElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragRef = useRef({ pointerId: -1, startY: 0, startHeight: 120, currentHeight: 120 });
+  const dragRef = useRef({ pointerId: -1, startY: 0, currentY: 0, startHeight: 360, currentHeight: 360, startedAt: 0 });
   const [snap, setSnap] = useState<VenueSheetSnap>("peek");
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -197,7 +221,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   useEffect(() => {
     if (!venue && !loading) return;
 
-    setSnap("half");
+    setSnap("peek");
     setDragHeight(null);
     const frameId = requestAnimationFrame(() => setIsVisible(true));
     return () => {
@@ -226,8 +250,10 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
     dragRef.current = {
       pointerId: event.pointerId,
       startY: event.clientY,
+      currentY: event.clientY,
       startHeight,
       currentHeight: startHeight,
+      startedAt: performance.now(),
     };
     setDragHeight(startHeight);
   }
@@ -235,16 +261,22 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     if (dragRef.current.pointerId !== event.pointerId) return;
     const maxHeight = getSnapHeightPx("full");
-    const minHeight = getSnapHeightPx("peek");
+    const minHeight = 96;
     const nextHeight = Math.min(maxHeight, Math.max(minHeight, dragRef.current.startHeight + dragRef.current.startY - event.clientY));
+    dragRef.current.currentY = event.clientY;
     dragRef.current.currentHeight = nextHeight;
     setDragHeight(nextHeight);
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
     if (dragRef.current.pointerId !== event.pointerId) return;
-    const downwardDrag = event.clientY - dragRef.current.startY;
-    if (downwardDrag > 72 && dragRef.current.startHeight <= getSnapHeightPx("peek") + 20) {
+    dragRef.current.currentY = event.clientY;
+    const downwardDrag = dragRef.current.currentY - dragRef.current.startY;
+    const elapsed = Math.max(1, performance.now() - dragRef.current.startedAt);
+    const velocity = downwardDrag / elapsed;
+    const shouldClose = downwardDrag > FAST_CLOSE_DISTANCE && velocity >= FAST_CLOSE_VELOCITY;
+
+    if (shouldClose) {
       dragRef.current.pointerId = -1;
       setDragHeight(null);
       handleClose();
@@ -303,24 +335,24 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
         aria-label={`${venue.name} details`}
         tabIndex={-1}
       >
-        <div className="mx-auto flex h-full w-full max-w-lg flex-col px-4 pb-2 pt-3">
+        <div className="mx-auto flex h-full w-full max-w-lg flex-col px-4 pb-2 pt-4">
           <div
-            className="absolute left-1/2 top-1.5 flex h-6 w-24 -translate-x-1/2 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
+            className="absolute left-1/2 top-1.5 flex h-8 w-28 -translate-x-1/2 cursor-grab touch-none items-center justify-center active:cursor-grabbing"
             onPointerCancel={handlePointerCancel}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
             aria-label="Drag venue details"
           >
-            <div className="h-1 w-10 rounded-full bg-white" />
+            <div className="h-1.5 w-12 rounded-full bg-white/45" />
           </div>
 
-          <div className="scroll-touch mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
+          <div className="scroll-touch mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
             <VenuePhoto
               name={venue.name}
               photoUrl={photoUrl}
               alt=""
-              className={`${isPeek ? "mb-3 h-16" : "mb-4 h-40"} w-full rounded-[14px] border border-white/[0.08]`}
+              className={`${isPeek ? "mb-3 h-[min(24dvh,12rem)]" : "mb-4 h-40"} w-full rounded-[14px] border border-white/[0.08]`}
               sizes="(max-width: 640px) calc(100vw - 2rem), 512px"
             />
 
@@ -332,15 +364,11 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
                 </div>
                 <p className="mt-1 truncate text-xs font-semibold text-white/45">{neighborhood}</p>
                 <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[#5C6573]/35 px-2.5 py-1 text-[11px] font-semibold text-white/66">
-                    {category}
-                  </span>
-                  <span
-                    className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                    style={{ borderColor: `${busyness.color}66`, backgroundColor: `${busyness.color}24`, color: busyness.color }}
-                  >
-                    {busyness.label}
-                  </span>
+                  {!isPeek && (
+                    <span className="rounded-full bg-[#5C6573]/35 px-2.5 py-1 text-[11px] font-semibold text-white/66">
+                      {category}
+                    </span>
+                  )}
                   <SourceChip source={signal?.busynessSource} />
                 </div>
               </div>
@@ -357,29 +385,25 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
               )}
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <MiniMFRatio venue={venue} />
-              <div className="flex shrink-0 items-center gap-2">
-                <SaveButton
-                  placeId={venue.placeId}
-                  className="h-11 w-11 text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
-                />
-                <ShareButton
-                  venueId={venue.id}
-                  venueName={venue.name}
-                  className="h-11 w-11 text-white/75 hover:text-white focus-visible:ring-[#8B6CFF]/70"
-                />
-                <Link
-                  href={`/venues/${encodeURIComponent(venue.id)}`}
-                  className="text-[12px] font-semibold text-[#F4F5F8] underline-offset-4 transition hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                >
-                  View Venue
-                </Link>
-              </div>
-            </div>
+            <BusynessBar color={busyness.color} label={busyness.label} value={signal?.busyness0To100} />
 
             {!isPeek && (
               <div className="mt-5 space-y-4 pb-4">
+                <div className="flex items-center justify-between gap-3">
+                  <MiniMFRatio venue={venue} />
+                  <div className="flex shrink-0 items-center gap-2">
+                    <SaveButton
+                      placeId={venue.placeId}
+                      className="h-11 w-11 text-white/75 hover:text-[#8B6CFF] focus-visible:ring-[#8B6CFF]/70"
+                    />
+                    <ShareButton
+                      venueId={venue.id}
+                      venueName={venue.name}
+                      className="h-11 w-11 text-white/75 hover:text-white focus-visible:ring-[#8B6CFF]/70"
+                    />
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-3 text-[13px] font-semibold text-white/62">
                   {rating && (
                     <span className="inline-flex items-center gap-1.5">

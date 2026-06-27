@@ -47,4 +47,19 @@ describe("signal freshness", () => {
     expect(formatSignalFreshness(null)).toBeNull();
     expect(formatSignalFreshness("not-a-date")).toBeNull();
   });
+
+  it("formats just-updated venue signals as fresh", () => {
+    expect(formatSignalAge(now.toISOString())).toBe("0m ago");
+    expect(formatSignalFreshness(now.toISOString())).toEqual({ label: "Updated 0 min ago", stale: false });
+  });
+
+  it("marks signals older than 24 hours stale", () => {
+    expect(formatSignalFreshness(minutesAgo(25 * 60))).toEqual({ label: "Data may be outdated", stale: true });
+  });
+
+  it("returns no freshness UI when signal data is absent", () => {
+    expect(formatSignalFreshness(undefined)).toBeNull();
+    expect(formatSignalFreshness(null)).toBeNull();
+    expect(getSignalLabel(undefined)).toBeNull();
+  });
 });
