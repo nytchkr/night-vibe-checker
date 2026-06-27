@@ -650,6 +650,26 @@ export default function ProfilePage() {
     };
   }, [loadCheckIns, loadRewards, loadSavedVenues, supabaseBrowser]);
 
+  useEffect(() => {
+    if (!session) return;
+
+    function refreshProfileCheckIns() {
+      void loadCheckIns(session);
+      void loadRewards(session);
+    }
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key === "nightvibe.check-in-refresh") refreshProfileCheckIns();
+    }
+
+    window.addEventListener("nightvibe:check-in-created", refreshProfileCheckIns);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("nightvibe:check-in-created", refreshProfileCheckIns);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [loadCheckIns, loadRewards, session]);
+
   async function handleGoogleSignIn() {
     setSigningIn(true);
     const redirectTo = `${window.location.origin}/auth/callback`;

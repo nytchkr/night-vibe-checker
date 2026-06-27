@@ -1,8 +1,7 @@
 import type { ConsumerVenue } from "@/types";
 import { getBusynessState } from "@/lib/busyness";
+import { getVenuePublicUrl } from "@/lib/seo";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
-
-const siteUrl = "https://nytchkr.com";
 
 export type VenueShareData = {
   title: string;
@@ -30,7 +29,7 @@ export function getVenueShareText(venue: Pick<ConsumerVenue, "id" | "slug" | "na
 }
 
 export function getVenueShareUrl(venue: Pick<ConsumerVenue, "id" | "slug">): string {
-  return `${siteUrl}/venues/${encodeURIComponent(venue.slug || venue.id)}`;
+  return getVenuePublicUrl(venue);
 }
 
 export function buildVenueShareData(venue: ConsumerVenue): VenueShareData {

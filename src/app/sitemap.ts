@@ -1,31 +1,36 @@
 import type { MetadataRoute } from "next";
 
+import { SITE_URL, getVenuePublicPath } from "@/lib/seo";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const BASE_URL = "https://nytchkr.com";
+type SitemapVenueRow = {
+  id: string;
+  slug: string | null;
+  updated_at: string | null;
+};
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
-  let data: { place_id: string | null }[] | null = null;
+  let data: SitemapVenueRow[] | null = null;
 
   try {
     const result = await supabaseAdmin
       .from("venues")
-      .select("place_id")
+      .select("id, slug, updated_at")
       .eq("hidden", false)
-      .not("place_id", "is", null);
-    data = result.data as { place_id: string | null }[] | null;
+      .order("name", { ascending: true });
+    data = result.data as SitemapVenueRow[] | null;
   } catch {
     data = null;
   }
 
   const venues = (data ?? []).flatMap((venue) => {
-    if (!venue.place_id) return [];
+    if (!venue.id) return [];
 
     return [
       {
-        url: `${BASE_URL}/venue/${encodeURIComponent(venue.place_id)}`,
-        lastModified: now,
+        url: `${SITE_URL}${getVenuePublicPath({ id: venue.id, slug: venue.slug ?? undefined })}`,
+        lastModified: venue.updated_at ? new Date(venue.updated_at) : now,
         changeFrequency: "hourly" as const,
         priority: 0.8,
       },
@@ -34,25 +39,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: BASE_URL,
+      url: SITE_URL,
       lastModified: now,
       changeFrequency: "daily",
       priority: 1,
     },
     {
-      url: `${BASE_URL}/map`,
+      url: `${SITE_URL}/map`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.95,
     },
     {
-      url: `${BASE_URL}/explore`,
+      url: `${SITE_URL}/explore`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.9,
     },
     {
-      url: `${BASE_URL}/profile`,
+      url: `${SITE_URL}/profile`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.6,

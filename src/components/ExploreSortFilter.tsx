@@ -7,6 +7,10 @@ export type ExploreSortOption = "hottest" | "top-rated" | "trending" | "nearby";
 export type ExploreFilterOption =
   | "open-now"
   | "saved"
+  | "bars"
+  | "restaurants"
+  | "clubs"
+  | "coffee"
   | "South End"
   | "Uptown"
   | "NoDa"
@@ -22,12 +26,10 @@ const SORT_OPTIONS: { value: ExploreSortOption; label: string }[] = [
 
 const FILTER_OPTIONS: { value: ExploreFilterOption; label: string; comingSoon?: boolean }[] = [
   { value: "open-now", label: "Open Now" },
-  { value: "saved", label: "Saved" },
-  { value: "South End", label: "South End" },
-  { value: "Dilworth", label: "Dilworth" },
-  { value: "South Park", label: "South Park" },
-  { value: "Uptown", label: "Uptown", comingSoon: true },
-  { value: "NoDa", label: "NoDa", comingSoon: true },
+  { value: "bars", label: "Bars" },
+  { value: "restaurants", label: "Restaurants" },
+  { value: "clubs", label: "Clubs" },
+  { value: "coffee", label: "Coffee" },
 ];
 
 type ExploreSortFilterProps = {

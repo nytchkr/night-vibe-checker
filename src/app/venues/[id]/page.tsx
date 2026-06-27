@@ -1,36 +1,42 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
+import { getNeighborhood } from "@/lib/neighborhood";
+import { DEFAULT_OG_IMAGE_PATH, absoluteUrl, getVenuePublicUrl } from "@/lib/seo";
 import { findVisibleVenueByIdOrPlaceId } from "@/lib/venueLookup";
 import { PageTransition } from "@/components/PageTransition";
 import type { ConsumerVenue } from "@/types";
 import { VenuePageClient } from "./VenuePageClient";
 
-const siteUrl = "https://nytchkr.com";
-const defaultOgImage = "/og-default.png";
 const genericMetadata: Metadata = {
   title: {
     absolute: "NightVibe",
   },
   description: "Find the hottest spots in Charlotte tonight",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "NightVibe",
     description: "Find the hottest spots in Charlotte tonight",
-    images: [defaultOgImage],
+    images: [DEFAULT_OG_IMAGE_PATH],
   },
   twitter: {
     card: "summary_large_image",
     title: "NightVibe",
     description: "Find the hottest spots in Charlotte tonight",
-    images: [defaultOgImage],
+    images: [DEFAULT_OG_IMAGE_PATH],
   },
 };
 
 type VenueMetadataRow = {
+  id: string;
+  slug: string | null;
   name: string;
   description: string | null;
   neighborhood: string | null;
-  vibeScore: number | null;
+  lat: number | null;
+  lng: number | null;
   photos: string[];
 };
 
@@ -39,10 +45,6 @@ export const dynamic = "force-dynamic";
 type VenuePageProps = {
   params: Promise<{ id: string }>;
 };
-
-function getVenuePublicUrl(venue: ConsumerVenue): string {
-  return `${siteUrl}/venues/${encodeURIComponent(venue.id)}`;
-}
 
 function getVenueOgImage(venue: ConsumerVenue): string | undefined {
   return venue.photoUrls?.[0] ?? venue.photoUrl;
@@ -58,10 +60,13 @@ function mapVenueMetadataRow(row: Record<string, unknown>): VenueMetadataRow {
   const photoUrls = mapPhotoUrls(row.photo_urls);
 
   return {
+    id: String(row.id ?? ""),
+    slug: typeof row.slug === "string" && row.slug.length > 0 ? row.slug : null,
     name: String(row.name ?? "NightVibe"),
     description: typeof row.editorial_summary === "string" ? row.editorial_summary : null,
     neighborhood: typeof row.neighborhood === "string" ? row.neighborhood : null,
-    vibeScore: row.avg_vibe_score == null ? null : Number(row.avg_vibe_score),
+    lat: row.lat == null ? null : Number(row.lat),
+    lng: row.lng == null ? null : Number(row.lng),
     photos: photoUrl ? [photoUrl, ...photoUrls] : photoUrls,
   };
 }
@@ -69,21 +74,21 @@ function mapVenueMetadataRow(row: Record<string, unknown>): VenueMetadataRow {
 async function getVenueMetadataRow(id: string): Promise<VenueMetadataRow | null> {
   const result = await findVisibleVenueByIdOrPlaceId(
     id,
-    "name, editorial_summary, neighborhood, avg_vibe_score, photo_url, photo_urls, hidden"
+    "id, slug, name, editorial_summary, neighborhood, lat, lng, photo_url, photo_urls, hidden"
   );
 
   if (result.error || !result.data) return null;
   return mapVenueMetadataRow(result.data);
 }
 
-function formatVibeScore(score: number | null): string {
-  if (score == null || !Number.isFinite(score)) return "unavailable";
-  return Number.isInteger(score) ? String(score) : score.toFixed(1);
+function getMetadataNeighborhood(venue: VenueMetadataRow): string {
+  if (venue.neighborhood) return venue.neighborhood;
+  if (venue.lat != null && venue.lng != null) return getNeighborhood(venue.lat, venue.lng);
+  return "Charlotte";
 }
 
 function getVenueMetadataDescription(venue: VenueMetadataRow): string {
-  const neighborhood = venue.neighborhood ?? "Charlotte";
-  return `${neighborhood} · Vibe score ${formatVibeScore(venue.vibeScore)} · Check in on NightVibe`;
+  return `${venue.name} in ${getMetadataNeighborhood(venue)} — see how busy it is tonight`;
 }
 
 function getVenueJsonLd(venue: ConsumerVenue) {
@@ -98,6 +103,7 @@ function getVenueJsonLd(venue: ConsumerVenue) {
     "@id": url,
     name: venue.name,
     url,
+    category: venue.category,
     address: venue.address,
     geo: {
       "@type": "GeoCoordinates",
@@ -127,26 +133,31 @@ export async function generateMetadata({ params }: VenuePageProps): Promise<Meta
 
   if (!venue) return genericMetadata;
 
-  const title = `${venue.name} — NightVibe`;
+  const title = `${venue.name} | NightVibe Charlotte`;
   const description = getVenueMetadataDescription(venue);
-  const image = venue.photos[0] ?? defaultOgImage;
+  const image = venue.photos[0] ?? DEFAULT_OG_IMAGE_PATH;
+  const canonical = getVenuePublicUrl({ id: venue.id, slug: venue.slug ?? undefined });
 
   return {
     title: {
       absolute: title,
     },
     description,
+    alternates: {
+      canonical,
+    },
     openGraph: {
       title,
       description,
-      images: [image],
+      url: canonical,
+      images: [absoluteUrl(image)],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [image],
+      images: [absoluteUrl(image)],
     },
   };
 }
