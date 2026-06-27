@@ -653,8 +653,8 @@ function VenueFeedCard({
           className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto"
           imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.02]"
           sizes="(max-width: 639px) calc(100vw - 2.5rem), 72px"
-          priority={index === 0}
-          loading={index === 0 ? undefined : "lazy"}
+          priority={index < 3}
+          loading={index < 3 ? undefined : "lazy"}
         />
 
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">

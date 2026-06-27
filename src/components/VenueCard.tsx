@@ -66,6 +66,7 @@ interface VenueCardProps {
   isSaved?: boolean;
   accessToken?: string | null;
   onSaveToggle?: (venueId: string, saved: boolean) => void;
+  priority?: boolean;
   /** Live crowd level from check-ins */
   crowdBadge?: CrowdLevel;
   /** ISO string of most recent check-in */
@@ -101,6 +102,7 @@ function CompactCard({
   isSaved,
   accessToken,
   onSaveToggle,
+  priority = false,
   crowdBadge,
 }: Omit<VenueCardProps, "variant" | "className">) {
   const crowd = crowdBadge ? CROWD_CFG[crowdBadge] : null;
@@ -131,7 +133,8 @@ function CompactCard({
             photoUrl={venue.photoUrl}
             className="h-[72px] w-[72px] shrink-0 rounded-2xl"
             sizes="72px"
-            loading="lazy"
+            priority={priority}
+            loading={priority ? undefined : "lazy"}
           />
           <div className="min-w-0 pr-10">
             <p className="font-display truncate text-[19px] font-semibold leading-tight tracking-tight text-[#F4F5F8]">{venue.name}</p>
@@ -178,6 +181,7 @@ function FullCard({
   isSaved,
   accessToken,
   onSaveToggle,
+  priority = false,
   crowdBadge,
   lastReportedAt,
   reportCount,
@@ -212,7 +216,8 @@ function FullCard({
         photoUrl={venue.photoUrl}
         className="h-28 w-full border-b border-white/[0.06]"
         sizes="(max-width: 640px) calc(100vw - 2rem), 420px"
-        loading="lazy"
+        priority={priority}
+        loading={priority ? undefined : "lazy"}
       />
 
       {/* Crowd color bar */}

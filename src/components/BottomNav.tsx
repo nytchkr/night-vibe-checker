@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { span as MotionSpan } from "framer-motion/client";
 
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
@@ -121,7 +122,14 @@ function NavItem({
         {showBadge && <BadgeDot />}
       </span>
       <span className="text-[11px] font-normal leading-[1.5]">{label}</span>
-      {active && <span className="absolute bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_12px_rgba(139,108,255,0.7)]" aria-hidden="true" />}
+      {active && (
+        <MotionSpan
+          layoutId="bottom-nav-active-underline"
+          aria-hidden="true"
+          className="absolute bottom-1.5 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_12px_rgba(139,108,255,0.7)]"
+          transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
+        />
+      )}
     </Link>
   );
 }
@@ -317,12 +325,20 @@ export function SidebarNav() {
             href={href}
             prefetch
             aria-current={active ? "page" : undefined}
-            className={`flex min-h-[48px] items-center gap-3 rounded-r-2xl border-l-2 px-4 py-3 text-sm font-semibold transition-all duration-200 ease-out active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+            className={`relative flex min-h-[48px] items-center gap-3 rounded-r-2xl border-l-2 px-4 py-3 text-sm font-semibold transition-all duration-200 ease-out active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
               active
                 ? "border-[#8B6CFF] bg-[#8B6CFF]/10 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.18)]"
                 : "border-transparent text-[#9CA2AE] hover:border-white/[0.06] hover:bg-white/[0.04] hover:text-[#F4F5F8]"
             }`}
           >
+            {active && (
+              <MotionSpan
+                layoutId="sidebar-nav-active-border"
+                aria-hidden="true"
+                className="absolute left-0 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_14px_rgba(139,108,255,0.65)]"
+                transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.6 }}
+              />
+            )}
             <Icon filled={active} />
             <span>{label}</span>
           </Link>

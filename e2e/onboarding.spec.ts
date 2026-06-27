@@ -10,23 +10,20 @@ test.describe("Onboarding overlay", () => {
     });
     await page.goto("/map?onboarding=1", { waitUntil: "domcontentloaded" });
 
-    const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
+    const overlay = page.getByRole("dialog", { name: /pick your zone/i });
     await expect(overlay).toBeVisible({ timeout: 20_000 });
-    await expect(overlay.getByRole("button", { name: /^South End\b/ })).toBeVisible();
-    await expect(overlay.getByRole("button", { name: /^Dilworth\b/ })).toBeVisible();
-    await expect(overlay.getByRole("button", { name: /^South Park\b/ })).toBeVisible();
+    await expect(overlay.getByRole("button", { name: /South End/ })).toBeVisible();
+    await expect(overlay.getByRole("button", { name: /Dilworth/ })).toBeVisible();
+    await expect(overlay.getByRole("button", { name: /South Park/ })).toBeVisible();
     await expect(overlay.getByText("18 spots", { exact: true })).toBeVisible();
     await expect(overlay.getByText("12 spots", { exact: true })).toBeVisible();
     await expect(overlay.getByText("8 spots", { exact: true })).toBeVisible();
 
-    await overlay.getByRole("button", { name: "What is nytchkr?" }).click();
-    await expect(overlay.getByRole("tooltip")).toContainText("real Charlotte nightlife spots");
-
-    await overlay.getByRole("button", { name: "Skip, show me everything" }).click();
+    await overlay.getByRole("button", { name: "Skip" }).click();
 
     await expect(overlay).toHaveCount(0);
     await expect(page.evaluate(() => window.localStorage.getItem("nv_onboarded"))).resolves.toBe("true");
-    await expect(page.evaluate(() => window.localStorage.getItem("nv_preferred_zone"))).resolves.toBeNull();
+    await expect(page.evaluate(() => window.localStorage.getItem("nv-selected-zone"))).resolves.toBeNull();
   });
 
   test("selecting an area stores the zone and opens Explore prefiltered", async ({ page }) => {
@@ -36,14 +33,18 @@ test.describe("Onboarding overlay", () => {
     });
     await page.goto("/map?onboarding=1", { waitUntil: "domcontentloaded" });
 
-    const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
+    const overlay = page.getByRole("dialog", { name: /pick your zone/i });
     await expect(overlay).toBeVisible({ timeout: 20_000 });
-    await overlay.getByRole("button", { name: /^South Park\b/ }).click();
-    await expect(overlay.getByRole("button", { name: /^South Park\b/ })).toContainText("✓");
-    await expect(page.evaluate(() => window.localStorage.getItem("nv_preferred_zone"))).resolves.toBe("south-park-charlotte");
+    await overlay.getByRole("button", { name: /South Park/ }).click();
+    await expect(page.evaluate(() => window.localStorage.getItem("nv-selected-zone"))).resolves.toBe("south-park-charlotte");
+    await expect(page.getByRole("dialog", { name: /how it works/i })).toBeVisible();
+    await expect(overlay.getByText("Check-in at a venue")).toBeVisible();
+    await expect(overlay.getByText("See live busyness")).toBeVisible();
+    await expect(overlay.getByText("Discover trending spots")).toBeVisible();
+    await overlay.getByRole("button", { name: "Start exploring" }).click();
 
     await expect(page).toHaveURL(/\/explore\?zone=south-park-charlotte/);
     await expect(page.evaluate(() => window.localStorage.getItem("nv_onboarded"))).resolves.toBe("true");
-    await expect(page.evaluate(() => window.localStorage.getItem("nv_preferred_zone"))).resolves.toBe("south-park-charlotte");
+    await expect(page.evaluate(() => window.localStorage.getItem("nv-selected-zone"))).resolves.toBe("south-park-charlotte");
   });
 });

@@ -46,7 +46,15 @@ function TrendingBadge() {
   );
 }
 
-function TrendingVenueCard({ venue, trendingRank }: { venue: ConsumerVenue; trendingRank: number }) {
+function TrendingVenueCard({
+  venue,
+  trendingRank,
+  priority = false,
+}: {
+  venue: ConsumerVenue;
+  trendingRank: number;
+  priority?: boolean;
+}) {
   const busyness = clampBusyness(venue.signal?.busyness0To100);
   const isLive = venue.signal?.busynessSource === "live";
   const barWidth = busyness ?? 0;
@@ -62,8 +70,9 @@ function TrendingVenueCard({ venue, trendingRank }: { venue: ConsumerVenue; tren
         name={venue.name}
         photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
         className="h-16 w-full border-b border-white/[0.06]"
-        sizes="(max-width: 640px) 160px, 180px"
-        loading="lazy"
+        sizes="160px"
+        priority={priority}
+        loading={priority ? undefined : "lazy"}
       />
       <div className="flex items-start justify-between gap-2 px-3 pt-3">
         <span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-2 py-1 text-[11px] font-black leading-none text-white/70">
@@ -155,7 +164,7 @@ export function TrendingRow() {
       ) : (
         <div className="scroll-touch flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
           {venues.map((venue, index) => (
-            <TrendingVenueCard key={venue.id} venue={venue} trendingRank={index + 1} />
+            <TrendingVenueCard key={venue.id} venue={venue} trendingRank={index + 1} priority={index === 0} />
           ))}
         </div>
       )}

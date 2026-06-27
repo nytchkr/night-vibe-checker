@@ -19,6 +19,7 @@ import {
   refreshStreakCount,
   updateUserScore,
 } from "@/lib/rewards";
+import { sanitizeText } from "@/lib/sanitize";
 import { recomputeVenueSignal } from "@/lib/signals";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
@@ -451,7 +452,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     gender: selectedGender(parsed.data),
     reporter_gender: reporterGender,
     gender_self_report: selectedGenderSelfReport(parsed.data),
-    note: parsed.data.note ?? null,
+    note: parsed.data.note ? sanitizeText(parsed.data.note) : null,
   };
 
   const insertResult = await supabaseAdmin

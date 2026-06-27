@@ -101,7 +101,7 @@ vi.mock("@/lib/supabase-browser", () => ({
   }),
 }));
 
-vi.mock("@/lib/trendingVenueIds", () => ({
+vi.mock("@/lib/clientTrendingVenueIds", () => ({
   fetchTrendingVenueIds: () => Promise.resolve(new Set<string>()),
 }));
 

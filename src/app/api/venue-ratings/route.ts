@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { sanitizeText } from "@/lib/sanitize";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
@@ -173,7 +174,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { venue_id: venueId, rating, user_id: submittedUserId } = parsed.data;
+  const { rating, user_id: submittedUserId } = parsed.data;
+  const venueId = sanitizeText(parsed.data.venue_id);
+  if (!venueId) {
+    return json<never>(
+      {
+        status: "error",
+        error: { code: "VALIDATION_ERROR", message: "venue_id and rating (1-5) are required." },
+        meta: meta(),
+      },
+      { status: 400 },
+    );
+  }
   if (submittedUserId && submittedUserId !== userId) {
     return json<never>(
       {

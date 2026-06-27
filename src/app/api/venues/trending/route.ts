@@ -1,47 +1,14 @@
 // ============================================================
 // GET /api/venues/trending
-// Top visible launch-zone venues by recent check-in activity.
+// Top visible launch-zone venues by weighted busyness, recent check-ins,
+// and open-now state.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
-import { inferCanonicalOpenNow } from "@/lib/openNow";
-import { mapGoogleOpeningHours } from "@/lib/venueHours";
+import { getTrendingVenues } from "@/lib/trendingVenueIds";
 import { v4 as uuidv4 } from "uuid";
-import { LAUNCH_ZONES } from "@/lib/launchZone";
-import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
-
-const TRENDING_LIMIT = 5;
-const TRENDING_WINDOW_MS = 24 * 60 * 60 * 1000;
-const RECENT_SURGE_WINDOW_MS = 2 * 60 * 60 * 1000;
-const VELOCITY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-const RECENT_SURGE_WEIGHT = 3;
-const OPEN_NOW_SCORE_BOOST = 1.25;
-const CLOSED_SCORE_PENALTY = 0.85;
-const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
-
-const VENUE_SELECT = `
-  id, place_id, zone_id, name, address, lat, lng, venue_type, category,
-  slug,
-  rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
-  phone, website, opening_hours, open_now, updated_at,
-  venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
-  )
-`;
-
-const VENUE_SELECT_LEGACY = `
-  id, place_id, zone_id, name, address, lat, lng, venue_type, category,
-  slug,
-  rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
-  open_now, updated_at,
-  venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
-  )
-`;
+import type { APIResponse, ConsumerVenue } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -53,140 +20,12 @@ const NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store",
 };
 
-type RecentCheckInRow = {
-  venue_id: string | null;
-  created_at?: string | null;
-};
-
-type VenueTrendStats = {
-  weightedRecentScore: number;
-  last2Hours: number;
-  last24Hours: number;
-  sevenDays: number;
-};
-
-function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
-  if (!row) return null;
-  return {
-    venueId: row.venue_id as string,
-    placeId: row.place_id as string,
-    busyness0To100: (row.busyness_0_100 ?? null) as number | null,
-    busynessSource: (row.busyness_source ?? null) as VenueSignal["busynessSource"],
-    mfRatio: (row.mf_ratio ?? null) as number | null,
-    confidence0To1: Number(row.confidence_0_1 ?? 0),
-    sampleSize: Number(row.sample_size ?? 0),
-    computedAt: row.computed_at as string,
-    updatedAt: (row.updated_at ?? null) as string | null,
-    lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
-  };
-}
-
-function mapVenue(row: Record<string, unknown>, openNow: boolean | null): ConsumerVenue {
-  const sig = row.venue_signals;
-  const signalRow: Record<string, unknown> | undefined = Array.isArray(sig)
-    ? (sig[0] as Record<string, unknown> | undefined)
-    : sig != null
-    ? (sig as Record<string, unknown>)
-    : undefined;
-  const signal = mapSignal(signalRow);
-  return {
-    id: row.id as string,
-    slug: (row.slug ?? undefined) as string | undefined,
-    placeId: row.place_id as string,
-    zoneId: row.zone_id as string,
-    name: row.name as string,
-    address: row.address as string,
-    lat: Number(row.lat),
-    lng: Number(row.lng),
-    category: (row.category ?? row.venue_type ?? "establishment") as string,
-    rating: row.rating == null ? undefined : Number(row.rating),
-    googleRating: row.google_rating == null ? undefined : Number(row.google_rating),
-    totalRatings: row.total_ratings == null ? undefined : Number(row.total_ratings),
-    priceLevel: row.price_level == null ? undefined : (Number(row.price_level) as ConsumerVenue["priceLevel"]),
-    photoReference: (row.photo_reference ?? undefined) as string | undefined,
-    photoUrl: (row.photo_url ?? undefined) as string | undefined,
-    phone: (row.phone ?? undefined) as string | undefined,
-    website: (row.website ?? undefined) as string | undefined,
-    openingHours: mapGoogleOpeningHours(row.opening_hours),
-    openNow,
-    hidden: Boolean(row.hidden),
-    signal,
-    mf_ratio: signal?.mfRatio ?? null,
-    mf_sample_size: signal?.sampleSize ?? 0,
-  };
-}
-
-function isMissingContactColumn(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String((error as { message?: unknown } | null)?.message ?? "");
-  return (
-    message.includes("'phone' column") ||
-    message.includes("'website' column") ||
-    message.includes("venues.phone") ||
-    message.includes("venues.website")
-  );
-}
-
 function getClientIp(req: NextRequest): string {
   return (
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "anonymous"
   );
-}
-
-function isValidDateTime(value: unknown): value is string {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
-}
-
-function buildTrendStats(rows: RecentCheckInRow[], nowMs: number): Map<string, VenueTrendStats> {
-  const statsByVenue = new Map<string, VenueTrendStats>();
-  const recentCutoffMs = nowMs - TRENDING_WINDOW_MS;
-  const surgeCutoffMs = nowMs - RECENT_SURGE_WINDOW_MS;
-
-  for (const row of rows) {
-    const venueId = typeof row.venue_id === "string" ? row.venue_id.trim() : "";
-    if (!venueId || !isValidDateTime(row.created_at)) continue;
-
-    const createdAtMs = Date.parse(row.created_at);
-    const stats = statsByVenue.get(venueId) ?? {
-      weightedRecentScore: 0,
-      last2Hours: 0,
-      last24Hours: 0,
-      sevenDays: 0,
-    };
-
-    stats.sevenDays += 1;
-    if (createdAtMs >= recentCutoffMs) {
-      stats.last24Hours += 1;
-      stats.weightedRecentScore += createdAtMs >= surgeCutoffMs ? RECENT_SURGE_WEIGHT : 1;
-    }
-    if (createdAtMs >= surgeCutoffMs) {
-      stats.last2Hours += 1;
-    }
-
-    statsByVenue.set(venueId, stats);
-  }
-
-  return statsByVenue;
-}
-
-function getVelocityScore(stats: VenueTrendStats): number {
-  if (stats.last2Hours === 0) return 0;
-  const currentHourlyRate = stats.last2Hours / 2;
-  const sevenDayHourlyAverage = stats.sevenDays / (7 * 24);
-  if (sevenDayHourlyAverage <= 0) return stats.last2Hours;
-  return Math.min(6, currentHourlyRate / sevenDayHourlyAverage);
-}
-
-function getOpenNowMultiplier(openNow: boolean | null): number {
-  if (openNow === true) return OPEN_NOW_SCORE_BOOST;
-  if (openNow === false) return CLOSED_SCORE_PENALTY;
-  return 1;
-}
-
-function getTrendingScore(stats: VenueTrendStats, openNow: boolean | null): number {
-  const activityScore = stats.weightedRecentScore + getVelocityScore(stats);
-  return activityScore * getOpenNowMultiplier(openNow);
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -203,110 +42,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         error: { code: "RATE_LIMITED", message: "Too many requests." },
         meta: { cached: true, generatedAt, requestId },
       },
-      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } }
+      { status: 429, headers: { ...headers, "Retry-After": String(retrySeconds) } },
     );
   }
 
-  const nowMs = Date.now();
-  const since = new Date(nowMs - VELOCITY_WINDOW_MS).toISOString();
-  const checkInsResult = await supabaseAdmin
-    .from("check_ins")
-    .select("venue_id, created_at")
-    .gte("created_at", since)
-    .eq("hidden", false)
-    .limit(2000);
-
-  if (checkInsResult.error) {
-    return NextResponse.json<APIResponse<never>>(
-      {
-        status: "error",
-        error: { code: "DB_ERROR", message: "Could not load recent check-ins." },
-        meta: { cached: false, generatedAt, requestId },
-      },
-      { status: 500, headers: { ...headers, ...NO_STORE_HEADERS } }
-    );
-  }
-
-  const trendStats = buildTrendStats((checkInsResult.data ?? []) as RecentCheckInRow[], nowMs);
-
-  const recentVenueIds = Array.from(trendStats.entries())
-    .filter(([, stats]) => stats.last24Hours > 0)
-    .map(([venueId]) => venueId);
-  if (recentVenueIds.length === 0) {
-    return NextResponse.json<APIResponse<{ venues: ConsumerVenue[] }>>(
-      {
-        status: "success",
-        data: { venues: [] },
-        meta: { cached: false, generatedAt, requestId },
-      },
-      { headers: { ...headers, ...EDGE_CACHE_HEADERS } }
-    );
-  }
-
-  const primaryResult = await supabaseAdmin
-    .from("venues")
-    .select(VENUE_SELECT)
-    .eq("hidden", false)
-    .in("zone_id", LAUNCH_ZONE_IDS)
-    .in("id", recentVenueIds)
-    .limit(100);
-  let venuesData = primaryResult.data as Record<string, unknown>[] | null;
-  let venuesError = primaryResult.error;
-
-  if (venuesError && isMissingContactColumn(venuesError)) {
-    const legacyResult = await supabaseAdmin
-      .from("venues")
-      .select(VENUE_SELECT_LEGACY)
-      .eq("hidden", false)
-      .in("zone_id", LAUNCH_ZONE_IDS)
-      .in("id", recentVenueIds)
-      .limit(100);
-    venuesData = legacyResult.data as Record<string, unknown>[] | null;
-    venuesError = legacyResult.error;
-  }
-
-  if (venuesError) {
+  let venues: ConsumerVenue[];
+  try {
+    venues = await getTrendingVenues();
+  } catch {
     return NextResponse.json<APIResponse<never>>(
       {
         status: "error",
         error: { code: "DB_ERROR", message: "Could not load trending venues." },
         meta: { cached: false, generatedAt, requestId },
       },
-      { status: 500, headers: { ...headers, ...NO_STORE_HEADERS } }
+      { status: 500, headers: { ...headers, ...NO_STORE_HEADERS } },
     );
   }
-
-  const venues = (venuesData ?? [])
-    .map((row) => ({
-      row,
-      openNow: inferCanonicalOpenNow({
-        category: (row.category ?? row.venue_type) as string | null,
-        openingHours: row.opening_hours,
-        refreshedAt: row.updated_at,
-      }),
-    }))
-    .map(({ row, openNow }) => mapVenue(row, openNow))
-    .sort((a, b) => {
-      const aStats = trendStats.get(a.id);
-      const bStats = trendStats.get(b.id);
-      const aScore = aStats ? getTrendingScore(aStats, a.openNow ?? null) : 0;
-      const bScore = bStats ? getTrendingScore(bStats, b.openNow ?? null) : 0;
-      if (bScore !== aScore) return bScore - aScore;
-      const recentDelta = (bStats?.last2Hours ?? 0) - (aStats?.last2Hours ?? 0);
-      if (recentDelta !== 0) return recentDelta;
-      const checkInDelta = (bStats?.last24Hours ?? 0) - (aStats?.last24Hours ?? 0);
-      if (checkInDelta !== 0) return checkInDelta;
-      const aBusyness = a.signal?.busyness0To100 ?? -1;
-      const bBusyness = b.signal?.busyness0To100 ?? -1;
-      if (bBusyness !== aBusyness) return bBusyness - aBusyness;
-      const aRating = a.rating ?? a.googleRating ?? null;
-      const bRating = b.rating ?? b.googleRating ?? null;
-      if (aRating == null && bRating == null) return a.name.localeCompare(b.name);
-      if (aRating == null) return 1;
-      if (bRating == null) return -1;
-      return bRating - aRating || a.name.localeCompare(b.name);
-    })
-    .slice(0, TRENDING_LIMIT);
 
   return NextResponse.json<APIResponse<{ venues: ConsumerVenue[] }>>(
     {
@@ -314,6 +66,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       data: { venues },
       meta: { cached: false, generatedAt, requestId },
     },
-    { headers: { ...headers, ...EDGE_CACHE_HEADERS } }
+    { headers: { ...headers, ...EDGE_CACHE_HEADERS } },
   );
 }
