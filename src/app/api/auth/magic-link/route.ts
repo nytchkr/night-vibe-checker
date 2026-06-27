@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
 import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/rateLimit";
-import { MissingSupabaseEnvError } from "@/lib/supabase";
+import { MissingSupabaseEnvError, supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +16,6 @@ const MagicLinkBodySchema = z.object({
 function safeReturnUrl(value: string | null | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return "/map";
   return value;
-}
-
-function getSupabaseConfig() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url) throw new MissingSupabaseEnvError("NEXT_PUBLIC_SUPABASE_URL");
-  if (!anonKey) throw new MissingSupabaseEnvError("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  return { url, anonKey };
 }
 
 function configError(error: unknown) {
@@ -76,10 +67,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const { url, anonKey } = getSupabaseConfig();
-    const supabase = createClient(url, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const origin = req.nextUrl.origin;
     const returnTo = safeReturnUrl(parsed.data.returnTo ?? req.nextUrl.searchParams.get("return"));
     const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? origin;

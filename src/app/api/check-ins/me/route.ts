@@ -3,7 +3,6 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse, ConsumerCheckIn } from "@/types";
@@ -13,16 +12,7 @@ async function getUserId(authHeader: string | null): Promise<string | null> {
   const token = authHeader.slice(7).trim();
   if (!token) return null;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-
-  const client = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
-  });
-
-  const { data, error } = await client.auth.getUser();
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
   if (error || !data.user) return null;
   return data.user.id;
 }

@@ -2,12 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mockSignInWithOtp = vi.fn();
-const mockCreateClient = vi.fn(() => ({
-  auth: { signInWithOtp: mockSignInWithOtp },
-}));
 
-vi.mock("@supabase/supabase-js", () => ({
-  createClient: mockCreateClient,
+class MockMissingSupabaseEnvError extends Error {
+  constructor(public readonly variableName: string) {
+    super(`Missing ${variableName} — add to .env.local`);
+    this.name = "MissingSupabaseEnvError";
+  }
+}
+
+vi.mock("@/lib/supabase", () => ({
+  MissingSupabaseEnvError: MockMissingSupabaseEnvError,
+  supabase: {
+    auth: { signInWithOtp: mockSignInWithOtp },
+  },
 }));
 
 function request(body: unknown) {
@@ -46,11 +53,6 @@ describe("POST /api/auth/magic-link", () => {
     expect(res.status).toBe(200);
     expect(json.data.ok).toBe(true);
     expect(res.headers.get("X-RateLimit-Limit")).toBe("3");
-    expect(mockCreateClient).toHaveBeenCalledWith(
-      "https://supabase.example.test",
-      "anon-key",
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
     expect(mockSignInWithOtp).toHaveBeenCalledWith({
       email: "user@example.com",
       options: { emailRedirectTo: "http://localhost/auth/callback?return=%2Fvenues%2Fabc" },

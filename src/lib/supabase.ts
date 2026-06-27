@@ -94,6 +94,9 @@ function getAdminClient(): SupabaseClient {
   return globalThis.__supabaseAdmin;
 }
 
+/**
+ * Singleton — do not re-create per request.
+ */
 export const supabaseAdmin: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
     if (prop === "then") return undefined;
