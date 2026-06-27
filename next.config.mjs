@@ -1,22 +1,5 @@
 import { withSentryConfig } from "@sentry/nextjs";
 
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://*.googleapis.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com",
-  "img-src 'self' data: blob: https://maps.googleapis.com https://*.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleusercontent.com https://storage.googleapis.com https://*.supabase.co",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https://maps.googleapis.com https://*.googleapis.com https://besttime.app https://*.supabase.co wss://*.supabase.co",
-  "frame-src 'self' https://accounts.google.com https://*.supabase.co",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-  "worker-src 'self' blob:",
-  "manifest-src 'self'",
-  "media-src 'self' https://*.supabase.co",
-].join("; ");
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // react-leaflet is incompatible with React 18 StrictMode's double-invoke in dev
@@ -72,7 +55,6 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "Content-Security-Policy", value: contentSecurityPolicy },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -98,10 +80,6 @@ const nextConfig = {
           },
         ],
         headers: [
-          {
-            key: "Content-Security-Policy",
-            value: contentSecurityPolicy,
-          },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

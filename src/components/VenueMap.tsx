@@ -4,6 +4,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState } from "re
 import type { ChangeEvent, FormEvent, KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
@@ -18,6 +19,7 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { getMapViewportStyle, MapLoadingSkeleton } from "@/components/MapLoadingSkeleton";
+import { prefetchRoute } from "@/components/RoutePrefetch";
 import { fetchTrendingVenueIds } from "@/lib/trendingVenueIds";
 import { useDevice } from "@/lib/useDevice";
 import type { City, CityId } from "@/lib/cities";
@@ -366,6 +368,7 @@ function ClusteredVenueMarkers({
   onVenueClick: (venue: ConsumerVenue) => void;
 }) {
   const map = useMap();
+  const router = useRouter();
 
   useEffect(() => {
     const clusterGroup = L.markerClusterGroup({
@@ -417,6 +420,9 @@ function ClusteredVenueMarkers({
         offset: [0, -10],
         opacity: 0.95,
       });
+      marker.on("mouseover", () => {
+        prefetchRoute(router, `/venues/${encodeURIComponent(venue.id)}`);
+      });
       marker.on("click", () => onVenueClick(venue));
       clusterGroup.addLayer(marker);
     });
@@ -425,7 +431,7 @@ function ClusteredVenueMarkers({
     return () => {
       map.removeLayer(clusterGroup);
     };
-  }, [map, onVenueClick, selectedVenueId, trendingVenueIds, venues]);
+  }, [map, onVenueClick, router, selectedVenueId, trendingVenueIds, venues]);
 
   return null;
 }

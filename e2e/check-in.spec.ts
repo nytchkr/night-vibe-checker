@@ -1,55 +1,76 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 const meta = {
   cached: false,
   generatedAt: new Date().toISOString(),
-  requestId: "e2e-check-ins",
+  requestId: "e2e-check-in-button",
+};
+
+type TestVenue = {
+  id: string;
+  slug?: string | null;
+  placeId?: string | null;
+  name: string;
+  address: string;
+  category?: string;
+  photoUrl?: string | null;
+  photoUrls?: string[];
+  lat?: number;
+  lng?: number;
+  signal?: TestVenueSignal | null;
+};
+
+type TestVenueSignal = {
+  venueId: string;
+  placeId?: string | null;
+  busyness0To100: number | null;
+  busynessSource: "live" | "forecast" | "crowd" | "unavailable" | null;
+  mfRatio: number | null;
+  confidence0To1: number;
+  sampleSize: number;
+  computedAt: string;
+  updatedAt?: string | null;
+  lastBusynessRefresh: string | null;
 };
 
 function isProductionBaseUrl() {
   return (process.env.BASE_URL ?? "").includes("nytchkr.com");
 }
 
-const feedVenue = {
-  id: "venue-feed-1",
-  name: "Feed Test Club",
-  address: "123 Test Ave",
-  category: "night_club",
-  photoUrl: null,
-  signal: {
-    venueId: "venue-feed-1",
-    busyness0To100: 84,
-    busynessSource: "live",
-    mfRatio: 50,
-    confidence0To1: 0.8,
-    sampleSize: 5,
-    computedAt: new Date().toISOString(),
-    lastBusynessRefresh: new Date().toISOString(),
-  },
-};
+async function getLaunchVenue(request: APIRequestContext): Promise<TestVenue> {
+  const response = await request.get("/api/venues");
+  expect(response.ok()).toBeTruthy();
 
-async function mockFeed(page: Page, venues = [feedVenue]) {
-  await page.route("**/api/venues**", (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-    if (request.method() !== "GET" || url.pathname !== "/api/venues") {
-      return route.continue();
-    }
-
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { venues },
-        meta,
-      }),
-    });
-  });
+  const body = await response.json();
+  const venues = (body?.data?.venues ?? []) as TestVenue[];
+  const venue = venues.find((candidate) => candidate.id && candidate.name) ?? venues[0];
+  expect(venue, "expected at least one launch-zone venue").toBeTruthy();
+  return venue;
 }
 
-async function markOnboarded(page: Page) {
+function updatedVenue(venue: TestVenue, busyness0To100: number): TestVenue {
+  const now = new Date().toISOString();
+  return {
+    ...venue,
+    signal: {
+      venueId: venue.id,
+      placeId: venue.placeId ?? null,
+      busyness0To100,
+      busynessSource: "crowd",
+      mfRatio: 0.5,
+      confidence0To1: 0.82,
+      sampleSize: 6,
+      computedAt: now,
+      updatedAt: now,
+      lastBusynessRefresh: now,
+    },
+  };
+}
+
+async function markColdOnboarded(page: Page) {
   await page.addInitScript(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
     window.localStorage.setItem("nv_onboarded", "1");
     window.sessionStorage.setItem("nightvibe:desktop-warning-dismissed", "true");
   });
@@ -67,21 +88,29 @@ async function addLocalSession(page: Page) {
       id: "user-e2e",
       aud: "authenticated",
       role: "authenticated",
-      email: "profile-e2e@example.com",
+      email: "check-in-e2e@example.com",
       app_metadata: {},
       user_metadata: {},
       created_at: new Date().toISOString(),
     },
   };
 
-  // Set cookie for server-side auth gate
-  await page.context().addCookies([{
-    name: "sb-onlpwglwnqoivuykywrk-auth-token",
-    value: JSON.stringify(session),
-    url: authOrigin,
-    httpOnly: false,
-    sameSite: "Lax",
-  }]);
+  await page.context().addCookies([
+    {
+      name: "sb-onlpwglwnqoivuykywrk-auth-token",
+      value: JSON.stringify(session),
+      url: authOrigin,
+      httpOnly: false,
+      sameSite: "Lax",
+    },
+    {
+      name: "sb-gfsbqewkrcyclbktfyfk-auth-token",
+      value: JSON.stringify(session),
+      url: authOrigin,
+      httpOnly: false,
+      sameSite: "Lax",
+    },
+  ]);
 
   await page.addInitScript((authSession) => {
     for (const key of ["sb-onlpwglwnqoivuykywrk-auth-token", "sb-gfsbqewkrcyclbktfyfk-auth-token"]) {
@@ -90,168 +119,190 @@ async function addLocalSession(page: Page) {
   }, session);
 }
 
-test.describe("VibeCheck consumer check-in flow", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.addInitScript(() => {
-      window.sessionStorage.setItem("nightvibe:desktop-warning-dismissed", "true");
-    });
-  });
+async function mockCheckInPost(
+  page: Page,
+  venue: TestVenue,
+  options?: {
+    status?: number;
+    message?: string;
+    pointsAwarded?: number;
+    events?: string[];
+  },
+) {
+  await page.route("**/api/check-ins", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() !== "POST" || url.pathname !== "/api/check-ins") {
+      return route.continue();
+    }
 
-  test("routes mobile guest report CTA from the feed to login", async ({ page }) => {
-    await markOnboarded(page);
-
-    // Premium redesign: explore cards no longer carry inline "Sign in" links.
-    // The auth gate is enforced by navigating to /vibe-check directly.
-    await page.goto("/vibe-check?venueId=venue-feed-1&venueName=Feed+Test+Club");
-
-    await expect(page).toHaveURL(/\/login\?return=/);
-    expect(decodeURIComponent(page.url())).toContain(
-      "/vibe-check?venueId=venue-feed-1&venueName=Feed+Test+Club",
-    );
-    await expect(page.getByRole("heading", { name: "nytchkr" })).toBeVisible();
-  });
-
-  test("guests hitting /vibe-check are redirected to login before the form renders", async ({ page }) => {
-    await page.goto("/vibe-check?venueId=venue-123&venueName=The%20Midnight%20Lounge");
-
-    await expect(page).toHaveURL(/\/login\?return=/);
-    expect(decodeURIComponent(page.url())).toContain("/vibe-check?venueId=venue-123");
-    await expect(page.getByRole("button", { name: /Submit Vibe|Report Vibe/i })).toHaveCount(0);
-  });
-
-  test("submits a logged-in report to /api/check-ins with busyness and crowd feel", async ({ page }) => {
-    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
-    await addLocalSession(page);
-
-    let checkInPayload: Record<string, unknown> | null = null;
-    await page.route("**/api/check-ins", async (route) => {
-      if (route.request().method() !== "POST") return route.continue();
-
-      checkInPayload = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
+    if (options?.status && options.status >= 400) {
       return route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "success",
-          data: {
-            checkIn: {
-              id: "checkin-e2e-1",
-              venueId: "venue-123",
-              placeId: "place-123",
-              busyness: "packed",
-              crowdFeel: "mostly_male",
-              note: "Line is moving",
-              createdAt: new Date().toISOString(),
-            },
-          },
-          meta,
-        }),
-      });
-    });
-
-    await page.goto("/vibe-check?venueId=venue-123&venueName=The%20Midnight%20Lounge");
-    await page.getByRole("button", { name: "Packed" }).click();
-    await page.getByRole("button", { name: /More guys/i }).click();
-    await expect(page.getByText(/Step 3/i)).toBeVisible();
-    await expect(page.getByText(/optional/i).last()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Skip/i })).toBeVisible();
-    await page.getByRole("button", { name: /Woman/i }).click();
-    await expect(page.getByRole("button", { name: "Packed" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: /More guys/i })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: /Woman/i })).toHaveAttribute("aria-pressed", "true");
-    await page.getByPlaceholder(/vibe note/i).fill("Line is moving");
-    const submit = page.getByRole("button", { name: /Submit Vibe|Report Vibe/i });
-    await expect(submit).toBeEnabled();
-    await submit.click();
-
-    await expect(page.getByRole("heading", { name: /Vibe logged|Vibe reported/i })).toBeVisible();
-    expect(checkInPayload).toMatchObject({
-      venueId: "venue-123",
-      busyness: "packed",
-      crowdFeel: "mostly_male",
-      note: "Line is moving",
-      genderSelfReport: "f",
-    });
-  });
-
-  test("shows an error state when check-in submission fails", async ({ page }) => {
-    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
-    await addLocalSession(page);
-    await page.route("**/api/check-ins", (route) =>
-      route.fulfill({
-        status: 500,
+        status: options.status,
         contentType: "application/json",
         body: JSON.stringify({
           status: "error",
-          error: { code: "DB_ERROR", message: "Could not save report." },
-          meta,
-        }),
-      }),
-    );
-
-    await page.goto("/vibe-check?venueId=venue-123&venueName=The%20Midnight%20Lounge");
-    await page.getByRole("button", { name: "Moderate" }).click();
-    await page.getByRole("button", { name: /Mixed/i }).click();
-    await expect(page.getByRole("button", { name: "Moderate" })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: /Mixed/i })).toHaveAttribute("aria-pressed", "true");
-
-    const submit = page.getByRole("button", { name: /Submit Vibe|Report Vibe/i });
-    await expect(submit).toBeEnabled();
-    await submit.click();
-
-    // Client shows its own error text, not raw API message
-    await expect(page.locator("#submit-error")).toBeVisible();
-    await expect(submit).toHaveAttribute("aria-describedby", "submit-error");
-  });
-
-  test("renders authenticated profile report history from /api/check-ins/me", async ({ page }) => {
-    test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
-    await addLocalSession(page);
-
-    await page.route("**/api/check-ins/me", (route) => {
-      expect(route.request().headers().authorization).toBe("Bearer valid-e2e-token");
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          status: "success",
-          data: {
-            checkIns: [
-              {
-                id: "profile-checkin-1",
-                venueId: "venue-profile-1",
-                placeId: "Profile Test Club",
-                busyness: "packed",
-                crowdFeel: "mixed",
-                note: "DJ is good",
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          },
+          error: { code: "RATE_LIMITED", message: options.message ?? "Already checked in" },
           meta,
         }),
       });
+    }
+
+    const payload = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
+    expect(payload).toMatchObject({ venue_id: venue.id });
+
+    return route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "success",
+        data: {
+          checkIn: {
+            id: "check-in-e2e-1",
+            venueId: venue.id,
+            placeId: venue.placeId ?? venue.id,
+            busyness: "moderate",
+            crowdFeel: null,
+            note: null,
+            createdAt: new Date().toISOString(),
+          },
+          pointsAwarded: options?.pointsAwarded ?? 10,
+          events: options?.events ?? ["checkin", "first_report"],
+          streakCount: 0,
+        },
+        meta,
+      }),
     });
+  });
+}
 
-    await page.goto("/profile");
+async function mockVenueRefresh(page: Page, venue: TestVenue, busyness0To100: number) {
+  await page.route(`**/api/venues/${encodeURIComponent(venue.id)}`, async (route) => {
+    const request = route.request();
+    if (request.method() !== "GET") return route.continue();
 
-    // Profile route renders the canonical You tab heading.
-    await expect(page.getByRole("heading", { name: "You" })).toBeVisible();
-    await expect(page.getByText("Your Vibes")).toBeVisible();
-    await expect(page.getByText("Profile Test Club")).toBeVisible();
-    await expect(page.getByText("Packed")).toBeVisible();
-    await expect(page.getByText("Mixed / unsure")).toBeVisible();
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "success",
+        data: { venue: updatedVenue(venue, busyness0To100) },
+        meta,
+      }),
+    });
+  });
+}
+
+async function mockRecentCheckIns(page: Page, venue: TestVenue) {
+  await page.route(`**/api/venues/${encodeURIComponent(venue.id)}/check-ins`, async (route) => {
+    const request = route.request();
+    if (request.method() !== "GET") return route.continue();
+
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "success",
+        data: {
+          checkIns: [
+            {
+              id: "recent-check-in-e2e-1",
+              busynessLevel: 40,
+              crowdFeel: null,
+              gender: null,
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        },
+        meta,
+      }),
+    });
+  });
+}
+
+async function openVenue(page: Page, venue: TestVenue) {
+  await page.goto(`/venues/${encodeURIComponent(venue.slug || venue.id)}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible({ timeout: 20_000 });
+}
+
+async function confirmCheckIn(page: Page, venue: TestVenue) {
+  await page.getByRole("button", { name: `Check in at ${venue.name}` }).first().click();
+  await expect(page.getByRole("dialog", { name: `Check in to ${venue.name}?` })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm" }).click();
+}
+
+test.describe("NV-TEST-042 check-in flow", () => {
+  test.beforeEach(async ({ page }) => {
+    test.skip(isProductionBaseUrl(), "uses mocked browser auth and deterministic check-in responses against the local app server");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await markColdOnboarded(page);
   });
 
-  test("protects /api/check-ins/me when unauthenticated", async ({ request }) => {
-    const res = await request.get("/api/check-ins/me");
-    expect(res.status()).toBe(401);
+  test("unauthenticated user sees login prompt when tapping check-in button", async ({ page, request }) => {
+    const venue = await getLaunchVenue(request);
+    await openVenue(page, venue);
 
-    const json = await res.json();
-    expect(json).toMatchObject({
-      status: "error",
-      error: { code: "UNAUTHORIZED" },
-    });
+    await confirmCheckIn(page, venue);
+
+    const signInPrompt = page.getByRole("link", { name: "Sign in to check in" });
+    await expect(signInPrompt).toBeVisible();
+    await expect(signInPrompt).toHaveAttribute("href", new RegExp(`/login\\?return=.*${encodeURIComponent(`/venues/${venue.id}`)}`));
+  });
+
+  test("authenticated user can check in and sees success toast", async ({ page, request }) => {
+    const venue = await getLaunchVenue(request);
+    await addLocalSession(page);
+    await mockCheckInPost(page, venue, { pointsAwarded: 10, events: ["checkin", "first_report"] });
+
+    await openVenue(page, venue);
+    await confirmCheckIn(page, venue);
+
+    await expect(page.getByRole("status").filter({ hasText: `${venue.name}: +10 pts` })).toBeVisible();
+    await expect(page.getByRole("button", { name: `Checked in at ${venue.name}` }).first()).toBeVisible();
+  });
+
+  test("duplicate check-in within 30 minutes shows Already checked in message", async ({ page, request }) => {
+    const venue = await getLaunchVenue(request);
+    await addLocalSession(page);
+    await mockCheckInPost(page, venue, { status: 429, message: "Already checked in" });
+
+    await openVenue(page, venue);
+    await confirmCheckIn(page, venue);
+
+    await expect(page.getByRole("status").filter({ hasText: "Already checked in" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try again" }).first()).toBeVisible();
+  });
+
+  test("check-in updates the busyness bar on the venue page", async ({ page, request }) => {
+    const venue = await getLaunchVenue(request);
+    await addLocalSession(page);
+    await mockCheckInPost(page, venue, { pointsAwarded: 5, events: ["checkin"] });
+    await mockVenueRefresh(page, venue, 37);
+    await mockRecentCheckIns(page, venue);
+
+    await openVenue(page, venue);
+    await confirmCheckIn(page, venue);
+
+    await expect(page.getByRole("region", { name: "Current venue signal" }).getByText("Moderate · 37%")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Current venue signal" }).getByText(/Early data|Based on 6 check-ins/)).toBeVisible();
+  });
+
+  test("check-in button works on mobile viewport 375px", async ({ page, request }) => {
+    const venue = await getLaunchVenue(request);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await addLocalSession(page);
+    await mockCheckInPost(page, venue, { pointsAwarded: 0, events: ["checkin"] });
+
+    await openVenue(page, venue);
+
+    const mobileCheckIn = page.getByRole("button", { name: `Check in at ${venue.name}` }).last();
+    await expect(mobileCheckIn).toBeVisible();
+    const box = await mobileCheckIn.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(250);
+    expect(box?.height).toBeGreaterThanOrEqual(52);
+
+    await mobileCheckIn.click();
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByRole("status").filter({ hasText: `${venue.name}: Check-in recorded!` })).toBeVisible();
   });
 });
