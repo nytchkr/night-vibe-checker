@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { track } from "@vercel/analytics";
 import { Star } from "lucide-react";
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/hooks/useToast";
 import { triggerHapticFeedback } from "@/lib/haptics";
 
 type VenueRatingState = {

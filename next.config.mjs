@@ -1,5 +1,15 @@
 import { withSentryConfig } from "@sentry/nextjs";
 
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https://maps.googleapis.com https://lh3.googleusercontent.com https://places.googleapis.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.besttime.app",
+  "font-src 'self' data:",
+  "frame-ancestors 'none'",
+].join("; ");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // react-leaflet is incompatible with React 18 StrictMode's double-invoke in dev
@@ -55,6 +65,7 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
+          { key: "Content-Security-Policy", value: contentSecurityPolicy },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },

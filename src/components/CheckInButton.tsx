@@ -8,7 +8,7 @@ import { div as MotionDiv } from "framer-motion/client";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import { formatRewardMessages } from "@/lib/rewardMessages";
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/hooks/useToast";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 

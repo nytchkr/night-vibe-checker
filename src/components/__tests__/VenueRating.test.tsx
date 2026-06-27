@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ToastProvider } from "@/components/ToastProvider";
+import { ToastProvider } from "@/hooks/useToast";
 import { VenueRating } from "@/components/VenueRating";
 
 vi.mock("@vercel/analytics", () => ({

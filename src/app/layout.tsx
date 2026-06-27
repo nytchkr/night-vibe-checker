@@ -8,7 +8,7 @@ import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
 import { RoutePrefetch } from "@/components/RoutePrefetch";
-import { ToastProvider } from "@/components/ToastProvider";
+import { ToastProvider } from "@/hooks/useToast";
 import "./globals.css";
 
 const siteUrl = "https://nytchkr.com";

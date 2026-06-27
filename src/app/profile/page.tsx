@@ -46,6 +46,11 @@ type NotificationPrefs = {
   notifyWeeklySummary: boolean;
 };
 
+type UserStreak = {
+  streak: number;
+  lastCheckinDate: string | null;
+};
+
 const DEFAULT_REWARD_SCORE: RewardScore = {
   points_total: 0,
   level: "newcomer",
@@ -57,6 +62,11 @@ const DEFAULT_REWARD_SCORE: RewardScore = {
 const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   notifyBusyVenues: false,
   notifyWeeklySummary: false,
+};
+
+const DEFAULT_USER_STREAK: UserStreak = {
+  streak: 0,
+  lastCheckinDate: null,
 };
 
 const YOU_TAB_LIMIT = 5;
@@ -221,6 +231,17 @@ function ProfileHeader({ email, trustedReporter }: { email: string; trustedRepor
         )}
       </div>
     </section>
+  );
+}
+
+function CheckInStreakBadge({ streak }: { streak: number }) {
+  if (streak <= 0) return null;
+
+  return (
+    <div className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-4 text-sm font-black text-[#8B6CFF] shadow-[0_0_24px_rgba(139,108,255,0.18)]">
+      <span aria-hidden="true">🔥</span>
+      <span>{streak}-night streak</span>
+    </div>
   );
 }
 
@@ -661,6 +682,7 @@ function LoggedInState({
   savedVenues,
   checkIns,
   rewardScore,
+  userStreak,
   notificationPrefs,
   loadingSaved,
   loadingCheckIns,
@@ -673,6 +695,7 @@ function LoggedInState({
   savedVenues: SavedVenue[];
   checkIns: CheckIn[];
   rewardScore: RewardScore;
+  userStreak: UserStreak;
   notificationPrefs: NotificationPrefs;
   loadingSaved: boolean;
   loadingCheckIns: boolean;
@@ -699,6 +722,7 @@ function LoggedInState({
   return (
     <div className="space-y-7 pb-8">
       <ProfileHeader email={email} trustedReporter={rewardScore.trusted_reporter} />
+      <CheckInStreakBadge streak={userStreak.streak} />
       <ProfileStatsGrid score={rewardScore} loading={loadingRewards} />
       <ProfileCompletionNudge savedCount={savedVenues.length} checkInCount={checkIns.length} />
       <RewardsSection score={rewardScore} loading={loadingRewards} />
@@ -731,6 +755,7 @@ export default function ProfilePage() {
   const [savedVenues, setSavedVenues] = useState<SavedVenue[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [rewardScore, setRewardScore] = useState<RewardScore>(DEFAULT_REWARD_SCORE);
+  const [userStreak, setUserStreak] = useState<UserStreak>(DEFAULT_USER_STREAK);
   const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [loadingCheckIns, setLoadingCheckIns] = useState(false);
@@ -798,6 +823,22 @@ export default function ProfilePage() {
     }
   }, []);
 
+  const loadUserStreak = useCallback(async (currentSession: Session) => {
+    try {
+      const res = await fetch("/api/user/streak", {
+        headers: { Authorization: `Bearer ${currentSession.access_token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        setUserStreak(DEFAULT_USER_STREAK);
+        return;
+      }
+      setUserStreak({ ...DEFAULT_USER_STREAK, ...((await res.json()) as Partial<UserStreak>) });
+    } catch {
+      setUserStreak(DEFAULT_USER_STREAK);
+    }
+  }, []);
+
   const loadNotificationPrefs = useCallback(async (currentSession: Session) => {
     try {
       const res = await fetch("/api/profile/notification-prefs", {
@@ -831,6 +872,7 @@ export default function ProfilePage() {
         void loadSavedVenues(data.session);
         void loadCheckIns(data.session);
         void loadRewards(data.session);
+        void loadUserStreak(data.session);
         void loadNotificationPrefs(data.session);
       }
     }
@@ -845,11 +887,13 @@ export default function ProfilePage() {
         void loadSavedVenues(nextSession);
         void loadCheckIns(nextSession);
         void loadRewards(nextSession);
+        void loadUserStreak(nextSession);
         void loadNotificationPrefs(nextSession);
       } else {
         setSavedVenues([]);
         setCheckIns([]);
         setRewardScore(DEFAULT_REWARD_SCORE);
+        setUserStreak(DEFAULT_USER_STREAK);
         setNotificationPrefs(DEFAULT_NOTIFICATION_PREFS);
       }
     });
@@ -858,7 +902,7 @@ export default function ProfilePage() {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [loadCheckIns, loadNotificationPrefs, loadRewards, loadSavedVenues, supabaseBrowser]);
+  }, [loadCheckIns, loadNotificationPrefs, loadRewards, loadSavedVenues, loadUserStreak, supabaseBrowser]);
 
   useEffect(() => {
     if (!session) return;
@@ -867,6 +911,7 @@ export default function ProfilePage() {
     function refreshProfileCheckIns() {
       void loadCheckIns(activeSession);
       void loadRewards(activeSession);
+      void loadUserStreak(activeSession);
     }
 
     function handleStorage(event: StorageEvent) {
@@ -879,7 +924,7 @@ export default function ProfilePage() {
       window.removeEventListener("nightvibe:check-in-created", refreshProfileCheckIns);
       window.removeEventListener("storage", handleStorage);
     };
-  }, [loadCheckIns, loadRewards, session]);
+  }, [loadCheckIns, loadRewards, loadUserStreak, session]);
 
   async function handleGoogleSignIn() {
     setSigningIn(true);
@@ -897,6 +942,7 @@ export default function ProfilePage() {
     setSavedVenues([]);
     setCheckIns([]);
     setRewardScore(DEFAULT_REWARD_SCORE);
+    setUserStreak(DEFAULT_USER_STREAK);
   }
 
   return (
@@ -916,6 +962,7 @@ export default function ProfilePage() {
             savedVenues={savedVenues}
             checkIns={checkIns}
             rewardScore={rewardScore}
+            userStreak={userStreak}
             notificationPrefs={notificationPrefs}
             loadingSaved={loadingSaved}
             loadingCheckIns={loadingCheckIns}

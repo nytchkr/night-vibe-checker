@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/hooks/useToast";
 import { useHaptic } from "@/hooks/useHaptic";
 
 type ShareButtonProps = {

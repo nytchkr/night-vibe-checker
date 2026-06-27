@@ -5,7 +5,7 @@ import { Bell, Check, Loader2 } from "lucide-react";
 import { savePushSubscription } from "@/lib/push";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ToastProvider";
+import { useToast } from "@/hooks/useToast";
 import { useHaptic } from "@/hooks/useHaptic";
 
 type PushState = "idle" | "saving" | "success" | "error" | "unsupported" | "denied";
