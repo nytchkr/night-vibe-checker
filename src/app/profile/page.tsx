@@ -10,6 +10,7 @@ import { Toast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { savePushSubscription, unsubscribeFromPush } from "@/lib/push";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
 type SavedVenue = {
@@ -39,12 +40,22 @@ type RewardScore = {
   confirmed_checkins: number;
 };
 
+type NotificationPrefs = {
+  notifyBusyVenues: boolean;
+  notifyWeeklySummary: boolean;
+};
+
 const DEFAULT_REWARD_SCORE: RewardScore = {
   points_total: 0,
   level: "newcomer",
   streak_count: 0,
   trusted_reporter: false,
   confirmed_checkins: 0,
+};
+
+const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  notifyBusyVenues: false,
+  notifyWeeklySummary: false,
 };
 
 const YOU_TAB_LIMIT = 5;
@@ -516,14 +527,109 @@ function SettingsSection({ onChangeArea }: { onChangeArea: () => void }) {
   );
 }
 
+function NotificationPreferenceToggle({
+  session,
+  prefs,
+  onPrefsChange,
+}: {
+  session: Session;
+  prefs: NotificationPrefs;
+  onPrefsChange: (prefs: NotificationPrefs) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function savePrefs(nextPrefs: NotificationPrefs) {
+    const res = await fetch("/api/profile/notification-prefs", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ notificationPrefs: nextPrefs }),
+    });
+
+    if (!res.ok) throw new Error("Preference save failed");
+  }
+
+  async function toggleBusyAlerts() {
+    if (saving) return;
+    setSaving(true);
+    setStatus(null);
+
+    const previousPrefs = prefs;
+    const nextPrefs = { ...prefs, notifyBusyVenues: !prefs.notifyBusyVenues };
+    onPrefsChange(nextPrefs);
+
+    try {
+      if (nextPrefs.notifyBusyVenues) {
+        const subscription = await savePushSubscription(session.access_token);
+        if (!subscription) throw new Error("Push unavailable");
+      } else {
+        await unsubscribeFromPush();
+      }
+
+      await savePrefs(nextPrefs);
+      setStatus(nextPrefs.notifyBusyVenues ? "Busy alerts enabled." : "Busy alerts disabled.");
+    } catch {
+      onPrefsChange(previousPrefs);
+      setStatus("Could not update alerts.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SectionShell title="Notifications">
+      <div className="flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] bg-white/[0.04] p-4">
+        <div className="flex min-w-0 gap-3">
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F0568C]/15 text-[#F0568C]">
+            <Bell className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-black leading-tight text-white">Notify me when saved venues get busy</h3>
+            <p className="mt-1 text-sm font-semibold leading-5 text-white/40">
+              Browser prompt appears only after you turn this on.
+            </p>
+            {status && (
+              <p className={`mt-2 text-xs font-bold ${status.startsWith("Could") ? "text-[#F0568C]" : "text-[#00F5D4]"}`} role="status">
+                {status}
+              </p>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={prefs.notifyBusyVenues}
+          aria-label="Notify me when saved venues get busy"
+          disabled={saving}
+          onClick={() => void toggleBusyAlerts()}
+          className={`relative min-h-11 w-14 shrink-0 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-60 ${
+            prefs.notifyBusyVenues ? "border-[#8B6CFF]/60 bg-[#8B6CFF]/28" : "border-white/15 bg-white/[0.06]"
+          }`}
+        >
+          <span
+            className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full border border-gray-500 bg-gray-800 shadow-lg transition-transform ${
+              prefs.notifyBusyVenues ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      </div>
+    </SectionShell>
+  );
+}
+
 function LoggedInState({
   session,
   savedVenues,
   checkIns,
   rewardScore,
+  notificationPrefs,
   loadingSaved,
   loadingCheckIns,
   loadingRewards,
+  onNotificationPrefsChange,
   onSignOut,
   onChangeArea,
 }: {
@@ -531,9 +637,11 @@ function LoggedInState({
   savedVenues: SavedVenue[];
   checkIns: CheckIn[];
   rewardScore: RewardScore;
+  notificationPrefs: NotificationPrefs;
   loadingSaved: boolean;
   loadingCheckIns: boolean;
   loadingRewards: boolean;
+  onNotificationPrefsChange: (prefs: NotificationPrefs) => void;
   onSignOut: () => void;
   onChangeArea: () => void;
 }) {
@@ -561,6 +669,11 @@ function LoggedInState({
       <TopSpotCard topSpot={topSpot} loading={loadingCheckIns} />
       <SavedVenuesSection venues={savedVenues} loading={loadingSaved} />
       <RecentCheckInsSection checkIns={checkIns} loading={loadingCheckIns} />
+      <NotificationPreferenceToggle
+        session={session}
+        prefs={notificationPrefs}
+        onPrefsChange={onNotificationPrefsChange}
+      />
       <SettingsSection onChangeArea={onChangeArea} />
       <button
         type="button"
@@ -582,6 +695,7 @@ export default function ProfilePage() {
   const [savedVenues, setSavedVenues] = useState<SavedVenue[]>([]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [rewardScore, setRewardScore] = useState<RewardScore>(DEFAULT_REWARD_SCORE);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPrefs>(DEFAULT_NOTIFICATION_PREFS);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [loadingCheckIns, setLoadingCheckIns] = useState(false);
   const [loadingRewards, setLoadingRewards] = useState(false);
@@ -648,6 +762,27 @@ export default function ProfilePage() {
     }
   }, []);
 
+  const loadNotificationPrefs = useCallback(async (currentSession: Session) => {
+    try {
+      const res = await fetch("/api/profile/notification-prefs", {
+        headers: { Authorization: `Bearer ${currentSession.access_token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) {
+        setNotificationPrefs(DEFAULT_NOTIFICATION_PREFS);
+        return;
+      }
+
+      const json = (await res.json()) as { data?: { notificationPrefs?: Partial<NotificationPrefs> } };
+      setNotificationPrefs({
+        ...DEFAULT_NOTIFICATION_PREFS,
+        ...json.data?.notificationPrefs,
+      });
+    } catch {
+      setNotificationPrefs(DEFAULT_NOTIFICATION_PREFS);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -660,6 +795,7 @@ export default function ProfilePage() {
         void loadSavedVenues(data.session);
         void loadCheckIns(data.session);
         void loadRewards(data.session);
+        void loadNotificationPrefs(data.session);
       }
     }
 
@@ -673,10 +809,12 @@ export default function ProfilePage() {
         void loadSavedVenues(nextSession);
         void loadCheckIns(nextSession);
         void loadRewards(nextSession);
+        void loadNotificationPrefs(nextSession);
       } else {
         setSavedVenues([]);
         setCheckIns([]);
         setRewardScore(DEFAULT_REWARD_SCORE);
+        setNotificationPrefs(DEFAULT_NOTIFICATION_PREFS);
       }
     });
 
@@ -684,7 +822,7 @@ export default function ProfilePage() {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [loadCheckIns, loadRewards, loadSavedVenues, supabaseBrowser]);
+  }, [loadCheckIns, loadNotificationPrefs, loadRewards, loadSavedVenues, supabaseBrowser]);
 
   useEffect(() => {
     if (!session) return;
@@ -742,9 +880,11 @@ export default function ProfilePage() {
             savedVenues={savedVenues}
             checkIns={checkIns}
             rewardScore={rewardScore}
+            notificationPrefs={notificationPrefs}
             loadingSaved={loadingSaved}
             loadingCheckIns={loadingCheckIns}
             loadingRewards={loadingRewards}
+            onNotificationPrefsChange={setNotificationPrefs}
             onSignOut={handleSignOut}
             onChangeArea={() => setShowAreaPicker(true)}
           />

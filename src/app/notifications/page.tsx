@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 };
 
 const DEFAULT_PREFS: NotificationPrefs = {
-  notifyBusyVenues: true,
+  notifyBusyVenues: false,
   notifyWeeklySummary: false,
 };
 

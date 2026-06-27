@@ -37,6 +37,16 @@ function patchRequest(body: unknown, token = "token") {
   });
 }
 
+function getRequest(token = "token") {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  return new NextRequest("http://localhost/api/profile/notification-prefs", {
+    method: "GET",
+    headers,
+  });
+}
+
 function deleteRequest(token = "token") {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -90,6 +100,45 @@ describe("PATCH /api/profile/notification-prefs", () => {
       }),
       { onConflict: "user_id" },
     );
+  });
+});
+
+describe("GET /api/profile/notification-prefs", () => {
+  it("returns stored notification prefs", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { notify_busy_venues: true, notify_weekly_summary: false },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    mockFrom.mockReturnValueOnce({ select });
+
+    const { GET } = await import("../profile/notification-prefs/route");
+    const res = await GET(getRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.notificationPrefs).toEqual(validPrefs);
+    expect(mockFrom).toHaveBeenCalledWith("user_preferences");
+    expect(select).toHaveBeenCalledWith("notify_busy_venues, notify_weekly_summary");
+    expect(eq).toHaveBeenCalledWith("user_id", "user-123");
+  });
+
+  it("defaults busy alerts off when no preference row exists", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    mockFrom.mockReturnValueOnce({ select });
+
+    const { GET } = await import("../profile/notification-prefs/route");
+    const res = await GET(getRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.notificationPrefs).toEqual({
+      notifyBusyVenues: false,
+      notifyWeeklySummary: false,
+    });
   });
 });
 

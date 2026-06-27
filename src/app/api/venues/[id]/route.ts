@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
+import { mapGoogleOpeningHours } from "@/lib/venueHours";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
@@ -55,19 +56,6 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
   };
 }
 
-function mapOpeningHours(value: unknown): string[] | undefined {
-  const rawHours =
-    value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekdayDescriptions?: unknown }).weekdayDescriptions)
-      ? (value as { weekdayDescriptions: unknown[] }).weekdayDescriptions
-      : value && typeof value === "object" && !Array.isArray(value) && Array.isArray((value as { weekday_text?: unknown }).weekday_text)
-        ? (value as { weekday_text: unknown[] }).weekday_text
-      : value;
-
-  if (!Array.isArray(rawHours)) return undefined;
-  const hours = rawHours.filter((item): item is string => typeof item === "string" && item.length > 0);
-  return hours.length ? hours : undefined;
-}
-
 function mapPhotoUrls(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const urls = value.filter((item): item is string => typeof item === "string" && item.length > 0);
@@ -106,7 +94,7 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     website: (row.website ?? undefined) as string | undefined,
     googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
     editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
-    openingHours: mapOpeningHours(row.opening_hours),
+    openingHours: mapGoogleOpeningHours(row.opening_hours),
     openNow: inferCanonicalOpenNow({
       category: (row.category ?? row.venue_type) as string | null,
       openingHours: row.opening_hours,
