@@ -116,6 +116,51 @@ describe("GET /api/cron/refresh-busyness", () => {
   });
 });
 
+function bestTimeRefreshRequest(secret?: string) {
+  return new NextRequest("http://localhost/api/cron/besttime-refresh", {
+    method: "GET",
+    headers: secret ? { authorization: `Bearer ${secret}` } : undefined,
+  });
+}
+
+describe("GET /api/cron/besttime-refresh", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    process.env.CRON_SECRET = "test-cron-secret";
+  });
+
+  afterEach(() => {
+    delete process.env.CRON_SECRET;
+  });
+
+  it("rejects requests without the Bearer cron secret", async () => {
+    const { GET } = await import("../cron/besttime-refresh/route");
+
+    const missing = await GET(bestTimeRefreshRequest());
+    const wrong = await GET(bestTimeRefreshRequest("wrong"));
+
+    expect(missing.status).toBe(401);
+    expect(wrong.status).toBe(401);
+    expect(refreshBusynessMock).not.toHaveBeenCalled();
+  });
+
+  it("queues a BestTime refresh for all Charlotte launch zones with the Bearer cron secret", async () => {
+    refreshBusynessMock.mockResolvedValue([
+      { venueId: "venue-1", ok: true },
+      { venueId: "venue-2", ok: true },
+    ]);
+
+    const { GET } = await import("../cron/besttime-refresh/route");
+    const res = await GET(bestTimeRefreshRequest("test-cron-secret"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(refreshBusynessMock).toHaveBeenCalledWith();
+    expect(json).toEqual({ status: "ok", queued: 2 });
+  });
+});
+
 function zoneRequest(zone: string, secret?: string) {
   return new NextRequest(`http://localhost/api/cron/refresh-busyness-zone?zone=${zone}`, {
     method: "GET",
