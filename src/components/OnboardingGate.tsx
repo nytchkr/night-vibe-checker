@@ -5,7 +5,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { Session } from "@supabase/supabase-js";
 import { X } from "lucide-react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 const POST_AUTH_ACTION_KEY = "nightvibe.postAuthAction";
 const POST_AUTH_RETURN_KEY = "nightvibe.postAuthReturnUrl";
@@ -124,24 +123,41 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
   }, [closeGate]);
 
   useEffect(() => {
-    const client = createBrowserClient();
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
 
-    client.auth.getSession()
-      .then(({ data }) => {
-        void resumeAfterAuth(data.session);
-      })
-      .catch(() => undefined);
+    async function startAuthListener() {
+      try {
+        const { createBrowserClient } = await import("@/lib/supabase-browser");
+        const client = createBrowserClient();
 
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange((_event, session) => {
-      void resumeAfterAuth(session);
-    });
+        client.auth.getSession()
+          .then(({ data }) => {
+            if (!cancelled) void resumeAfterAuth(data.session);
+          })
+          .catch(() => undefined);
 
-    return () => subscription.unsubscribe();
+        const {
+          data: { subscription },
+        } = client.auth.onAuthStateChange((_event, session) => {
+          if (!cancelled) void resumeAfterAuth(session);
+        });
+        unsubscribe = () => subscription.unsubscribe();
+      } catch {
+        // Auth-gated actions still open the modal; sign-in attempts surface their own errors.
+      }
+    }
+
+    void startAuthListener();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [resumeAfterAuth]);
 
   const requireAuth = useCallback(async (request: GateRequest) => {
+    const { createBrowserClient } = await import("@/lib/supabase-browser");
     const client = createBrowserClient();
     const { data } = await client.auth.getSession().catch(() => ({ data: { session: null } }));
 
@@ -189,6 +205,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
     setError("");
 
     try {
+      const { createBrowserClient } = await import("@/lib/supabase-browser");
       const client = createBrowserClient();
       const origin = getRedirectOrigin();
       const returnTo = pendingAction?.returnTo ?? currentPath();
