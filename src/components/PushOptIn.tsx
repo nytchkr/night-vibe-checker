@@ -5,6 +5,7 @@ import { Bell, Check, Loader2 } from "lucide-react";
 import { savePushSubscription } from "@/lib/push";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ToastProvider";
 import { useHaptic } from "@/hooks/useHaptic";
 
 type PushState = "idle" | "saving" | "success" | "error" | "unsupported" | "denied";
@@ -18,8 +19,8 @@ type PushOptInProps = {
 
 export function PushOptIn({ accessToken, venueId, venueName, className }: PushOptInProps) {
   const haptic = useHaptic();
+  const { showToast } = useToast();
   const [state, setState] = useState<PushState>("idle");
-  const [message, setMessage] = useState<string | null>(null);
 
   async function getAccessToken(): Promise<string | null> {
     if (accessToken) return accessToken;
@@ -44,11 +45,10 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
 
   async function handleSubscribe() {
     haptic.medium();
-    setMessage(null);
 
     if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
       setState("unsupported");
-      setMessage("Not supported in this browser");
+      showToast("Not supported in this browser", "info");
       return;
     }
 
@@ -58,7 +58,7 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
       const token = await getAccessToken();
       if (!token) {
         setState("error");
-        setMessage("Sign in to enable alerts");
+        showToast("Sign in to enable alerts", "error");
         return;
       }
 
@@ -66,18 +66,18 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
       if (!subscription) {
         const permission = Notification.permission;
         setState("denied");
-        setMessage(permission === "denied" ? "Enable notifications in browser settings" : "Notifications are unavailable here");
+        showToast(permission === "denied" ? "Enable notifications in browser settings" : "Notifications are unavailable here", "info");
         return;
       }
 
       await saveVenueAlert(token);
 
       setState("success");
-      setMessage(venueName ? `We'll alert you when ${venueName} gets busy.` : "Busy venue alerts are on.");
+      showToast(venueName ? `We'll alert you when ${venueName} gets busy.` : "Busy venue alerts are on.", "success");
       haptic.success();
     } catch {
       setState("error");
-      setMessage("Could not enable alerts");
+      showToast("Could not enable alerts", "error");
       haptic.error();
     }
   }
@@ -95,14 +95,6 @@ export function PushOptIn({ accessToken, venueId, venueName, className }: PushOp
           <p className="mt-1 text-xs font-medium text-white/45">
             {venueName ? "Get notified when this spot heats up." : "Get notified when saved spots heat up."}
           </p>
-          {message && (
-            <p
-              className={`mt-2 text-xs font-semibold ${subscribed ? "text-[#00F5D4]" : "text-white/55"}`}
-              role={subscribed ? "status" : "alert"}
-            >
-              {message}
-            </p>
-          )}
         </div>
         <Button
           type="button"

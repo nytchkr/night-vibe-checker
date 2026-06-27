@@ -7,7 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { triggerHapticFeedback } from "@/lib/haptics";
 import { formatRewardMessages } from "@/lib/rewardMessages";
-import { Toast } from "@/components/Toast";
+import { useToast } from "@/components/ToastProvider";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type CheckInState = "idle" | "loading" | "checked-in" | "error" | "requires-auth";
@@ -20,12 +20,6 @@ type CheckInButtonProps = {
 const CHECK_IN_LOCK_MS = 60 * 60 * 1000;
 const CHECK_IN_CREATED_EVENT = "nightvibe:check-in-created";
 const CHECK_IN_REFRESH_KEY = "nightvibe.check-in-refresh";
-
-type CheckInToast = {
-  message: string;
-  tone: "success" | "error";
-  retry?: boolean;
-};
 
 type CheckInResponse = {
   data?: {
@@ -72,10 +66,10 @@ function errorMessageFrom(status: number, payload: unknown) {
 }
 
 export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
+  const { showToast } = useToast();
   const [state, setState] = useState<CheckInState>("idle");
   const [checkedInUntil, setCheckedInUntil] = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [toast, setToast] = useState<CheckInToast | null>(null);
   const [rewardAnimation, setRewardAnimation] = useState<RewardAnimation | null>(null);
   const confirmDialogRef = useRef<HTMLDivElement | null>(null);
   const reduceMotion = useReducedMotion();
@@ -141,7 +135,6 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
     if (state === "loading" || state === "checked-in") return;
 
     setState("loading");
-    setToast(null);
 
     try {
       const client = createBrowserClient();
@@ -184,10 +177,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
       lockCheckIn(now);
       triggerHapticFeedback([8, 50, 8]);
       setConfirmOpen(false);
-      setToast({
-        tone: "success",
-        message: `${venueName}: ${reward.toast}`,
-      });
+      showToast(`${venueName}: ${reward.toast}`, "success");
       if (reward.pointsBadge || reward.streakBadge) {
         setRewardAnimation({
           id: now,
@@ -205,11 +195,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
       }));
     } catch (error) {
       setState("error");
-      setToast({
-        tone: "error",
-        message: error instanceof Error ? error.message : "Could not check in. Try again.",
-        retry: true,
-      });
+      showToast(error instanceof Error ? error.message : "Could not check in. Try again.", "error");
     }
   }
 
@@ -365,21 +351,6 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
             </div>
           </div>
         </div>
-      ) : null}
-
-      {toast ? (
-        <Toast
-          message={toast.message}
-          durationMs={toast.tone === "error" ? 5000 : 3500}
-          actionLabel={toast.retry ? "Retry" : undefined}
-          onAction={toast.retry ? () => void checkIn() : undefined}
-          onDone={() => setToast(null)}
-          className={`bottom-[calc(env(safe-area-inset-bottom)+8.75rem)] rounded-[14px] px-5 py-3 font-semibold shadow-2xl ${
-            toast.tone === "success"
-              ? "border-[#8B6CFF]/45 bg-[#6D45FF] text-white shadow-[#8B6CFF]/20"
-              : "border-[#FF5B6A]/35 bg-[#3A1016] text-[#FFE9EC] shadow-black/30"
-          }`}
-        />
       ) : null}
     </>
   );

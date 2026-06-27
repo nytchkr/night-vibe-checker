@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ToastProvider";
 import { useHaptic } from "@/hooks/useHaptic";
 
 type ShareButtonProps = {
@@ -45,7 +46,7 @@ export function trackVenueShareEvent(venueId: string, method: VenueShareMethod) 
 
 export function ShareButton(props: ShareButtonProps) {
   const haptic = useHaptic();
-  const [toastVisible, setToastVisible] = useState(false);
+  const { showToast } = useToast();
   const [sharing, setSharing] = useState(false);
 
   async function handleShare() {
@@ -72,54 +73,43 @@ export function ShareButton(props: ShareButtonProps) {
         }
       }
 
-      if (typeof navigator === "undefined" || !navigator.clipboard) return;
+      if (typeof navigator === "undefined" || !navigator.clipboard) {
+        throw new Error("Clipboard unavailable");
+      }
       await navigator.clipboard.writeText(buildVenueShareClipboardText(shareData));
       trackVenueShareEvent(props.venueId, "clipboard");
-      setToastVisible(true);
-      setTimeout(() => setToastVisible(false), 2000);
+      showToast("Link copied!", "success");
     } catch {
       trackVenueShareEvent(props.venueId, "failed");
-      // Sharing is best-effort; failures should not break the venue page.
+      showToast("Could not share this venue.", "error");
     } finally {
       setSharing(false);
     }
   }
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={handleShare}
-        disabled={sharing}
-        aria-label={props["aria-label"] ?? "Share venue"}
-        title="Share venue"
-        className={[
-          `
-          h-11 w-11 rounded-full p-0
-          text-[#D8DCE5] hover:bg-white/10 hover:text-white
-          focus-visible:text-white focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-60
-        `,
-          props.className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        <Share2 className="h-4 w-4" aria-hidden="true" />
-        {props.children}
-      </Button>
-      {toastVisible ? (
-        <div
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-[1300] -translate-x-1/2 rounded-full border border-white/[0.08] bg-[#111117] px-4 py-2 text-sm text-white shadow-2xl shadow-black/40"
-        >
-          Link copied!
-        </div>
-      ) : null}
-    </>
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={handleShare}
+      disabled={sharing}
+      aria-label={props["aria-label"] ?? "Share venue"}
+      title="Share venue"
+      className={[
+        `
+        h-11 w-11 rounded-full p-0
+        text-[#D8DCE5] hover:bg-white/10 hover:text-white
+        focus-visible:text-white focus-visible:ring-[#8B6CFF]/70 disabled:cursor-not-allowed disabled:opacity-60
+      `,
+        props.className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <Share2 className="h-4 w-4" aria-hidden="true" />
+      {props.children}
+    </Button>
   );
 }
 

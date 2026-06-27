@@ -8,6 +8,7 @@ import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import PWAInstallBanner, { PWAInstallVisitTracker } from "@/components/PWAInstallBanner";
 import { RoutePrefetch } from "@/components/RoutePrefetch";
+import { ToastProvider } from "@/components/ToastProvider";
 import "./globals.css";
 
 const siteUrl = "https://nytchkr.com";
@@ -134,25 +135,27 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </span>
           </div>
         )}
-        <div className="app-shell h-screen-safe">
-          <RoutePrefetch href="/map" />
-          <RoutePrefetch href="/explore" />
-          <SidebarNav />
-          <OnboardingGateProvider>
-            <main
-              id="main-content"
-              tabIndex={-1}
-              className={`app-content scroll-touch ${isDev ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-5 lg:pb-0 lg:pt-0" : "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"}`}
-            >
-              {children}
-            </main>
-            <AppOnboardingGate />
-          </OnboardingGateProvider>
-        </div>
-        <PWAInstallVisitTracker>
-          <PWAInstallBanner />
-        </PWAInstallVisitTracker>
-        <BottomNav />
+        <ToastProvider>
+          <div className="app-shell h-screen-safe">
+            <RoutePrefetch href="/map" />
+            <RoutePrefetch href="/explore" />
+            <SidebarNav />
+            <OnboardingGateProvider>
+              <main
+                id="main-content"
+                tabIndex={-1}
+                className={`app-content scroll-touch ${isDev ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-5 lg:pb-0 lg:pt-0" : "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"}`}
+              >
+                {children}
+              </main>
+              <AppOnboardingGate />
+            </OnboardingGateProvider>
+          </div>
+          <PWAInstallVisitTracker>
+            <PWAInstallBanner />
+          </PWAInstallVisitTracker>
+          <BottomNav />
+        </ToastProvider>
         <Script id="service-worker-registration" nonce={nonce} strategy="afterInteractive">
           {`if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`}
         </Script>
