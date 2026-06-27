@@ -210,29 +210,6 @@ async function dragSheet(page: Page, sheet: Locator, deltaY: number) {
   await page.mouse.up();
 }
 
-async function visibleDialogHeight(page: Page, dialog: Locator) {
-  const dialogBox = await dialog.boundingBox();
-  const viewport = page.viewportSize();
-  expect(dialogBox).not.toBeNull();
-  expect(viewport).not.toBeNull();
-
-  return Math.round(Math.min(dialogBox!.height, viewport!.height - dialogBox!.y));
-}
-
-async function dragVenueDetailSheet(page: Page, dialog: Locator, deltaY: number) {
-  const handle = dialog.locator('[aria-label="Drag venue details"]');
-  const box = await handle.boundingBox();
-  expect(box).not.toBeNull();
-
-  const x = box!.x + box!.width / 2;
-  const y = box!.y + box!.height / 2;
-
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x, y + deltaY, { steps: 10 });
-  await page.mouse.up();
-}
-
 async function expectTopFiveVenues(sheet: Locator) {
   for (const name of topFiveVenueNames) {
     await expect(sheet.getByRole("button", { name: new RegExp(name) })).toBeVisible();
@@ -536,19 +513,23 @@ test.describe("Map bottom sheet", () => {
     await expect.poll(() => selectedPinCount(page), { timeout: 10000 }).toBeGreaterThanOrEqual(1);
   });
 
-  test("sheet snaps to mid when map pin is tapped", async ({ page }) => {
-    const sheet = await openMap(page);
+  test("pin tap opens a bottom venue popup card", async ({ page }) => {
+    await openMap(page);
     await selectZone(page, "South End");
 
     await page.getByRole("button", { name: "Open Map Test Club details" }).click();
 
-    await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeGreaterThan(240);
-    await expect.poll(() => visibleSheetHeight(page, sheet), { timeout: 10000 }).toBeLessThan(340);
+    const popup = page.getByRole("dialog", { name: "Map Test Club venue popup" });
+    await expect(popup).toBeVisible();
+    await expect(popup.getByText("Map Test Club")).toBeVisible();
+    await expect(popup.getByText("night_club")).toBeVisible();
+    await expect(popup.getByText("Open now")).toBeVisible();
+    await expect(popup.getByRole("link", { name: "View venue" })).toHaveAttribute("href", "/venues/map-packed-1");
+    await expect(popup.getByRole("link", { name: "Check in" })).toHaveAttribute("href", "/vibe-check?venueId=map-packed-1");
     await expect.poll(() => selectedPinCount(page), { timeout: 10000 }).toBeGreaterThanOrEqual(1);
-    await expect(sheet.getByRole("button", { name: /Map Test Club/ })).toHaveAttribute("aria-pressed", "true");
   });
 
-  test("pin taps open venue detail sheet with peek, full, and fast-close snaps", async ({ page }) => {
+  test("pin popup dismisses with close button and outside tap", async ({ page }) => {
     await openMap(page);
     await selectZone(page, "South End");
     await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
@@ -564,22 +545,14 @@ test.describe("Map bottom sheet", () => {
 
     await pin.click();
 
-    const detailSheet = page.getByRole("dialog", { name: "Map Test Speakeasy details" });
-    await expect(detailSheet).toBeVisible();
-    await expect(detailSheet.getByText("Closed")).toBeVisible();
-    await expect(detailSheet.getByLabel("Busyness: Quiet")).toBeVisible();
-    await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeGreaterThan(300);
-    await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeLessThan(460);
-    await expect(detailSheet.getByRole("link", { name: "View Venue" })).toHaveCount(0);
+    const popup = page.getByRole("dialog", { name: "Map Test Speakeasy venue popup" });
+    await expect(popup).toBeVisible();
+    await popup.getByRole("button", { name: "Close venue popup" }).click();
+    await expect(popup).toHaveCount(0);
 
-    await dragVenueDetailSheet(page, detailSheet, -420);
-
-    await expect(detailSheet.getByText("Closed now")).toBeVisible();
-    await expect(detailSheet.getByText(/PM/)).toBeVisible();
-    await expect(detailSheet.getByRole("link", { name: "View Venue" }).first()).toBeVisible();
-    await expect.poll(() => visibleDialogHeight(page, detailSheet), { timeout: 10000 }).toBeGreaterThan(600);
-
-    await dragVenueDetailSheet(page, detailSheet, 460);
-    await expect(detailSheet).toHaveCount(0);
+    await pin.click();
+    await expect(popup).toBeVisible();
+    await page.getByRole("button", { name: "Dismiss venue popup" }).click({ position: { x: 12, y: 12 } });
+    await expect(popup).toHaveCount(0);
   });
 });
