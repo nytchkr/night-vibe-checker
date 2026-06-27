@@ -163,6 +163,24 @@ describe("POST /api/check-ins", () => {
     expect(json.error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("requires a venue_id-compatible field", async () => {
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(request("POST", "http://localhost/api/check-ins", { busyness: "packed" }));
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json).toEqual({ error: "venue_id is required." });
+  });
+
+  it("rejects an invalid vibe enum when provided", async () => {
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(request("POST", "http://localhost/api/check-ins", { venueId: "venue-1", vibe: "danger" }));
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json).toEqual({ error: "Invalid vibe." });
+  });
+
   it("inserts an authenticated report and returns the recomputed signal", async () => {
     const venueChain = chain({ data: VENUE });
     const duplicateChain = chain({ data: [] });
@@ -250,6 +268,26 @@ describe("POST /api/check-ins", () => {
     expect(mockUpdateUserScore).toHaveBeenCalledWith("user-123", 20, "streak", "Three-night reporting streak", "simple-check-in-1");
     expect(mockRefreshStreakCount).toHaveBeenCalledWith("user-123");
     expect(mockRecomputeVenueSignal).not.toHaveBeenCalled();
+  });
+
+  it("strips non-allowlist characters from the submitted venue identifier before lookup", async () => {
+    const venueChain = chain({ data: VENUE });
+    const duplicateChain = chain({ data: [] });
+    const insertChain = chain({ data: { id: "simple-check-in-1" } });
+    mockFrom
+      .mockReturnValueOnce(venueChain)
+      .mockReturnValueOnce(duplicateChain)
+      .mockReturnValueOnce(insertChain);
+
+    const { POST } = await import("../check-ins/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/check-ins", {
+        venueId: "place-123'; DROP TABLE check_ins;--",
+      })
+    );
+
+    expect(res.status).toBe(201);
+    expect(venueChain.eq).toHaveBeenCalledWith("place_id", "place-123DROPTABLEcheck_ins--");
   });
 
   it("accepts the canonical place_id, numeric busyness, crowd_feel, and prefer-not gender payload", async () => {

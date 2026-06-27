@@ -120,7 +120,16 @@ describe("POST /api/venue-ratings", () => {
 
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error.code).toBe("VALIDATION_ERROR");
+    expect(json).toEqual({ error: "Invalid rating. Must be 1-5." });
+  });
+
+  it("requires a venue_id in the rating payload", async () => {
+    const { POST } = await import("../venue-ratings/route");
+    const res = await POST(request("POST", "http://localhost/api/venue-ratings", { rating: 4 }));
+
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json).toEqual({ error: "venue_id is required." });
   });
 
   it("rejects ratings submitted for a different user", async () => {
@@ -150,5 +159,25 @@ describe("POST /api/venue-ratings", () => {
     );
     const json = await res.json();
     expect(json.data).toEqual({ venue_id: "venue-1", user_id: "user-123", rating: 4 });
+  });
+
+  it("strips non-allowlist characters from submitted identifiers", async () => {
+    const upsertChain = chain({ data: null });
+    mockFrom.mockReturnValueOnce(upsertChain);
+
+    const { POST } = await import("../venue-ratings/route");
+    const res = await POST(
+      request("POST", "http://localhost/api/venue-ratings", {
+        venue_id: "venue-1'; DROP TABLE ratings;--",
+        user_id: "user-123",
+        rating: 5,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(upsertChain.upsert).toHaveBeenCalledWith(
+      { venue_id: "venue-1DROPTABLEratings--", user_id: "user-123", rating: 5 },
+      { onConflict: "venue_id,user_id" },
+    );
   });
 });

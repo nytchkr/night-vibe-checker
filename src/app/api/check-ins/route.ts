@@ -24,12 +24,13 @@ import { recomputeVenueSignal } from "@/lib/signals";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type { APIResponse, CheckInSummary, ConsumerCheckIn, VenueSignal } from "@/types";
 
-const MAX_VENUE_ID_LENGTH = 160;
+const MAX_VENUE_ID_LENGTH = 200;
 const DUPLICATE_WINDOW_MINUTES = 60;
 const POST_RATE_LIMIT_MAX = 10;
 const POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const USER_POST_RATE_LIMIT_MAX = 10;
 const USER_POST_RATE_LIMIT_WINDOW_MS = 60 * 60_000;
+const WRITE_ID_ALLOWLIST = /[^a-zA-Z0-9_-]/g;
 const PRIVATE_GET_CACHE_HEADERS = {
   "Cache-Control": "private, no-cache",
 };
@@ -45,6 +46,17 @@ const CrowdFeelSchema = z.enum([
   "mixed",
   "dead",
   "packed",
+  "mostly_male",
+  "mostly_female",
+  "balanced",
+]);
+const AllowedVibeValues = new Set([
+  "dead",
+  "moderate",
+  "packed",
+  "chill",
+  "hyped",
+  "mixed",
   "mostly_male",
   "mostly_female",
   "balanced",
@@ -113,6 +125,10 @@ function selectedCrowdFeel(data: z.infer<typeof PostBodySchema>) {
 
 function selectedVenueId(data: z.infer<typeof PostBodySchema>): string {
   return data.venue_id ?? data.place_id ?? data.venueId ?? "";
+}
+
+function sanitizeWriteId(value: string): string {
+  return value.trim().replace(WRITE_ID_ALLOWLIST, "");
 }
 
 function isSimpleCheckIn(data: z.infer<typeof PostBodySchema>): boolean {
@@ -324,7 +340,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const parsed = PostBodySchema.safeParse(body);
+  const candidate = body as Record<string, unknown>;
+  const rawVenueId = candidate.venue_id ?? candidate.place_id ?? candidate.venueId;
+  if (typeof rawVenueId !== "string" || !rawVenueId.trim() || rawVenueId.length > MAX_VENUE_ID_LENGTH) {
+    return NextResponse.json({ error: "venue_id is required." }, { status: 400, headers: userHeaders });
+  }
+  if (candidate.vibe !== undefined && (typeof candidate.vibe !== "string" || !AllowedVibeValues.has(candidate.vibe))) {
+    return NextResponse.json({ error: "Invalid vibe." }, { status: 400, headers: userHeaders });
+  }
+
+  const sanitizedBody = { ...candidate };
+  for (const key of ["venue_id", "place_id", "venueId"]) {
+    if (typeof sanitizedBody[key] === "string") {
+      sanitizedBody[key] = sanitizeWriteId(sanitizedBody[key]);
+    }
+  }
+  if (!sanitizeWriteId(rawVenueId)) {
+    return NextResponse.json({ error: "venue_id is required." }, { status: 400, headers: userHeaders });
+  }
+
+  const parsed = PostBodySchema.safeParse(sanitizedBody);
   if (!parsed.success) {
     return NextResponse.json<APIResponse<never>>(
       {
