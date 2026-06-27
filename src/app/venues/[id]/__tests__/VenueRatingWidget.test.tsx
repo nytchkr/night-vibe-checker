@@ -56,9 +56,11 @@ vi.mock("next/dynamic", async () => {
         const [Comp, setComp] = useState<AnyComponent | null>(() => entry.comp);
         useEffect(() => {
           if (entry.comp) { setComp(() => entry.comp); return; }
-          let cancelled = false;
-          void entry.promise.then(() => { if (!cancelled && entry.comp) setComp(() => entry.comp); });
-          return () => { cancelled = true; };
+          // Poll every 10ms until component resolves (avoids promise-chain race on first render)
+          const id = setInterval(() => {
+            if (entry.comp) { setComp(() => entry.comp); clearInterval(id); }
+          }, 10);
+          return () => clearInterval(id);
         }, []);
         return Comp ? createElement(Comp, props) : null;
       };
