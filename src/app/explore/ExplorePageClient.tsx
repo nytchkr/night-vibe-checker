@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { SearchX, X } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { div as MotionDiv, li as MotionLi, span as MotionSpan } from "framer-motion/client";
 import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
@@ -41,6 +41,8 @@ const AISuggest = dynamic(
   () => import("@/components/AISuggest").then((mod) => mod.AISuggest),
   { ssr: false },
 );
+
+const MotionLink = motion.create(Link);
 
 type UserLocation = { lat: number; lng: number };
 type LocationSortStatus = "idle" | "requesting" | "granted" | "denied" | "unsupported";
@@ -626,6 +628,15 @@ function VenueFeedCard({
     signal.sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
   const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
   const neighborhood = getNeighborhood(venue.lat, venue.lng);
+  const cardHover = prefersReduced
+    ? undefined
+    : {
+        scale: 1.01,
+        boxShadow: "0 0 20px rgba(139,108,255,0.15)",
+      };
+  const cardTap = prefersReduced ? undefined : "tap";
+  const cardVariants = prefersReduced ? undefined : { tap: { scale: 0.98 } };
+  const rippleVariants = prefersReduced ? undefined : { tap: { opacity: 1 } };
 
   return (
     <MotionLi
@@ -640,12 +651,22 @@ function VenueFeedCard({
       }}
       exit={prefersReduced ? undefined : { opacity: 0, y: -6 }}
     >
-      <Link
+      <MotionLink
         href={`/venues/${encodeURIComponent(venue.id)}`}
         onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm hover:-translate-y-0.5 hover:bg-white/[0.05] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
+        className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-colors duration-150 ease-out hover:bg-white/[0.05] active:scale-[0.98] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
+        whileHover={cardHover}
+        whileTap={cardTap}
+        variants={cardVariants}
+        transition={{ duration: 0.15, ease: "easeOut" }}
         aria-label={`Open ${venue.name}`}
       >
+        <MotionSpan
+          className="pointer-events-none absolute inset-0 z-0 bg-[#8B6CFF]/10 opacity-0"
+          variants={rippleVariants}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          aria-hidden="true"
+        />
         {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
         <VenuePhoto
           name={venue.name}
@@ -657,7 +678,7 @@ function VenueFeedCard({
           loading={index < 3 ? undefined : "lazy"}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+        <div className="relative z-[1] flex min-w-0 flex-1 flex-col justify-center gap-2">
           <div className="min-w-0 space-y-1">
             <div className="flex min-w-0 items-start justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -702,7 +723,7 @@ function VenueFeedCard({
           </div>
           {signalConfidenceLabel ? <p className="sr-only">{signalConfidenceLabel}</p> : null}
         </div>
-      </Link>
+      </MotionLink>
     </MotionLi>
   );
 }
