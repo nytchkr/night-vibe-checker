@@ -101,7 +101,7 @@ function TrendingVenueCard({ venue, trendingRank }: { venue: ConsumerVenue; tren
 
 export function TrendingRow() {
   const [venues, setVenues] = useState<ConsumerVenue[] | null>(null);
-  const rerankTimerRef = useRef<number | ReturnType<typeof setTimeout> | null>(null);
+  const rerankTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
