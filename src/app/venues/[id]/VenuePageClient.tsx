@@ -7,6 +7,7 @@ import NextImage from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
+import { motion } from "framer-motion";
 import { ArrowLeft, Check, ChevronDown, ChevronLeft, Clock, Globe, MapPin, Phone, X } from "lucide-react";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
@@ -261,7 +262,19 @@ function LiveCheckInCountBadge({ count }: { count: number }) {
       style={{ color: "#00F5D4" }}
       aria-label={`${count} here tonight`}
     >
-      {count} here tonight
+      <span className="sr-only" aria-hidden="true">
+        {count} here tonight
+      </span>
+      <motion.span
+        key={count}
+        aria-hidden="true"
+        initial={{ scale: 1.3, color: "#8B6CFF" }}
+        animate={{ scale: 1, color: "#ffffff" }}
+        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+      >
+        {count}
+      </motion.span>{" "}
+      here tonight
     </span>
   );
 }
