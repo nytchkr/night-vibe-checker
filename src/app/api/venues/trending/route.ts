@@ -40,7 +40,11 @@ const VENUE_SELECT_LEGACY = `
 
 export const dynamic = "force-dynamic";
 
-const DYNAMIC_HEADERS = {
+const EDGE_CACHE_HEADERS = {
+  "Cache-Control": "s-maxage=120, stale-while-revalidate=600",
+};
+
+const NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store",
 };
 
@@ -150,7 +154,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         error: { code: "DB_ERROR", message: "Could not load recent check-ins." },
         meta: { cached: false, generatedAt, requestId },
       },
-      { status: 500, headers: { ...headers, ...DYNAMIC_HEADERS } }
+      { status: 500, headers: { ...headers, ...NO_STORE_HEADERS } }
     );
   }
 
@@ -169,7 +173,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         data: { venues: [] },
         meta: { cached: false, generatedAt, requestId },
       },
-      { headers: { ...headers, ...DYNAMIC_HEADERS } }
+      { headers: { ...headers, ...EDGE_CACHE_HEADERS } }
     );
   }
 
@@ -202,7 +206,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         error: { code: "DB_ERROR", message: "Could not load trending venues." },
         meta: { cached: false, generatedAt, requestId },
       },
-      { status: 500, headers: { ...headers, ...DYNAMIC_HEADERS } }
+      { status: 500, headers: { ...headers, ...NO_STORE_HEADERS } }
     );
   }
 
@@ -238,6 +242,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       data: { venues },
       meta: { cached: false, generatedAt, requestId },
     },
-    { headers: { ...headers, ...DYNAMIC_HEADERS } }
+    { headers: { ...headers, ...EDGE_CACHE_HEADERS } }
   );
 }

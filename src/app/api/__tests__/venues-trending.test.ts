@@ -138,7 +138,7 @@ describe("GET /api/venues/trending", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=600");
     expect(json.status).toBe("success");
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
       "venue-d",
@@ -178,6 +178,7 @@ describe("GET /api/venues/trending", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=600");
     expect(json.status).toBe("success");
     expect(json.data.venues).toEqual([]);
     expect(mockFrom).toHaveBeenCalledTimes(1);
