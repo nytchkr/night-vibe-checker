@@ -1,10 +1,12 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { LAUNCH_ZONES } from "@/lib/launchZone";
 
 type VenueRow = {
   id: string;
   place_id: string;
   name: string;
   address: string;
+  zone_id: string | null;
   besttime_venue_id: string | null;
 };
 
@@ -30,6 +32,7 @@ export type BestTimePrediction = {
 type BusynessSource = "live" | "forecast";
 type BestTimeRegistration = { venueId: string; currentForecast: number | null };
 const NO_BESTTIME_FORECAST_REASON = "No BestTime forecast available";
+const BESTTIME_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
 function apiKey(): string {
   const key = process.env.BESTTIME_API_KEY;
@@ -269,13 +272,19 @@ async function writeUnavailableBusyness(venue: VenueRow, refreshedAt: string) {
   if (signalError) throw signalError;
 }
 
-export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
-  const { data: venues, error } = await supabaseAdmin
+export async function refreshBusyness(limit?: number): Promise<RefreshResult[]> {
+  let query = supabaseAdmin
     .from("venues")
-    .select("id, place_id, name, address, besttime_venue_id")
+    .select("id, place_id, name, address, zone_id, besttime_venue_id")
     .eq("hidden", false)
-    .order("last_busyness_refresh", { ascending: true, nullsFirst: true })
-    .limit(limit);
+    .in("zone_id", BESTTIME_ZONE_IDS)
+    .order("last_busyness_refresh", { ascending: true, nullsFirst: true });
+
+  if (limit !== undefined && Number.isFinite(limit) && limit > 0) {
+    query = query.limit(limit);
+  }
+
+  const { data: venues, error } = await query;
 
   if (error) throw error;
 
@@ -285,7 +294,7 @@ export async function refreshBusyness(limit = 50): Promise<RefreshResult[]> {
 export async function refreshBusynessForVenue(venueId: string): Promise<RefreshResult> {
   const { data: venue, error } = await supabaseAdmin
     .from("venues")
-    .select("id, place_id, name, address, besttime_venue_id")
+    .select("id, place_id, name, address, zone_id, besttime_venue_id")
     .eq("id", venueId)
     .single();
 
