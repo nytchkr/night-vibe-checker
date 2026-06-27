@@ -83,6 +83,7 @@ describe("inferOpenNow", () => {
     expect(
       inferOpenNow("bar", { day: 1, hour: 18, minute: 0 }, { weekdayDescriptions: ["Monday: Open 24 hours"] })
     ).toBe(true);
+    expect(inferOpenNow("bar", { day: 3, hour: 4, minute: 0 }, ["Open 24 hours"])).toBe(true);
   });
 });
 

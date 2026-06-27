@@ -120,9 +120,10 @@ function isCurrentDayTwentyFourHours(openingHours: unknown, charlotteTime: Charl
   const currentDay = WEEKDAYS_LONG[charlotteTime.day]?.toLowerCase();
   return hoursText.some((line) => {
     if (!isTwentyFourHourText(line)) return false;
+    if (!line.includes(":")) return true;
     const [rawDay] = line.split(":");
     const day = rawDay?.trim().toLowerCase();
-    return !day || day === currentDay;
+    return day === currentDay;
   });
 }
 
