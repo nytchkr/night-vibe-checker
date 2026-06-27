@@ -48,14 +48,14 @@ export function MFBar({ malePercent, sampleSize, source, showWhenRatioPresent = 
           className="h-full bg-[#8B6CFF]"
           initial={prefersReducedMotion ? false : { width: "0%" }}
           animate={{ width: `${male}%` }}
-          transition={{ duration: prefersReducedMotion ? 0 : 0.55, ease: "easeOut" }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut" }}
         />
         <motion.div
           layoutId={`${layoutId}-female`}
           className="h-full flex-1 bg-[#F0568C]"
           initial={prefersReducedMotion ? false : { width: "0%" }}
           animate={{ width: `${female}%` }}
-          transition={{ duration: prefersReducedMotion ? 0 : 0.55, ease: "easeOut", delay: prefersReducedMotion ? 0 : 0.04 }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.18, ease: "easeOut", delay: 0 }}
         />
       </div>
       <div className="mt-2 flex items-center justify-between gap-3 text-xs font-semibold text-[#9CA2AE]">

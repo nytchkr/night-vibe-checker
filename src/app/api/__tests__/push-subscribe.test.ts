@@ -15,10 +15,10 @@ vi.mock("@/lib/supabase", () => ({
   },
 }));
 
-function request(method: string, body: unknown) {
+function request(method: string, body: unknown, extraHeaders?: Record<string, string>) {
   return new NextRequest("http://localhost/api/push/subscribe", {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
   });
 }
@@ -78,6 +78,25 @@ describe("POST /api/push/subscribe", () => {
       }),
       { onConflict: "endpoint" },
     );
+  });
+
+  it("rate limits subscription attempts by IP", async () => {
+    const { POST } = await import("../push/subscribe/route");
+
+    for (let i = 0; i < 5; i += 1) {
+      const res = await POST(request("POST", { endpoint: "not-a-url", keys: { auth: "", p256dh: "" } }, { "x-forwarded-for": "203.0.113.77" }));
+      expect(res.status).toBe(400);
+      expect(res.headers.get("X-RateLimit-Limit")).toBe("5");
+    }
+
+    const res = await POST(request("POST", SUBSCRIPTION, { "x-forwarded-for": "203.0.113.77" }));
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBeTruthy();
+    expect(res.headers.get("X-RateLimit-Limit")).toBe("5");
+    expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
+    expect(json.error).toBe("Too many subscription attempts. Try again later.");
   });
 });
 

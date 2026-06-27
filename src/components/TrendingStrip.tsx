@@ -22,7 +22,7 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
   return (
     <Link
       href={`/venues/${encodeURIComponent(venue.id)}`}
-      className="flex min-h-[142px] w-[156px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.05] active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+      className="venue-card-motion flex min-h-[142px] w-[156px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm hover:-translate-y-0.5 hover:bg-white/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       aria-label={`Open ${venue.name}`}
     >
       <VenuePhoto
