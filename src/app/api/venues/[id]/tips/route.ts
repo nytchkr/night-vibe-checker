@@ -26,12 +26,16 @@ const RawVenueTipSchema = z.object({
   id: z.string(),
   tip_text: z.string(),
   created_at: z.string(),
+  helpful_count: z.number().int().nonnegative(),
+  author_initials: z.string(),
 });
 
 export type VenueTip = {
   id: string;
   tip_text: string;
   created_at: string;
+  helpful_count: number;
+  author_initials: string;
 };
 
 function meta(requestId: string, cached = false) {
@@ -66,11 +70,29 @@ async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> 
   return data.id as string;
 }
 
+function authorInitials(value: unknown): string {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return "NV";
+
+  const base = raw.includes("@") ? raw.split("@")[0] : raw;
+  const initials = base
+    .split(/[\s._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  return initials || "NV";
+}
+
 function mapTip(row: Record<string, unknown>): VenueTip {
   return RawVenueTipSchema.parse({
     id: row.id as string,
     tip_text: String(row.tip_text ?? row.tip ?? "").trim(),
     created_at: row.created_at as string,
+    helpful_count: Number(row.helpful_count ?? 0),
+    author_initials: authorInitials(row.user_id),
   });
 }
 
@@ -108,7 +130,7 @@ export async function GET(
 
   let { data, error } = await supabaseAdmin
     .from("venue_tips")
-    .select("id, venue_id, user_id, tip_text, created_at")
+    .select("id, venue_id, user_id, tip_text, helpful_count, created_at")
     .eq("venue_id", venueId)
     .order("created_at", { ascending: false })
     .limit(TIP_LIMIT);
@@ -118,7 +140,7 @@ export async function GET(
     if (msg.includes("tip_text") || msg.includes("column")) {
       const fallback = await supabaseAdmin
         .from("venue_tips")
-        .select("id, venue_id, user_id, tip, created_at")
+        .select("id, venue_id, user_id, tip, helpful_count, created_at")
         .eq("venue_id", venueId)
         .order("created_at", { ascending: false })
         .limit(TIP_LIMIT);
@@ -213,7 +235,7 @@ export async function POST(
   const { data, error } = await supabaseAdmin
     .from("venue_tips")
     .insert({ venue_id: venueId, user_id: userId, tip_text: parsed.data.tip_text, tip: parsed.data.tip_text })
-    .select("id, venue_id, user_id, tip_text, created_at")
+    .select("id, venue_id, user_id, tip_text, helpful_count, created_at")
     .single();
 
   if (error || !data) {

@@ -85,6 +85,7 @@ describe("GET /api/venues/[id]/tips", () => {
           venue_id: "venue-uuid",
           user_id: "user-1",
           tip_text: "Sit near the back patio after 10.",
+          helpful_count: 4,
           created_at: "2026-06-21T00:00:00.000Z",
         },
       ],
@@ -103,6 +104,8 @@ describe("GET /api/venues/[id]/tips", () => {
       {
         id: "tip-1",
         tip_text: "Sit near the back patio after 10.",
+        helpful_count: 4,
+        author_initials: "U1",
         created_at: "2026-06-21T00:00:00.000Z",
       },
     ]);
@@ -138,6 +141,7 @@ describe("POST /api/venues/[id]/tips", () => {
         venue_id: "venue-uuid",
         user_id: "user-123",
         tip_text: "Go before 10 if you want a shorter line.",
+        helpful_count: 0,
         created_at: "2026-06-21T00:00:00.000Z",
       },
     });
@@ -162,6 +166,8 @@ describe("POST /api/venues/[id]/tips", () => {
     expect(json).toEqual({
       id: "tip-1",
       tip_text: "Go before 10 if you want a shorter line.",
+      helpful_count: 0,
+      author_initials: "U1",
       created_at: "2026-06-21T00:00:00.000Z",
     });
   });
