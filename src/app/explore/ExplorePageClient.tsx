@@ -12,7 +12,6 @@ import type { Session } from "@supabase/supabase-js";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
-import { prefetchRoute } from "@/components/RoutePrefetch";
 import SkeletonCard from "@/components/SkeletonCard";
 import {
   ExploreSortFilter,
@@ -811,7 +810,6 @@ export function ExplorePageClient() {
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const { savedIds } = useSavedVenues();
   const hasLoadedVenuesRef = useRef(false);
-  const hasPrefetchedInitialVenuesRef = useRef(false);
   const prefetchedVenueIdsRef = useRef<Set<string>>(new Set());
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
@@ -1079,16 +1077,6 @@ export function ExplorePageClient() {
       return a.name.localeCompare(b.name);
     });
   }, [debouncedSearchQuery, effectiveExploreSort, exploreFilters, savedIds, trendingVenueIds, userLocation, venues]);
-
-  useEffect(() => {
-    if (hasPrefetchedInitialVenuesRef.current || sortedVenues.length === 0) return;
-    hasPrefetchedInitialVenuesRef.current = true;
-
-    for (const venue of sortedVenues.slice(0, 3)) {
-      prefetchedVenueIdsRef.current.add(venue.id);
-      prefetchRoute(router, `/venues/${encodeURIComponent(venue.id)}`);
-    }
-  }, [router, sortedVenues]);
 
   const prefetchVenueDetail = useCallback((venueId: string) => {
     if (prefetchedVenueIdsRef.current.has(venueId)) return;

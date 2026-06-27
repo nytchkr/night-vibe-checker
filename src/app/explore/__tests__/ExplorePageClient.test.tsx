@@ -18,10 +18,12 @@ vi.mock("next/link", async () => {
     default: function LinkStub({
       children,
       href,
+      prefetch: _prefetch,
       ...props
     }: {
       children: React.ReactNode;
       href: string;
+      prefetch?: boolean;
       [key: string]: unknown;
     }) {
       return React.createElement("a", { href, ...props }, children);
@@ -217,8 +219,7 @@ function venueResults() {
 
 async function searchFor(query: string) {
   const input = screen.getByRole("searchbox", { name: "Search venues" });
-  await userEvent.clear(input);
-  await userEvent.type(input, query);
+  fireEvent.change(input, { target: { value: query } });
   await waitFor(() => expect(window.location.search).toBe(`?q=${encodeURIComponent(query)}`));
   return input as HTMLInputElement;
 }

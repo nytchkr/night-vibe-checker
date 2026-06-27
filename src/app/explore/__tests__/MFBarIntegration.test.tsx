@@ -18,10 +18,12 @@ vi.mock("next/link", async () => {
     default: function LinkStub({
       children,
       href,
+      prefetch: _prefetch,
       ...props
     }: {
       children: React.ReactNode;
       href: string;
+      prefetch?: boolean;
       [key: string]: unknown;
     }) {
       return React.createElement("a", { href, ...props }, children);
