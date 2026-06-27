@@ -185,7 +185,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.data.checkIn.busyness).toBe("packed");
     expect(json.data.checkIn.crowdFeel).toBe("mostly_male");
@@ -222,7 +222,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     const json = await res.json();
     expect(json).toMatchObject({
       success: true,
@@ -273,7 +273,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(venueChain.eq).toHaveBeenCalledWith("place_id", "place-123");
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -306,7 +306,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         reporter_gender: null,
@@ -336,7 +336,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(insertChain.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         gender_self_report: null,
@@ -372,7 +372,7 @@ describe("POST /api/check-ins", () => {
       })
     );
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(mockRpc).toHaveBeenCalledWith("ensure_check_ins_gender_self_report_column");
     expect(mockRpc).toHaveBeenCalledWith("ensure_check_ins_gender_column");
     expect(retryInsertChain.insert).toHaveBeenCalledWith(

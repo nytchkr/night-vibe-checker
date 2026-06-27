@@ -234,6 +234,9 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
   return (
     <>
       <div className="relative w-full">
+        <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+          {loading ? `Checking in at ${venueName}` : checkedIn ? `Checked in at ${venueName}` : error ? `Check-in failed at ${venueName}` : ""}
+        </span>
         <button
           type="button"
           onClick={() => setConfirmOpen(true)}
@@ -265,6 +268,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
             <motion.div
               key={rewardAnimation.id}
               aria-live="polite"
+              aria-atomic="true"
               className="pointer-events-none absolute inset-x-0 -top-4 z-20 flex flex-col items-center gap-1"
               initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
               animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: -34, scale: 1 }}

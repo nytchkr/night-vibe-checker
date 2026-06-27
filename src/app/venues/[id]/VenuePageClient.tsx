@@ -507,10 +507,9 @@ function VenuePhotoCarousel({
                 src={photo}
                 alt={`${venueName} photo ${index + 1}`}
                 fill
-                sizes="100vw"
+                sizes="(max-width: 768px) 100vw, 768px"
                 className="object-cover"
-                loading={index === 0 ? undefined : "lazy"}
-                priority={index === 0}
+                loading="lazy"
                 placeholder="blur"
                 blurDataURL={VENUE_PHOTO_BLUR_DATA_URL}
                 onError={() => {
@@ -525,7 +524,8 @@ function VenuePhotoCarousel({
           name={venueName}
           photoUrl={fallbackPhotoUrl}
           className="h-full w-full"
-          sizes="100vw"
+          sizes="(max-width: 768px) 100vw, 768px"
+          loading="lazy"
         />
       )}
 
@@ -1098,6 +1098,7 @@ export function VenuePageClient({
                 imageClassName="scale-[1.01]"
                 sizes="100vw"
                 priority
+                fetchPriority="high"
               />
               <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/15 to-[#0A0A0E]" aria-hidden="true" />
               <button

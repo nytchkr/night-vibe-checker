@@ -1312,6 +1312,7 @@ export function VenueMap({
     <main
       className="relative w-full overflow-hidden bg-[#0A0A0E] lg:h-screen"
       style={mapViewportStyle}
+      aria-label="Venue map"
     >
       {(pulling || refreshing) && (
         <div

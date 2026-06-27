@@ -70,7 +70,7 @@ function BusynessBar({ color, label, value }: { color: string; label: string; va
   const width = value == null || !Number.isFinite(value) ? 0 : Math.max(0, Math.min(100, value));
 
   return (
-    <div className="mt-3" aria-label={`Busyness: ${label}`}>
+    <div className="mt-3" role="status" aria-live="polite" aria-atomic="true" aria-label={`Busyness: ${label}`}>
       <div className="flex items-center justify-between gap-3">
         <span className="text-[11px] font-black uppercase text-white/45">Busyness</span>
         <span className="text-xs font-black" style={{ color }}>
@@ -355,7 +355,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
             <VenuePhoto
               name={venue.name}
               photoUrl={photoUrl}
-              alt=""
+              alt={`${venue.name} venue photo`}
               className={`${isPeek ? "mb-3 h-[min(24dvh,12rem)]" : "mb-4 h-40"} w-full rounded-[14px] border border-white/[0.08]`}
               sizes="(max-width: 640px) calc(100vw - 2rem), 512px"
             />

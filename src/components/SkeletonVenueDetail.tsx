@@ -9,7 +9,7 @@ function SkeletonBlock({ className }: { className: string }) {
 
 export function SkeletonVenueDetail() {
   return (
-    <div className="min-h-screen-safe bg-[#0A0A0E] pb-56" role="status" aria-label="Loading venue">
+    <div className="min-h-screen-safe bg-[#0A0A0E] pb-56" role="status" aria-label="Loading venue" aria-live="polite" aria-atomic="true">
       <div className="w-full border-b border-white/[0.06] bg-[#0A0A0E]">
         <div className="relative min-h-[340px] w-full overflow-hidden bg-white/[0.06] sm:min-h-[420px]">
           <SkeletonBlock className="absolute inset-0 h-full w-full rounded-none" />

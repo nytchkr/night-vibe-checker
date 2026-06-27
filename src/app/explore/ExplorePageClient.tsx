@@ -464,16 +464,20 @@ function ExploreQuietEmptyState() {
 
 function ExploreNoMatchState({ onClear }: { onClear: () => void }) {
   return (
-    <div className="rounded-[18px] border border-[#8B6CFF]/25 bg-[linear-gradient(135deg,rgba(139,108,255,0.12),rgba(240,86,140,0.08))] px-6 py-10 text-center shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
-      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#F0568C]/35 bg-[#F0568C]/15 text-[#F0568C] shadow-[0_0_24px_rgba(240,86,140,0.18)]">
-        <SearchX aria-hidden="true" className="h-5 w-5" strokeWidth={2.1} />
-      </span>
-      <h2 className="mt-4 text-[17px] font-black leading-6 text-white">No spots found.</h2>
-      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">Try a different filter.</p>
+    <div className="rounded-[18px] border border-[#8B6CFF]/25 bg-[linear-gradient(135deg,rgba(139,108,255,0.12),rgba(0,245,212,0.07)_48%,rgba(240,86,140,0.08))] px-6 py-9 text-center shadow-[0_18px_44px_rgba(0,0,0,0.28)]">
+      <div className="relative mx-auto h-20 w-24" aria-hidden="true">
+        <span className="absolute left-2 top-5 h-12 w-12 rounded-2xl border border-[#00F5D4]/35 bg-[#00F5D4]/10 shadow-[0_0_28px_rgba(0,245,212,0.16)]" />
+        <span className="absolute right-2 top-2 h-14 w-14 rounded-full border border-[#F0568C]/35 bg-[#F0568C]/15 shadow-[0_0_28px_rgba(240,86,140,0.18)]" />
+        <span className="absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#8B6CFF]/45 bg-[#8B6CFF]/20 text-[#F4F5F8] shadow-[0_0_24px_rgba(139,108,255,0.22)]">
+          <SearchX className="h-5 w-5" strokeWidth={2.1} />
+        </span>
+      </div>
+      <h2 className="mt-3 text-[17px] font-black leading-6 text-white">No spots match your filters</h2>
+      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">Reset the filters to see what&apos;s live tonight.</p>
       <button
         type="button"
         onClick={onClear}
-        className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         Clear filters
       </button>

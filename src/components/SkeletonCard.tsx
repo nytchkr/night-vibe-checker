@@ -4,6 +4,8 @@ export default function SkeletonCard() {
       className="relative flex min-h-[236px] overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-4 shadow-lg shadow-black/10 backdrop-blur-sm sm:min-h-[126px] sm:flex-row sm:items-center"
       role="status"
       aria-label="Loading venue card"
+      aria-live="polite"
+      aria-atomic="true"
     >
       <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-white/[0.07] to-transparent" aria-hidden="true" />
       <div className="relative flex w-full flex-col gap-3 sm:flex-row sm:items-center">

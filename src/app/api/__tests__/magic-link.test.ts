@@ -28,7 +28,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/auth/magic-link", () => {
-  it("validates the email payload", async () => {
+  it("rejects invalid email payloads", async () => {
     const { POST } = await import("../auth/magic-link/route");
     const res = await POST(request({ email: "not-an-email" }));
     const json = await res.json();
@@ -38,7 +38,7 @@ describe("POST /api/auth/magic-link", () => {
     expect(mockSignInWithOtp).not.toHaveBeenCalled();
   });
 
-  it("sends a magic link with a safe callback return URL", async () => {
+  it("accepts a valid email and sends a magic link with a safe callback return URL", async () => {
     const { POST } = await import("../auth/magic-link/route");
     const res = await POST(request({ email: "USER@Example.COM", returnTo: "/venues/abc" }));
     const json = await res.json();
@@ -57,7 +57,7 @@ describe("POST /api/auth/magic-link", () => {
     });
   });
 
-  it("rate limits magic link requests per normalized email", async () => {
+  it("applies the magic link rate limit per normalized email", async () => {
     const { POST } = await import("../auth/magic-link/route");
 
     for (let i = 0; i < 3; i += 1) {

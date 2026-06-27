@@ -227,7 +227,7 @@ test.describe("Explore tab", () => {
 
     await searchBox.fill("Explore Ave");
 
-    await expect(page.getByText("No venues match")).toBeVisible();
+    await expect(page.getByText("No spots match your filters")).toBeVisible();
     await expect(page.getByRole("button", { name: "Clear filters" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Open Pulse Room", exact: true })).toHaveCount(0);
   });
@@ -314,7 +314,7 @@ test.describe("Explore tab", () => {
 
     await page.getByRole("button", { name: "Restaurants" }).click();
 
-    await expect(page.getByText("No venues match")).toBeVisible();
+    await expect(page.getByText("No spots match your filters")).toBeVisible();
 
     await page.getByRole("button", { name: "Clear filters" }).click();
 

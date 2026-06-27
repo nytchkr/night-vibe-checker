@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Flame } from "lucide-react";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 const VIOLET = "#8B6CFF";
 const PINK = "#F0568C";
+const TRENDING_RERANK_DEBOUNCE_MS = 450;
+const CHECK_IN_CREATED_EVENT = "nightvibe:check-in-created";
 
 function clampBusyness(value: number | null | undefined): number | null {
   if (value == null || !Number.isFinite(value)) return null;
@@ -32,10 +35,20 @@ function TrendingSkeleton() {
   );
 }
 
-function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
+function TrendingBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-[#F0568C]/40 bg-[#F0568C]/12 px-2 py-1 text-[10px] font-black uppercase leading-none text-[#F0568C]">
+      <Flame className="h-3 w-3 fill-[#F0568C] text-[#F0568C]" aria-hidden="true" />
+      Trending
+    </span>
+  );
+}
+
+function TrendingVenueCard({ venue, trendingRank }: { venue: ConsumerVenue; trendingRank: number }) {
   const busyness = clampBusyness(venue.signal?.busyness0To100);
   const isLive = venue.signal?.busynessSource === "live";
   const barWidth = busyness ?? 0;
+  const showTrendingBadge = trendingRank <= 3;
 
   return (
     <Link
@@ -47,13 +60,16 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
         name={venue.name}
         photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
         className="h-16 w-full border-b border-white/[0.06]"
-        sizes="160px"
+        sizes="(max-width: 640px) 160px, 180px"
+        loading="lazy"
       />
       <div className="flex items-start justify-between gap-2 px-3 pt-3">
         <span className="rounded-full border border-white/[0.08] bg-white/[0.06] px-2 py-1 text-[11px] font-black leading-none text-white/70">
           {busyness == null ? "No data" : `${busyness}%`}
         </span>
-        {isLive ? (
+        {showTrendingBadge ? (
+          <TrendingBadge />
+        ) : isLive ? (
           <span
             className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black leading-none text-[#0A0A0E]"
             style={{ backgroundColor: PINK }}
@@ -85,6 +101,7 @@ function TrendingVenueCard({ venue }: { venue: ConsumerVenue }) {
 
 export function TrendingRow() {
   const [venues, setVenues] = useState<ConsumerVenue[] | null>(null);
+  const rerankTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,19 +111,30 @@ export function TrendingRow() {
         const res = await fetch("/api/venues/trending", { cache: "no-store", signal: controller.signal });
         if (!res.ok) throw new Error(`${res.status}`);
         const json = (await res.json()) as APIResponse<{ venues?: ConsumerVenue[] }>;
-        setVenues(Array.isArray(json.data?.venues) ? json.data.venues.slice(0, 5) : []);
+        const nextVenues = Array.isArray(json.data?.venues) ? json.data.venues.slice(0, 5) : [];
+        if (rerankTimerRef.current) window.clearTimeout(rerankTimerRef.current);
+        rerankTimerRef.current = window.setTimeout(() => {
+          setVenues(nextVenues);
+          rerankTimerRef.current = null;
+        }, TRENDING_RERANK_DEBOUNCE_MS);
       } catch {
         if (!controller.signal.aborted) setVenues([]);
       }
     }
 
     void loadTrending();
-    return () => controller.abort();
+    window.addEventListener(CHECK_IN_CREATED_EVENT, loadTrending);
+
+    return () => {
+      controller.abort();
+      window.removeEventListener(CHECK_IN_CREATED_EVENT, loadTrending);
+      if (rerankTimerRef.current) window.clearTimeout(rerankTimerRef.current);
+    };
   }, []);
 
   return (
     <section className="space-y-3" aria-label="Trending Now">
-      <h2 className="font-display text-sm font-black tracking-tight text-white">Trending Now 🔥</h2>
+      <h2 className="font-display text-sm font-black tracking-tight text-white">Trending Now</h2>
       {venues === null ? (
         <TrendingSkeleton />
       ) : venues.length === 0 ? (
@@ -115,8 +143,8 @@ export function TrendingRow() {
         </div>
       ) : (
         <div className="scroll-touch flex snap-x gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
-          {venues.map((venue) => (
-            <TrendingVenueCard key={venue.id} venue={venue} />
+          {venues.map((venue, index) => (
+            <TrendingVenueCard key={venue.id} venue={venue} trendingRank={index + 1} />
           ))}
         </div>
       )}

@@ -176,6 +176,18 @@ export function NotificationsClient({ initialPrefs }: NotificationsClientProps) 
           )}
         </Button>
       </section>
+
+      <section aria-label="Recent notifications">
+        <h2 className="mb-3 font-display text-[11px] font-black uppercase tracking-[0.15em] text-white/40">Recent alerts</h2>
+        <div className="rounded-2xl border border-[#00F5D4]/15 bg-[#00F5D4]/[0.055] px-5 py-7 text-center shadow-[0_18px_44px_rgba(0,0,0,0.22)]">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_24px_rgba(139,108,255,0.18)]">
+            <Bell className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <p className="mx-auto mt-4 max-w-xs text-sm font-semibold leading-6 text-white/70">
+            Nothing yet — we&apos;ll notify you when your spots get busy
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

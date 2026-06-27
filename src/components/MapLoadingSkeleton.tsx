@@ -20,6 +20,8 @@ export function MapLoadingSkeleton({
       style={style ?? getMapViewportStyle()}
       role="status"
       aria-label="Loading map"
+      aria-live="polite"
+      aria-atomic="true"
     >
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.045)_1px,transparent_1px)] bg-[size:42px_42px] opacity-60" />
       <div className="absolute left-4 top-4 h-10 w-40 animate-pulse rounded-full bg-white/[0.06]" />

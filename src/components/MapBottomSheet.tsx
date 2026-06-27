@@ -41,7 +41,7 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
   const value = venue.signal?.busyness0To100;
   if (value == null || !Number.isFinite(value)) {
     return (
-      <span className="flex shrink-0 flex-col items-end gap-1">
+      <span className="flex shrink-0 flex-col items-end gap-1" role="status" aria-live="polite" aria-atomic="true">
         <NoDataChip />
       </span>
     );
@@ -51,7 +51,7 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
   const source = venue.signal?.busynessSource ?? null;
   const computedAt = venue.signal?.computedAt ?? null;
   return (
-    <span className="flex shrink-0 flex-col items-end gap-1">
+    <span className="flex shrink-0 flex-col items-end gap-1" role="status" aria-live="polite" aria-atomic="true">
       <span
         className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-black text-white/55"
         style={state.level ? { borderColor: `${state.color}59`, backgroundColor: `${state.color}26`, color: state.color } : undefined}
@@ -349,6 +349,7 @@ export default function MapBottomSheet({
     <section
       ref={sheetRef}
       aria-label={`${cityName} venues`}
+      role="region"
       className="bottom-sheet scroll-touch gpu-layer absolute inset-x-0 bottom-0 z-[1100] h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] max-h-[85dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
@@ -392,7 +393,7 @@ export default function MapBottomSheet({
           )}
 
           {loading ? (
-            <div className="space-y-3" role="status" aria-label="Loading map venues">
+            <div className="space-y-3" role="status" aria-label="Loading map venues" aria-live="polite" aria-atomic="true">
               {Array.from({ length: snap === "collapsed" ? 2 : 4 }).map((_, index) => (
                 <VenueRowSkeleton key={index} />
               ))}

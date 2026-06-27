@@ -437,7 +437,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         level: userScore?.level ?? "newcomer",
       },
       meta,
-    }, { status: 200, headers: userHeaders });
+    }, { status: 201, headers: userHeaders });
   }
 
   const reporterGender = await getReporterGender(userId);
@@ -510,7 +510,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json<APIResponse<{ checkIn: ConsumerCheckIn; signal?: VenueSignal }>>(
     { status: "success", data: { checkIn: mapCheckIn(data as Record<string, unknown>), signal }, meta },
-    { status: 200, headers: userHeaders }
+    { status: 201, headers: userHeaders }
   );
 }
 

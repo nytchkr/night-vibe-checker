@@ -257,7 +257,7 @@ test.describe("Map tab", () => {
     await mockVenues(page, 2000);
 
     await page.goto("/map", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("Loading map...")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Loading Charlotte nightlife...")).toBeVisible({ timeout: 10000 });
     // VenueMap is dynamically imported (SSR=false) — Leaflet takes time to hydrate in headless
     await page.waitForSelector(".leaflet-container", { timeout: 25000 });
     await expect(page.locator(".leaflet-container")).toBeVisible();

@@ -25,7 +25,7 @@ export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null
 
   if (value == null || !Number.isFinite(value)) {
     return (
-      <div className={className}>
+      <div className={className} role="status" aria-live="polite" aria-atomic="true">
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-semibold text-[#9CA2AE]">No crowd data yet</span>
         </div>
@@ -37,7 +37,7 @@ export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null
   const config = getBusynessConfig(percent);
 
   return (
-    <div className={className}>
+    <div className={className} role="status" aria-live="polite" aria-atomic="true">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-semibold" style={{ color: config.color }}>
           {config.label}

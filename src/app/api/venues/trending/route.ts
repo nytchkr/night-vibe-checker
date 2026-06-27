@@ -14,6 +14,11 @@ import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
 
 const TRENDING_LIMIT = 5;
 const TRENDING_WINDOW_MS = 24 * 60 * 60 * 1000;
+const RECENT_SURGE_WINDOW_MS = 2 * 60 * 60 * 1000;
+const VELOCITY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const RECENT_SURGE_WEIGHT = 3;
+const OPEN_NOW_SCORE_BOOST = 1.25;
+const CLOSED_SCORE_PENALTY = 0.85;
 const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
 const VENUE_SELECT = `
@@ -50,6 +55,14 @@ const NO_STORE_HEADERS = {
 
 type RecentCheckInRow = {
   venue_id: string | null;
+  created_at?: string | null;
+};
+
+type VenueTrendStats = {
+  weightedRecentScore: number;
+  last2Hours: number;
+  last24Hours: number;
+  sevenDays: number;
 };
 
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
@@ -121,6 +134,61 @@ function getClientIp(req: NextRequest): string {
   );
 }
 
+function isValidDateTime(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function buildTrendStats(rows: RecentCheckInRow[], nowMs: number): Map<string, VenueTrendStats> {
+  const statsByVenue = new Map<string, VenueTrendStats>();
+  const recentCutoffMs = nowMs - TRENDING_WINDOW_MS;
+  const surgeCutoffMs = nowMs - RECENT_SURGE_WINDOW_MS;
+
+  for (const row of rows) {
+    const venueId = typeof row.venue_id === "string" ? row.venue_id.trim() : "";
+    if (!venueId || !isValidDateTime(row.created_at)) continue;
+
+    const createdAtMs = Date.parse(row.created_at);
+    const stats = statsByVenue.get(venueId) ?? {
+      weightedRecentScore: 0,
+      last2Hours: 0,
+      last24Hours: 0,
+      sevenDays: 0,
+    };
+
+    stats.sevenDays += 1;
+    if (createdAtMs >= recentCutoffMs) {
+      stats.last24Hours += 1;
+      stats.weightedRecentScore += createdAtMs >= surgeCutoffMs ? RECENT_SURGE_WEIGHT : 1;
+    }
+    if (createdAtMs >= surgeCutoffMs) {
+      stats.last2Hours += 1;
+    }
+
+    statsByVenue.set(venueId, stats);
+  }
+
+  return statsByVenue;
+}
+
+function getVelocityScore(stats: VenueTrendStats): number {
+  if (stats.last2Hours === 0) return 0;
+  const currentHourlyRate = stats.last2Hours / 2;
+  const sevenDayHourlyAverage = stats.sevenDays / (7 * 24);
+  if (sevenDayHourlyAverage <= 0) return stats.last2Hours;
+  return Math.min(6, currentHourlyRate / sevenDayHourlyAverage);
+}
+
+function getOpenNowMultiplier(openNow: boolean | null): number {
+  if (openNow === true) return OPEN_NOW_SCORE_BOOST;
+  if (openNow === false) return CLOSED_SCORE_PENALTY;
+  return 1;
+}
+
+function getTrendingScore(stats: VenueTrendStats, openNow: boolean | null): number {
+  const activityScore = stats.weightedRecentScore + getVelocityScore(stats);
+  return activityScore * getOpenNowMultiplier(openNow);
+}
+
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const generatedAt = new Date().toISOString();
@@ -139,13 +207,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const since = new Date(Date.now() - TRENDING_WINDOW_MS).toISOString();
+  const nowMs = Date.now();
+  const since = new Date(nowMs - VELOCITY_WINDOW_MS).toISOString();
   const checkInsResult = await supabaseAdmin
     .from("check_ins")
     .select("venue_id, created_at")
     .gte("created_at", since)
     .eq("hidden", false)
-    .limit(500);
+    .limit(2000);
 
   if (checkInsResult.error) {
     return NextResponse.json<APIResponse<never>>(
@@ -158,14 +227,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const checkInCounts = new Map<string, number>();
-  for (const row of ((checkInsResult.data ?? []) as RecentCheckInRow[])) {
-    const venueId = typeof row.venue_id === "string" ? row.venue_id.trim() : "";
-    if (!venueId) continue;
-    checkInCounts.set(venueId, (checkInCounts.get(venueId) ?? 0) + 1);
-  }
+  const trendStats = buildTrendStats((checkInsResult.data ?? []) as RecentCheckInRow[], nowMs);
 
-  const recentVenueIds = Array.from(checkInCounts.keys());
+  const recentVenueIds = Array.from(trendStats.entries())
+    .filter(([, stats]) => stats.last24Hours > 0)
+    .map(([venueId]) => venueId);
   if (recentVenueIds.length === 0) {
     return NextResponse.json<APIResponse<{ venues: ConsumerVenue[] }>>(
       {
@@ -219,10 +285,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         refreshedAt: row.updated_at,
       }),
     }))
-    .filter(({ openNow }) => openNow === true)
     .map(({ row, openNow }) => mapVenue(row, openNow))
     .sort((a, b) => {
-      const checkInDelta = (checkInCounts.get(b.id) ?? 0) - (checkInCounts.get(a.id) ?? 0);
+      const aStats = trendStats.get(a.id);
+      const bStats = trendStats.get(b.id);
+      const aScore = aStats ? getTrendingScore(aStats, a.openNow ?? null) : 0;
+      const bScore = bStats ? getTrendingScore(bStats, b.openNow ?? null) : 0;
+      if (bScore !== aScore) return bScore - aScore;
+      const recentDelta = (bStats?.last2Hours ?? 0) - (aStats?.last2Hours ?? 0);
+      if (recentDelta !== 0) return recentDelta;
+      const checkInDelta = (bStats?.last24Hours ?? 0) - (aStats?.last24Hours ?? 0);
       if (checkInDelta !== 0) return checkInDelta;
       const aBusyness = a.signal?.busyness0To100 ?? -1;
       const bBusyness = b.signal?.busyness0To100 ?? -1;

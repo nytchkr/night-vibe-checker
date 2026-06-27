@@ -413,7 +413,7 @@ function RecentCheckInsSection({ checkIns, loading }: { checkIns: CheckIn[]; loa
             </span>
             <h3 className="mt-4 text-base font-black text-white">Your night starts here.</h3>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-white/65">
-              Check in at your first spot to build your nightlife history and unlock better recommendations.
+              Check in at your first spot to start your history
             </p>
             <Button
               asChild

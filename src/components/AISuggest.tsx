@@ -169,6 +169,7 @@ export function AISuggest({ userLat = null, userLng = null, className = "" }: AI
                   photoUrl={pick.venue.photoUrl ?? pick.venue.photoUrls?.[0]}
                   className="-mx-1 h-28 rounded-[14px] border border-white/[0.06]"
                   sizes="(max-width: 640px) calc(100vw - 2.5rem), 420px"
+                  loading="lazy"
                 />
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

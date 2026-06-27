@@ -112,6 +112,8 @@ export function ShareButton(props: ShareButtonProps) {
       {toastVisible ? (
         <div
           role="status"
+          aria-live="polite"
+          aria-atomic="true"
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-[1300] -translate-x-1/2 rounded-full border border-white/[0.08] bg-[#111117] px-4 py-2 text-sm text-white shadow-2xl shadow-black/40"
         >
           Link copied!

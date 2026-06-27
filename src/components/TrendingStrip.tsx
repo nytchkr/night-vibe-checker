@@ -29,7 +29,8 @@ function TrendingCard({ venue }: { venue: ConsumerVenue }) {
         name={venue.name}
         photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
         className="h-16 w-full border-b border-white/[0.06]"
-        sizes="156px"
+        sizes="(max-width: 640px) 156px, 180px"
+        loading="lazy"
       />
       <div className="flex items-start justify-between gap-3 px-3 pt-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-lg" aria-hidden="true">
