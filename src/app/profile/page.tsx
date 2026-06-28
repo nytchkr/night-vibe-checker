@@ -264,7 +264,7 @@ export default function ProfilePage() {
                   <Heart className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <p className="mx-auto mt-4 max-w-sm text-base font-black leading-6 text-white">
-                  You have not saved any spots yet. Tap the heart on a venue to save it.
+                  You haven&apos;t saved any spots yet. Tap ♡ on a venue to save it.
                 </p>
               </Card>
             )}

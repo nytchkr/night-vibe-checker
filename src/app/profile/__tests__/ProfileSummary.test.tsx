@@ -205,7 +205,7 @@ describe("Profile saved spots", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByText("You have not saved any spots yet. Tap the heart on a venue to save it.")).not.toBeNull();
+    expect(await screen.findByText("You haven't saved any spots yet. Tap ♡ on a venue to save it.")).not.toBeNull();
   });
 
   it("shows the email magic-link form for guests", async () => {
