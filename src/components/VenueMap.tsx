@@ -13,7 +13,7 @@ import { AnimatePresence } from "framer-motion";
 import { aside as MotionAside } from "framer-motion/client";
 import { Check, ChevronDown, LocateFixed, MapPin, RefreshCw, Search, X } from "lucide-react";
 import { Circle, CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { CITIES } from "@/lib/cities";
+import { CITIES, DEFAULT_CITY } from "@/lib/cities";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { inZone } from "@/lib/zone";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
@@ -1201,11 +1201,15 @@ function VenueFilterSheet({
 }
 
 export function VenueMap({
-  city,
-  onCityChange,
+  city = DEFAULT_CITY,
+  onCityChange = () => undefined,
+  onVenueSelect,
+  venues: providedVenues,
 }: {
-  city: City;
-  onCityChange: (cityId: CityId) => void;
+  city?: City;
+  onCityChange?: (cityId: CityId) => void;
+  onVenueSelect?: (venue: ConsumerVenue) => void;
+  venues?: ConsumerVenue[];
 }) {
   const haptic = useHaptic();
   const { isDesktop } = useDevice();
@@ -1228,13 +1232,25 @@ export function VenueMap({
   const [visibleViewportVenueCount, setVisibleViewportVenueCount] = useState(0);
   const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
   const mapRef = useRef<LeafletMap | null>(null);
-  const mapViewportStyle = isDesktop ? { height: "100vh", minHeight: "0" } : getMapViewportStyle();
+  const isEmbeddedVenueMap = providedVenues !== undefined;
+  const mapViewportStyle = isEmbeddedVenueMap
+    ? { height: "100%", minHeight: "100%" }
+    : isDesktop
+      ? { height: "100vh", minHeight: "0" }
+      : getMapViewportStyle();
   const cityCenter = useMemo<[number, number]>(
     () => (city.id === "south-end-clt" ? SOUTH_END_MAP_CENTER : [city.lat, city.lng]),
     [city.id, city.lat, city.lng],
   );
 
   const fetchVenues = useCallback(async (signal?: AbortSignal, { showLoading = true }: { showLoading?: boolean } = {}) => {
+    if (providedVenues !== undefined) {
+      setVenues(providedVenues);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     if (showLoading) setLoading(true);
     setError(null);
 
@@ -1273,22 +1289,30 @@ export function VenueMap({
         setLoading(false);
       }
     }
-  }, []);
+  }, [providedVenues]);
 
   const refreshVisibleVenues = useCallback(async () => {
+    if (providedVenues !== undefined) return;
     await fetchVenues(undefined, { showLoading: false });
-  }, [fetchVenues]);
+  }, [fetchVenues, providedVenues]);
 
   const { pulling, refreshing } = usePullToRefresh(refreshVisibleVenues);
 
   useEffect(() => {
+    if (providedVenues !== undefined) {
+      setVenues(providedVenues);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     const controller = new AbortController();
     void fetchVenues(controller.signal);
 
     return () => {
       controller.abort();
     };
-  }, [fetchVenues]);
+  }, [fetchVenues, providedVenues]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1375,6 +1399,11 @@ export function VenueMap({
 
   const selectVenueFromList = useCallback((venue: ConsumerVenue) => {
     haptic.light();
+    if (onVenueSelect) {
+      onVenueSelect(venue);
+      return;
+    }
+
     setSelectedVenueId(venue.id);
     setMarkerPopupVenueId(null);
     setSheetSnap("mid");
@@ -1382,7 +1411,7 @@ export function VenueMap({
       animate: true,
       duration: 0.5,
     });
-  }, [haptic]);
+  }, [haptic, onVenueSelect]);
 
   const selectVenueFromSearch = useCallback((venue: ConsumerVenue) => {
     setActiveCategoryFilter("All");

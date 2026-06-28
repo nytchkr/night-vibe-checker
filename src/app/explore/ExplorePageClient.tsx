@@ -38,6 +38,10 @@ const AISuggest = dynamic(
   () => import("@/components/AISuggest").then((mod) => mod.AISuggest),
   { ssr: false },
 );
+const VenueMap = dynamic(
+  () => import("@/components/VenueMap").then((mod) => mod.VenueMap),
+  { ssr: false },
+);
 
 const MotionLink = motion.create(Link);
 
@@ -879,6 +883,7 @@ export function ExplorePageClient() {
   const prefersReduced = useReducedMotion();
   const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[] | undefined>(undefined);
+  const [view, setView] = useState<"list" | "map">("list");
   const [isFetchingVenues, setIsFetchingVenues] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -1290,6 +1295,10 @@ export function ExplorePageClient() {
     trackAnalytics("explore_filter_selected", { filter: option });
   }
 
+  function navigateToVenueDetail(venue: ConsumerVenue) {
+    router.push(`/venues/${encodeURIComponent(venue.slug || venue.id)}`);
+  }
+
   const timeLabel = useMemo(() => (
     now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
   ), [now]);
@@ -1481,6 +1490,35 @@ export function ExplorePageClient() {
               onSortChange={selectExploreSort}
               onFilterToggle={toggleExploreFilter}
             />
+
+            {venues.length > 0 && (
+              <div className="flex justify-end" role="group" aria-label="Explore view">
+                <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-1">
+                  <button
+                    type="button"
+                    aria-label="Show venue list"
+                    aria-pressed={view === "list"}
+                    onClick={() => setView("list")}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-black leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                      view === "list" ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/55"
+                    }`}
+                  >
+                    <span aria-hidden="true">≡</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Show venue map"
+                    aria-pressed={view === "map"}
+                    onClick={() => setView("map")}
+                    className={`ml-1 flex h-10 w-10 items-center justify-center rounded-full text-lg font-black leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                      view === "map" ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/55"
+                    }`}
+                  >
+                    <span aria-hidden="true">🗺</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <AISuggest
@@ -1516,7 +1554,7 @@ export function ExplorePageClient() {
       </div>
 
       <section
-        className="mx-auto max-w-lg space-y-3 px-4 pb-6"
+        className={`mx-auto space-y-3 pb-6 ${view === "map" ? "max-w-none px-0" : "max-w-lg px-4"}`}
         role="region"
         aria-label="Venue results"
         onTouchStart={handlePullTouchStart}
@@ -1574,7 +1612,7 @@ export function ExplorePageClient() {
           <ExploreNoMatchState query={trimmedSearchQuery} onClear={trimmedSearchQuery ? clearSearch : clearFilters} />
         )}
 
-        {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && (
+        {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && view === "list" && (
           <div className="scroll-touch pr-1 [will-change:scroll-position]">
             <ul className="venue-card-grid grid grid-cols-1 gap-3 lg:grid-cols-3">
               <AnimatePresence initial={false}>
@@ -1592,6 +1630,12 @@ export function ExplorePageClient() {
                 ))}
               </AnimatePresence>
             </ul>
+          </div>
+        )}
+
+        {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && view === "map" && (
+          <div className="h-[calc(100vh-180px)] w-full overflow-hidden bg-[#0A0A0E]">
+            <VenueMap venues={sortedVenues} onVenueSelect={navigateToVenueDetail} />
           </div>
         )}
       </section>
