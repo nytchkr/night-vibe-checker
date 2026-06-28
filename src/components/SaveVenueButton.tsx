@@ -8,7 +8,7 @@ import { useOnboardingGate } from "@/components/OnboardingGate";
 import { useHaptic } from "@/hooks/useHaptic";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
-const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
+const SAVED_VENUES_EVENT = "nytchkr:saved-venues-changed";
 
 type SaveVenueButtonProps = {
   venueId: string;

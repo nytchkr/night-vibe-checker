@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/upstashRateLimit";
 import { MissingSupabaseEnvError, supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const email = parsed.data.email.toLowerCase();
-  const rate = checkRateLimit(
+  const rate = await checkRateLimit(
     `auth:magic-link:${email}`,
     MAGIC_LINK_RATE_LIMIT_MAX,
     MAGIC_LINK_RATE_LIMIT_WINDOW_MS,

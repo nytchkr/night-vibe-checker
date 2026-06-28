@@ -1,8 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Bookmark, BookmarkCheck } from "lucide-react";
-import { useOnboardingGate } from "@/components/OnboardingGate";
+import { useToast } from "@/components/ToastProvider";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
@@ -12,19 +12,14 @@ type SaveButtonProps = {
   ariaLabel?: string;
   requirePro?: boolean;
   onSavedChange?: (saved: boolean) => void;
+  children?: ReactNode;
 };
 
-function currentPath() {
-  if (typeof window === "undefined") return "/";
-  return `${window.location.pathname}${window.location.search}`;
-}
-
-function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange }: SaveButtonProps) {
+function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange, children }: SaveButtonProps) {
   const { isSaved, refreshVenueSavedState, toggle, loading } = useSavedVenues();
-  const { requireAuth } = useOnboardingGate();
+  const { showToast } = useToast();
   const [pending, setPending] = useState(false);
   const saved = isSaved(placeId);
-  const Icon = saved ? BookmarkCheck : Bookmark;
 
   async function hasSession() {
     try {
@@ -56,6 +51,8 @@ function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange }: SaveB
       if (typeof nextSaved === "boolean") {
         onSavedChange?.(nextSaved);
       }
+    } catch {
+      showToast("Couldn't save venue", "error");
     } finally {
       setPending(false);
     }
@@ -66,12 +63,7 @@ function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange }: SaveB
     event.stopPropagation();
 
     if (!(await hasSession())) {
-      await requireAuth({
-        id: `save:${placeId}`,
-        label: "Save this venue",
-        returnTo: currentPath(),
-        onAuthenticated: toggleSaved,
-      });
+      showToast("Sign in to save", "info");
       return;
     }
 
@@ -89,7 +81,10 @@ function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange }: SaveB
         saved ? "border-[#8B6CFF]/65 bg-[#8B6CFF]/15 text-[#8B6CFF] shadow-[0_0_18px_rgba(139,108,255,0.24)]" : ""
       } ${className ?? ""}`}
     >
-      <Icon className="h-[18px] w-[18px]" fill={saved ? "currentColor" : "none"} strokeWidth={2.3} aria-hidden="true" />
+      <span aria-hidden="true" className="text-[22px] leading-none">
+        {saved ? "♥" : "♡"}
+      </span>
+      {children ? <span className="text-sm font-black leading-none">{children}</span> : null}
     </button>
   );
 }

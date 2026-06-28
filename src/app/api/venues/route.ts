@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { mapGoogleOpeningHours } from "@/lib/venueHours";
@@ -247,7 +247,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     req.headers.get("x-real-ip") ??
     "anonymous";
 
-  const rate = checkRateLimit(`venues:${ip}`, 60, 60_000);
+  const rate = await checkRateLimit(`venues:${ip}`, 60, 60_000);
   const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? 60_000) / 1000);

@@ -6,7 +6,7 @@ import { MapPin, Star, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
-export const WELCOME_SEEN_STORAGE_KEY = "nightvibe.welcomeSeen";
+export const WELCOME_SEEN_STORAGE_KEY = "nytchkr.welcomeSeen";
 
 type WelcomeOverlayProps = {
   onDismiss: () => void;

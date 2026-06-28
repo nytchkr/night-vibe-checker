@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockFindVisibleVenueByIdOrPlaceId = vi.fn();
 const mockFetchBestTimeDayRawForecast = vi.fn();
+const mockRedisGet = vi.fn();
+const mockRedisSet = vi.fn();
 
 vi.mock("@/lib/venueLookup", async () => {
   return {
@@ -15,6 +17,13 @@ vi.mock("@/lib/besttime", async () => {
     fetchBestTimeDayRawForecast: mockFetchBestTimeDayRawForecast,
   };
 });
+
+vi.mock("@/lib/upstashRedis", () => ({
+  redis: {
+    get: mockRedisGet,
+    set: mockRedisSet,
+  },
+}));
 
 function params(id = "venue-1") {
   return { params: Promise.resolve({ id }) };
@@ -33,6 +42,8 @@ function venue(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockRedisGet.mockResolvedValue(null);
+  mockRedisSet.mockResolvedValue("OK");
 });
 
 describe("GET /api/venues/[id]/forecast", () => {

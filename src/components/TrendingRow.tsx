@@ -12,7 +12,7 @@ import type { APIResponse, ConsumerVenue } from "@/types";
 const VIOLET = "#8B6CFF";
 const PINK = "#F0568C";
 const TRENDING_RERANK_DEBOUNCE_MS = 450;
-const CHECK_IN_CREATED_EVENT = "nightvibe:check-in-created";
+const CHECK_IN_CREATED_EVENT = "nytchkr:check-in-created";
 
 function clampBusyness(value: number | null | undefined): number | null {
   if (value == null || !Number.isFinite(value)) return null;

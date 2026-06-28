@@ -18,7 +18,7 @@ function jsonError(error: string, status: number, headers?: Record<string, strin
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const rate = publicRateLimit(req, "waitlist", 10);
+  const rate = await publicRateLimit(req, "waitlist", 10);
   if (rate.response) return rate.response;
 
   try {

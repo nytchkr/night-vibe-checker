@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchBestTimeDayRawForecast, type BestTimeDayForecast } from "@/lib/besttime";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type {
@@ -249,7 +249,7 @@ export async function GET(
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
     "anonymous";
-  const rate = checkRateLimit(`venues-predict:${ip}`, PREDICT_RATE_LIMIT_MAX, PREDICT_RATE_LIMIT_WINDOW_MS);
+  const rate = await checkRateLimit(`venues-predict:${ip}`, PREDICT_RATE_LIMIT_MAX, PREDICT_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);
 
   if (!rate.allowed) {

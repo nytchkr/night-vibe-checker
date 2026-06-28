@@ -7,10 +7,10 @@ import {
 
 describe("ShareButton helpers", () => {
   it("creates native share data from the current page URL", () => {
-    expect(createVenueShareData("Test Bar", "https://night-vibe-checker.vercel.app/venues/test-bar")).toEqual({
+    expect(createVenueShareData("Test Bar", "https://nytchkr.com/venues/test-bar")).toEqual({
       title: "Test Bar",
       text: "Check out Test Bar on nytchkr.",
-      url: "https://night-vibe-checker.vercel.app/venues/test-bar",
+      url: "https://nytchkr.com/venues/test-bar",
     });
   });
 
@@ -19,9 +19,9 @@ describe("ShareButton helpers", () => {
       buildVenueShareClipboardText({
         title: "Test Bar",
         text: "Check out Test Bar on nytchkr.",
-        url: "https://night-vibe-checker.vercel.app/venues/test-bar",
+        url: "https://nytchkr.com/venues/test-bar",
       }),
-    ).toBe("https://night-vibe-checker.vercel.app/venues/test-bar");
+    ).toBe("https://nytchkr.com/venues/test-bar");
   });
 
   it("tracks venue share events without an analytics SDK", () => {

@@ -64,6 +64,12 @@ describe("VenueRating", () => {
     });
   }, 10000);
 
+  it("prefers live user aggregate when it is provided", async () => {
+    renderVenueRating({ userAvgRating: 4.25, userRatingCount: 7 });
+
+    expect(await screen.findByText("User 4.3 · 7 ratings")).toBeTruthy();
+  });
+
   it("submits a 1-5 star rating for authenticated users", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({

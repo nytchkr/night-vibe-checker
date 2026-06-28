@@ -5,6 +5,10 @@ const { mockFindVisibleVenueByIdOrPlaceId, mockComputeVenueMfRatioFromCheckIns }
   mockFindVisibleVenueByIdOrPlaceId: vi.fn(),
   mockComputeVenueMfRatioFromCheckIns: vi.fn(),
 }));
+const { mockRedisGet, mockRedisSet } = vi.hoisted(() => ({
+  mockRedisGet: vi.fn(),
+  mockRedisSet: vi.fn(),
+}));
 
 vi.mock("@/lib/venueLookup", () => ({
   findVisibleVenueByIdOrPlaceId: mockFindVisibleVenueByIdOrPlaceId,
@@ -17,6 +21,13 @@ vi.mock("@/lib/mfRatio", () => ({
 
 vi.mock("@/lib/supabase", () => ({
   supabaseAdmin: {},
+}));
+
+vi.mock("@/lib/upstashRedis", () => ({
+  redis: {
+    get: mockRedisGet,
+    set: mockRedisSet,
+  },
 }));
 
 function venue(overrides: Record<string, unknown> = {}) {
@@ -65,6 +76,8 @@ function googlePhotoUrl(reference: string, key = "places-test-key") {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockRedisGet.mockResolvedValue(null);
+  mockRedisSet.mockResolvedValue("OK");
   mockComputeVenueMfRatioFromCheckIns.mockResolvedValue({
     mfRatio: null,
     sampleSize: 0,

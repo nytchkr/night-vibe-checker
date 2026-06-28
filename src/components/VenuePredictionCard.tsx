@@ -194,8 +194,8 @@ export function VenuePredictionCard({
       void loadPrediction();
     }
 
-    window.addEventListener("nightvibe:check-in-created", handleCheckInCreated);
-    return () => window.removeEventListener("nightvibe:check-in-created", handleCheckInCreated);
+    window.addEventListener("nytchkr:check-in-created", handleCheckInCreated);
+    return () => window.removeEventListener("nytchkr:check-in-created", handleCheckInCreated);
   }, [loadPrediction, venueId]);
 
   if (state.status === "loading") return <PredictionSkeleton />;

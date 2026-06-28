@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { getClientIp } from "@/lib/apiSecurity";
-import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/upstashRateLimit";
 import { MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ async function readJson(req: NextRequest): Promise<unknown> {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const rate = checkRateLimit(
+  const rate = await checkRateLimit(
     `push:subscribe:POST:${getClientIp(req)}`,
     POST_RATE_LIMIT_MAX,
     POST_RATE_LIMIT_WINDOW_MS,

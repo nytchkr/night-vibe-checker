@@ -6,8 +6,8 @@ import type { Session } from "@supabase/supabase-js";
 import { X } from "lucide-react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
-const POST_AUTH_ACTION_KEY = "nightvibe.postAuthAction";
-const POST_AUTH_RETURN_KEY = "nightvibe.postAuthReturnUrl";
+const POST_AUTH_ACTION_KEY = "nytchkr.postAuthAction";
+const POST_AUTH_RETURN_KEY = "nytchkr.postAuthReturnUrl";
 
 type PendingAuthAction = {
   id: string;

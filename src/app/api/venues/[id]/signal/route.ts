@@ -30,7 +30,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const rate = publicRateLimit(req, "venue-signal", 60);
+  const rate = await publicRateLimit(req, "venue-signal", 60);
   if (rate.response) return rate.response;
   const headers = rate.headers;
   const requestId = uuidv4();

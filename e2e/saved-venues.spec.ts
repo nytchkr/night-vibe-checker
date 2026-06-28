@@ -77,10 +77,12 @@ test.describe("Saved venues", () => {
     await expect(cardLink).toHaveAttribute("href", /\/venues\//);
   });
 
-  test("You tab redirects logged-out users to login", async ({ page }) => {
-    await page.goto("/profile");
+  test("Saved tab shows email sign-in for logged-out users", async ({ page }) => {
+    await markOnboarded(page);
+    await page.goto("/saved");
 
-    await expect(page).toHaveURL(/\/login\?return=%2Fprofile/);
-    await expect(page.getByRole("heading", { name: "NightVibe" })).toBeVisible();
+    await expect(page).toHaveURL(/\/saved$/);
+    await expect(page.getByRole("heading", { name: "Sign in to save venues" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Email me a sign-in link" })).toBeVisible();
   });
 });

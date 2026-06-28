@@ -111,8 +111,8 @@ const nextConfig = {
 
 const sentryConfig = withSentryConfig(nextConfig, {
   silent: true,
-  org: "nightvibe",
-  project: "nightvibe-web",
+  org: "nytchkr",
+  project: "nytchkr-web",
 });
 
 export default withBundleAnalyzer(sentryConfig);

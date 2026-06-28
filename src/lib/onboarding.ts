@@ -1,5 +1,5 @@
 export const ONBOARDING_STORAGE_KEY = "nv_onboarded";
-export const LEGACY_ONBOARDING_STORAGE_KEY = "nightvibe.onboarded";
+export const LEGACY_ONBOARDING_STORAGE_KEY = "nytchkr.onboarded";
 export const PREFERRED_ZONE_STORAGE_KEY = "nv-selected-zone";
 export const ONBOARDING_ZONES_STORAGE_KEY = "nv_zones";
 

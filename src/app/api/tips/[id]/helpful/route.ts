@@ -8,7 +8,7 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { getClientIp } from "@/lib/apiSecurity";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import type { APIResponse } from "@/types";
 
 const TipIdSchema = z.string().uuid();
@@ -50,7 +50,7 @@ export async function POST(
     throw error;
   }
 
-  const rate = checkRateLimit(`tip-helpful:POST:${getClientIp(req)}`, HELPFUL_RATE_LIMIT_MAX, HELPFUL_RATE_LIMIT_WINDOW_MS);
+  const rate = await checkRateLimit(`tip-helpful:POST:${getClientIp(req)}`, HELPFUL_RATE_LIMIT_MAX, HELPFUL_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? HELPFUL_RATE_LIMIT_WINDOW_MS) / 1000);

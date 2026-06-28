@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import type { APIResponse } from "@/types";
 
 const REPORT_RATE_LIMIT_MAX = 5;
@@ -57,7 +57,7 @@ export async function POST(
     throw error;
   }
 
-  const rate = checkRateLimit(`venue-report:POST:${getClientIp(req)}`, REPORT_RATE_LIMIT_MAX, REPORT_RATE_LIMIT_WINDOW_MS);
+  const rate = await checkRateLimit(`venue-report:POST:${getClientIp(req)}`, REPORT_RATE_LIMIT_MAX, REPORT_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? REPORT_RATE_LIMIT_WINDOW_MS) / 1000);

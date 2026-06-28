@@ -4,17 +4,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExplorePageClient } from "../ExplorePageClient";
-import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 const routerPrefetch = vi.fn();
 const routerPush = vi.fn();
-
-vi.mock("next/dynamic", () => ({
-  default: () => function DynamicStub() {
-    return null;
-  },
-}));
 
 vi.mock("next/link", async () => {
   const React = await import("react");
@@ -43,114 +36,8 @@ vi.mock("@vercel/analytics", () => ({
   track: vi.fn(),
 }));
 
-vi.mock("framer-motion", async () => {
-  const React = await import("react");
-  const createMotionComponent = (tag: string | React.ComponentType<Record<string, unknown>>) =>
-    function MotionComponent({
-      children,
-      initial: _initial,
-      animate: _animate,
-      exit: _exit,
-      transition: _transition,
-      whileTap: _whileTap,
-      whileHover: _whileHover,
-      layout: _layout,
-      layoutId: _layoutId,
-      variants: _variants,
-      ...props
-    }: {
-      children?: React.ReactNode;
-      initial?: unknown;
-      animate?: unknown;
-      exit?: unknown;
-      transition?: unknown;
-      whileTap?: unknown;
-      whileHover?: unknown;
-      layout?: unknown;
-      layoutId?: unknown;
-      variants?: unknown;
-      [key: string]: unknown;
-    }) {
-      return React.createElement(tag, props, children);
-    };
-
-  const motion = new Proxy({ create: createMotionComponent }, {
-    get: (target, tag: string) => tag in target ? target[tag as keyof typeof target] : createMotionComponent(tag),
-  });
-
-  return {
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
-    motion,
-  };
-});
-
-vi.mock("framer-motion/client", async () => {
-  const React = await import("react");
-  const createMotionComponent = (tag: string) =>
-    function MotionComponent({
-      children,
-      initial: _initial,
-      animate: _animate,
-      exit: _exit,
-      transition: _transition,
-      variants: _variants,
-      ...props
-    }: {
-      children?: React.ReactNode;
-      initial?: unknown;
-      animate?: unknown;
-      exit?: unknown;
-      transition?: unknown;
-      variants?: unknown;
-      [key: string]: unknown;
-    }) {
-      return React.createElement(tag, props, children);
-    };
-
-  return {
-    div: createMotionComponent("div"),
-    li: createMotionComponent("li"),
-    span: createMotionComponent("span"),
-  };
-});
-
-vi.mock("@/components/TrendingRow", () => ({
-  TrendingRow: () => null,
-}));
-
 vi.mock("@/components/VenuePhoto", () => ({
   VenuePhoto: ({ name }: { name: string }) => <div aria-label={`${name} photo`} />,
-}));
-
-vi.mock("@/hooks/usePullToRefresh", () => ({
-  usePullToRefresh: () => ({ pulling: false, refreshing: false }),
-}));
-
-vi.mock("@/hooks/useSavedVenues", () => ({
-  useSavedVenues: () => ({ savedIds: new Set<string>() }),
-}));
-
-vi.mock("@/hooks/useHaptic", () => ({
-  useHaptic: () => ({ light: vi.fn() }),
-}));
-
-vi.mock("@/lib/supabase-browser", () => ({
-  createBrowserClient: () => ({
-    auth: {
-      getSession: () => Promise.resolve({ data: { session: null } }),
-      onAuthStateChange: () => ({
-        data: {
-          subscription: {
-            unsubscribe: vi.fn(),
-          },
-        },
-      }),
-    },
-  }),
-}));
-
-vi.mock("@/lib/clientTrendingVenueIds", () => ({
-  fetchTrendingVenueIds: () => Promise.resolve(new Set<string>()),
 }));
 
 vi.mock("@/lib/useTrack", () => ({
@@ -158,24 +45,31 @@ vi.mock("@/lib/useTrack", () => ({
 }));
 
 const venues: ConsumerVenue[] = [
-  createVenue({ id: "sports-bar", name: "Sports Bar", category: "bar", rating: 4.6 }),
-  createVenue({ id: "neon-lounge", name: "Neon Lounge", category: "lounge", rating: 4.5 }),
-  createVenue({ id: "coffee-house", name: "Coffee House", category: "coffee", rating: 4.4 }),
+  createVenue({ id: "sports-bar", name: "Sports Bar", category: "bar", rating: 4.6, priceLevel: 2, busyness: 72, source: "live" }),
+  createVenue({ id: "neon-lounge", name: "Neon Lounge", category: "lounge", rating: 4.5, priceLevel: 3, busyness: 48, source: "forecast" }),
+  createVenue({ id: "supper-club", name: "Supper Club", category: "restaurant", rating: 4.4, priceLevel: 1, busyness: 18, source: "forecast", openNow: false }),
 ];
 
-function createSignal(overrides: Partial<VenueSignal> = {}): VenueSignal {
+function createSignal({
+  venueId,
+  busyness,
+  source,
+}: {
+  venueId: string;
+  busyness: number | null;
+  source: VenueSignal["busynessSource"];
+}): VenueSignal {
   return {
-    venueId: "sports-bar",
-    placeId: "place-sports-bar",
-    busyness0To100: 72,
-    busynessSource: "crowd",
-    mfRatio: 62,
+    venueId,
+    placeId: `place-${venueId}`,
+    busyness0To100: busyness,
+    busynessSource: source,
+    mfRatio: null,
     confidence0To1: 0.82,
-    sampleSize: MIN_SAMPLE_SIZE_FOR_RATIO,
+    sampleSize: 0,
     computedAt: "2026-06-27T12:00:00.000Z",
     updatedAt: "2026-06-27T12:00:00.000Z",
     lastBusynessRefresh: null,
-    ...overrides,
   };
 }
 
@@ -184,23 +78,19 @@ function createVenue({
   name,
   category,
   rating,
-  googleRating = rating,
-  currentPopularity = null,
-  vibeScore = null,
-  lat = 35.2123,
-  lng = -80.859,
-  signal = null,
+  priceLevel,
+  busyness,
+  source,
+  openNow = true,
 }: {
   id: string;
   name: string;
   category: string;
   rating: number;
-  googleRating?: number;
-  currentPopularity?: number | null;
-  vibeScore?: number | null;
-  lat?: number;
-  lng?: number;
-  signal?: VenueSignal | null;
+  priceLevel: 1 | 2 | 3 | 4;
+  busyness: number | null;
+  source: VenueSignal["busynessSource"];
+  openNow?: boolean;
 }): ConsumerVenue {
   return {
     id,
@@ -208,20 +98,21 @@ function createVenue({
     zoneId: "south-end-charlotte",
     name,
     address: "100 Camden Rd, Charlotte, NC",
-    lat,
-    lng,
+    lat: 35.2123,
+    lng: -80.859,
     neighborhood: "South End",
     category,
     rating,
-    googleRating,
-    userRatingCount: 120,
-    priceLevel: 2,
-    openNow: true,
-    current_popularity: currentPopularity,
-    vibe_score: vibeScore,
+    googleRating: rating,
+    totalRatings: 1240,
+    userRatingCount: null,
+    priceLevel,
+    openNow,
+    current_popularity: null,
+    vibe_score: null,
     trending: false,
     hidden: false,
-    signal,
+    signal: createSignal({ venueId: id, busyness, source }),
   };
 }
 
@@ -239,30 +130,6 @@ function mockFetchWithVenues(nextVenues: ConsumerVenue[]) {
       }), { status: 200 }));
     }
 
-    if (url.includes("/api/activity/feed")) {
-      return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
-    }
-
-    if (url.includes("/api/zones/south-end-charlotte/stats")) {
-      return Promise.resolve(new Response(JSON.stringify({
-        zoneId: "south-end-charlotte",
-        liveCheckInCount: 0,
-        topVenueId: null,
-        topVenueName: null,
-        venueCount: nextVenues.length,
-      }), { status: 200 }));
-    }
-
-    if (url.includes("/api/zones/dilworth-charlotte/stats")) {
-      return Promise.resolve(new Response(JSON.stringify({
-        zoneId: "dilworth-charlotte",
-        liveCheckInCount: 0,
-        topVenueId: null,
-        topVenueName: null,
-        venueCount: 0,
-      }), { status: 200 }));
-    }
-
     if (url.includes("/api/venues")) {
       return Promise.resolve(new Response(JSON.stringify({ data: { venues: nextVenues } }), { status: 200 }));
     }
@@ -274,7 +141,6 @@ function mockFetchWithVenues(nextVenues: ConsumerVenue[]) {
 async function renderExplore() {
   render(<ExplorePageClient />);
   await screen.findAllByRole("link", { name: /^Open / });
-  await screen.findByLabelText("Live zone activity");
 }
 
 function venueResults() {
@@ -298,19 +164,6 @@ beforeEach(() => {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   });
-  Object.defineProperty(window, "IntersectionObserver", {
-    configurable: true,
-    value: vi.fn().mockImplementation(() => ({
-      observe: vi.fn(),
-      disconnect: vi.fn(),
-    })),
-  });
-  Object.defineProperty(navigator, "geolocation", {
-    configurable: true,
-    value: {
-      getCurrentPosition: vi.fn(),
-    },
-  });
   vi.stubGlobal("fetch", vi.fn());
   mockFetchWithVenues(venues);
 });
@@ -321,14 +174,21 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("ExplorePageClient venue search", () => {
-  it("filters venue results to bars from the Bars category pill", async () => {
-    mockFetchWithVenues([
-      createVenue({ id: "sports-bar", name: "Sports Bar", category: "bar", rating: 4.6 }),
-      createVenue({ id: "supper-club", name: "Supper Club", category: "restaurant", rating: 4.5 }),
-      createVenue({ id: "coffee-house", name: "Coffee House", category: "coffee", rating: 4.4 }),
-    ]);
+describe("ExplorePageClient discovery feed", () => {
+  it("renders discovery cards with photo, category, rating, price, open status, and busyness", async () => {
+    await renderExplore();
 
+    const sportsBar = within(venueResults()).getByRole("link", { name: /^Open Sports Bar/ });
+    expect(within(sportsBar).getByLabelText("Sports Bar photo")).toBeTruthy();
+    expect(within(sportsBar).getByText("Bar")).toBeTruthy();
+    expect(within(sportsBar).getByText("4.6")).toBeTruthy();
+    expect(within(sportsBar).getByText("1,240 reviews")).toBeTruthy();
+    expect(within(sportsBar).getByText("$$")).toBeTruthy();
+    expect(within(sportsBar).getByText("Open")).toBeTruthy();
+    expect(within(sportsBar).getByLabelText("LIVE Packed")).toBeTruthy();
+  }, 15_000);
+
+  it("filters venue results by category pills", async () => {
     await renderExplore();
 
     fireEvent.click(screen.getByRole("button", { name: "Bars" }));
@@ -336,8 +196,22 @@ describe("ExplorePageClient venue search", () => {
     const results = venueResults();
     expect(screen.getByRole("button", { name: "Bars" }).getAttribute("aria-pressed")).toBe("true");
     expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
+    expect(within(results).queryByRole("link", { name: /^Open Neon Lounge/ })).toBeNull();
     expect(within(results).queryByRole("link", { name: /^Open Supper Club/ })).toBeNull();
-    expect(within(results).queryByRole("link", { name: /^Open Coffee House/ })).toBeNull();
+  });
+
+  it("filters by open now, price, and busyness", async () => {
+    await renderExplore();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
+    expect(within(venueResults()).queryByRole("link", { name: /^Open Supper Club/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Price $$$" }));
+    expect(within(venueResults()).getByRole("link", { name: /^Open Neon Lounge/ })).toBeTruthy();
+    expect(within(venueResults()).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Moderate" }));
+    expect(within(venueResults()).getByRole("link", { name: /^Open Neon Lounge/ })).toBeTruthy();
   });
 
   it("filters venues by name as the user types", async () => {
@@ -348,50 +222,27 @@ describe("ExplorePageClient venue search", () => {
     const results = venueResults();
     expect(within(results).getByRole("link", { name: /^Open Neon Lounge/ })).toBeTruthy();
     expect(within(results).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
-    expect(within(results).queryByRole("link", { name: /^Open Coffee House/ })).toBeNull();
+    expect(within(results).queryByRole("link", { name: /^Open Supper Club/ })).toBeNull();
   });
 
-  it("clears the search and restores the full venue list from the X button", async () => {
+  it("clears search from the X button", async () => {
     await renderExplore();
     const input = await searchFor("Neon");
 
     await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
 
     await waitFor(() => expect(input.value).toBe(""));
-    const results = venueResults();
-    expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
-    expect(within(results).getByRole("link", { name: /^Open Neon Lounge/ })).toBeTruthy();
-    expect(within(results).getByRole("link", { name: /^Open Coffee House/ })).toBeTruthy();
+    expect(within(venueResults()).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
+    expect(within(venueResults()).getByRole("link", { name: /^Open Neon Lounge/ })).toBeTruthy();
   });
 
-  it("shows the no-results empty state when no venues match", async () => {
+  it("shows the required empty state when no venues match", async () => {
     await renderExplore();
 
     await searchFor("zzzz");
 
-    expect(screen.getByRole("heading", { name: "No venues found" })).toBeTruthy();
-    expect(screen.getByText("Try a different search or category filter")).toBeTruthy();
-    expect(within(venueResults()).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
-  });
-
-  it("matches venue names case-insensitively", async () => {
-    await renderExplore();
-
-    await searchFor("sPoRtS");
-
-    const results = venueResults();
-    expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
-    expect(within(results).queryByRole("link", { name: /^Open Neon Lounge/ })).toBeNull();
-  });
-
-  it("matches partial strings in venue names", async () => {
-    await renderExplore();
-
-    await searchFor("port");
-
-    const results = venueResults();
-    expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
-    expect(within(results).queryByRole("link", { name: /^Open Neon Lounge/ })).toBeNull();
+    expect(screen.getByRole("heading", { name: "No venues found in this area yet." })).toBeTruthy();
+    expect(within(screen.getByRole("main")).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
   });
 
   it("shows autocomplete suggestions and navigates to a selected venue", async () => {
@@ -407,80 +258,6 @@ describe("ExplorePageClient venue search", () => {
     await userEvent.click(within(listbox).getByRole("option", { name: /Neon Lounge/ }));
 
     expect(routerPush).toHaveBeenCalledWith("/venues/neon-lounge");
-  });
-
-  it("sorts by Trending, Most Active, and Highest Rated client-side", async () => {
-    mockFetchWithVenues([
-      createVenue({ id: "low-vibe", name: "Low Vibe", category: "lounge", rating: 4.8, googleRating: 4.8, currentPopularity: 72, vibeScore: 20 }),
-      createVenue({ id: "active-bar", name: "Active Bar", category: "bar", rating: 4.1, googleRating: 4.1, currentPopularity: 96, vibeScore: 40 }),
-      createVenue({ id: "top-rated", name: "Top Rated", category: "coffee", rating: 4.9, googleRating: 4.9, currentPopularity: 44, vibeScore: 92 }),
-    ]);
-
-    await renderExplore();
-
-    const resultLinks = () => within(venueResults()).getAllByRole("link", { name: /^Open / });
-    expect(screen.getByRole("button", { name: "Trending" }).getAttribute("aria-pressed")).toBe("true");
-    expect(resultLinks().map((link) => link.getAttribute("href"))).toEqual([
-      "/venues/top-rated",
-      "/venues/active-bar",
-      "/venues/low-vibe",
-    ]);
-
-    fireEvent.click(screen.getByRole("button", { name: "Most Active" }));
-    expect(resultLinks().map((link) => link.getAttribute("href"))).toEqual([
-      "/venues/active-bar",
-      "/venues/low-vibe",
-      "/venues/top-rated",
-    ]);
-
-    fireEvent.click(screen.getByRole("button", { name: "Highest Rated" }));
-    expect(resultLinks().map((link) => link.getAttribute("href"))).toEqual([
-      "/venues/top-rated",
-      "/venues/low-vibe",
-      "/venues/active-bar",
-    ]);
-  });
-
-  it("renders live zone activity with the hottest zone highlighted", async () => {
-    vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
-      const url = input.toString();
-      if (url.includes("/api/activity/feed")) {
-        return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
-      }
-
-      if (url.includes("/api/zones/south-end-charlotte/stats")) {
-        return Promise.resolve(new Response(JSON.stringify({
-          zoneId: "south-end-charlotte",
-          liveCheckInCount: 12,
-          topVenueId: null,
-          topVenueName: null,
-          venueCount: 25,
-        }), { status: 200 }));
-      }
-
-      if (url.includes("/api/zones/dilworth-charlotte/stats")) {
-        return Promise.resolve(new Response(JSON.stringify({
-          zoneId: "dilworth-charlotte",
-          liveCheckInCount: 3,
-          topVenueId: null,
-          topVenueName: null,
-          venueCount: 9,
-        }), { status: 200 }));
-      }
-
-      if (url.includes("/api/venues")) {
-        return Promise.resolve(new Response(JSON.stringify({ data: { venues } }), { status: 200 }));
-      }
-
-      return Promise.resolve(new Response("{}", { status: 200 }));
-    });
-
-    await renderExplore();
-
-    await waitFor(() => {
-      expect(screen.getByText("🔥 South End · 12 here")).toBeTruthy();
-      expect(screen.getByText("Dilworth · 3 here")).toBeTruthy();
-    });
   });
 
   it("manually prefetches venue detail routes once on hover and touch", async () => {
@@ -503,64 +280,7 @@ describe("ExplorePageClient venue search", () => {
     expect(routerPrefetch).toHaveBeenLastCalledWith("/venues/neon-lounge");
   });
 
-  it("uses touchstart instead of mouseenter on touch devices", async () => {
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: query === "(pointer: coarse)",
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    }));
-
-    await renderExplore();
-
-    const sportsBar = within(venueResults()).getByRole("link", { name: /^Open Sports Bar/ });
-    fireEvent.mouseEnter(sportsBar);
-    expect(routerPrefetch).not.toHaveBeenCalled();
-
-    fireEvent.touchStart(sportsBar);
-    expect(routerPrefetch).toHaveBeenCalledTimes(1);
-    expect(routerPrefetch).toHaveBeenCalledWith("/venues/sports-bar");
-  });
-
-  it("only shows the M/F ratio pill when check-ins meet the sample threshold", async () => {
-    mockFetchWithVenues([
-      createVenue({
-        id: "sample-ready-bar",
-        name: "Sample Ready Bar",
-        category: "bar",
-        rating: 4.8,
-        signal: createSignal({
-          venueId: "sample-ready-bar",
-          placeId: "place-sample-ready-bar",
-          mfRatio: 62,
-          sampleSize: MIN_SAMPLE_SIZE_FOR_RATIO,
-        }),
-      }),
-      createVenue({
-        id: "thin-sample-bar",
-        name: "Thin Sample Bar",
-        category: "bar",
-        rating: 4.7,
-        signal: createSignal({
-          venueId: "thin-sample-bar",
-          placeId: "place-thin-sample-bar",
-          mfRatio: 58,
-          sampleSize: MIN_SAMPLE_SIZE_FOR_RATIO - 1,
-        }),
-      }),
-    ]);
-
-    render(<ExplorePageClient />);
-
-    const results = await screen.findByRole("region", { name: "Venue results" });
-    const sampleReadyBar = await within(results).findByRole("link", { name: /^Open Sample Ready Bar/ });
-    const thinSampleBar = within(results).getByRole("link", { name: /^Open Thin Sample Bar/ });
-
-    expect(within(sampleReadyBar).getByTitle(`M/F ratio from ${MIN_SAMPLE_SIZE_FOR_RATIO} check-ins`)).toBeTruthy();
-    expect(within(sampleReadyBar).getByLabelText(/62% male, 38% female/i)).toBeTruthy();
-    expect(within(thinSampleBar).queryByTitle(/M\/F ratio from/i)).toBeNull();
-  });
-
-  it("renders skeleton venue cards during the initial load", async () => {
+  it("renders skeleton venue cards during initial load", async () => {
     let resolveVenues: (response: Response) => void = () => {};
     const venuesPromise = new Promise<Response>((resolve) => {
       resolveVenues = resolve;
@@ -568,34 +288,7 @@ describe("ExplorePageClient venue search", () => {
 
     vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
       const url = input.toString();
-      if (url.includes("/api/activity/feed")) {
-        return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
-      }
-
-      if (url.includes("/api/zones/south-end-charlotte/stats")) {
-        return Promise.resolve(new Response(JSON.stringify({
-          zoneId: "south-end-charlotte",
-          liveCheckInCount: 0,
-          topVenueId: null,
-          topVenueName: null,
-          venueCount: venues.length,
-        }), { status: 200 }));
-      }
-
-      if (url.includes("/api/zones/dilworth-charlotte/stats")) {
-        return Promise.resolve(new Response(JSON.stringify({
-          zoneId: "dilworth-charlotte",
-          liveCheckInCount: 0,
-          topVenueId: null,
-          topVenueName: null,
-          venueCount: 0,
-        }), { status: 200 }));
-      }
-
-      if (url.includes("/api/venues")) {
-        return venuesPromise;
-      }
-
+      if (url.includes("/api/venues")) return venuesPromise;
       return Promise.resolve(new Response("{}", { status: 200 }));
     });
 

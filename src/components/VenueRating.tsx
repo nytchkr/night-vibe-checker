@@ -73,6 +73,7 @@ export function VenueRating({
   userId,
   venueId,
   googleRating,
+  userAvgRating,
   userRatingCount,
   promptAfterCheckIn = false,
   onRated,
@@ -81,6 +82,7 @@ export function VenueRating({
   userId?: string | null;
   venueId: string;
   googleRating?: number | null;
+  userAvgRating?: number | null;
   userRatingCount?: number | null;
   promptAfterCheckIn?: boolean;
   onRated?: () => void;
@@ -168,11 +170,12 @@ export function VenueRating({
 
   const readOnly = !accessToken;
   const disabled = loading || pendingRating !== null;
-  const displayRating = googleRating ?? ratingState.averageRating;
+  const displayRating = userAvgRating ?? googleRating ?? ratingState.averageRating;
   const displayCount = userRatingCount ?? ratingState.ratingCount;
+  const ratingSourceLabel = userAvgRating != null ? "User" : "Google";
   const googleRatingLabel = displayRating == null || !Number.isFinite(displayRating)
     ? "Google rating unavailable"
-    : `Google ${displayRating.toFixed(1)}`;
+    : `${ratingSourceLabel} ${displayRating.toFixed(1)}`;
   const countLabel = displayCount == null || displayCount <= 0 ? null : `${displayCount.toLocaleString()} ratings`;
   const hasNoRatings = !loading && ratingState.userRating === null;
   const showPostCheckInPrompt = promptAfterCheckIn && !loading && ratingState.userRating === null;

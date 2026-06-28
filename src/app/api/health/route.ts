@@ -131,7 +131,7 @@ function buildZoneSignalCoverage(rows: VenueHealthRow[] | null): {
 }
 
 export async function GET(req?: NextRequest) {
-  const rate = req ? publicRateLimit(req, "health", 120) : null;
+  const rate = req ? await publicRateLimit(req, "health", 120) : null;
   if (rate?.response) return rate.response;
   const headers = { ...EDGE_CACHE_HEADERS, ...(rate?.headers ?? {}) };
 

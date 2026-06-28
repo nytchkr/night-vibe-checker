@@ -8,7 +8,7 @@ import {
 } from "@/lib/aiSuggest";
 import { CONSUMER_VENUE_SELECT, mapConsumerVenue } from "@/lib/consumerVenue";
 import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { supabaseAdmin } from "@/lib/supabase";
 import { inZone } from "@/lib/zone";
 import type { APIResponse, ConsumerVenue } from "@/types";
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
     "anonymous";
-  const rate = checkRateLimit(`suggest:${ip}`, 20, 60_000);
+  const rate = await checkRateLimit(`suggest:${ip}`, 20, 60_000);
   const headers = rateLimitHeaders(rate);
 
   if (!rate.allowed) {

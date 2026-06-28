@@ -4,11 +4,12 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { computeVenueMfRatioFromCheckIns, type ComputedMfRatio } from "@/lib/mfRatio";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
+import { getVenueRatingAggregate } from "@/lib/venueRatingAggregate";
 import { mapGoogleOpeningHours } from "@/lib/venueHours";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue, VenueSignal } from "@/types";
@@ -247,6 +248,24 @@ async function mapVenueWithLiveMfRatio(row: Record<string, unknown>): Promise<Co
   }
 }
 
+async function mapVenueWithLiveAggregates(row: Record<string, unknown>): Promise<ConsumerVenue> {
+  const venue = await mapVenueWithLiveMfRatio(row);
+
+  try {
+    const aggregate = await getVenueRatingAggregate(venue.id);
+    if (!aggregate) return venue;
+
+    return {
+      ...venue,
+      userAvgRating: aggregate.avg,
+      userRatingCount: aggregate.count,
+    };
+  } catch (error) {
+    console.warn("[venues detail] live user rating aggregate failed; using cached venue rating fields:", error);
+    return venue;
+  }
+}
+
 function isMissingContactColumn(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String((error as { message?: unknown } | null)?.message ?? "");
   return (
@@ -280,7 +299,7 @@ export async function GET(
     req.headers.get("x-real-ip") ??
     "anonymous";
 
-  const rate = checkRateLimit(`venues-detail:${ip}`, 60, 60_000);
+  const rate = await checkRateLimit(`venues-detail:${ip}`, 60, 60_000);
   const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? 60_000) / 1000);
@@ -332,7 +351,7 @@ export async function GET(
     return NextResponse.json<APIResponse<{ venue: ConsumerVenue }>>(
       {
         status: "success",
-        data: { venue: await mapVenueWithLiveMfRatio(await hydrateMissingGooglePhotos(data as Record<string, unknown>)) },
+        data: { venue: await mapVenueWithLiveAggregates(await hydrateMissingGooglePhotos(data as Record<string, unknown>)) },
         meta: { cached: true, generatedAt, requestId },
       },
       { headers: { ...headers, ...EDGE_CACHE_HEADERS } }

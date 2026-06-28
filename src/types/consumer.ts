@@ -99,6 +99,7 @@ export interface ConsumerVenue {
   rating?: number | null;
   googleRating?: number;
   totalRatings?: number;
+  userAvgRating?: number | null;
   userRatingCount?: number | null;
   priceLevel?: 1 | 2 | 3 | 4 | null;
   photoReference?: string;

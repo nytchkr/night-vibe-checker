@@ -5,7 +5,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { getTrendingVenues } from "@/lib/trendingVenueIds";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue } from "@/types";
@@ -31,7 +31,7 @@ function getClientIp(req: NextRequest): string {
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const generatedAt = new Date().toISOString();
-  const rate = checkRateLimit(`venues:trending:${getClientIp(req)}`, 60, 60_000);
+  const rate = await checkRateLimit(`venues:trending:${getClientIp(req)}`, 60, 60_000);
   const headers = rateLimitHeaders(rate);
 
   if (!rate.allowed) {

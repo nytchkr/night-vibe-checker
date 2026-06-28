@@ -21,8 +21,8 @@ type CheckInButtonProps = {
 
 const CHECK_IN_COOLDOWN_MS = 20 * 60 * 1000;
 const CHECK_IN_COUNTDOWN_INTERVAL_MS = 60 * 1000;
-const CHECK_IN_CREATED_EVENT = "nightvibe:check-in-created";
-const CHECK_IN_REFRESH_KEY = "nightvibe.check-in-refresh";
+const CHECK_IN_CREATED_EVENT = "nytchkr:check-in-created";
+const CHECK_IN_REFRESH_KEY = "nytchkr.check-in-refresh";
 
 type CheckInResponse = {
   data?: {

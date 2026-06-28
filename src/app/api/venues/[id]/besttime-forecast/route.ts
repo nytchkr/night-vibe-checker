@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchBestTimeDayRawForecast } from "@/lib/besttime";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { fetchBestTimeDayRawForecast, fetchBestTimeWeekRawForecast } from "@/lib/besttime";
+import { isProUser } from "@/lib/isPro";
+import { supabaseAdmin } from "@/lib/supabase";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
+import { redis } from "@/lib/upstashRedis";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse } from "@/types";
@@ -12,7 +15,77 @@ type ForecastResponse = {
   besttimeVenueId: string | null;
   hours: Array<{ hour: number; busyness: number }>;
   updatedOn: string | null;
+  days?: Array<{
+    dayInt: number | null;
+    hours: Array<{ hour: number; busyness: number }>;
+    updatedOn: string | null;
+  }>;
 };
+
+const FORECAST_REDIS_TTL_SECONDS = 3600;
+
+function currentDayOfWeek(): number {
+  return new Date().getDay();
+}
+
+function normalizeCachedForecast(value: unknown): ForecastResponse | null {
+  const candidate = typeof value === "string" ? JSON.parse(value) as unknown : value;
+  if (!candidate || typeof candidate !== "object") return null;
+
+  const forecast = candidate as ForecastResponse;
+  if (typeof forecast.venueId !== "string") return null;
+  if (typeof forecast.besttimeVenueId !== "string" && forecast.besttimeVenueId !== null) return null;
+  if (!Array.isArray(forecast.hours)) return null;
+  if (!forecast.hours.every((hour) => typeof hour?.hour === "number" && typeof hour?.busyness === "number")) return null;
+  if (typeof forecast.updatedOn !== "string" && forecast.updatedOn !== null) return null;
+  if (forecast.days !== undefined) {
+    if (!Array.isArray(forecast.days)) return null;
+    if (!forecast.days.every((day) => (
+      (typeof day?.dayInt === "number" || day?.dayInt === null) &&
+      Array.isArray(day?.hours) &&
+      day.hours.every((hour) => typeof hour?.hour === "number" && typeof hour?.busyness === "number") &&
+      (typeof day?.updatedOn === "string" || day?.updatedOn === null)
+    ))) return null;
+  }
+
+  return forecast;
+}
+
+async function getCachedForecast(cacheKey: string): Promise<ForecastResponse | null> {
+  try {
+    const cached = await redis.get(cacheKey);
+    if (!cached) return null;
+    return normalizeCachedForecast(cached);
+  } catch (error) {
+    console.error("[besttime-forecast] Redis get failed:", error);
+    return null;
+  }
+}
+
+async function setCachedForecast(cacheKey: string, forecast: ForecastResponse): Promise<void> {
+  try {
+    await redis.set(cacheKey, forecast, { ex: FORECAST_REDIS_TTL_SECONDS });
+  } catch (error) {
+    console.error("[besttime-forecast] Redis set failed:", error);
+  }
+}
+
+function bearerToken(req: NextRequest): string | null {
+  const header = req.headers.get("authorization");
+  if (!header?.toLowerCase().startsWith("bearer ")) return null;
+  const token = header.slice("bearer ".length).trim();
+  return token || null;
+}
+
+async function requestIsPro(req: NextRequest): Promise<boolean> {
+  const token = bearerToken(req);
+  if (!token) return false;
+
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  if (error || !data.user?.id) return false;
+
+  return isProUser(data.user.id);
+}
 
 export async function GET(
   req: NextRequest,
@@ -25,7 +98,7 @@ export async function GET(
     req.headers.get("x-real-ip") ??
     "anonymous";
 
-  const rate = checkRateLimit(`venues-besttime:${ip}`, 30, 60_000);
+  const rate = await checkRateLimit(`venues-besttime:${ip}`, 30, 60_000);
   const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? 60_000) / 1000);
@@ -70,6 +143,7 @@ export async function GET(
   const besttimeVenueId = typeof venue.besttime_venue_id === "string" && venue.besttime_venue_id.trim()
     ? venue.besttime_venue_id.trim()
     : null;
+  const hasProAccess = await requestIsPro(req);
 
   if (!besttimeVenueId) {
     return NextResponse.json<APIResponse<ForecastResponse>>(
@@ -82,17 +156,48 @@ export async function GET(
     );
   }
 
-  try {
-    const forecast = await fetchBestTimeDayRawForecast(besttimeVenueId, venue.name, venue.address);
+  const dayOfWeek = currentDayOfWeek();
+  const cacheKey = `nv:forecast:${venue.id}:${hasProAccess ? "week" : "day"}:${dayOfWeek}`;
+  const cachedForecast = await getCachedForecast(cacheKey);
+  if (cachedForecast) {
     return NextResponse.json<APIResponse<ForecastResponse>>(
       {
         status: "success",
-        data: {
-          venueId: venue.id,
-          besttimeVenueId,
-          hours: forecast.hours,
-          updatedOn: forecast.updatedOn,
-        },
+        data: cachedForecast,
+        meta: { cached: true, generatedAt, requestId },
+      },
+      { headers }
+    );
+  }
+
+  try {
+    const forecast = hasProAccess
+      ? await fetchBestTimeWeekRawForecast(besttimeVenueId, venue.name, venue.address)
+      : await fetchBestTimeDayRawForecast(besttimeVenueId, venue.name, venue.address);
+    const todayForecast = "days" in forecast
+      ? forecast.days.find((day) => day.dayInt === (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1)) ?? forecast.days[0]
+      : forecast;
+    const data = {
+      venueId: venue.id,
+      besttimeVenueId,
+      hours: todayForecast?.hours ?? [],
+      updatedOn: forecast.updatedOn,
+      ...(hasProAccess && "days" in forecast
+        ? {
+            days: forecast.days.map((day) => ({
+              dayInt: day.dayInt,
+              hours: day.hours,
+              updatedOn: day.updatedOn,
+            })),
+          }
+        : {}),
+    };
+    await setCachedForecast(cacheKey, data);
+
+    return NextResponse.json<APIResponse<ForecastResponse>>(
+      {
+        status: "success",
+        data,
         meta: { cached: false, generatedAt, requestId },
       },
       { headers }

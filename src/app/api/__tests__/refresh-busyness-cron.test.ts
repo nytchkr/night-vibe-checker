@@ -3,6 +3,15 @@ import { NextRequest } from "next/server";
 
 const refreshBusynessMock = vi.fn();
 const refreshOpenNowMock = vi.fn();
+const verifySignatureAppRouterMock = vi.fn(
+  (handler: (request: NextRequest) => Response | Promise<Response>) =>
+    async (request: NextRequest) => {
+      if (request.headers.get("upstash-signature") !== "valid-qstash-signature") {
+        return new Response("invalid signature", { status: 403 });
+      }
+      return handler(request);
+    },
+);
 
 vi.mock("@/lib/besttime", () => ({
   refreshBusyness: refreshBusynessMock,
@@ -10,6 +19,10 @@ vi.mock("@/lib/besttime", () => ({
 
 vi.mock("@/lib/openNow", () => ({
   refreshOpenNow: refreshOpenNowMock,
+}));
+
+vi.mock("@upstash/qstash/nextjs", () => ({
+  verifySignatureAppRouter: verifySignatureAppRouterMock,
 }));
 
 function request(secret?: string) {
@@ -123,6 +136,13 @@ function bestTimeRefreshRequest(secret?: string) {
   });
 }
 
+function bestTimeRefreshQstashRequest(signature?: string) {
+  return new NextRequest("http://localhost/api/cron/besttime-refresh", {
+    method: "POST",
+    headers: signature ? { "upstash-signature": signature } : undefined,
+  });
+}
+
 describe("GET /api/cron/besttime-refresh", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -134,14 +154,14 @@ describe("GET /api/cron/besttime-refresh", () => {
     delete process.env.CRON_SECRET;
   });
 
-  it("rejects requests without the Bearer cron secret", async () => {
+  it("rejects requests without cron auth or a valid QStash signature", async () => {
     const { GET } = await import("../cron/besttime-refresh/route");
 
     const missing = await GET(bestTimeRefreshRequest());
     const wrong = await GET(bestTimeRefreshRequest("wrong"));
 
-    expect(missing.status).toBe(401);
-    expect(wrong.status).toBe(401);
+    expect(missing.status).toBe(403);
+    expect(wrong.status).toBe(403);
     expect(refreshBusynessMock).not.toHaveBeenCalled();
   });
 
@@ -158,6 +178,27 @@ describe("GET /api/cron/besttime-refresh", () => {
     expect(res.status).toBe(200);
     expect(refreshBusynessMock).toHaveBeenCalledWith();
     expect(json).toEqual({ status: "ok", queued: 2 });
+  });
+
+  it("accepts signed QStash POST requests", async () => {
+    refreshBusynessMock.mockResolvedValue([{ venueId: "venue-1", ok: true }]);
+
+    const { POST } = await import("../cron/besttime-refresh/route");
+    const res = await POST(bestTimeRefreshQstashRequest("valid-qstash-signature"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(verifySignatureAppRouterMock).toHaveBeenCalled();
+    expect(refreshBusynessMock).toHaveBeenCalledWith();
+    expect(json).toEqual({ status: "ok", queued: 1 });
+  });
+
+  it("rejects unsigned QStash POST requests", async () => {
+    const { POST } = await import("../cron/besttime-refresh/route");
+    const res = await POST(bestTimeRefreshQstashRequest());
+
+    expect(res.status).toBe(403);
+    expect(refreshBusynessMock).not.toHaveBeenCalled();
   });
 });
 

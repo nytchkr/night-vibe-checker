@@ -13,7 +13,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ venueId: string }> }
 ): Promise<NextResponse> {
-  const rate = publicRateLimit(req, "widget", 60);
+  const rate = await publicRateLimit(req, "widget", 60);
   if (rate.response) return rate.response;
   const headers = { ...WIDGET_CACHE_HEADERS, ...rate.headers };
   const generatedAt = new Date().toISOString();

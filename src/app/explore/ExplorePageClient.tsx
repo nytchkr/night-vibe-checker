@@ -1,73 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type TouchEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { SearchX, X } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion";
-import { div as MotionDiv, li as MotionLi, span as MotionSpan } from "framer-motion/client";
-import type { Session } from "@supabase/supabase-js";
+import { Search, SearchX, Star, X } from "lucide-react";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
-import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
-import { OpenNowBadge } from "@/components/OpenNowBadge";
 import SkeletonCard from "@/components/SkeletonCard";
-import {
-  ExploreSortFilter,
-  type ExploreFilterOption,
-  type ExploreSortOption,
-} from "@/components/ExploreSortFilter";
-import { TrendingRow } from "@/components/TrendingRow";
-import { TrendingBadge } from "@/components/TrendingBadge";
-import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
 import { VenuePhoto } from "@/components/VenuePhoto";
-import { VibeScoreArc } from "@/components/VibeScoreArc";
 import { getBusynessState } from "@/lib/busyness";
-import { getNeighborhood } from "@/lib/neighborhood";
-import { formatSignalConfidenceLabel } from "@/lib/signalConfidenceLabel";
-import { fetchTrendingVenueIds } from "@/lib/clientTrendingVenueIds";
-import { inZone } from "@/lib/zone";
-import { isOnboardingZoneId, PREFERRED_ZONE_STORAGE_KEY, type OnboardingZone } from "@/lib/onboarding";
-import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { useSavedVenues } from "@/hooks/useSavedVenues";
 import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
-const AISuggest = dynamic(
-  () => import("@/components/AISuggest").then((mod) => mod.AISuggest),
-  { ssr: false },
-);
-const VenueMap = dynamic(
-  () => import("@/components/VenueMap").then((mod) => mod.VenueMap),
-  { ssr: false },
-);
-
-const MotionLink = motion.create(Link);
-
-type HottestBusynessLabel = "Dead" | "Quiet" | "Moderate" | "Busy" | "Packed";
-type TonightPickLabel = "Moderate" | "Packed" | "Wild";
-type ZoneStatsSummary = {
-  zoneName: string;
-  spotCount: number;
-  openNowCount: number;
-  averageBusyness: number | null;
-};
-type ZoneActivityStats = {
-  zoneId: string;
-  zoneName: string;
-  liveCheckInCount: number;
-};
-type ActivityFeedItem = {
-  id: string;
-  venue: {
-    id: string;
-    name: string;
-  };
-  busyness: "dead" | "moderate" | "packed";
-  crowd_feel: string;
-  checked_in_at: string;
-};
+type CategoryFilter = "all" | "bars" | "restaurants" | "lounges" | "clubs";
+type PriceFilter = 1 | 2 | 3 | null;
+type BusynessFilter = "any" | "busy" | "moderate" | "quiet";
 type VenueSuggestion = {
   id: string;
   name: string;
@@ -75,166 +22,99 @@ type VenueSuggestion = {
   zoneId: string | null;
 };
 
-const EXPLORE_SORT_STORAGE_KEY = "nv_explore_sort";
-const EXPLORE_SEARCH_STORAGE_KEY = "nv_explore_search";
-const DEFAULT_EXPLORE_SORT: ExploreSortOption = "trending";
-const NEIGHBORHOOD_EXPLORE_FILTERS: ExploreFilterOption[] = ["South End", "Uptown", "NoDa", "Dilworth", "South Park"];
-const CATEGORY_EXPLORE_FILTERS: ExploreFilterOption[] = ["bars", "restaurants", "clubs", "coffee"];
-const EXPLORE_FILTER_ZONE_IDS: Partial<Record<ExploreFilterOption, string>> = {
-  "South End": "south-end-charlotte",
-  Dilworth: "dilworth-charlotte",
-  "South Park": "south-park-charlotte",
-};
-const EXPLORE_ZONE_LABELS_BY_ID: Record<OnboardingZone["id"], string> = {
-  "south-end-charlotte": "South End",
-  "dilworth-charlotte": "Dilworth",
-  "south-park-charlotte": "South Park",
-};
-const EXPLORE_FILTER_CATEGORY_MATCHERS: Partial<Record<ExploreFilterOption, string[]>> = {
-  bars: ["bar", "pub", "lounge", "brewery"],
-  restaurants: ["restaurant", "food", "diner"],
-  clubs: ["club", "night club", "night_club", "nightclub", "dance"],
-  coffee: ["coffee", "cafe", "café"],
-};
-const EXPLORE_ZONE_FILTERS_BY_ID: Record<OnboardingZone["id"], ExploreFilterOption> = {
-  "south-end-charlotte": "South End",
-  "dilworth-charlotte": "Dilworth",
-  "south-park-charlotte": "South Park",
-};
-const ZONE_ACTIVITY_TARGETS: Array<{ id: OnboardingZone["id"]; name: string }> = [
-  { id: "south-end-charlotte", name: "South End" },
-  { id: "dilworth-charlotte", name: "Dilworth" },
-];
-const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
-const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
-const OUT_OF_ZONE_SEARCH_MESSAGE = "nytchkr isn't live in your area yet. We're starting in South End Charlotte.";
-const PULL_TO_REFRESH_THRESHOLD_PX = 60;
+const EXPLORE_SEARCH_STORAGE_KEY = "nytchkr_explore_search";
 
-async function getSupabaseBrowserClient() {
-  const { createBrowserClient } = await import("@/lib/supabase-browser");
-  return createBrowserClient();
-}
-const LOCATION_SEARCH_CENTERS: Record<string, [number, number]> = {
-  noda: [35.2396, -80.8106],
-  "no da": [35.2396, -80.8106],
-  uptown: [35.2271, -80.8431],
-  "28202": [35.2271, -80.8431],
-  "28203": [35.2178, -80.8597],
-  "28204": [35.22, -80.83],
-  "28205": [35.23, -80.79],
-  "28206": [35.25, -80.82],
-  "28207": [35.21, -80.81],
-  "28208": [35.22, -80.9],
-  "28209": [35.17, -80.85],
-  "28210": [35.14, -80.88],
-  "28211": [35.19, -80.78],
-  "28212": [35.2, -80.75],
-  southpark: [35.1524, -80.8462],
-  "south park": [35.1524, -80.8462],
-};
+const CATEGORY_FILTERS: Array<{ value: CategoryFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "bars", label: "Bars" },
+  { value: "restaurants", label: "Restaurants" },
+  { value: "lounges", label: "Lounges" },
+  { value: "clubs", label: "Clubs" },
+];
+
+const PRICE_FILTERS: Array<{ value: PriceFilter; label: string }> = [
+  { value: 1, label: "$" },
+  { value: 2, label: "$$" },
+  { value: 3, label: "$$$" },
+];
+
+const BUSYNESS_FILTERS: Array<{ value: BusynessFilter; label: string }> = [
+  { value: "any", label: "Any" },
+  { value: "busy", label: "Busy" },
+  { value: "moderate", label: "Moderate" },
+  { value: "quiet", label: "Quiet" },
+];
+
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
   try {
     track(event, properties);
   } catch {
-    // Analytics must never break the UI.
+    // Analytics must never break discovery.
   }
-}
-
-function isExploreSortOption(value: string | null): value is ExploreSortOption {
-  return value === "trending" || value === "most-active" || value === "highest-rated";
-}
-
-function getExploreZoneFilter(value: string | null): ExploreFilterOption | null {
-  return isOnboardingZoneId(value) ? EXPLORE_ZONE_FILTERS_BY_ID[value] : null;
-}
-
-function getVenueVibeScore(venue: ConsumerVenue): number | null {
-  const score = venue.vibe_score ?? null;
-  return score == null || !Number.isFinite(score) ? null : score;
-}
-
-function getVenueCurrentPopularity(venue: ConsumerVenue): number | null {
-  const popularity = venue.current_popularity ?? null;
-  return popularity == null || !Number.isFinite(popularity) ? null : popularity;
-}
-
-function getVenueGoogleRating(venue: ConsumerVenue): number | null {
-  const rating = venue.googleRating ?? null;
-  return rating == null || !Number.isFinite(rating) ? null : rating;
-}
-
-function compareVenueMetricThenName(
-  a: ConsumerVenue,
-  b: ConsumerVenue,
-  getMetric: (venue: ConsumerVenue) => number | null,
-): number {
-  const aMetric = getMetric(a);
-  const bMetric = getMetric(b);
-  if (aMetric == null && bMetric == null) return a.name.localeCompare(b.name);
-  if (aMetric == null) return 1;
-  if (bMetric == null) return -1;
-  return bMetric - aMetric || a.name.localeCompare(b.name);
-}
-
-function getVenueOpenNow(venue: ConsumerVenue): boolean | null {
-  return venue.openNow ?? null;
-}
-
-function getVenueBusynessPercent(venue: ConsumerVenue): number | null {
-  const value = venue.signal?.busyness0To100 ?? venue.current_popularity ?? venue.vibe_score ?? null;
-  return value == null || !Number.isFinite(value) ? null : clampPercent(value);
-}
-
-function getVenueNeighborhoodName(venue: ConsumerVenue): string {
-  return venue.neighborhood ?? getNeighborhood(venue.lat, venue.lng);
 }
 
 function normalizeSearchText(value: string | null | undefined): string {
-  return (value ?? "").toLowerCase().replace(/[_-]+/g, " ");
+  return (value ?? "").toLowerCase().replace(/[_-]+/g, " ").trim();
 }
 
 function venueMatchesSearchQuery(venue: ConsumerVenue, query: string): boolean {
-  const normalizedQuery = normalizeSearchText(query.trim());
+  const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) return true;
 
-  const searchableText = [
+  return [
     venue.name,
-    getVenueNeighborhoodName(venue),
-  ].map(normalizeSearchText).join(" ");
-
-  return searchableText.includes(normalizedQuery);
+    venue.category,
+    venue.address,
+    venue.neighborhood,
+  ].map(normalizeSearchText).join(" ").includes(normalizedQuery);
 }
 
-function venueMatchesCategoryFilters(venue: ConsumerVenue, filters: ExploreFilterOption[]): boolean {
-  if (filters.length === 0) return true;
+function venueMatchesCategory(venue: ConsumerVenue, filter: CategoryFilter): boolean {
+  if (filter === "all") return true;
 
   const category = normalizeSearchText(venue.category);
-  return filters.some((filter) => (
-    EXPLORE_FILTER_CATEGORY_MATCHERS[filter]?.some((term) => category.includes(term)) ?? false
-  ));
+  if (filter === "bars") return category.includes("bar") || category.includes("pub") || category.includes("brewery");
+  if (filter === "restaurants") return category.includes("restaurant") || category.includes("food") || category.includes("diner");
+  if (filter === "lounges") return category.includes("lounge");
+  return category.includes("club") || category.includes("night club") || category.includes("nightclub");
 }
 
-function getSearchedLocationCenter(query: string): [number, number] | null {
-  const normalized = normalizeSearchText(query.trim());
-  if (!normalized) return null;
-
-  const zip = normalized.match(/\b\d{5}\b/)?.[0];
-  if (zip && LOCATION_SEARCH_CENTERS[zip]) return LOCATION_SEARCH_CENTERS[zip];
-
-  return LOCATION_SEARCH_CENTERS[normalized] ?? null;
+function getVenueRating(venue: ConsumerVenue): number | null {
+  const rating = venue.googleRating ?? venue.rating ?? null;
+  return rating == null || !Number.isFinite(rating) ? null : rating;
 }
 
-function parseStoredVenueIds(value: string | null): Set<string> {
-  if (!value) return new Set();
+function getVenueReviewCount(venue: ConsumerVenue): number | null {
+  const count = venue.totalRatings ?? venue.userRatingCount ?? null;
+  return count == null || !Number.isFinite(count) ? null : Math.max(0, Math.round(count));
+}
 
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? new Set(parsed.filter((id): id is string => typeof id === "string" && id.length > 0))
-      : new Set();
-  } catch {
-    return new Set();
-  }
+function getVenueBusyness(venue: ConsumerVenue): number | null {
+  const value = venue.signal?.busyness0To100 ?? venue.current_popularity ?? null;
+  return value == null || !Number.isFinite(value) ? null : Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function getBusynessSourceLabel(source: BusynessSource | null | undefined): "LIVE" | "FORECAST" | null {
+  if (source === "live") return "LIVE";
+  if (source === "forecast") return "FORECAST";
+  return null;
+}
+
+function venueMatchesBusyness(venue: ConsumerVenue, filter: BusynessFilter): boolean {
+  if (filter === "any") return true;
+
+  const busyness = getVenueBusyness(venue);
+  if (busyness == null) return false;
+
+  const state = getBusynessState(busyness);
+  if (filter === "busy") return state.label === "Packed";
+  if (filter === "moderate") return state.label === "Moderate";
+  return state.label === "Quiet";
+}
+
+function formatReviewCount(count: number | null): string | null {
+  if (count == null || count <= 0) return null;
+  return `${count.toLocaleString()} reviews`;
 }
 
 function HighlightText({ text, query }: { text: string; query: string }) {
@@ -244,101 +124,13 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   const matchIndex = text.toLowerCase().indexOf(trimmedQuery.toLowerCase());
   if (matchIndex === -1) return <>{text}</>;
 
-  const beforeMatch = text.slice(0, matchIndex);
-  const match = text.slice(matchIndex, matchIndex + trimmedQuery.length);
-  const afterMatch = text.slice(matchIndex + trimmedQuery.length);
-
   return (
     <>
-      {beforeMatch}
-      <mark className="rounded bg-[#8B6CFF]/45 px-0.5 text-white ring-1 ring-[#8B6CFF]/45">{match}</mark>
-      {afterMatch}
+      {text.slice(0, matchIndex)}
+      <mark className="rounded bg-[#8B6CFF]/35 px-0.5 text-white">{text.slice(matchIndex, matchIndex + trimmedQuery.length)}</mark>
+      {text.slice(matchIndex + trimmedQuery.length)}
     </>
   );
-}
-
-function clampPercent(value: number): number {
-  return Math.min(100, Math.max(0, Math.round(value)));
-}
-
-function getHottestBusynessLabel(level: number): HottestBusynessLabel {
-  if (level >= 81) return "Packed";
-  if (level >= 61) return "Busy";
-  if (level >= 41) return "Moderate";
-  if (level >= 21) return "Quiet";
-  return "Dead";
-}
-
-function getHottestBusynessColor(label: HottestBusynessLabel): string {
-  switch (label) {
-    case "Packed":
-      return "#FF5B6A";
-    case "Busy":
-      return "#FF5B6A";
-    case "Moderate":
-      return "#FFB020";
-    case "Quiet":
-      return "#5C6573";
-    case "Dead":
-      return "#5C6573";
-  }
-}
-
-function getActiveBusyness(venue: ConsumerVenue): number | null {
-  const value = getVenueBusynessPercent(venue);
-  return value != null && value > 0 ? value : null;
-}
-
-function getTonightPickLabel(level: number): TonightPickLabel {
-  if (level >= 85) return "Wild";
-  if (level >= 60) return "Packed";
-  return "Moderate";
-}
-
-function getTonightPickColor(label: TonightPickLabel): string {
-  switch (label) {
-    case "Wild":
-      return "#FF2D78";
-    case "Packed":
-      return "#FF5B6A";
-    case "Moderate":
-      return "#FFB020";
-  }
-}
-
-function getRelativeTimeLabel(value: string): string {
-  const checkedInMs = new Date(value).getTime();
-  if (!Number.isFinite(checkedInMs)) return "now";
-
-  const seconds = Math.max(0, Math.floor((Date.now() - checkedInMs) / 1000));
-  if (seconds < 60) return "now";
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function getActivityBusynessLabel(busyness: ActivityFeedItem["busyness"]): "packed" | "moderate" | "quiet" {
-  if (busyness === "packed") return "packed";
-  if (busyness === "moderate") return "moderate";
-  return "quiet";
-}
-
-function getActivityBusynessColor(label: "packed" | "moderate" | "quiet"): string {
-  if (label === "packed") return "#FF5B6A";
-  if (label === "moderate") return "#FFB020";
-  return "#00F5D4";
-}
-
-function formatCrowdFeel(value: string): string {
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function isTouchDevice(): boolean {
@@ -348,419 +140,129 @@ function isTouchDevice(): boolean {
   );
 }
 
-function ActivityCard({ item }: { item: ActivityFeedItem }) {
-  const busynessLabel = getActivityBusynessLabel(item.busyness);
-  const busynessColor = getActivityBusynessColor(busynessLabel);
-
-  return (
-    <Link
-      href={`/venues/${encodeURIComponent(item.venue.id)}`}
-      className="venue-card-motion w-56 flex-shrink-0 rounded-xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 shadow-lg shadow-black/10 backdrop-blur-sm hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-      aria-label={`Open ${item.venue.name}, ${busynessLabel}, ${formatCrowdFeel(item.crowd_feel)}, ${getRelativeTimeLabel(item.checked_in_at)}`}
-    >
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-black text-white">{item.venue.name}</p>
-          <p className="mt-1 truncate text-xs font-semibold text-white/55">{formatCrowdFeel(item.crowd_feel)}</p>
-        </div>
-        <span
-          className="shrink-0 rounded-full border px-2 py-1 text-[10px] font-black uppercase leading-none"
-          style={{ borderColor: `${busynessColor}55`, backgroundColor: `${busynessColor}1F`, color: busynessColor }}
-        >
-          {busynessLabel}
-        </span>
-      </div>
-      <time dateTime={item.checked_in_at} className="mt-3 block text-[11px] font-semibold text-white/55">
-        {getRelativeTimeLabel(item.checked_in_at)}
-      </time>
-    </Link>
-  );
-}
-
-function isZoneStatsResponse(value: unknown): value is { zoneId: string; liveCheckInCount: number } {
-  if (value === null || typeof value !== "object") return false;
-  const candidate = value as { zoneId?: unknown; liveCheckInCount?: unknown };
-  return typeof candidate.zoneId === "string" && typeof candidate.liveCheckInCount === "number";
-}
-
-async function fetchZoneActivityStats(signal?: AbortSignal): Promise<ZoneActivityStats[]> {
-  return Promise.all(
-    ZONE_ACTIVITY_TARGETS.map(async (zone) => {
-      const res = await fetch(`/api/zones/${zone.id}/stats`, { cache: "no-store", signal });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const json: unknown = await res.json();
-      if (!isZoneStatsResponse(json)) throw new Error("Invalid zone stats response");
-
-      return {
-        zoneId: zone.id,
-        zoneName: zone.name,
-        liveCheckInCount: Math.max(0, Math.round(json.liveCheckInCount)),
-      };
-    }),
-  );
-}
-
-function ZoneActivityStrip({
-  stats,
-  loading,
+function FilterPill({
+  active,
+  children,
+  onClick,
+  ariaLabel,
 }: {
-  stats: ZoneActivityStats[];
-  loading: boolean;
+  active: boolean;
+  children: ReactNode;
+  onClick: () => void;
+  ariaLabel?: string;
 }) {
-  if (loading) {
-    return (
-      <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Loading zone activity">
-        <div className="h-8 w-32 animate-pulse rounded-full border border-white/[0.08] bg-white/[0.04]" />
-        <div className="h-8 w-28 animate-pulse rounded-full border border-white/[0.08] bg-white/[0.04]" />
-      </div>
-    );
-  }
-
-  if (stats.length === 0) return null;
-
-  const hottestCount = Math.max(...stats.map((zone) => zone.liveCheckInCount));
-  const hottestZoneId = stats.find((zone) => zone.liveCheckInCount === hottestCount)?.zoneId;
-
   return (
-    <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Live zone activity">
-      {stats.map((zone) => {
-        const isHottest = zone.zoneId === hottestZoneId;
-
-        return (
-          <span
-            key={zone.zoneId}
-            className={`shrink-0 rounded-full border bg-white/[0.04] px-3 py-1.5 text-[13px] font-semibold text-white/80 ${isHottest ? "border-[#F0568C]/50" : "border-white/[0.08]"}`}
-          >
-            {isHottest ? "🔥 " : ""}{zone.zoneName} · {zone.liveCheckInCount} here
-          </span>
-        );
-      })}
-    </div>
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      aria-pressed={active}
+      onClick={onClick}
+      className={[
+        "inline-flex min-h-[38px] shrink-0 items-center justify-center rounded-full border px-4 text-sm font-semibold transition-all duration-150 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75",
+        active
+          ? "border-[#8B6CFF] bg-[#8B6CFF] text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.22)]"
+          : "border-white/[0.08] bg-[#14141A] text-white/72 hover:border-white/18 hover:bg-white/[0.09] hover:text-white",
+      ].join(" ")}
+    >
+      {children}
+    </button>
   );
 }
 
-function TonightPickCard({ venue, index }: { venue: ConsumerVenue; index: number }) {
-  const busyness = getActiveBusyness(venue) ?? 0;
-  const label = getTonightPickLabel(busyness);
-  const color = getTonightPickColor(label);
-  const vibeScore = getVenueVibeScore(venue);
+function OpenStatusBadge({ openNow }: { openNow: boolean | null | undefined }) {
+  const isOpen = openNow === true;
 
   return (
-    <Link
-      href={`/venues/${encodeURIComponent(venue.id)}`}
-      onClick={() => trackAnalytics("tonights_pick_tapped", { venueId: venue.id, rank: index + 1 })}
-      className="venue-card-motion group relative h-[180px] w-[140px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.04] shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-sm hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-      aria-label={`Open ${venue.name}, ${label}, ${busyness}% busy`}
+    <span
+      className={[
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black leading-none",
+        isOpen
+          ? "border-[#22C55E]/35 bg-[#22C55E]/12 text-[#4ADE80]"
+          : "border-white/[0.08] bg-white/[0.06] text-white/48",
+      ].join(" ")}
     >
-      <VenuePhoto
-        name={venue.name}
-        photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
-        className="h-full w-full"
-        imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.04]"
-        sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
-        loading="lazy"
+      <span
+        className={[
+          "h-1.5 w-1.5 rounded-full",
+          isOpen ? "bg-[#4ADE80] shadow-[0_0_10px_rgba(74,222,128,0.7)]" : "bg-white/35",
+        ].join(" ")}
+        aria-hidden="true"
       />
-      {vibeScore != null ? (
-        <div className="absolute right-2 top-2 z-10">
-          <VibeScoreArc score={vibeScore} />
-        </div>
-      ) : null}
-      <div className="absolute inset-x-0 bottom-0 min-h-[104px] bg-gradient-to-t from-[#050507] via-[#050507]/78 to-transparent" aria-hidden="true" />
-      <div className="absolute inset-x-0 bottom-0 space-y-2 p-3">
-        <span
-          className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black leading-none"
-          style={{ borderColor: `${color}66`, backgroundColor: `${color}24`, color }}
-        >
-          {label}
-        </span>
-        <div className="flex items-end justify-between gap-2">
-          <h3 className="line-clamp-2 text-[13px] font-black leading-[1.15] text-white">
-            {venue.name}
-          </h3>
-          <span className="shrink-0 text-lg font-black leading-none text-white/85" aria-hidden="true">
-            →
-          </span>
-        </div>
-      </div>
-    </Link>
+      {isOpen ? "Open" : "Closed"}
+    </span>
   );
 }
 
-function TonightsPicksStrip({ venues }: { venues: ConsumerVenue[] }) {
-  if (venues.length === 0) return null;
-
-  return (
-    <section className="space-y-3" aria-label="Tonight's Picks">
-      <h2 className="font-display text-sm font-black tracking-tight text-white">Tonight&apos;s Picks 🔥</h2>
-      <div className="scroll-touch flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden">
-        {venues.map((venue, index) => (
-          <TonightPickCard key={venue.id} venue={venue} index={index} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function NeighborhoodHeatRow({ venues }: { venues: ConsumerVenue[] }) {
-  const neighborhoods = ["South End", "Dilworth"].map((name) => {
-    const activeVenues = venues.filter((venue) => getVenueNeighborhoodName(venue) === name && getActiveBusyness(venue) != null);
-    const average = activeVenues.length
-      ? activeVenues.reduce((sum, venue) => sum + (getActiveBusyness(venue) ?? 0), 0) / activeVenues.length
-      : 0;
-    const dotClass = average > 60 ? "bg-[#22C55E]" : average > 30 ? "bg-[#FACC15]" : "bg-[#6B7280]";
-
-    return { name, activeCount: activeVenues.length, dotClass };
-  });
-
-  return (
-    <div className="mt-3 grid grid-cols-2 gap-2" aria-label="Neighborhood heat">
-      {neighborhoods.map((neighborhood) => (
-        <div
-          key={neighborhood.name}
-          className="flex min-h-[50px] items-center justify-between gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.045] px-4 py-3 backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-violet/20 hover:shadow-lg hover:shadow-violet/10"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-[13px] font-black text-white">{neighborhood.name}</p>
-            <p className="mt-0.5 text-[11px] font-semibold text-white/50">
-              {neighborhood.activeCount} live {neighborhood.activeCount === 1 ? "spot" : "spots"}
-            </p>
-          </div>
-          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${neighborhood.dotClass}`} aria-hidden="true" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ZoneStatsBar({ stats, prefersReduced }: { stats: ZoneStatsSummary; prefersReduced: boolean }) {
-  const busynessLabel = stats.averageBusyness == null ? "avg busyness --" : `avg busyness ${stats.averageBusyness}%`;
-
-  return (
-    <MotionDiv
-      key={`${stats.zoneName}-${stats.spotCount}-${stats.openNowCount}-${stats.averageBusyness ?? "na"}`}
-      className="mt-4 rounded-[16px] border border-[#00F5D4]/15 bg-[#00F5D4]/[0.055] px-4 py-3 shadow-[0_14px_34px_rgba(0,0,0,0.18)] backdrop-blur-sm"
-      initial={prefersReduced ? false : { opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={prefersReduced ? undefined : { opacity: 0, y: -4 }}
-      transition={{ duration: prefersReduced ? 0 : 0.22, ease: "easeOut" }}
-      role="status"
-      aria-label={`${stats.zoneName} stats: ${stats.spotCount} spots, ${stats.openNowCount} open now, ${busynessLabel}`}
-    >
-      <p className="truncate text-[13px] font-black text-[#F4F5F8]">
-        {stats.spotCount} {stats.spotCount === 1 ? "spot" : "spots"} · {stats.openNowCount} open now · {busynessLabel}
-      </p>
-    </MotionDiv>
-  );
-}
-
-function ExploreQuietEmptyState() {
-  return (
-    <div className="rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
-      <span aria-hidden="true" className="block text-5xl leading-none">🌙</span>
-      <h2 className="mt-4 font-display text-[22px] font-black tracking-tight text-[#F4F5F8]">
-        No venues in this area yet. Check back soon.
-      </h2>
-      <p className="mt-2 text-sm font-semibold text-white/50">South End spots will appear here once they are available.</p>
-      <Link
-        href="/map"
-        className="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-[14px] border border-white/[0.06] bg-white/[0.07] px-5 text-sm font-semibold text-[#F4F5F8] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white/[0.1] hover:shadow-lg hover:shadow-violet/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-      >
-        View map instead →
-      </Link>
-    </div>
-  );
-}
-
-function ExploreNoMatchState({ query, onClear }: { query: string; onClear: () => void }) {
-  const trimmedQuery = query.trim();
-  const clearLabel = trimmedQuery ? "Clear search" : "Clear filters";
-
-  return (
-    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#00F5D4]/25 bg-[#00F5D4]/10 text-[#00F5D4]" aria-hidden="true">
-        <SearchX className="h-6 w-6" strokeWidth={2.1} />
-      </div>
-      <h2 className="mt-4 text-[17px] font-black leading-6 text-white">No venues found</h2>
-      <p className="mt-1 text-sm font-semibold leading-5 text-white/60">Try a different search or category filter</p>
-      <button
-        type="button"
-        onClick={onClear}
-        className="mt-5 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-semibold text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-      >
-        {clearLabel}
-      </button>
-    </div>
-  );
-}
-
-function BusynessChip({
-  value,
-  source,
-}: {
-  value: number | null;
-  source: BusynessSource | null;
-}) {
-  if (value == null || !Number.isFinite(value)) {
+function BusynessBadge({ value, source }: { value: number | null; source: BusynessSource | null | undefined }) {
+  if (value == null) {
     return (
-      <span className="rounded-full border border-white/[0.06] bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-[#9CA2AE] backdrop-blur-sm">
-        No crowd data
+      <span className="inline-flex shrink-0 items-center rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-1 text-[11px] font-black text-white/45">
+        No busyness
       </span>
     );
   }
 
-  const percent = clampPercent(value);
-  const state = getBusynessState(percent);
-  const badge = source === "live" ? "LIVE" : source === "forecast" ? "FORECAST" : source === "crowd" ? "CROWD" : null;
+  const state = getBusynessState(value);
+  const sourceLabel = getBusynessSourceLabel(source);
 
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black leading-none"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-black leading-none"
       style={{ borderColor: `${state.color}55`, backgroundColor: `${state.color}1A`, color: state.color }}
-      aria-label={`${state.label}, ${percent}% busy${badge ? `, ${badge}` : ""}`}
+      aria-label={`${sourceLabel ? `${sourceLabel} ` : ""}${state.label}`}
     >
-      <span>{state.label}</span>
-      <span className="text-[#9CA2AE]">{percent}%</span>
-      {badge ? (
-        <span className="inline-flex items-center gap-1 text-[9px] text-[#9CA2AE]">
+      {sourceLabel ? (
+        <span className="inline-flex items-center gap-1 text-[9px] text-white/70">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${badge === "LIVE" ? "animate-pulse bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.75)]" : "bg-[#646B79]"}`}
+            className={sourceLabel === "LIVE" ? "h-1.5 w-1.5 rounded-full bg-[#22C55E] shadow-[0_0_10px_rgba(34,197,94,0.7)]" : "h-1.5 w-1.5 rounded-full bg-white/40"}
             aria-hidden="true"
           />
-          {badge}
+          {sourceLabel}
         </span>
+      ) : null}
+      <span>{state.label}</span>
+    </span>
+  );
+}
+
+function GoogleRating({ rating, reviewCount }: { rating: number | null; reviewCount: number | null }) {
+  if (rating == null) return null;
+
+  const reviewLabel = formatReviewCount(reviewCount);
+
+  return (
+    <span
+      className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-white/72"
+      aria-label={reviewLabel ? `Google rating ${rating.toFixed(1)} from ${reviewLabel}` : `Google rating ${rating.toFixed(1)}`}
+    >
+      <Star className="h-3.5 w-3.5 shrink-0 fill-[#F8C14A] text-[#F8C14A]" strokeWidth={2.2} aria-hidden="true" />
+      <span className="shrink-0">{rating.toFixed(1)}</span>
+      {reviewLabel ? (
+        <>
+          <span className="text-white/28" aria-hidden="true">{"\u00B7"}</span>
+          <span className="truncate">{reviewLabel}</span>
+        </>
       ) : null}
     </span>
   );
 }
 
-function MFRatioPill({
-  malePercent,
-  femalePercent,
-  sampleSize,
-}: {
-  malePercent: number;
-  femalePercent: number;
-  sampleSize: number;
-}) {
-  const isMaleLeaning = malePercent >= femalePercent;
-  const percent = isMaleLeaning ? malePercent : femalePercent;
-  const label = isMaleLeaning ? "M" : "F";
-  const color = isMaleLeaning ? "#8B6CFF" : "#F0568C";
-  const ratioLabel = `M/F ratio from ${sampleSize} check-ins`;
-
-  return (
-    <span
-      className="inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-black"
-      style={{ borderColor: `${color}55`, backgroundColor: `${color}1A`, color }}
-      title={ratioLabel}
-      aria-label={`${ratioLabel}: ${malePercent}% male, ${femalePercent}% female`}
-    >
-      {percent}% {label}
-    </span>
-  );
-}
-
-function HottestRightNow({ venues }: { venues: ConsumerVenue[] }) {
-  if (venues.length === 0) return null;
-
-  return (
-    <section className="space-y-3" aria-label="Hottest right now">
-      <h2 className="font-display text-sm font-semibold tracking-tight text-[#F4F5F8]">Hottest right now</h2>
-      <div className="overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.035] shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10">
-        {venues.map((venue, index) => {
-          const rawLevel = venue.signal?.busyness0To100 ?? 0;
-          const level = clampPercent(rawLevel);
-          const label = getHottestBusynessLabel(level);
-          const color = getHottestBusynessColor(label);
-
-          return (
-            <Link
-              key={venue.id}
-              href={`/venues/${encodeURIComponent(venue.id)}`}
-              onClick={() => trackAnalytics("hottest_right_now_tapped", { venueId: venue.id, rank: index + 1 })}
-              className="group grid min-h-[58px] grid-cols-[2.75rem_minmax(0,1fr)_4.7rem] items-center gap-3 border-b border-white/[0.06] px-4 py-3 transition-all duration-[180ms] ease-out last:border-b-0 hover:bg-white/[0.06] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8B6CFF]/70"
-              aria-label={`Open ${venue.name}, ranked number ${index + 1}, ${label}`}
-            >
-              <span className="font-display text-sm font-black text-white/55">#{index + 1}</span>
-              <span className="min-w-0">
-                <span className="block truncate text-[14px] font-black text-white">{venue.name}</span>
-                <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
-                  <span className="venue-fill-motion block h-full rounded-full" style={{ width: `${level}%`, backgroundColor: color }} />
-                </span>
-              </span>
-              <span
-                className="justify-self-end rounded-full border px-2 py-1 text-[11px] font-black leading-none"
-                style={{ borderColor: `${color}55`, backgroundColor: `${color}1F`, color }}
-              >
-                {label}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function VenueFeedCard({
+function VenueDiscoveryCard({
   venue,
   searchQuery,
-  distance,
-  index,
-  prefersReduced,
-  isTrending,
   onPrefetchVenue,
 }: {
   venue: ConsumerVenue;
   searchQuery: string;
-  distance: number | null;
-  index: number;
-  prefersReduced: boolean;
-  isTrending: boolean;
   onPrefetchVenue: (venueId: string) => void;
 }) {
-  const signal = venue.signal;
-  const busyness = signal?.busyness0To100 ?? null;
-  const vibeScore = getVenueVibeScore(venue);
-  const rating = venue.rating ?? venue.googleRating;
-  const ratingLabel = rating?.toFixed(1);
-  const reviewCount = venue.userRatingCount ?? venue.totalRatings;
-  const reviewLabel = reviewCount == null || !Number.isFinite(reviewCount)
-    ? null
-    : `${Math.round(reviewCount).toLocaleString()} review${Math.round(reviewCount) === 1 ? "" : "s"}`;
-  const googleRatingLabel = ratingLabel ? `★ ${ratingLabel}${reviewLabel ? ` · ${reviewLabel}` : ""}` : null;
-  const hasBusyness = busyness !== null && Number.isFinite(busyness);
-  const signalConfidenceLabel = hasBusyness ? formatSignalConfidenceLabel(signal) : null;
-  const hasMfReading =
-    signal?.mfRatio !== null &&
-    signal?.mfRatio !== undefined &&
-    signal.sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO;
-  const mfPercents = hasMfReading ? getMFRatioPercents(signal.mfRatio) : null;
-  const mfSampleSize = signal?.sampleSize ?? 0;
-  const neighborhood = getNeighborhood(venue.lat, venue.lng);
-  const cardHover = prefersReduced
-    ? undefined
-    : {
-        scale: 1.01,
-        boxShadow: "0 0 20px rgba(139,108,255,0.15)",
-      };
-  const cardTap = prefersReduced ? undefined : { scale: 0.97 };
-  const rippleVariants = prefersReduced ? undefined : { tap: { opacity: 1 } };
+  const rating = getVenueRating(venue);
+  const reviewCount = getVenueReviewCount(venue);
+  const busyness = getVenueBusyness(venue);
 
   return (
-    <MotionLi
-      className="h-auto sm:h-[126px]"
-      role="article"
-      initial={prefersReduced ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: prefersReduced ? 0 : 0.18,
-        delay: prefersReduced || index >= 8 ? 0 : index * 0.04,
-        ease: "easeOut",
-      }}
-      exit={prefersReduced ? undefined : { opacity: 0, y: -6 }}
-    >
-      <MotionLink
+    <li role="article">
+      <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         prefetch={false}
         onMouseEnter={() => {
@@ -768,252 +270,103 @@ function VenueFeedCard({
           onPrefetchVenue(venue.id);
         }}
         onTouchStart={() => onPrefetchVenue(venue.id)}
-        onClick={() => trackAnalytics("venue_card_tapped", { venueId: venue.id })}
-        className="venue-card-motion group relative flex h-full w-full flex-col items-stretch gap-3 overflow-hidden rounded-[18px] border border-white/[0.06] bg-[rgba(255,255,255,0.035)] p-4 shadow-lg shadow-black/10 backdrop-blur-sm transition-transform duration-100 ease-out hover:bg-white/[0.05] active:scale-[0.97] active:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 sm:flex-row sm:items-center"
-        whileHover={cardHover}
-        whileTap={cardTap}
-        transition={prefersReduced ? undefined : { type: "spring", stiffness: 400, damping: 20 }}
+        onClick={() => trackAnalytics("explore_venue_card_tapped", { venueId: venue.id })}
+        className="group block overflow-hidden rounded-[8px] border border-white/[0.07] bg-[#14141A] shadow-[0_18px_42px_rgba(0,0,0,0.28)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[#8B6CFF]/35 hover:shadow-[0_22px_46px_rgba(0,0,0,0.34)] active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75"
         aria-label={`Open ${venue.name}`}
       >
-        <MotionSpan
-          className="pointer-events-none absolute inset-0 z-0 bg-[#8B6CFF]/10 opacity-0"
-          variants={rippleVariants}
-          transition={{ duration: 0.15, ease: "easeOut" }}
-          aria-hidden="true"
-        />
-        {isTrending ? <TrendingBadge className="absolute right-3 top-3 z-10" /> : null}
-        <div className="relative w-full shrink-0 overflow-hidden rounded-xl sm:h-[72px] sm:w-[72px]">
+        <div className="relative aspect-[16/10] overflow-hidden bg-[#0A0A0E]">
           <VenuePhoto
             name={venue.name}
-            photoUrl={venue.photoUrl ?? venue.photoUrls?.[0]}
-            className="aspect-video w-full sm:h-full sm:aspect-auto"
-            imageClassName="transition-transform duration-[180ms] group-hover:scale-[1.02]"
-            sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
+            photoUrl={venue.photoUrl ?? venue.photoUrls?.[0] ?? venue.photo_urls?.[0]}
+            photoUrls={venue.photoUrls ?? venue.photo_urls}
+            className="h-full w-full"
+            imageClassName="transition-transform duration-300 ease-out group-hover:scale-[1.035]"
+            sizes="(max-width: 768px) 100vw, 420px"
             loading="lazy"
           />
-          {vibeScore != null ? (
-            <div className="absolute right-2 top-2 z-10 sm:right-1.5 sm:top-1.5">
-              <VibeScoreArc score={vibeScore} size={32} />
-            </div>
-          ) : null}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#14141A] to-transparent" aria-hidden="true" />
+          <div className="absolute left-3 top-3">
+            <CategoryBadge category={venue.category} />
+          </div>
+          <div className="absolute right-3 top-3">
+            <OpenStatusBadge openNow={venue.openNow ?? venue.open_now ?? venue.opening_hours?.open_now ?? null} />
+          </div>
         </div>
 
-        <div className="relative z-[1] flex min-w-0 flex-1 flex-col justify-center gap-2">
-          <div className="min-w-0 space-y-1">
-            <div className="flex min-w-0 items-start justify-between gap-2">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <h2 className="min-w-0 truncate text-[16px] font-semibold leading-tight tracking-tight text-white">
-                  <HighlightText text={venue.name} query={searchQuery} />
-                </h2>
-                <OpenNowBadge openNow={venue.openNow ?? null} />
-              </div>
-              {googleRatingLabel ? (
-                <span
-                  className="max-w-[6rem] shrink-0 truncate rounded-full border border-white/[0.06] bg-white/[0.06] px-2 py-0.5 text-[11px] font-semibold text-[#F4F5F8] backdrop-blur-sm"
-                  aria-label={reviewLabel ? `${ratingLabel} star rating from ${reviewLabel}` : `${ratingLabel} star rating`}
-                >
-                  {googleRatingLabel}
-                </span>
-              ) : null}
-            </div>
-            <p className="truncate text-xs font-semibold text-[#9CA2AE]">{neighborhood}</p>
-            <div className="flex min-w-0 items-center gap-2">
-              <CategoryBadge category={venue.category} className="max-w-[8.5rem] shrink truncate" />
-              <PriceLevelDisplay priceLevel={venue.priceLevel} className="shrink-0" />
-            </div>
+        <div className="space-y-3 p-4">
+          <div className="min-w-0">
+            <h2 className="font-display text-[20px] font-black leading-tight tracking-normal text-white">
+              <HighlightText text={venue.name} query={searchQuery} />
+            </h2>
+            <p className="mt-1 truncate text-[13px] font-medium text-white/45">{venue.address}</p>
           </div>
 
-          <BusynessChip value={busyness} source={signal?.busynessSource ?? null} />
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <span className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-[#9CA2AE]">
-              {distance != null ? (
-                <span className="shrink-0 rounded-full border border-[#00F5D4]/30 bg-[#00F5D4]/10 px-2 py-0.5 text-[11px] font-black text-[#00F5D4]">
-                  {distance.toFixed(1)} mi
-                </span>
-              ) : null}
-              <span className="min-w-0 truncate">{venue.address}</span>
-            </span>
-            <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
-              {mfPercents ? (
-                <MFRatioPill malePercent={mfPercents.male} femalePercent={mfPercents.female} sampleSize={mfSampleSize} />
-              ) : null}
-              {hasBusyness ? <SignalFreshnessLabel signal={signal} /> : null}
-            </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+            <GoogleRating rating={rating} reviewCount={reviewCount} />
+            <PriceLevelDisplay priceLevel={venue.priceLevel} className="text-[13px]" />
           </div>
-          {signalConfidenceLabel ? <p className="sr-only">{signalConfidenceLabel}</p> : null}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <BusynessBadge value={busyness} source={venue.signal?.busynessSource ?? null} />
+          </div>
         </div>
-      </MotionLink>
-    </MotionLi>
+      </Link>
+    </li>
   );
 }
 
-function PullToRefreshIndicator({
-  refreshing,
-  prefersReduced,
-}: {
-  refreshing: boolean;
-  prefersReduced: boolean;
-}) {
+function ExploreEmptyState({ hasActiveSearchOrFilter, onClear }: { hasActiveSearchOrFilter: boolean; onClear: () => void }) {
   return (
-    <MotionDiv
-      key="explore-pull-to-refresh"
-      role={refreshing ? "status" : undefined}
-      aria-live="polite"
-      initial={prefersReduced ? false : { opacity: 0, y: -18, height: 0 }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        height: "auto",
-      }}
-      exit={prefersReduced ? undefined : { opacity: 0, y: -12, height: 0 }}
-      transition={{ duration: prefersReduced ? 0 : 0.22, ease: "easeOut" }}
-      className="overflow-hidden"
-    >
-      <div className="mb-3 flex justify-center pt-1">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[#8B6CFF]/20 bg-[#0A0A0E]/92 shadow-[0_10px_24px_rgba(0,0,0,0.24)] backdrop-blur">
-          <span className="sr-only">{refreshing ? "Refreshing venues" : "Pull to refresh venues"}</span>
-          <span
-            className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-2 border-t-[#8B6CFF]"
-            aria-hidden="true"
-          />
-        </div>
+    <div className="rounded-[8px] border border-white/[0.08] bg-[#14141A] px-6 py-10 text-center shadow-[0_18px_42px_rgba(0,0,0,0.24)]">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#8B6CFF]/25 bg-[#8B6CFF]/10 text-[#8B6CFF]" aria-hidden="true">
+        <SearchX className="h-6 w-6" strokeWidth={2.2} />
       </div>
-    </MotionDiv>
+      <h2 className="mt-4 font-display text-[20px] font-black text-white">No venues found in this area yet.</h2>
+      {hasActiveSearchOrFilter ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-5 inline-flex min-h-[42px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#9C85FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75"
+        >
+          Clear filters
+        </button>
+      ) : null}
+    </div>
   );
 }
 
 export function ExplorePageClient() {
   const router = useRouter();
   const trackPageView = useTrack();
-  const prefersReduced = useReducedMotion();
-  const [session, setSession] = useState<Session | null>(null);
   const [venues, setVenues] = useState<ConsumerVenue[] | undefined>(undefined);
-  const [view, setView] = useState<"list" | "map">("list");
   const [isFetchingVenues, setIsFetchingVenues] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [now, setNow] = useState(() => new Date());
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [exploreSort, setExploreSort] = useState<ExploreSortOption>(DEFAULT_EXPLORE_SORT);
-  const [exploreFilters, setExploreFilters] = useState<Set<ExploreFilterOption>>(() => new Set());
-  const [hasInitializedExploreFilters, setHasInitializedExploreFilters] = useState(false);
-  const [activityItems, setActivityItems] = useState<ActivityFeedItem[]>([]);
-  const [activityLoaded, setActivityLoaded] = useState(false);
-  const [zoneActivityStats, setZoneActivityStats] = useState<ZoneActivityStats[]>([]);
-  const [zoneActivityLoading, setZoneActivityLoading] = useState(true);
-  const [zoneActivityError, setZoneActivityError] = useState(false);
-  const [trendingVenueIds, setTrendingVenueIds] = useState<Set<string>>(() => new Set());
-  const { savedIds } = useSavedVenues();
-  const hasLoadedVenuesRef = useRef(false);
-  const prefetchedVenueIdsRef = useRef<Set<string>>(new Set());
-  const activitySectionRef = useRef<HTMLElement | null>(null);
-  const activityViewedRef = useRef(false);
-  const searchContainerRef = useRef<HTMLDivElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const pullStartYRef = useRef<number | null>(null);
-  const pullDeltaRef = useRef(0);
-  const [pullDelta, setPullDelta] = useState(0);
-  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [openNowOnly, setOpenNowOnly] = useState(false);
+  const [priceFilter, setPriceFilter] = useState<PriceFilter>(null);
+  const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("any");
   const [searchSuggestions, setSearchSuggestions] = useState<VenueSuggestion[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const prefetchedVenueIdsRef = useRef<Set<string>>(new Set());
 
-  const fetchVenues = useCallback(async ({
-    reset = false,
-    signal,
-  }: {
-    reset?: boolean;
-    signal?: AbortSignal;
-  } = {}) => {
-    if (reset) setVenues(undefined);
+  const fetchVenues = useCallback(async (signal?: AbortSignal) => {
     setIsFetchingVenues(true);
     setError(null);
+
     try {
-      const params = new URLSearchParams();
-      const selectedZoneIds = NEIGHBORHOOD_EXPLORE_FILTERS
-        .filter((filter) => exploreFilters.has(filter))
-        .map((filter) => EXPLORE_FILTER_ZONE_IDS[filter])
-        .filter((zoneId): zoneId is string => Boolean(zoneId));
-      if (selectedZoneIds.length === 1) params.set("zone", selectedZoneIds[0]);
-      const url = params.size ? `/api/venues?${params.toString()}` : "/api/venues";
-      const res = await fetch(url, { cache: "no-store", signal });
+      const res = await fetch("/api/venues", { cache: "no-store", signal });
       if (!res.ok) throw new Error(`${res.status}`);
       const json = await res.json();
-      setVenues(json?.data?.venues ?? []);
-      hasLoadedVenuesRef.current = true;
+      setVenues(Array.isArray(json?.data?.venues) ? json.data.venues : []);
     } catch {
-      if (signal?.aborted) return;
-      setError("📡 Can't reach the server. Pull to refresh.");
+      if (!signal?.aborted) setError("Can't reach venues right now. Try again.");
     } finally {
       if (!signal?.aborted) setIsFetchingVenues(false);
     }
-  }, [exploreFilters]);
-
-  const refreshVenues = useCallback(async () => {
-    await fetchVenues();
-  }, [fetchVenues]);
-
-  const fetchActivity = useCallback(async () => {
-    try {
-      const res = await fetch("/api/activity/feed", { cache: "no-store" });
-      if (!res.ok) throw new Error(`${res.status}`);
-      const json = (await res.json()) as { items?: ActivityFeedItem[] };
-      setActivityItems(Array.isArray(json.items) ? json.items.slice(0, 10) : []);
-    } catch {
-      setActivityItems([]);
-    } finally {
-      setActivityLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    void fetchActivity();
-    const id = window.setInterval(() => void fetchActivity(), 60_000);
-    return () => window.clearInterval(id);
-  }, [fetchActivity]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadZoneActivity({ showLoading }: { showLoading: boolean }) {
-      if (showLoading) setZoneActivityLoading(true);
-
-      try {
-        const nextStats = await fetchZoneActivityStats(controller.signal);
-        setZoneActivityStats(nextStats);
-        setZoneActivityError(false);
-      } catch {
-        if (!controller.signal.aborted) {
-          setZoneActivityStats([]);
-          setZoneActivityError(true);
-        }
-      } finally {
-        if (!controller.signal.aborted) setZoneActivityLoading(false);
-      }
-    }
-
-    void loadZoneActivity({ showLoading: true });
-    const id = window.setInterval(() => void loadZoneActivity({ showLoading: false }), 60_000);
-
-    return () => {
-      controller.abort();
-      window.clearInterval(id);
-    };
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadTrendingVenues() {
-      try {
-        setTrendingVenueIds(await fetchTrendingVenueIds(controller.signal));
-      } catch {
-        if (!controller.signal.aborted) setTrendingVenueIds(new Set());
-      }
-    }
-
-    void loadTrendingVenues();
-    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -1021,77 +374,30 @@ export function ExplorePageClient() {
   }, [trackPageView]);
 
   useEffect(() => {
-    const storedSort = localStorage.getItem(EXPLORE_SORT_STORAGE_KEY);
-    if (isExploreSortOption(storedSort)) setExploreSort(storedSort);
-
-    const params = new URLSearchParams(window.location.search);
-    const initialSearchQuery = params.get("q") ?? sessionStorage.getItem(EXPLORE_SEARCH_STORAGE_KEY) ?? "";
+    const initialSearchQuery = sessionStorage.getItem(EXPLORE_SEARCH_STORAGE_KEY) ?? "";
     setSearchQuery(initialSearchQuery);
     setDebouncedSearchQuery(initialSearchQuery);
 
-    const zoneFilter = getExploreZoneFilter(params.get("zone")) ?? getExploreZoneFilter(localStorage.getItem(PREFERRED_ZONE_STORAGE_KEY));
-    if (zoneFilter) {
-      setExploreFilters((current) => {
-        const next = new Set(current);
-        for (const filter of NEIGHBORHOOD_EXPLORE_FILTERS) next.delete(filter);
-        next.add(zoneFilter);
-        return next;
-      });
-    }
-    setHasInitializedExploreFilters(true);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(EXPLORE_SORT_STORAGE_KEY, exploreSort);
-  }, [exploreSort]);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const element = activitySectionRef.current;
-    if (!element || activityViewedRef.current || !("IntersectionObserver" in window)) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting || activityViewedRef.current) return;
-        activityViewedRef.current = true;
-        trackAnalytics("activity_feed_viewed", { source: "explore" });
-        observer.disconnect();
-      },
-      { threshold: 0.4 }
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (venues === undefined) return;
-
-    const venueIds = venues
-      .map((venue) => venue.id)
-      .filter((id): id is string => typeof id === "string" && id.length > 0);
-    const viewedVenueIds = parseStoredVenueIds(localStorage.getItem(VIEWED_VENUES_STORAGE_KEY));
-
-    for (const venueId of venueIds) {
-      viewedVenueIds.add(venueId);
-    }
-
-    localStorage.setItem(VIEWED_VENUES_STORAGE_KEY, JSON.stringify([...viewedVenueIds]));
-    window.dispatchEvent(new CustomEvent<string[]>(EXPLORE_VENUES_EVENT, { detail: venueIds }));
-  }, [venues]);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: prefersReduced ? "auto" : "smooth" });
-  }, [debouncedSearchQuery, exploreFilters, exploreSort]);
+    const controller = new AbortController();
+    void fetchVenues(controller.signal);
+    return () => controller.abort();
+  }, [fetchVenues]);
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 200);
     return () => window.clearTimeout(id);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const trimmedSearchQuery = debouncedSearchQuery.trim();
+    if (trimmedSearchQuery) sessionStorage.setItem(EXPLORE_SEARCH_STORAGE_KEY, trimmedSearchQuery);
+    else sessionStorage.removeItem(EXPLORE_SEARCH_STORAGE_KEY);
+
+    const url = new URL(window.location.href);
+    if (trimmedSearchQuery) url.searchParams.set("q", trimmedSearchQuery);
+    else url.searchParams.delete("q");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [debouncedSearchQuery]);
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
@@ -1109,13 +415,15 @@ export function ExplorePageClient() {
         });
         if (!res.ok) throw new Error(`${res.status}`);
         const json = (await res.json()) as { suggestions?: VenueSuggestion[] };
-        if (controller.signal.aborted) return;
-        setSearchSuggestions(Array.isArray(json.suggestions) ? json.suggestions.slice(0, 5) : []);
-        setIsSuggestionsOpen(true);
+        if (!controller.signal.aborted) {
+          setSearchSuggestions(Array.isArray(json.suggestions) ? json.suggestions.slice(0, 5) : []);
+          setIsSuggestionsOpen(true);
+        }
       } catch {
-        if (controller.signal.aborted) return;
-        setSearchSuggestions([]);
-        setIsSuggestionsOpen(false);
+        if (!controller.signal.aborted) {
+          setSearchSuggestions([]);
+          setIsSuggestionsOpen(false);
+        }
       }
     }, 200);
 
@@ -1135,113 +443,28 @@ export function ExplorePageClient() {
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, []);
 
-  useEffect(() => {
-    if (!hasInitializedExploreFilters) return;
-
-    const trimmedSearchQuery = debouncedSearchQuery.trim();
-    if (trimmedSearchQuery) sessionStorage.setItem(EXPLORE_SEARCH_STORAGE_KEY, trimmedSearchQuery);
-    else sessionStorage.removeItem(EXPLORE_SEARCH_STORAGE_KEY);
-
-    const url = new URL(window.location.href);
-    if (trimmedSearchQuery) url.searchParams.set("q", trimmedSearchQuery);
-    else url.searchParams.delete("q");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }, [debouncedSearchQuery, hasInitializedExploreFilters]);
-
-  useEffect(() => {
-    if (!hasInitializedExploreFilters) return;
-    const controller = new AbortController();
-    void fetchVenues({
-      reset: !hasLoadedVenuesRef.current,
-      signal: controller.signal,
-    });
-    return () => controller.abort();
-  }, [fetchVenues, hasInitializedExploreFilters]);
-
-  useEffect(() => {
-    if (!hasInitializedExploreFilters) return;
-
-    const selectedZoneIds = NEIGHBORHOOD_EXPLORE_FILTERS
-      .filter((filter) => exploreFilters.has(filter))
-      .map((filter) => EXPLORE_FILTER_ZONE_IDS[filter])
-      .filter((zoneId): zoneId is OnboardingZone["id"] => isOnboardingZoneId(zoneId ?? null));
-    const url = new URL(window.location.href);
-    if (selectedZoneIds.length === 1) url.searchParams.set("zone", selectedZoneIds[0]);
-    else url.searchParams.delete("zone");
-    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  }, [exploreFilters, hasInitializedExploreFilters]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
-
-    void getSupabaseBrowserClient()
-      .then((client) => {
-        if (cancelled) return;
-
-        client.auth
-          .getSession()
-          .then(({ data }) => {
-            if (!cancelled) setSession(data.session);
-          })
-          .catch(() => {
-            if (!cancelled) setSession(null);
-          });
-
-        const {
-          data: { subscription },
-        } = client.auth.onAuthStateChange((_event, nextSession) => {
-          setSession(nextSession);
-        });
-        unsubscribe = () => subscription.unsubscribe();
-      })
-      .catch(() => {
-        if (!cancelled) setSession(null);
-      });
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-    };
-  }, []);
-
-  const sortedVenues = useMemo(() => {
+  const filteredVenues = useMemo(() => {
     if (venues === undefined) return [];
 
-    const activeNeighborhoodFilters = NEIGHBORHOOD_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
-    const activeCategoryFilters = CATEGORY_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
-    const query = debouncedSearchQuery;
+    return venues
+      .filter((venue) => {
+        if (venue.hidden) return false;
+        if (!venueMatchesSearchQuery(venue, debouncedSearchQuery)) return false;
+        if (!venueMatchesCategory(venue, categoryFilter)) return false;
+        if (openNowOnly && (venue.openNow ?? venue.open_now ?? venue.opening_hours?.open_now) !== true) return false;
+        if (priceFilter !== null && venue.priceLevel !== priceFilter) return false;
+        return venueMatchesBusyness(venue, busynessFilter);
+      })
+      .sort((a, b) => {
+        const aBusyness = getVenueBusyness(a) ?? -1;
+        const bBusyness = getVenueBusyness(b) ?? -1;
+        if (aBusyness !== bBusyness) return bBusyness - aBusyness;
 
-    return venues.filter((venue) => {
-      if (venue.hidden) return false;
-
-      const neighborhoodName = getVenueNeighborhoodName(venue);
-      const matchesSearch = venueMatchesSearchQuery(venue, query);
-      const matchesOpenNow = !exploreFilters.has("open-now") || getVenueOpenNow(venue) === true;
-      const matchesCategory = venueMatchesCategoryFilters(venue, activeCategoryFilters);
-      const matchesSaved =
-        !exploreFilters.has("saved") ||
-        savedIds.has(venue.id) ||
-        Boolean(venue.placeId && savedIds.has(venue.placeId));
-      const matchesExploreNeighborhood =
-        activeNeighborhoodFilters.length === 0 || activeNeighborhoodFilters.includes(neighborhoodName as ExploreFilterOption);
-      return matchesSearch && matchesOpenNow && matchesCategory && matchesSaved && matchesExploreNeighborhood;
-    }).sort((a, b) => {
-      if (exploreSort === "highest-rated") {
-        return compareVenueMetricThenName(a, b, getVenueGoogleRating);
-      }
-
-      if (exploreSort === "most-active") {
-        return compareVenueMetricThenName(a, b, getVenueCurrentPopularity);
-      }
-
-      if (exploreSort === "trending") {
-        return compareVenueMetricThenName(a, b, getVenueVibeScore);
-      }
-
-      return a.name.localeCompare(b.name);
-    });
-  }, [debouncedSearchQuery, exploreFilters, exploreSort, savedIds, venues]);
+        const aRating = getVenueRating(a) ?? -1;
+        const bRating = getVenueRating(b) ?? -1;
+        return bRating - aRating || a.name.localeCompare(b.name);
+      });
+  }, [busynessFilter, categoryFilter, debouncedSearchQuery, openNowOnly, priceFilter, venues]);
 
   const prefetchVenueDetail = useCallback((venueId: string) => {
     if (prefetchedVenueIdsRef.current.has(venueId)) return;
@@ -1249,81 +472,13 @@ export function ExplorePageClient() {
     router.prefetch(`/venues/${venueId}`);
   }, [router]);
 
-  const hottestVenues = useMemo(() => {
-    if (venues === undefined) return [];
-
-    return venues
-      .filter((venue) => {
-        const busynessLevel = venue.signal?.busyness0To100 ?? 0;
-        return !venue.hidden && Number.isFinite(busynessLevel) && busynessLevel > 0;
-      })
-      .sort((a, b) => {
-        const aBusyness = a.signal?.busyness0To100 ?? 0;
-        const bBusyness = b.signal?.busyness0To100 ?? 0;
-        return bBusyness - aBusyness || compareVenueMetricThenName(a, b, getVenueGoogleRating);
-      })
-      .slice(0, 5);
-  }, [venues]);
-
-  const tonightsPicks = useMemo(() => {
-    if (venues === undefined) return [];
-
-    const sourceVenues = sortedVenues.length > 0 ? sortedVenues : venues;
-    return sourceVenues
-      .filter((venue) => !venue.hidden && getActiveBusyness(venue) != null)
-      .sort((a, b) => {
-        const aBusyness = getActiveBusyness(a) ?? 0;
-        const bBusyness = getActiveBusyness(b) ?? 0;
-        return bBusyness - aBusyness || compareVenueMetricThenName(a, b, getVenueGoogleRating);
-      })
-      .slice(0, 3);
-  }, [sortedVenues, venues]);
-
-  const activeZoneStats = useMemo<ZoneStatsSummary | null>(() => {
-    if (venues === undefined) return null;
-
-    const activeZoneIds = NEIGHBORHOOD_EXPLORE_FILTERS
-      .filter((filter) => exploreFilters.has(filter))
-      .map((filter) => EXPLORE_FILTER_ZONE_IDS[filter])
-      .filter((zoneId): zoneId is OnboardingZone["id"] => isOnboardingZoneId(zoneId ?? null));
-    const activeZoneId = activeZoneIds.length === 1 ? activeZoneIds[0] : "south-end-charlotte";
-    const zoneVenues = venues.filter((venue) => !venue.hidden && venue.zoneId === activeZoneId);
-
-    const busynessValues = zoneVenues
-      .map(getVenueBusynessPercent)
-      .filter((value): value is number => value !== null);
-    const averageBusyness = busynessValues.length > 0
-      ? Math.round(busynessValues.reduce((sum, value) => sum + value, 0) / busynessValues.length)
-      : null;
-
-    return {
-      zoneName: EXPLORE_ZONE_LABELS_BY_ID[activeZoneId],
-      spotCount: zoneVenues.length,
-      openNowCount: zoneVenues.filter((venue) => getVenueOpenNow(venue) === true).length,
-      averageBusyness,
-    };
-  }, [exploreFilters, venues]);
-
-  const venuesCount = venues?.length ?? 0;
-  const searchedLocationCenter = getSearchedLocationCenter(searchQuery);
-  const showOutOfZoneSearchBanner = searchedLocationCenter
-    ? !inZone(searchedLocationCenter[0], searchedLocationCenter[1])
-    : false;
-  const activeExploreNeighborhoods = NEIGHBORHOOD_EXPLORE_FILTERS.filter((filter) => exploreFilters.has(filter));
-  const savedCount = savedIds.size;
-  const resultAreaLabel = activeExploreNeighborhoods.length > 0
-    ? activeExploreNeighborhoods.join(", ")
-    : "all areas";
-  const resultCountLabel = `${sortedVenues.length} spot${sortedVenues.length === 1 ? "" : "s"} in ${resultAreaLabel}`;
-  const trimmedSearchQuery = debouncedSearchQuery.trim();
-  const isSearchingVenues = isFetchingVenues && trimmedSearchQuery.length > 0;
-  const showZoneStats = venues !== undefined && trimmedSearchQuery.length === 0 && activeZoneStats !== null;
-  function clearFilters() {
-    setSearchQuery("");
-    setDebouncedSearchQuery("");
-    setExploreSort(DEFAULT_EXPLORE_SORT);
-    setExploreFilters(new Set());
-  }
+  const hasActiveSearchOrFilter = Boolean(
+    debouncedSearchQuery.trim() ||
+    categoryFilter !== "all" ||
+    openNowOnly ||
+    priceFilter !== null ||
+    busynessFilter !== "any",
+  );
 
   function clearSearch() {
     setSearchQuery("");
@@ -1331,6 +486,17 @@ export function ExplorePageClient() {
     setSearchSuggestions([]);
     setIsSuggestionsOpen(false);
     searchInputRef.current?.focus();
+  }
+
+  function clearFilters() {
+    setSearchQuery("");
+    setDebouncedSearchQuery("");
+    setCategoryFilter("all");
+    setOpenNowOnly(false);
+    setPriceFilter(null);
+    setBusynessFilter("any");
+    setSearchSuggestions([]);
+    setIsSuggestionsOpen(false);
   }
 
   function selectSearchSuggestion(suggestion: VenueSuggestion) {
@@ -1341,160 +507,39 @@ export function ExplorePageClient() {
   }
 
   function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Escape") {
-      setIsSuggestionsOpen(false);
-    }
-  }
-
-  function selectExploreSort(option: ExploreSortOption) {
-    setExploreSort(option);
-    trackAnalytics("explore_filter_selected", { filter: option });
-  }
-
-  function toggleExploreFilter(option: ExploreFilterOption) {
-    setExploreFilters((current) => {
-      const next = new Set(current);
-      if (next.has(option)) next.delete(option);
-      else next.add(option);
-      return next;
-    });
-    trackAnalytics("explore_filter_selected", { filter: option });
-  }
-
-  function navigateToVenueDetail(venue: ConsumerVenue) {
-    router.push(`/venues/${encodeURIComponent(venue.slug || venue.id)}`);
-  }
-
-  const timeLabel = useMemo(() => (
-    now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-  ), [now]);
-
-  function isAtWindowTop() {
-    return typeof window !== "undefined" && window.scrollY === 0;
-  }
-
-  function handlePullTouchStart(event: TouchEvent<HTMLElement>) {
-    if (!isAtWindowTop() || isPullRefreshing) {
-      pullStartYRef.current = null;
-      pullDeltaRef.current = 0;
-      setPullDelta(0);
-      return;
-    }
-
-    pullStartYRef.current = event.touches[0]?.clientY ?? null;
-    pullDeltaRef.current = 0;
-    setPullDelta(0);
-  }
-
-  function handlePullTouchMove(event: TouchEvent<HTMLElement>) {
-    if (pullStartYRef.current === null || !isAtWindowTop()) {
-      pullStartYRef.current = null;
-      pullDeltaRef.current = 0;
-      setPullDelta(0);
-      return;
-    }
-
-    const currentY = event.touches[0]?.clientY;
-    if (currentY === undefined) return;
-
-    const nextDelta = Math.max(0, currentY - pullStartYRef.current);
-    pullDeltaRef.current = nextDelta;
-    setPullDelta(nextDelta);
-  }
-
-  async function handlePullTouchEnd() {
-    const shouldRefresh = pullDeltaRef.current > PULL_TO_REFRESH_THRESHOLD_PX && isAtWindowTop() && !isPullRefreshing;
-    pullStartYRef.current = null;
-
-    if (!shouldRefresh) {
-      pullDeltaRef.current = 0;
-      setPullDelta(0);
-      return;
-    }
-
-    setIsPullRefreshing(true);
-    try {
-      await refreshVenues();
-    } finally {
-      setIsPullRefreshing(false);
-      pullDeltaRef.current = 0;
-      setPullDelta(0);
-    }
+    if (event.key === "Escape") setIsSuggestionsOpen(false);
   }
 
   if (!venues) {
     return (
-      <div className="min-h-screen-safe space-y-3 bg-[#0A0A0E] p-4 text-white">
-        {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+      <div className="min-h-screen-safe bg-[#0A0A0E] p-4 text-white">
+        <div className="mx-auto max-w-5xl space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen-safe bg-[#0A0A0E]">
-      <header className="px-4 pb-5 pt-10" role="region" aria-label="Explore filters">
-        <div className="mx-auto max-w-lg">
-          <div className="mb-3 flex items-center justify-between gap-3 text-xs font-semibold text-white/55">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width={14}
-                height={14}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="shrink-0 text-white/55"
-              >
-                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <span className="truncate">South End Charlotte</span>
+    <div className="min-h-screen-safe bg-[#0A0A0E] pb-28 text-white">
+      <header className="border-b border-white/[0.06] bg-[#0A0A0E] px-4 pb-4 pt-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="flex items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#8B6CFF]">nytchkr</p>
+              <h1 className="mt-1 font-display text-[32px] font-black leading-tight tracking-normal text-white sm:text-[40px]">
+                Explore Charlotte
+              </h1>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <time className="text-white/55">{timeLabel}</time>
-              {session && (
-                <Link
-                  href="/profile"
-                  className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-semibold text-white/70 transition-colors hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                >
-                  You
-                </Link>
-              )}
-            </div>
+            <p className="shrink-0 text-right text-sm font-semibold text-white/48">
+              {filteredVenues.length} {filteredVenues.length === 1 ? "venue" : "venues"}
+            </p>
           </div>
-          <NeighborhoodHeatRow venues={venues} />
-
-          <div className="mt-4 flex items-center gap-2">
-            <h1 className="font-display text-[34px] font-semibold tracking-tight">
-              <MotionSpan
-                className="inline-block bg-[linear-gradient(100deg,#F4F5F8_0%,#F4F5F8_34%,#00F5D4_50%,#FF2D78_64%,#F4F5F8_82%)] bg-[length:220%_100%] bg-clip-text text-transparent"
-                initial={prefersReduced ? false : { backgroundPosition: "0% 50%" }}
-                animate={prefersReduced ? undefined : { backgroundPosition: "100% 50%" }}
-                transition={{ duration: prefersReduced ? 0 : 1.35, ease: "easeOut", delay: prefersReduced ? 0 : 0.08 }}
-              >
-                South End
-              </MotionSpan>
-            </h1>
-            <span className="rounded-full bg-[#22C55E]/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-[#22C55E]">
-              LIVE
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-white/55">{venuesCount} spots tracked tonight</p>
-
-          <AnimatePresence initial={false}>
-            {showZoneStats ? (
-              <ZoneStatsBar stats={activeZoneStats} prefersReduced={prefersReduced} />
-            ) : null}
-          </AnimatePresence>
 
           <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
             <div ref={searchContainerRef} className="relative">
               <label htmlFor="venue-search" className="sr-only">
-                Search South End venues
+                Search venues
               </label>
               <input
                 ref={searchInputRef}
@@ -1513,47 +558,26 @@ export function ExplorePageClient() {
                   if (searchSuggestions.length > 0) setIsSuggestionsOpen(true);
                 }}
                 onKeyDown={handleSearchKeyDown}
-                placeholder="Search South End, Dilworth, venue name..."
-                className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-medium text-white transition-all duration-200 ease-out placeholder:text-[#9CA2AE] focus:border-violet/60 focus:outline-none focus:ring-2 focus:ring-violet/40 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                placeholder="Search restaurants, bars, lounges..."
+                className="w-full rounded-[14px] border border-white/[0.08] bg-[#14141A] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/36 focus:border-[#8B6CFF]/60 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/25"
               />
-              <button
-                type="button"
-                onClick={() => searchInputRef.current?.focus()}
-                className="absolute left-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/55 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                aria-label="Focus venue search"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width={18}
-                  height={18}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-              </button>
-              {searchQuery.length > 0 && (
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" strokeWidth={2.3} aria-hidden="true" />
+              {searchQuery.length > 0 ? (
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-lg font-black leading-none text-white/65 transition-all duration-200 ease-out hover:bg-white/15 hover:text-white active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                  className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75"
                   aria-label="Clear search"
                 >
-                  <X className="h-4 w-4" strokeWidth={2.4} />
+                  <X className="h-4 w-4" strokeWidth={2.5} />
                 </button>
-              )}
-              {isSuggestionsOpen && searchSuggestions.length > 0 && (
+              ) : null}
+              {isSuggestionsOpen && searchSuggestions.length > 0 ? (
                 <div
                   id="explore-search-suggestions"
                   role="listbox"
                   aria-label="Search suggestions"
-                  className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0A0A0E] shadow-2xl shadow-black/30"
+                  className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-[14px] border border-white/[0.08] bg-[#14141A] shadow-2xl shadow-black/35"
                 >
                   {searchSuggestions.map((suggestion) => (
                     <button
@@ -1564,212 +588,110 @@ export function ExplorePageClient() {
                       onClick={() => selectSearchSuggestion(suggestion)}
                       className="block w-full px-4 py-3 text-left transition-colors hover:bg-white/[0.06] focus:bg-white/[0.08] focus:outline-none"
                     >
-                      <span className="block truncate text-sm font-bold text-white">{suggestion.name}</span>
-                      <span className="mt-0.5 block truncate text-xs font-semibold text-white/50">
+                      <span className="block truncate text-sm font-black text-white">{suggestion.name}</span>
+                      <span className="mt-0.5 block truncate text-xs font-semibold text-white/45">
                         {suggestion.category ?? "Venue"}
                       </span>
                     </button>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
 
-            {showOutOfZoneSearchBanner && (
-              <div
-                role="status"
-                className="rounded-[14px] border border-white/[0.06] bg-white/[0.07] px-4 py-3 text-sm font-medium leading-5 text-[#9CA2AE] backdrop-blur-sm"
+            <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Category filters">
+              {CATEGORY_FILTERS.map((filter) => (
+                <FilterPill
+                  key={filter.value}
+                  active={categoryFilter === filter.value}
+                  onClick={() => {
+                    setCategoryFilter(filter.value);
+                    trackAnalytics("explore_category_filter_selected", { filter: filter.value });
+                  }}
+                >
+                  {filter.label}
+                </FilterPill>
+              ))}
+            </div>
+
+            <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Open price and busyness filters">
+              <FilterPill
+                active={openNowOnly}
+                onClick={() => {
+                  setOpenNowOnly((current) => !current);
+                  trackAnalytics("explore_open_now_filter_toggled", { enabled: !openNowOnly });
+                }}
               >
-                {OUT_OF_ZONE_SEARCH_MESSAGE}
-              </div>
-            )}
-
-            <ExploreSortFilter
-              selectedSort={exploreSort}
-              selectedFilters={exploreFilters}
-              savedCount={savedCount}
-              onSortChange={selectExploreSort}
-              onFilterToggle={toggleExploreFilter}
-            />
-
-            {venues.length > 0 && (
-              <div className="flex justify-end" role="group" aria-label="Explore view">
-                <div className="inline-flex rounded-full border border-white/[0.08] bg-white/[0.03] p-1">
-                  <button
-                    type="button"
-                    aria-label="Show venue list"
-                    aria-pressed={view === "list"}
-                    onClick={() => setView("list")}
-                    className={`flex h-10 w-10 items-center justify-center rounded-full text-lg font-black leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-                      view === "list" ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/55"
-                    }`}
-                  >
-                    <span aria-hidden="true">≡</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Show venue map"
-                    aria-pressed={view === "map"}
-                    onClick={() => setView("map")}
-                    className={`ml-1 flex h-10 w-10 items-center justify-center rounded-full text-lg font-black leading-none transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
-                      view === "map" ? "bg-[#8B6CFF] text-[#0A0A0E]" : "bg-white/[0.06] text-white/55"
-                    }`}
-                  >
-                    <span aria-hidden="true">🗺</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <AISuggest
-            userLat={null}
-            userLng={null}
-            className="mt-4"
-          />
-
-          <div className="mt-5">
-            <TrendingRow />
-          </div>
-
-          {hottestVenues.length > 0 && (
-            <div className="mt-5">
-              <HottestRightNow venues={hottestVenues} />
+                Open Now
+              </FilterPill>
+              {PRICE_FILTERS.map((filter) => (
+                <FilterPill
+                  key={filter.label}
+                  active={priceFilter === filter.value}
+                  ariaLabel={`Price ${filter.label}`}
+                  onClick={() => {
+                    setPriceFilter((current) => current === filter.value ? null : filter.value);
+                    trackAnalytics("explore_price_filter_selected", { filter: filter.label });
+                  }}
+                >
+                  {filter.label}
+                </FilterPill>
+              ))}
+              {BUSYNESS_FILTERS.map((filter) => (
+                <FilterPill
+                  key={filter.value}
+                  active={busynessFilter === filter.value}
+                  onClick={() => {
+                    setBusynessFilter(filter.value);
+                    trackAnalytics("explore_busyness_filter_selected", { filter: filter.value });
+                  }}
+                >
+                  {filter.label}
+                </FilterPill>
+              ))}
             </div>
-          )}
-
-          {tonightsPicks.length > 0 && (
-            <div className="mt-5">
-              <TonightsPicksStrip venues={tonightsPicks} />
-            </div>
-          )}
+          </div>
         </div>
       </header>
 
-      <div className="sticky top-0 z-20 border-y border-white/[0.06] bg-[#0A0A0E]/95 backdrop-blur" role="region" aria-label="Explore filters summary">
-        <div className="mx-auto max-w-lg px-4 py-2">
-          <p className="text-[11.5px] text-[#9CA2AE]">
-            {`Showing ${resultCountLabel}`}
-          </p>
-        </div>
-      </div>
-
-      <section
-        className={`mx-auto space-y-3 pb-6 ${view === "map" ? "max-w-none px-0" : "max-w-lg px-4"}`}
-        role="region"
-        aria-label="Venue results"
-        onTouchStart={handlePullTouchStart}
-        onTouchMove={handlePullTouchMove}
-        onTouchEnd={() => void handlePullTouchEnd()}
-        onTouchCancel={() => {
-          pullStartYRef.current = null;
-          pullDeltaRef.current = 0;
-          setPullDelta(0);
-        }}
-      >
-        <AnimatePresence initial={false}>
-          {(pullDelta > PULL_TO_REFRESH_THRESHOLD_PX || isPullRefreshing) ? (
-            <PullToRefreshIndicator
-              refreshing={isPullRefreshing}
-              prefersReduced={prefersReduced}
-            />
-          ) : null}
-        </AnimatePresence>
-
-        {!zoneActivityError && (
-          <ZoneActivityStrip stats={zoneActivityStats} loading={zoneActivityLoading} />
-        )}
-
-        {error && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-white/[0.06] bg-white/[0.04] p-8 text-center shadow-lg shadow-black/10 backdrop-blur-sm transition-all duration-200 ease-out hover:ring-1 hover:ring-violet/20 hover:shadow-violet/10"
-          >
+      <main className="mx-auto max-w-5xl px-4 pt-5">
+        {error ? (
+          <div role="alert" className="rounded-[18px] border border-white/[0.08] bg-[#14141A] p-8 text-center">
             <p className="text-sm font-semibold text-white">{error}</p>
             <button
               type="button"
-              onClick={() => void refreshVenues()}
-              className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-medium text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] hover:shadow-violet/30 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              onClick={() => void fetchVenues()}
+              className="mt-4 inline-flex min-h-[42px] items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#9C85FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75"
             >
               Retry
             </button>
           </div>
-        )}
+        ) : null}
 
-        {(venues === undefined || isSearchingVenues) && !error && (
-          <div role="status" aria-label={isSearchingVenues ? "Searching venues" : "Loading venues"}>
-            <span className="sr-only">{isSearchingVenues ? "Searching venues" : "Loading venues"}</span>
+        {isFetchingVenues && venues.length === 0 && !error ? (
+          <div role="status" aria-label="Loading venues" className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
-        )}
+        ) : null}
 
-        {venues !== undefined && !error && !isSearchingVenues && venues.length === 0 && (
-          trimmedSearchQuery ? (
-            <ExploreNoMatchState query={trimmedSearchQuery} onClear={clearSearch} />
-          ) : <ExploreQuietEmptyState />
-        )}
+        {!error && filteredVenues.length === 0 ? (
+          <ExploreEmptyState hasActiveSearchOrFilter={hasActiveSearchOrFilter} onClear={clearFilters} />
+        ) : null}
 
-        {venues !== undefined && !error && !isSearchingVenues && venues.length > 0 && sortedVenues.length === 0 && (
-          <ExploreNoMatchState query={trimmedSearchQuery} onClear={trimmedSearchQuery ? clearSearch : clearFilters} />
-        )}
-
-        {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && view === "list" && (
-          <div className="scroll-touch pr-1 [will-change:scroll-position]">
-            <ul className="venue-card-grid grid grid-cols-1 gap-3 lg:grid-cols-3">
-              <AnimatePresence initial={false}>
-                {sortedVenues.map((venue, index) => (
-                  <VenueFeedCard
-                    key={venue.id}
-                    venue={venue}
-                    searchQuery={debouncedSearchQuery}
-                    distance={null}
-                    index={index}
-                    prefersReduced={prefersReduced}
-                    isTrending={trendingVenueIds.has(venue.id)}
-                    onPrefetchVenue={prefetchVenueDetail}
-                  />
-                ))}
-              </AnimatePresence>
+        {!error && filteredVenues.length > 0 ? (
+          <section role="region" aria-label="Venue results">
+            <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredVenues.map((venue) => (
+                <VenueDiscoveryCard
+                  key={venue.id}
+                  venue={venue}
+                  searchQuery={debouncedSearchQuery}
+                  onPrefetchVenue={prefetchVenueDetail}
+                />
+              ))}
             </ul>
-          </div>
-        )}
-
-        {venues !== undefined && !error && !isSearchingVenues && sortedVenues.length > 0 && view === "map" && (
-          <div className="h-[calc(100vh-180px)] w-full overflow-hidden bg-[#0A0A0E]">
-            <VenueMap venues={sortedVenues} onVenueSelect={navigateToVenueDetail} />
-          </div>
-        )}
-      </section>
-
-      <section
-        ref={activitySectionRef}
-        className="mx-auto max-w-lg px-4 pb-32"
-        role="region"
-        aria-label="What's happening now"
-      >
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#22C55E]" aria-hidden="true" />
-          <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">
-            What&apos;s happening now
-          </h2>
-        </div>
-
-        {activityLoaded && activityItems.length === 0 ? (
-          <div className="mt-4 rounded-[18px] border border-[#F0568C]/25 bg-[#F0568C]/10 px-5 py-8 text-center text-white/70 shadow-[0_16px_34px_rgba(240,86,140,0.08)]">
-            <p className="text-sm font-black leading-5 text-white">
-              Be the first to check in tonight!
-            </p>
-          </div>
-        ) : (
-          <div
-            className="scroll-touch mt-3 flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [will-change:scroll-position] [&::-webkit-scrollbar]:hidden"
-            aria-live="polite"
-          >
-            {activityItems.map((item) => (
-              <ActivityCard key={item.id} item={item} />
-            ))}
-          </div>
-        )}
-      </section>
+          </section>
+        ) : null}
+      </main>
     </div>
   );
 }

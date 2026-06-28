@@ -4,11 +4,11 @@ import { useState } from "react";
 import { track } from "@vercel/analytics";
 import { Toast } from "@/components/Toast";
 
-const NIGHTVIBE_SHARE_URL = "https://nytchkr.com";
-const NIGHTVIBE_SHARE_DATA = {
+const NYTCHKR_SHARE_URL = "https://nytchkr.com";
+const NYTCHKR_SHARE_DATA = {
   title: "nytchkr",
   text: "Real-time nightlife intel for South End Charlotte. Know before you go.",
-  url: NIGHTVIBE_SHARE_URL,
+  url: NYTCHKR_SHARE_URL,
 };
 
 function trackShareTap() {
@@ -19,12 +19,12 @@ function trackShareTap() {
   }
 }
 
-async function shareNightVibe(onCopied: () => void) {
+async function shareNytchkr(onCopied: () => void) {
   trackShareTap();
 
   if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
     try {
-      await navigator.share(NIGHTVIBE_SHARE_DATA);
+      await navigator.share(NYTCHKR_SHARE_DATA);
       return;
     } catch {
       // Fall back to clipboard if native sharing is cancelled or blocked.
@@ -34,14 +34,14 @@ async function shareNightVibe(onCopied: () => void) {
   if (typeof navigator === "undefined" || !navigator.clipboard) return;
 
   try {
-    await navigator.clipboard.writeText(NIGHTVIBE_SHARE_URL);
+    await navigator.clipboard.writeText(NYTCHKR_SHARE_URL);
     onCopied();
   } catch {
     // Clipboard support is best-effort.
   }
 }
 
-export function ShareNightVibeCard() {
+export function ShareNytchkrCard() {
   const [toast, setToast] = useState(false);
 
   return (
@@ -56,7 +56,7 @@ export function ShareNightVibeCard() {
           </div>
           <button
             type="button"
-            onClick={() => void shareNightVibe(() => setToast(true))}
+            onClick={() => void shareNytchkr(() => setToast(true))}
             className="shrink-0 rounded-full bg-[#8B6CFF] px-5 py-2.5 text-sm font-bold text-[#0A0A0E] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
           >
             Share App
@@ -75,7 +75,7 @@ export function InviteFriendLink() {
     <>
       <button
         type="button"
-        onClick={() => void shareNightVibe(() => setToast(true))}
+        onClick={() => void shareNytchkr(() => setToast(true))}
         className="mx-auto mt-6 block text-center text-sm font-bold text-[#8B6CFF] transition-colors hover:text-[#A896FF] focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
       >
         Invite a Friend

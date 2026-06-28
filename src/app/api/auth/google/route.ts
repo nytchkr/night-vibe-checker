@@ -10,7 +10,7 @@ function safeReturnUrl(value: string | null): string {
 }
 
 export async function GET(req: NextRequest) {
-  const rate = publicRateLimit(req, "auth-google", 20);
+  const rate = await publicRateLimit(req, "auth-google", 20);
   if (rate.response) return rate.response;
 
   const { searchParams, origin } = new URL(req.url);

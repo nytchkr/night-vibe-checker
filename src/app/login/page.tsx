@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase-browser";
 import { useHaptic } from "@/hooks/useHaptic";
 
-const POST_AUTH_RETURN_KEY = "nightvibe.postAuthReturnUrl";
+const POST_AUTH_RETURN_KEY = "nytchkr.postAuthReturnUrl";
 
 function safeReturnUrl(value: string | null): string {
   if (!value || value === "/" || !value.startsWith("/") || value.startsWith("//")) {

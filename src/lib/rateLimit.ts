@@ -1,5 +1,6 @@
 // ============================================================
 // Night Vibe Checker — In-memory rate limiter
+// Legacy in-memory limiter — used only in tests. Production uses Upstash (upstashRateLimit.ts)
 //
 // Keyed by arbitrary string (typically client IP).
 // Each key gets up to `max` requests per `windowMs` rolling window.

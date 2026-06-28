@@ -93,7 +93,7 @@ describe("middleware route protection", () => {
 
   it("redirects legacy Vercel auth callbacks to the canonical domain", async () => {
     const response = await middleware(
-      new NextRequest("https://night-vibe-checker.vercel.app/auth/callback?code=abc123&return=%2Fprofile"),
+      new NextRequest("https://nytchkr.com/auth/callback?code=abc123&return=%2Fprofile"),
     );
 
     expect(response.status).toBe(308);
@@ -104,7 +104,7 @@ describe("middleware route protection", () => {
 
   it("moves root auth code redirects to the canonical callback route", async () => {
     const legacyResponse = await middleware(
-      new NextRequest("https://night-vibe-checker.vercel.app/?code=abc123"),
+      new NextRequest("https://nytchkr.com/?code=abc123"),
     );
     const canonicalResponse = await middleware(
       new NextRequest("https://nytchkr.com/?code=abc123"),

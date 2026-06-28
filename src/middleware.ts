@@ -8,7 +8,7 @@ const PROTECTED_API_ROUTES = [
   "/api/push/subscribe",
   "/api/push/venue-alert",
 ] as const;
-const LEGACY_HOSTS = new Set(["night-vibe-checker.vercel.app"]);
+const LEGACY_HOSTS = new Set(["nytchkr.com"]);
 const CANONICAL_HOST = "nytchkr.com";
 const CSP_HEADER = "Content-Security-Policy";
 const NONCE_HEADER = "x-nonce";

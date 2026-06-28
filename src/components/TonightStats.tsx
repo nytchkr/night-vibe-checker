@@ -55,12 +55,12 @@ export default function TonightStats() {
       }));
     };
 
-    window.addEventListener("nightvibe:check-in-created", handleCheckInCreated);
+    window.addEventListener("nytchkr:check-in-created", handleCheckInCreated);
 
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
-      window.removeEventListener("nightvibe:check-in-created", handleCheckInCreated);
+      window.removeEventListener("nytchkr:check-in-created", handleCheckInCreated);
     };
   }, []);
 

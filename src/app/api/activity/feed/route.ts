@@ -31,7 +31,7 @@ type CheckInFeedRow = {
 };
 
 export async function GET(req: NextRequest): Promise<NextResponse<{ items: ActivityFeedItem[] } | { error: string }>> {
-  const rate = publicRateLimit(req, "activity-feed", 60);
+  const rate = await publicRateLimit(req, "activity-feed", 60);
   if (rate.response) return rate.response as NextResponse<{ items: ActivityFeedItem[] } | { error: string }>;
   const headers = { ...DYNAMIC_HEADERS, ...rate.headers };
   const since = new Date(Date.now() - RECENT_ACTIVITY_WINDOW_MS).toISOString();

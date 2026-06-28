@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const DISMISS_KEY = "nightvibe:desktop-warning-dismissed";
+const DISMISS_KEY = "nytchkr:desktop-warning-dismissed";
 const MOBILE_USER_AGENT_PATTERN = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
 
 function isMobileEnvironment() {

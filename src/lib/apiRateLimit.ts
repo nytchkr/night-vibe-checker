@@ -1,27 +1,30 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { apiRateLimit } from "@/lib/upstashRateLimit";
 
 export type PublicRateLimitResult = {
   headers: Record<string, string>;
   response: NextResponse | null;
 };
 
-/** Applies the shared in-memory API rate limit and returns response headers. */
-export function publicRateLimit(
+/** Applies the shared Upstash-backed API rate limit and returns response headers. */
+export async function publicRateLimit(
   req: NextRequest | undefined,
   keyPrefix: string,
-  max = 60,
-  windowMs = 60_000,
-): PublicRateLimitResult {
+  _max = 60,
+  _windowMs = 60_000,
+): Promise<PublicRateLimitResult> {
   const ip =
     req?.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req?.headers.get("x-real-ip") ??
     "anonymous";
-  const rate = checkRateLimit(`${keyPrefix}:${ip}`, max, windowMs);
-  const headers = rateLimitHeaders(rate);
+  const rate = await apiRateLimit.limit(`${keyPrefix}:${ip}`);
+  const headers = {
+    "X-RateLimit-Limit": String(rate.limit),
+    "X-RateLimit-Remaining": String(rate.remaining),
+  };
 
-  if (!rate.allowed) {
-    const retrySeconds = Math.ceil((rate.retryAfterMs ?? windowMs) / 1000);
+  if (!rate.success) {
+    const retrySeconds = Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000));
     return {
       headers,
       response: NextResponse.json(

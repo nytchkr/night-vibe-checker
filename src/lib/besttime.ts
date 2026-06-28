@@ -21,6 +21,11 @@ export type BestTimeDayForecast = {
   updatedOn: string | null;
   hours: BestTimeHourlyForecast[];
 };
+export type BestTimeWeekForecast = {
+  venueId: string;
+  updatedOn: string | null;
+  days: BestTimeDayForecast[];
+};
 export type BestTimeCrowdTrend = "rising" | "falling" | "stable";
 export type BestTimePrediction = {
   peakHour: number;
@@ -318,14 +323,31 @@ export async function refreshBusynessForVenue(venueId: string): Promise<RefreshR
   return result ?? { venueId, ok: false, reason: "Venue refresh did not return a result." };
 }
 
-// Uses POST /api/v1/forecasts (private key) to get the full week analysis,
-// then extracts today's day_raw. BestTime deduplicates recent registrations
-// so this does not burn a credit if the stored forecast is fresh.
-export async function fetchBestTimeDayRawForecast(
+function currentBestTimeDayInt(payload: Record<string, unknown>): number {
+  const timeZone = typeof readObject(payload.venue_info)?.venue_timezone === "string"
+    ? (readObject(payload.venue_info)?.venue_timezone as string)
+    : "America/New_York";
+  const current = currentLocalDayAndHour(timeZone);
+  return current?.dayInt ?? (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+}
+
+function hoursFromDayAnalysis(dayAnalysis: Record<string, unknown> | null): BestTimeHourlyForecast[] {
+  const dayRaw = Array.isArray(dayAnalysis?.day_raw) ? dayAnalysis.day_raw : [];
+
+  return (dayRaw as unknown[])
+    .map((value, index) => {
+      const busyness = readNumber(value);
+      if (busyness == null) return null;
+      return { hour: index, busyness: clampForecastScore(busyness) };
+    })
+    .filter((item): item is BestTimeHourlyForecast => item !== null);
+}
+
+async function fetchBestTimeForecastPayload(
   besttimeVenueId: string,
   venueName: string,
   venueAddress: string,
-): Promise<BestTimeDayForecast> {
+): Promise<{ venueId: string; payload: Record<string, unknown> }> {
   const venueId = besttimeVenueId.trim();
   if (!venueId) throw new Error("BestTime venue id is required.");
 
@@ -340,33 +362,50 @@ export async function fetchBestTimeDayRawForecast(
   });
   const data: unknown = await res.json().catch(() => null);
   const payload = readObject(data);
-  if (!res.ok || payload?.status === "Error") {
-    const message = typeof payload?.message === "string" ? payload.message : `BestTime forecast HTTP ${res.status}`;
+  if (!payload) throw new Error("BestTime returned empty payload");
+
+  if (!res.ok || payload.status === "Error") {
+    const message = typeof payload.message === "string" ? payload.message : `BestTime forecast HTTP ${res.status}`;
     console.error("[besttime] fetchBestTimeDayRawForecast error:", message);
     throw new Error(message);
   }
 
-  const timeZone = typeof readObject(payload?.venue_info)?.venue_timezone === "string"
-    ? (readObject(payload?.venue_info)?.venue_timezone as string)
-    : "America/New_York";
-  const current = currentLocalDayAndHour(timeZone);
-  const dayInt = current?.dayInt ?? (new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+  return { venueId, payload };
+}
 
-  const weekAnalysis = Array.isArray(payload?.analysis) ? payload.analysis : [];
+// Uses POST /api/v1/forecasts (private key) to get the full week analysis,
+// then extracts today's day_raw. BestTime deduplicates recent registrations
+// so this does not burn a credit if the stored forecast is fresh.
+export async function fetchBestTimeDayRawForecast(
+  besttimeVenueId: string,
+  venueName: string,
+  venueAddress: string,
+): Promise<BestTimeDayForecast> {
+  const { venueId, payload } = await fetchBestTimeForecastPayload(besttimeVenueId, venueName, venueAddress);
+  const dayInt = currentBestTimeDayInt(payload);
+  const weekAnalysis = Array.isArray(payload.analysis) ? payload.analysis : [];
   const dayAnalysis = readObject(weekAnalysis[dayInt]);
-  const dayRaw = Array.isArray(dayAnalysis?.day_raw) ? dayAnalysis.day_raw : [];
+  const updatedOn = typeof payload.forecast_updated_on === "string" ? payload.forecast_updated_on : null;
 
-  const hours = (dayRaw as unknown[])
-    .map((value, index) => {
-      const busyness = readNumber(value);
-      if (busyness == null) return null;
-      return { hour: index, busyness: clampForecastScore(busyness) };
-    })
-    .filter((item): item is BestTimeHourlyForecast => item !== null);
+  return { venueId, dayInt, updatedOn, hours: hoursFromDayAnalysis(dayAnalysis ?? null) };
+}
 
-  const updatedOn = typeof payload?.forecast_updated_on === "string" ? payload.forecast_updated_on : null;
+export async function fetchBestTimeWeekRawForecast(
+  besttimeVenueId: string,
+  venueName: string,
+  venueAddress: string,
+): Promise<BestTimeWeekForecast> {
+  const { venueId, payload } = await fetchBestTimeForecastPayload(besttimeVenueId, venueName, venueAddress);
+  const weekAnalysis = Array.isArray(payload.analysis) ? payload.analysis : [];
+  const updatedOn = typeof payload.forecast_updated_on === "string" ? payload.forecast_updated_on : null;
+  const days = Array.from({ length: 7 }, (_, dayInt) => ({
+    venueId,
+    dayInt,
+    updatedOn,
+    hours: hoursFromDayAnalysis(readObject(weekAnalysis[dayInt]) ?? null),
+  }));
 
-  return { venueId, dayInt, updatedOn, hours };
+  return { venueId, updatedOn, days };
 }
 
 async function refreshSingleVenueRow(venue: VenueRow, key: string): Promise<RefreshResult> {

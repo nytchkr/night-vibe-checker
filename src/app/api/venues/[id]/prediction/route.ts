@@ -173,7 +173,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const rate = publicRateLimit(req, "venue-prediction", 30);
+  const rate = await publicRateLimit(req, "venue-prediction", 30);
   if (rate.response) return rate.response;
   const headers = { ...rate.headers, "Cache-Control": "private, no-store" };
 

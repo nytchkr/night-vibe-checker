@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Heart, Map, Search, type LucideIcon } from "lucide-react";
 
-const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
-const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
-const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
+const VIEWED_VENUES_STORAGE_KEY = "nytchkr.viewed_venues";
+const EXPLORE_NEW_VENUES_STORAGE_KEY = "nytchkr.explore_has_new_venues";
+const EXPLORE_VENUES_EVENT = "nytchkr:explore-venues-updated";
 
 function parseStoredVenueIds(value: string | null): Set<string> {
   if (!value) return new Set();
@@ -159,7 +159,7 @@ export function BottomNav() {
     <nav
       role="navigation"
       aria-label="Main navigation"
-      className="app-bottom-nav tap-highlight-none fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+      className="app-bottom-nav tap-highlight-none fixed bottom-0 left-0 right-0 z-[1200] border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <div className="mx-auto flex h-16 w-full max-w-lg items-stretch px-3">
         <NavItem href="/map" label="Map" active={mapActive}>

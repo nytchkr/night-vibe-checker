@@ -426,13 +426,14 @@ test.describe("Map tab", () => {
     expect(href).toMatch(/\/vibe-check/);
   });
 
-  test("bottom nav shows Map, Explore, and You tabs", async ({ page }) => {
+  test("bottom nav shows Map, Explore, and Saved tabs", async ({ page }) => {
     await page.goto("/map");
 
     const nav = page.getByRole("navigation", { name: "Main navigation" });
     await expect(nav.getByRole("link", { name: "Map" })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Explore" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "You" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Saved" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Vibe" })).toHaveCount(0);
   });
 
   test("clicking Explore tab navigates to /explore", async ({ page }) => {
@@ -446,15 +447,15 @@ test.describe("Map tab", () => {
     await expect(page).toHaveURL(/\/explore$/, { timeout: 10000 });
   });
 
-  test("clicking You tab navigates to /profile", async ({ page }) => {
+  test("clicking Saved tab navigates to /saved", async ({ page }) => {
     await page.goto("/map");
     await page.waitForLoadState("networkidle");
 
-    const youTab = page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "You" });
-    await expect(youTab).toBeVisible();
-    await youTab.click({ force: true });
+    const savedTab = page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Saved" });
+    await expect(savedTab).toBeVisible();
+    await savedTab.click({ force: true });
 
-    await expect(page).toHaveURL(/\/profile$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/saved$/, { timeout: 10000 });
   });
 
   test("/ renders the default map tab", async ({ page }) => {

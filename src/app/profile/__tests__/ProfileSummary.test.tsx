@@ -72,7 +72,7 @@ vi.mock("@/components/PageTransition", () => ({
 }));
 
 vi.mock("@/hooks/useSavedVenues", () => ({
-  SAVED_VENUES_EVENT: "nightvibe:saved-venues-changed",
+  SAVED_VENUES_EVENT: "nytchkr:saved-venues-changed",
   useSavedVenues: () => ({
     error: savedVenuesState.error,
     loading: savedVenuesState.loading,

@@ -22,7 +22,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse<ShareCardResponse | { error: string }>> {
-  const rate = publicRateLimit(request, "venue-share-card", 60);
+  const rate = await publicRateLimit(request, "venue-share-card", 60);
   if (rate.response) return rate.response as NextResponse<ShareCardResponse | { error: string }>;
   const { id } = await params;
   const venue = await getConsumerVenueById(id);

@@ -35,7 +35,7 @@ type MapCategoryFilter = "All" | "Bars" | "Clubs" | "Restaurants" | "Lounges";
 
 const CATEGORY_FILTERS: MapCategoryFilter[] = ["All", "Bars", "Clubs", "Restaurants", "Lounges"];
 const BUSYNESS_FILTERS = ["All", "Busy", "Live only"] as const;
-const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
+const EXPLORE_VENUES_EVENT = "nytchkr:explore-venues-updated";
 
 const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
   "28202": [35.2271, -80.8433],

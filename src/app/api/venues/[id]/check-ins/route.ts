@@ -115,7 +115,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  const rate = publicRateLimit(req, "venue-check-ins", 60);
+  const rate = await publicRateLimit(req, "venue-check-ins", 60);
   if (rate.response) return rate.response;
   const headers = { ...DYNAMIC_HEADERS, ...rate.headers };
   const requestId = uuidv4();

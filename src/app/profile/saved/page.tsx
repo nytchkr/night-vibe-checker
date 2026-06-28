@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Heart } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
+import { UpgradeButton } from "@/components/UpgradeButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSavedVenues, type SavedVenue } from "@/hooks/useSavedVenues";
 
@@ -81,6 +82,9 @@ export default function ProfileSavedPage() {
             <p className="mt-1 text-sm font-semibold text-white/55">
               {savedVenues.length} saved
             </p>
+            <div className="mt-4">
+              <UpgradeButton />
+            </div>
           </div>
         </header>
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ConsumerVenue } from "@/types";
 
-export const SAVED_VENUES_EVENT = "nightvibe:saved-venues-changed";
+export const SAVED_VENUES_EVENT = "nytchkr:saved-venues-changed";
 
 async function getSupabaseBrowserClient() {
   const { createBrowserClient } = await import("@/lib/supabase-browser");

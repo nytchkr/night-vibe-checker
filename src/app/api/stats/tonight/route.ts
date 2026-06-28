@@ -13,7 +13,7 @@ type CheckInVenueRow = {
 };
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const rate = publicRateLimit(req, "stats-tonight", 60);
+  const rate = await publicRateLimit(req, "stats-tonight", 60);
   if (rate.response) return rate.response;
   const headers = { ...CACHE_HEADERS, ...rate.headers };
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

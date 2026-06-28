@@ -9,7 +9,7 @@ vi.mock("@/lib/trendingVenueIds", () => ({
   getTrendingVenues,
 }));
 
-vi.mock("@/lib/rateLimit", () => ({
+vi.mock("@/lib/upstashRateLimit", () => ({
   checkRateLimit,
   rateLimitHeaders: (rate: { remaining: number; limit: number; resetAt: number }) => ({
     "X-RateLimit-Limit": String(rate.limit),
@@ -41,7 +41,7 @@ const venue: ConsumerVenue = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  checkRateLimit.mockReturnValue({
+  checkRateLimit.mockResolvedValue({
     allowed: true,
     limit: 60,
     remaining: 59,
@@ -78,7 +78,7 @@ describe("GET /api/venues/trending", () => {
   });
 
   it("returns RATE_LIMITED when the request is over limit", async () => {
-    checkRateLimit.mockReturnValueOnce({
+    checkRateLimit.mockResolvedValueOnce({
       allowed: false,
       limit: 60,
       remaining: 0,

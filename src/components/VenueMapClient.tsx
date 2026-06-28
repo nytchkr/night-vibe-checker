@@ -10,7 +10,7 @@ const VenueMap = dynamic(() => import("@/components/VenueMap"), {
   ssr: false,
   loading: () => <MapLoadingSkeleton />,
 });
-const CITY_STORAGE_KEY = "nightvibe:selected-city";
+const CITY_STORAGE_KEY = "nytchkr:selected-city";
 const CITY_QUERY_PARAM = "city";
 
 function getAvailableCityById(cityId: string | null): City {

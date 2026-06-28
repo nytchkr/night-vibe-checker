@@ -12,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserClient } from "@/lib/supabase-browser";
 
-const POST_AUTH_RETURN_KEY = "nightvibe.postAuthReturnUrl";
+const POST_AUTH_RETURN_KEY = "nytchkr.postAuthReturnUrl";
 
 type SavedVenue = {
   id: string;
@@ -116,9 +116,9 @@ function LoggedOutState({
         <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[#FF2D78]/35 bg-[#FF2D78]/12 text-[#FF8AB0] shadow-[0_0_34px_rgba(255,45,120,0.22)]">
           <Heart className="h-6 w-6" aria-hidden="true" />
         </div>
-        <h1 className="mt-6 text-2xl font-black tracking-normal text-white">Saved</h1>
+        <h1 className="mt-6 text-2xl font-black tracking-normal text-white">Sign in to save venues</h1>
         <p className="mt-3 text-sm font-semibold leading-6 text-white/62">
-          nytchkr remembers the places you love.
+          Keep a shortlist of places for tonight and jump back to them from the Saved tab.
         </p>
 
         <form onSubmit={onSubmit} className="mt-8 space-y-3">
@@ -160,7 +160,7 @@ function LoggedOutState({
             ) : (
               <>
                 <Mail className="h-4 w-4" aria-hidden="true" />
-                Send magic link
+                Email me a sign-in link
               </>
             )}
           </Button>
@@ -380,7 +380,7 @@ export default function SavedPage() {
                 </div>
                 <h2 className="mt-4 text-lg font-black text-white">No saved places yet</h2>
                 <p className="mt-2 text-sm font-semibold leading-6 text-white/60">
-                  Tap the heart on any venue to save it for later.
+                  Tap ♡ on any venue to save it for later
                 </p>
                 <Button asChild className="mt-5 h-11 rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] hover:bg-[#A896FF]">
                   <Link href="/explore">Explore venues</Link>
