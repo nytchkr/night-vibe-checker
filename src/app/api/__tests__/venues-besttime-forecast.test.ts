@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 const mockFindVisibleVenueByIdOrPlaceId = vi.fn();
 const mockFetchBestTimeDayRawForecast = vi.fn();
 const mockFetchBestTimeWeekRawForecast = vi.fn();
-const mockGetUser = vi.fn();
+const mockAuth = vi.hoisted(() => vi.fn());
 const mockIsProUser = vi.fn();
 const mockRedisGet = vi.fn();
 const mockRedisSet = vi.fn();
@@ -19,13 +19,7 @@ vi.mock("@/lib/besttime", () => ({
   fetchBestTimeWeekRawForecast: mockFetchBestTimeWeekRawForecast,
 }));
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: {
-    auth: {
-      getUser: mockGetUser,
-    },
-  },
-}));
+vi.mock("@/auth", () => ({ auth: mockAuth }));
 
 vi.mock("@/lib/isPro", () => ({
   isProUser: mockIsProUser,
@@ -82,7 +76,7 @@ beforeEach(() => {
       hours: [{ hour: 21, busyness: 70 + dayInt }],
     })),
   });
-  mockGetUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+  mockAuth.mockResolvedValue({ user: { id: "user-1" } });
   mockIsProUser.mockResolvedValue(false);
   mockRedisGet.mockResolvedValue(null);
   mockRedisSet.mockResolvedValue("OK");
@@ -90,6 +84,7 @@ beforeEach(() => {
 
 describe("GET /api/venues/[id]/besttime-forecast", () => {
   it("returns today's forecast only when there is no bearer token", async () => {
+    mockAuth.mockResolvedValueOnce(null);
     const { GET } = await import("../venues/[id]/besttime-forecast/route");
     const res = await GET(request(), params());
     const json = await res.json();
@@ -97,7 +92,7 @@ describe("GET /api/venues/[id]/besttime-forecast", () => {
     expect(res.status).toBe(200);
     expect(json.data.hours).toEqual([{ hour: 21, busyness: 77 }]);
     expect(json.data.days).toBeUndefined();
-    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockAuth).toHaveBeenCalledTimes(1);
     expect(mockIsProUser).not.toHaveBeenCalled();
     expect(mockFetchBestTimeDayRawForecast).toHaveBeenCalledWith("besttime-1", "Night Spot", "123 Main St");
     expect(mockFetchBestTimeWeekRawForecast).not.toHaveBeenCalled();
@@ -113,7 +108,7 @@ describe("GET /api/venues/[id]/besttime-forecast", () => {
     expect(res.status).toBe(200);
     expect(json.data.days).toHaveLength(7);
     expect(json.data.days[6].hours).toEqual([{ hour: 21, busyness: 76 }]);
-    expect(mockGetUser).toHaveBeenCalledWith("token-1");
+    expect(mockAuth).toHaveBeenCalledTimes(1);
     expect(mockIsProUser).toHaveBeenCalledWith("user-1");
     expect(mockFetchBestTimeWeekRawForecast).toHaveBeenCalledWith("besttime-1", "Night Spot", "123 Main St");
     expect(mockFetchBestTimeDayRawForecast).not.toHaveBeenCalled();

@@ -93,27 +93,32 @@ export async function GET(
 
   void ZONE_TRENDING_SELECT;
   const recentCutoff = cutoffIso();
-  const rows = (await sql`
-    SELECT
-      v.*,
-      to_jsonb(vs) AS venue_signals,
-      COALESCE(
-        jsonb_agg(
-          jsonb_build_object('venue_id', ci.venue_id, 'created_at', ci.created_at, 'hidden', ci.hidden)
-        ) FILTER (WHERE ci.id IS NOT NULL),
-        '[]'::jsonb
-      ) AS check_ins
-    FROM venues v
-    LEFT JOIN venue_signals vs ON vs.venue_id = v.id
-    LEFT JOIN check_ins ci
-      ON ci.venue_id = v.id
-      AND ci.created_at >= ${recentCutoff}
-      AND ci.hidden = false
-    WHERE v.zone_id = ${zoneId}
-      AND COALESCE(v.hidden, false) = false
-    GROUP BY v.id, vs.venue_id
-    ORDER BY v.name ASC
-  `) as ZoneTrendingRow[];
+  let rows: ZoneTrendingRow[];
+  try {
+    rows = (await sql`
+      SELECT
+        v.*,
+        to_jsonb(vs) AS venue_signals,
+        COALESCE(
+          jsonb_agg(
+            jsonb_build_object('venue_id', ci.venue_id, 'created_at', ci.created_at, 'hidden', ci.hidden)
+          ) FILTER (WHERE ci.id IS NOT NULL),
+          '[]'::jsonb
+        ) AS check_ins
+      FROM venues v
+      LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+      LEFT JOIN check_ins ci
+        ON ci.venue_id = v.id
+        AND ci.created_at >= ${recentCutoff}
+        AND ci.hidden = false
+      WHERE v.zone_id = ${zoneId}
+        AND COALESCE(v.hidden, false) = false
+      GROUP BY v.id, vs.venue_id
+      ORDER BY v.name ASC
+    `) as ZoneTrendingRow[];
+  } catch {
+    return NextResponse.json({ error: "Could not load zone trending venues." }, { status: 500, headers: NO_STORE_HEADERS });
+  }
   const scored = rows
     .filter((row) => row.hidden !== true)
     .filter((row) => row.open_now !== false)

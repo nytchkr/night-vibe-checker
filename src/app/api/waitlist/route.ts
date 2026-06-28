@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { publicRateLimit } from "@/lib/apiRateLimit";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +20,6 @@ function jsonError(error: string, status: number, headers?: Record<string, strin
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const rate = await publicRateLimit(req, "waitlist", 10);
   if (rate.response) return rate.response;
-
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) {
-      return jsonError("Server configuration is incomplete.", 503, rate.headers);
-    }
-    throw error;
-  }
 
   let body: unknown;
   try {

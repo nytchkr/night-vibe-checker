@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 const mockFindVisibleVenueByIdOrPlaceId = vi.fn();
 const mockFetchBestTimeDayRawForecast = vi.fn();
-const mockFrom = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
 const mockFetch = vi.fn();
 
 vi.mock("@/lib/venueLookup", async () => {
@@ -22,27 +22,7 @@ vi.mock("@/lib/besttime", async () => {
   };
 });
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: {
-    from: mockFrom,
-  },
-}));
-
-function chain(resolved: { data?: unknown; error?: unknown }) {
-  const promise = Promise.resolve({
-    data: resolved.data ?? null,
-    error: resolved.error ?? null,
-  });
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    then: promise.then.bind(promise),
-    catch: promise.catch.bind(promise),
-  };
-}
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
 function request() {
   return new NextRequest("http://localhost/api/venues/venue-1/predict");
@@ -76,6 +56,7 @@ function openAIResponse(predictions: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockSql.mockResolvedValue([]);
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-25T12:00:00.000Z"));
   process.env.OPENAI_API_KEY = "test-openai-key";
@@ -95,13 +76,11 @@ describe("GET /api/venues/[id]/predict", () => {
         { hour: 23, busyness: 91 },
       ],
     });
-    mockFrom.mockReturnValue(chain({
-      data: [
+    mockSql.mockResolvedValueOnce([
         { id: "c1", busyness: "packed", crowd_feel: "hyped", note: "Line moving", gender_self_report: "m", created_at: "2026-06-24T03:00:00.000Z" },
         { id: "c2", busyness: "packed", crowd_feel: "mixed", note: null, gender_self_report: "f", created_at: "2026-06-23T03:00:00.000Z" },
         { id: "c3", busyness: "moderate", crowd_feel: "balanced", note: null, gender_self_report: "m", created_at: "2026-06-22T03:00:00.000Z" },
-      ],
-    }));
+    ]);
     mockFetch.mockResolvedValue(openAIResponse({
       bestTimeToVisit: { dayOfWeek: "Thursday", hourWindow: "10pm - midnight", basis: "BestTime forecast + 3 check-in reports" },
       peakCrowdWindow: { tonight: "11pm peak", thisWeekend: "not provided" },
@@ -139,12 +118,10 @@ describe("GET /api/venues/[id]/predict", () => {
       data: venue({ besttime_venue_id: null }),
       error: null,
     });
-    mockFrom.mockReturnValue(chain({
-      data: [
+    mockSql.mockResolvedValueOnce([
         { id: "c1", busyness: "moderate", crowd_feel: "mixed", note: null, gender_self_report: "m", created_at: "2026-06-24T03:00:00.000Z" },
         { id: "c2", busyness: "dead", crowd_feel: "chill", note: null, gender_self_report: "f", created_at: "2026-06-23T03:00:00.000Z" },
-      ],
-    }));
+    ]);
     mockFetch.mockResolvedValue(openAIResponse({
       bestTimeToVisit: { dayOfWeek: "Friday", hourWindow: "10pm - midnight", basis: "invented" },
       peakCrowdWindow: { tonight: "11pm peak", thisWeekend: "Saturday" },
@@ -177,13 +154,11 @@ describe("GET /api/venues/[id]/predict", () => {
       updatedOn: null,
       hours: [{ hour: 22, busyness: 80 }],
     });
-    mockFrom.mockReturnValue(chain({
-      data: [
+    mockSql.mockResolvedValueOnce([
         { id: "c1", busyness: "packed", crowd_feel: "hyped", note: null, gender_self_report: "m", created_at: "2026-06-24T03:00:00.000Z" },
         { id: "c2", busyness: "moderate", crowd_feel: "mixed", note: null, gender_self_report: null, created_at: "2026-06-23T03:00:00.000Z" },
         { id: "c3", busyness: "moderate", crowd_feel: "mixed", note: null, gender_self_report: null, created_at: "2026-06-22T03:00:00.000Z" },
-      ],
-    }));
+    ]);
     mockFetch.mockResolvedValue(openAIResponse({
       bestTimeToVisit: { dayOfWeek: "Thursday", hourWindow: "10pm - 11pm", basis: "BestTime forecast + 3 check-in reports" },
       peakCrowdWindow: { tonight: "10pm peak", thisWeekend: null },

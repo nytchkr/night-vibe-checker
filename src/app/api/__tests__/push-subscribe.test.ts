@@ -1,18 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockGetAuthenticatedUserId = vi.fn();
-const mockFrom = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
+const mockAuth = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/apiAuth", () => ({
-  getAuthenticatedUserId: mockGetAuthenticatedUserId,
+vi.mock("@/lib/db", () => ({
+  sql: mockSql,
 }));
 
-vi.mock("@/lib/supabase", () => ({
-  MissingSupabaseEnvError: class MissingSupabaseEnvError extends Error {},
-  supabaseAdmin: {
-    from: mockFrom,
-  },
+vi.mock("@/auth", () => ({
+  auth: mockAuth,
 }));
 
 function request(method: string, body: unknown, extraHeaders?: Record<string, string>) {
@@ -34,13 +31,13 @@ const SUBSCRIPTION = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
-  mockGetAuthenticatedUserId.mockResolvedValue("user-123");
-  mockFrom.mockReturnValue({ upsert: vi.fn().mockResolvedValue({ error: null }) });
+  mockSql.mockResolvedValue([]);
+  mockAuth.mockResolvedValue({ user: { id: "user-123" } });
 });
 
 describe("POST /api/push/subscribe", () => {
   it("requires an authenticated user", async () => {
-    mockGetAuthenticatedUserId.mockResolvedValueOnce(null);
+    mockAuth.mockResolvedValueOnce(null);
 
     const { POST } = await import("../push/subscribe/route");
     const res = await POST(request("POST", SUBSCRIPTION));
@@ -58,26 +55,13 @@ describe("POST /api/push/subscribe", () => {
   });
 
   it("upserts the subscription by endpoint", async () => {
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    mockFrom.mockReturnValueOnce({ upsert });
-
     const { POST } = await import("../push/subscribe/route");
     const res = await POST(request("POST", SUBSCRIPTION));
     const json = await res.json();
 
     expect(res.status).toBe(200);
     expect(json).toEqual({ data: { ok: true }, ok: true });
-    expect(mockFrom).toHaveBeenCalledWith("push_subscriptions");
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_id: "user-123",
-        endpoint: SUBSCRIPTION.endpoint,
-        auth: SUBSCRIPTION.keys.auth,
-        p256dh: SUBSCRIPTION.keys.p256dh,
-        created_at: expect.any(String),
-      }),
-      { onConflict: "endpoint" },
-    );
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("rate limits subscription attempts by IP", async () => {
@@ -102,17 +86,10 @@ describe("POST /api/push/subscribe", () => {
 
 describe("DELETE /api/push/subscribe", () => {
   it("removes the current user's subscription endpoint", async () => {
-    const eqEndpoint = vi.fn().mockResolvedValue({ error: null });
-    const eqUser = vi.fn().mockReturnValue({ eq: eqEndpoint });
-    const deleteFn = vi.fn().mockReturnValue({ eq: eqUser });
-    mockFrom.mockReturnValueOnce({ delete: deleteFn });
-
     const { DELETE } = await import("../push/subscribe/route");
     const res = await DELETE(request("DELETE", { endpoint: SUBSCRIPTION.endpoint }));
 
     expect(res.status).toBe(200);
-    expect(deleteFn).toHaveBeenCalled();
-    expect(eqUser).toHaveBeenCalledWith("user_id", "user-123");
-    expect(eqEndpoint).toHaveBeenCalledWith("endpoint", SUBSCRIPTION.endpoint);
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 });

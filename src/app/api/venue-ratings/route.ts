@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 // Uses service role — bypasses RLS intentionally for server-side validation and writes.
@@ -39,14 +38,6 @@ function json<T>(body: APIResponse<T>, init?: ResponseInit): NextResponse<APIRes
   return NextResponse.json(body, init);
 }
 
-function missingConfigResponse(error: unknown, headers?: HeadersInit): NextResponse<APIResponse<never>> | null {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  return json<never>(
-    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: meta() },
-    { status: 503, headers },
-  );
-}
-
 function normalizeStoredRating(rating: unknown): number | null {
   const n = Number(rating);
   if (!Number.isFinite(n)) return null;
@@ -71,14 +62,6 @@ function summarizeRatings(rows: Array<{ rating: unknown }>): Pick<VenueRatingsDa
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingConfigResponse(error, PRIVATE_CACHE_HEADERS);
-    if (response) return response;
-    throw error;
-  }
-
   const venueIdParam = req.nextUrl.searchParams.get("venue_id") ?? req.nextUrl.searchParams.get("venueId");
   const venueId = VenueIdSchema.safeParse(venueIdParam);
   if (!venueId.success) {
@@ -125,14 +108,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingConfigResponse(error);
-    if (response) return response;
-    throw error;
-  }
-
   const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return json<never>(

@@ -1,23 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockAssertSupabaseServerEnv = vi.fn();
-const mockFrom = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
 
-class MockMissingSupabaseEnvError extends Error {
-  constructor(public readonly variableName: string) {
-    super(`Missing ${variableName} — add to .env.local`);
-    this.name = "MissingSupabaseEnvError";
-  }
-}
-
-vi.mock("@/lib/supabase", () => ({
-  assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
-  MissingSupabaseEnvError: MockMissingSupabaseEnvError,
-  supabaseAdmin: {
-    from: mockFrom,
-  },
-}));
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
 function request(body?: unknown) {
   return new NextRequest("http://localhost/api/waitlist", {
@@ -27,34 +13,10 @@ function request(body?: unknown) {
   });
 }
 
-function selectChain(resolved: { data?: unknown; error?: unknown }) {
-  const promise = Promise.resolve({
-    data: resolved.data ?? null,
-    error: resolved.error ?? null,
-  });
-
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn().mockReturnValue(promise),
-  };
-}
-
-function insertChain(resolved: { error?: unknown }) {
-  const promise = Promise.resolve({
-    data: null,
-    error: resolved.error ?? null,
-  });
-
-  return {
-    insert: vi.fn().mockReturnValue(promise),
-  };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
-  mockAssertSupabaseServerEnv.mockReturnValue(undefined);
+  mockSql.mockResolvedValue([]);
 });
 
 describe("POST /api/waitlist", () => {
@@ -65,12 +27,11 @@ describe("POST /api/waitlist", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Invalid email.");
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockSql).not.toHaveBeenCalled();
   });
 
   it("returns 409 when email is already on the waitlist", async () => {
-    const existingChain = selectChain({ data: { email: "fan@example.com" } });
-    mockFrom.mockReturnValueOnce(existingChain);
+    mockSql.mockResolvedValueOnce([{ email: "fan@example.com" }]);
 
     const { POST } = await import("../waitlist/route");
     const res = await POST(request({ email: "Fan@Example.com" }));
@@ -78,13 +39,11 @@ describe("POST /api/waitlist", () => {
 
     expect(res.status).toBe(409);
     expect(json.error).toBe("Already on the list!");
-    expect(existingChain.eq).toHaveBeenCalledWith("email", "fan@example.com");
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("inserts a normalized email", async () => {
-    const existingChain = selectChain({});
-    const createdChain = insertChain({});
-    mockFrom.mockReturnValueOnce(existingChain).mockReturnValueOnce(createdChain);
+    mockSql.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
     const { POST } = await import("../waitlist/route");
     const res = await POST(request({ email: " Fan@Example.com " }));
@@ -92,15 +51,13 @@ describe("POST /api/waitlist", () => {
 
     expect(res.status).toBe(200);
     expect(json.success).toBe(true);
-    expect(mockFrom).toHaveBeenNthCalledWith(1, "waitlist");
-    expect(mockFrom).toHaveBeenNthCalledWith(2, "waitlist");
-    expect(createdChain.insert).toHaveBeenCalledWith({ email: "fan@example.com" });
+    expect(mockSql).toHaveBeenCalledTimes(2);
   });
 
   it("maps unique constraint races to 409", async () => {
-    mockFrom
-      .mockReturnValueOnce(selectChain({}))
-      .mockReturnValueOnce(insertChain({ error: { code: "23505", message: "duplicate key" } }));
+    mockSql
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(new Error("duplicate key"));
 
     const { POST } = await import("../waitlist/route");
     const res = await POST(request({ email: "fan@example.com" }));

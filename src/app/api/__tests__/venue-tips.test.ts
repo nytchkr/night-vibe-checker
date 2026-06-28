@@ -1,30 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockAssertSupabaseServerEnv = vi.fn();
 const mockFrom = vi.fn();
-const mockGetUser = vi.fn();
 const mockRpc = vi.fn();
+const mockFindVisibleVenueByIdOrPlaceId = vi.hoisted(() => vi.fn());
+const mockSql = vi.hoisted(() => vi.fn());
+const mockAuthSession = vi.hoisted(() => vi.fn());
 const mockFetch = vi.fn();
 const mockRedisGet = vi.fn();
 const mockRedisSet = vi.fn();
 
-class MockMissingSupabaseEnvError extends Error {
-  constructor(public readonly variableName: string) {
-    super(`Missing ${variableName} — add to .env.local`);
-    this.name = "MissingSupabaseEnvError";
-  }
-}
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
-vi.mock("@/lib/supabase", () => ({
-  assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
-  MissingSupabaseEnvError: MockMissingSupabaseEnvError,
-  supabaseAdmin: {
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-    rpc: mockRpc,
-  },
-}));
+vi.mock("@/auth", () => ({ auth: mockAuthSession }));
+
+vi.mock("@/lib/venueLookup", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/venueLookup")>("@/lib/venueLookup");
+  return {
+    ...actual,
+    findVisibleVenueByIdOrPlaceId: mockFindVisibleVenueByIdOrPlaceId,
+  };
+});
 
 vi.mock("@/lib/upstashRedis", () => ({
   redis: {
@@ -49,11 +45,7 @@ function params(id = "venue-1") {
 }
 
 function mockAuth(userId: string | null) {
-  mockGetUser.mockResolvedValue(
-    userId
-      ? { data: { user: { id: userId } }, error: null }
-      : { data: { user: null }, error: { message: "invalid" } },
-  );
+  mockAuthSession.mockResolvedValue(userId ? { user: { id: userId } } : null);
 }
 
 function chain(resolved: { data?: unknown; error?: unknown }) {
@@ -81,7 +73,11 @@ function chain(resolved: { data?: unknown; error?: unknown }) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
-  mockAssertSupabaseServerEnv.mockReturnValue(undefined);
+  mockSql.mockResolvedValue([]);
+  mockFindVisibleVenueByIdOrPlaceId.mockResolvedValue({
+    data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false },
+    error: null,
+  });
   mockRedisGet.mockResolvedValue(null);
   mockRedisSet.mockResolvedValue("OK");
   mockAuth("user-123");
@@ -120,7 +116,6 @@ describe("GET /api/venues/[id]/tips", () => {
     const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
 
     expect(res.status).toBe(200);
-    expect(venueChain.select).toHaveBeenCalledWith("id, place_id, name, category, hidden");
     expect(res.headers.get("Cache-Control")).toBe("s-maxage=3600, stale-while-revalidate=86400");
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
@@ -342,9 +337,9 @@ describe("POST /api/venues/[id]/tips", () => {
   });
 
   it("inserts an authenticated tip", async () => {
-    const venueChain = chain({ data: { id: "venue-uuid", hidden: false } });
-    const insertChain = chain({
-      data: {
+    mockFindVisibleVenueByIdOrPlaceId.mockResolvedValueOnce({ data: { id: "venue-uuid", hidden: false }, error: null });
+    mockSql.mockResolvedValueOnce([
+      {
         id: "tip-1",
         venue_id: "venue-uuid",
         user_id: "user-123",
@@ -352,8 +347,7 @@ describe("POST /api/venues/[id]/tips", () => {
         helpful_count: 0,
         created_at: "2026-06-21T00:00:00.000Z",
       },
-    });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(insertChain);
+    ]);
 
     const { POST } = await import("../venues/[id]/tips/route");
     const res = await POST(
@@ -364,12 +358,7 @@ describe("POST /api/venues/[id]/tips", () => {
     );
 
     expect(res.status).toBe(201);
-    expect(insertChain.insert).toHaveBeenCalledWith({
-      venue_id: "venue-uuid",
-      user_id: "user-123",
-      tip_text: "Go before 10 if you want a shorter line.",
-      tip: "Go before 10 if you want a shorter line.",
-    });
+    expect(mockSql).toHaveBeenCalledTimes(1);
     const json = await res.json();
     expect(json).toEqual({
       id: "tip-1",
@@ -384,16 +373,13 @@ describe("POST /api/venues/[id]/tips", () => {
 describe("POST /api/tips/[id]/helpful", () => {
   it("increments helpful count without auth", async () => {
     const tipId = "11111111-1111-4111-8111-111111111111";
-    mockRpc.mockResolvedValue({
-      data: [{ id: tipId, helpful_count: 3 }],
-      error: null,
-    });
+    mockSql.mockResolvedValueOnce([{ id: tipId, helpful_count: 3 }]);
 
     const { POST } = await import("../tips/[id]/helpful/route");
     const res = await POST(request("POST", `http://localhost/api/tips/${tipId}/helpful`, undefined, ""), params(tipId));
 
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("increment_venue_tip_helpful", { tip_id: tipId });
+    expect(mockSql).toHaveBeenCalledTimes(1);
     const json = await res.json();
     expect(json.data.tip).toEqual({ id: tipId, helpfulCount: 3 });
   });

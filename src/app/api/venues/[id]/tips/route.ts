@@ -8,7 +8,6 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
@@ -65,17 +64,6 @@ type GooglePlacesReviewsResponse = {
 
 function meta(requestId: string, cached = false) {
   return { cached, generatedAt: new Date().toISOString(), requestId };
-}
-
-function missingSupabaseConfigResponse(
-  error: unknown,
-  responseMeta: { cached: boolean; generatedAt: string; requestId: string },
-): NextResponse<APIResponse<never>> | null {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: responseMeta },
-    { status: 503 },
-  );
 }
 
 async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> {
@@ -238,13 +226,6 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) return emptyAiTipsResponse();
-    throw error;
-  }
-
   const { id: rawId } = await params;
   const requestedVenueId = normalizeVenueLookupId(rawId);
   if (!requestedVenueId) {
@@ -278,14 +259,6 @@ export async function POST(
 ): Promise<NextResponse> {
   const requestId = uuidv4();
   const responseMeta = meta(requestId);
-
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingSupabaseConfigResponse(error, responseMeta);
-    if (response) return response;
-    throw error;
-  }
 
   const rate = await checkRateLimit(`venue-tips:POST:${getClientIp(req)}`, TIP_POST_RATE_LIMIT_MAX, TIP_POST_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);

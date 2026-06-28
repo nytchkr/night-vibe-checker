@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
@@ -25,17 +24,6 @@ function meta(requestId: string) {
   return { cached: false, generatedAt: new Date().toISOString(), requestId };
 }
 
-function missingSupabaseConfigResponse(
-  error: unknown,
-  responseMeta: { cached: boolean; generatedAt: string; requestId: string },
-): NextResponse<APIResponse<never>> | null {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: responseMeta },
-    { status: 503 },
-  );
-}
-
 async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> {
   const { data, error } = await findVisibleVenueByIdOrPlaceId(venueIdOrPlaceId, "id, hidden");
 
@@ -49,14 +37,6 @@ export async function POST(
 ): Promise<NextResponse> {
   const requestId = uuidv4();
   const responseMeta = meta(requestId);
-
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingSupabaseConfigResponse(error, responseMeta);
-    if (response) return response;
-    throw error;
-  }
 
   const rate = await checkRateLimit(`venue-report:POST:${getClientIp(req)}`, REPORT_RATE_LIMIT_MAX, REPORT_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);

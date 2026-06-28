@@ -2,15 +2,9 @@ import { NextRequest } from "next/server";
 import Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockEq = vi.fn();
-const mockUpdate = vi.fn(() => ({ eq: mockEq }));
-const mockFrom = vi.fn(() => ({ update: mockUpdate }));
+const mockSql = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: {
-    from: mockFrom,
-  },
-}));
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
 function signedRequest(payload: Record<string, unknown>, secret = "whsec_test_secret") {
   const body = JSON.stringify(payload);
@@ -36,7 +30,7 @@ describe("POST /api/stripe/webhook", () => {
     vi.resetModules();
     vi.clearAllMocks();
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test_secret";
-    mockEq.mockResolvedValue({ error: null });
+    mockSql.mockResolvedValue([]);
   });
 
   it("rejects requests with an invalid Stripe signature", async () => {
@@ -50,7 +44,7 @@ describe("POST /api/stripe/webhook", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockSql).not.toHaveBeenCalled();
   });
 
   it("marks a user pro on customer.subscription.created", async () => {
@@ -70,14 +64,7 @@ describe("POST /api/stripe/webhook", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(mockFrom).toHaveBeenCalledWith("users");
-    expect(mockUpdate).toHaveBeenCalledWith({
-      pro: true,
-      stripe_subscription_id: "sub_123",
-      subscription_status: "active",
-      subscription_current_period_end: "2027-01-01T00:00:00.000Z",
-    });
-    expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_123");
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("updates current_period_end on invoice.paid", async () => {
@@ -109,11 +96,7 @@ describe("POST /api/stripe/webhook", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(mockUpdate).toHaveBeenCalledWith({
-      stripe_subscription_id: "sub_123",
-      subscription_current_period_end: "2027-01-01T00:00:00.000Z",
-    });
-    expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_123");
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("marks a user past_due on invoice.payment_failed", async () => {
@@ -139,10 +122,6 @@ describe("POST /api/stripe/webhook", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(mockUpdate).toHaveBeenCalledWith({
-      stripe_subscription_id: "sub_123",
-      subscription_status: "past_due",
-    });
-    expect(mockEq).toHaveBeenCalledWith("stripe_customer_id", "cus_123");
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 });

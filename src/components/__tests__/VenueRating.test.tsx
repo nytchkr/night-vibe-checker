@@ -8,9 +8,10 @@ import { ToastProvider } from "@/hooks/useToast";
 import { VenueRating } from "@/components/VenueRating";
 
 const lightHaptic = vi.hoisted(() => vi.fn());
+const mockUseSession = vi.hoisted(() => vi.fn());
 
 vi.mock("next-auth/react", () => ({
-  useSession: () => ({ data: { user: { id: "user-123" } }, status: "authenticated" }),
+  useSession: mockUseSession,
 }));
 
 vi.mock("@vercel/analytics", () => ({
@@ -44,6 +45,7 @@ function jsonResponse(body: unknown, status = 200) {
 
 describe("VenueRating", () => {
   beforeEach(() => {
+    mockUseSession.mockReturnValue({ data: { user: { id: "user-123" } }, status: "authenticated" });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
       new Response(JSON.stringify({
         status: "success",
@@ -101,6 +103,7 @@ describe("VenueRating", () => {
   });
 
   it("prompts signed-out users to sign in instead of showing rating controls", async () => {
+    mockUseSession.mockReturnValue({ data: null, status: "unauthenticated" });
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       status: "success",
       data: { averageRating: 4, ratingCount: 2, userRating: null },

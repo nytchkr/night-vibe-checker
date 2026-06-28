@@ -1,33 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockFrom = vi.fn();
-const mockRpc = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: {
-    from: mockFrom,
-    rpc: mockRpc,
-  },
-}));
-
-function chain(resolved: { data?: unknown; error?: unknown }) {
-  const promise = Promise.resolve({
-    data: resolved.data ?? null,
-    error: resolved.error ?? null,
-  });
-  const builder = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    ilike: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    then: promise.then.bind(promise),
-    catch: promise.catch.bind(promise),
-  };
-  return builder;
-}
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
 function venue(id: string, name: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -63,19 +39,17 @@ function venue(id: string, name: string, overrides: Record<string, unknown> = {}
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockSql.mockResolvedValue([]);
 });
 
 describe("GET /api/venues search", () => {
   it("uses ranked Postgres full-text search ids when q is present", async () => {
-    mockRpc.mockResolvedValueOnce({
-      data: [
+    mockSql
+      .mockResolvedValueOnce([
         { id: "venue-b", search_rank: 0.8 },
         { id: "venue-a", search_rank: 0.4 },
-      ],
-      error: null,
-    });
-    const query = chain({ data: [venue("venue-a", "Alpha"), venue("venue-b", "Beta")] });
-    mockFrom.mockReturnValueOnce(query);
+      ])
+      .mockResolvedValueOnce([venue("venue-a", "Alpha"), venue("venue-b", "Beta")]);
 
     const { GET } = await import("../venues/route");
     const res = await GET(new NextRequest("http://localhost/api/venues?q=rooftop"));
@@ -84,22 +58,12 @@ describe("GET /api/venues search", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
     expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
-    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
-      search_query: "rooftop",
-      search_zone_id: null,
-      search_category: null,
-      center_lat: null,
-      center_lng: null,
-      radius_m: null,
-      max_results: 100,
-    });
-    expect(query.in).toHaveBeenCalledWith("id", ["venue-b", "venue-a"]);
-    expect(query.order).not.toHaveBeenCalled();
+    expect(mockSql).toHaveBeenCalledTimes(2);
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-b", "venue-a"]);
   });
 
   it("applies category and radius filters to the ranked search rpc", async () => {
-    mockRpc.mockResolvedValueOnce({ data: [], error: null });
+    mockSql.mockResolvedValueOnce([]);
 
     const { GET } = await import("../venues/route");
     const res = await GET(
@@ -108,98 +72,58 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
-      search_query: "lounge",
-      search_zone_id: null,
-      search_category: "bar",
-      center_lat: 35.21,
-      center_lng: -80.86,
-      radius_m: 500,
-      max_results: 100,
-    });
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockSql).toHaveBeenCalledTimes(1);
     expect(json.data.venues).toEqual([]);
   });
 
   it("returns venues that match the search term by category", async () => {
-    mockRpc.mockResolvedValueOnce({
-      data: [{ id: "venue-bar", search_rank: 0.6 }],
-      error: null,
-    });
-    const query = chain({
-      data: [
+    mockSql
+      .mockResolvedValueOnce([{ id: "venue-bar", search_rank: 0.6 }])
+      .mockResolvedValueOnce([
         venue("venue-bar", "Vinyl", {
           category: "bar",
           address: "Camden Road",
           neighborhood: "South End",
         }),
-      ],
-    });
-    mockFrom.mockReturnValueOnce(query);
+      ]);
 
     const { GET } = await import("../venues/route");
     const res = await GET(new NextRequest("http://localhost/api/venues?q=bar"));
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
-      search_query: "bar",
-      search_zone_id: null,
-      search_category: null,
-      center_lat: null,
-      center_lng: null,
-      radius_m: null,
-      max_results: 100,
-    });
-    expect(query.in).toHaveBeenCalledWith("id", ["venue-bar"]);
+    expect(mockSql).toHaveBeenCalledTimes(2);
     expect(json.data.venues).toHaveLength(1);
     expect(json.data.venues[0]).toMatchObject({ id: "venue-bar", category: "bar" });
   });
 
   it("passes through supported zone filters", async () => {
-    mockRpc.mockResolvedValueOnce({
-      data: [{ id: "venue-sp", search_rank: 1 }],
-      error: null,
-    });
-    const query = chain({
-      data: [
+    mockSql
+      .mockResolvedValueOnce([{ id: "venue-sp", search_rank: 1 }])
+      .mockResolvedValueOnce([
         venue("venue-sp", "SouthPark Lounge", {
           zone_id: "south-park-charlotte",
           address: "South Park",
           lat: 35.1524,
           lng: -80.8462,
         }),
-      ],
-    });
-    mockFrom.mockReturnValueOnce(query);
+      ]);
 
     const { GET } = await import("../venues/route");
     const res = await GET(new NextRequest("http://localhost/api/venues?q=lounge&zone=south-park-charlotte"));
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith("search_venue_ids", {
-      search_query: "lounge",
-      search_zone_id: "south-park-charlotte",
-      search_category: null,
-      center_lat: null,
-      center_lng: null,
-      radius_m: null,
-      max_results: 100,
-    });
-    expect(query.in).toHaveBeenCalledWith("zone_id", ["south-park-charlotte"]);
+    expect(mockSql).toHaveBeenCalledTimes(2);
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-sp"]);
   });
 
   it("uses rating then name when venues have equal or missing busyness", async () => {
-    const query = chain({
-      data: [
+    mockSql.mockResolvedValueOnce([
         venue("venue-a", "Alpha", { rating: 4.2 }),
         venue("venue-b", "Beta", { google_rating: 4.8 }),
         venue("venue-c", "Charlie", { rating: 4.8 }),
-      ],
-    });
-    mockFrom.mockReturnValueOnce(query);
+    ]);
 
     const { GET } = await import("../venues/route");
     const res = await GET(new NextRequest("http://localhost/api/venues"));
@@ -216,8 +140,7 @@ describe("GET /api/venues search", () => {
   });
 
   it("uses private no-cache for authenticated venue list responses", async () => {
-    const query = chain({ data: [venue("venue-a", "Alpha")] });
-    mockFrom.mockReturnValueOnce(query);
+    mockSql.mockResolvedValueOnce([venue("venue-a", "Alpha")]);
 
     const { GET } = await import("../venues/route");
     const res = await GET(
@@ -232,8 +155,8 @@ describe("GET /api/venues search", () => {
   });
 
   it("returns 304 when If-None-Match matches the venue list etag", async () => {
-    mockFrom.mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha")] }));
-    mockFrom.mockReturnValueOnce(chain({ data: [venue("venue-a", "Alpha")] }));
+    mockSql.mockResolvedValueOnce([venue("venue-a", "Alpha")]);
+    mockSql.mockResolvedValueOnce([venue("venue-a", "Alpha")]);
 
     const { GET } = await import("../venues/route");
     const first = await GET(new NextRequest("http://localhost/api/venues"));

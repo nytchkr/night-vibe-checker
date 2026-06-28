@@ -7,7 +7,6 @@ import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -39,19 +38,6 @@ type SavedVenueMutationResponse = APIResponse<{ venueId: string; saved: boolean 
 
 async function getUserId(req: NextRequest): Promise<string | null> {
   return getAuthenticatedUserId(req);
-}
-
-function missingSupabaseConfigResponse(
-  error: unknown,
-  meta: { cached: boolean; generatedAt: string; requestId: string },
-  headers?: HeadersInit
-): NextResponse<APIResponse<never>> | null {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  console.error("[saved-venues] Supabase configuration error:", error.message);
-  return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
-    { status: 503, headers }
-  );
 }
 
 function unauthorized(meta: { cached: boolean; generatedAt: string; requestId: string }, headers?: HeadersInit) {
@@ -90,14 +76,6 @@ async function readVenueId(req: NextRequest, meta: { cached: boolean; generatedA
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const meta = { cached: false, generatedAt: new Date().toISOString(), requestId: uuidv4() };
 
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingSupabaseConfigResponse(error, meta, PRIVATE_GET_CACHE_HEADERS);
-    if (response) return response;
-    throw error;
-  }
-
   const userId = await getUserId(req);
   if (!userId) return unauthorized(meta, PRIVATE_GET_CACHE_HEADERS);
 
@@ -123,14 +101,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const meta = { cached: false, generatedAt: new Date().toISOString(), requestId: uuidv4() };
 
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingSupabaseConfigResponse(error, meta);
-    if (response) return response;
-    throw error;
-  }
-
   const userId = await getUserId(req);
   if (!userId) return unauthorized(meta);
 
@@ -155,14 +125,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const meta = { cached: false, generatedAt: new Date().toISOString(), requestId: uuidv4() };
-
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingSupabaseConfigResponse(error, meta);
-    if (response) return response;
-    throw error;
-  }
 
   const userId = await getUserId(req);
   if (!userId) return unauthorized(meta);

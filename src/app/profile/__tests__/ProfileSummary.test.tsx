@@ -6,17 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../page";
 
 const {
-  mockGetSession,
-  mockOnAuthStateChange,
-  mockSignInWithOtp,
+  mockUseSession,
+  mockSignIn,
   mockSignOut,
   mockRefreshSaved,
   mockToggleSaved,
   savedVenuesState,
 } = vi.hoisted(() => ({
-  mockGetSession: vi.fn(),
-  mockOnAuthStateChange: vi.fn(),
-  mockSignInWithOtp: vi.fn(),
+  mockUseSession: vi.fn(),
+  mockSignIn: vi.fn(),
   mockSignOut: vi.fn(),
   mockRefreshSaved: vi.fn(),
   mockToggleSaved: vi.fn(),
@@ -82,35 +80,26 @@ vi.mock("@/hooks/useSavedVenues", () => ({
   }),
 }));
 
-vi.mock("@/lib/supabase-browser", () => ({
-  createBrowserClient: () => ({
-    auth: {
-      getSession: mockGetSession,
-      onAuthStateChange: mockOnAuthStateChange,
-      signInWithOtp: mockSignInWithOtp,
-      signOut: mockSignOut,
-    },
-  }),
+vi.mock("next-auth/react", () => ({
+  useSession: mockUseSession,
+  signIn: mockSignIn,
+  signOut: mockSignOut,
 }));
 
 const session = {
-  access_token: "token-123",
   user: {
     id: "user-123",
     email: "tester@example.com",
-    user_metadata: { full_name: "Test Reporter" },
+    name: "Test Reporter",
   },
 };
 
 function mockAuth(nextSession: typeof session | null) {
-  mockGetSession.mockResolvedValue({ data: { session: nextSession } });
-  mockOnAuthStateChange.mockReturnValue({
-    data: {
-      subscription: {
-        unsubscribe: vi.fn(),
-      },
-    },
-  });
+  mockUseSession.mockReturnValue(
+    nextSession
+      ? { data: nextSession, status: "authenticated" }
+      : { data: null, status: "unauthenticated" },
+  );
 }
 
 describe("Profile saved spots", () => {
@@ -121,8 +110,9 @@ describe("Profile saved spots", () => {
     savedVenuesState.savedVenues = [];
     mockRefreshSaved.mockResolvedValue(undefined);
     mockToggleSaved.mockResolvedValue(false);
-    mockSignInWithOtp.mockResolvedValue({ error: null });
-    mockSignOut.mockResolvedValue({ error: null });
+    mockSignIn.mockResolvedValue(undefined);
+    mockSignOut.mockResolvedValue(undefined);
+    mockAuth(null);
   });
 
   afterEach(() => {
@@ -191,9 +181,9 @@ describe("Profile saved spots", () => {
       expect(fetch).toHaveBeenCalledWith("/api/saved-venues", {
         method: "DELETE",
         headers: {
-          Authorization: "Bearer token-123",
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ venueId: "venue-1" }),
       });
     });
@@ -216,18 +206,11 @@ describe("Profile saved spots", () => {
     expect(await screen.findByRole("heading", { name: "Sign in to save your favourite spots" })).not.toBeNull();
     expect(screen.getByText("nytchkr remembers the places you love")).not.toBeNull();
 
-    const input = screen.getByLabelText("Email address");
-    fireEvent.change(input, { target: { value: "guest@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: "Send magic link" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
 
     await waitFor(() => {
-      expect(mockSignInWithOtp).toHaveBeenCalledWith({
-        email: "guest@example.com",
-        options: { emailRedirectTo: "http://localhost:3000/auth/callback?return=/profile" },
-      });
+      expect(mockSignIn).toHaveBeenCalledWith("google", { callbackUrl: "/profile" });
     });
-
-    expect(screen.getByText("Check your email for a magic link.")).not.toBeNull();
   });
 
   it("shows a compact sign out action for signed-in users", async () => {

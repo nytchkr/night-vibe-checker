@@ -1,31 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockFrom = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: { from: mockFrom },
+vi.mock("@/lib/db", () => ({
+  sql: mockSql,
 }));
-
-function countQuery(count: number) {
-  const promise = Promise.resolve({ count, error: null });
-  return {
-    select: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    then: promise.then.bind(promise),
-    catch: promise.catch.bind(promise),
-  };
-}
-
-function rowsQuery(data: unknown[]) {
-  const promise = Promise.resolve({ data, error: null });
-  return {
-    select: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    then: promise.then.bind(promise),
-    catch: promise.catch.bind(promise),
-  };
-}
 
 function venueRow(lastBusynessRefresh: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -40,6 +20,7 @@ function venueRow(lastBusynessRefresh: string, overrides: Record<string, unknown
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockSql.mockResolvedValue([]);
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-22T03:44:23.000Z"));
 });
@@ -50,13 +31,13 @@ afterEach(() => {
 
 describe("GET /api/health", () => {
   it("keeps daily BestTime cache refreshes healthy within the grace window", async () => {
-    mockFrom
-      .mockReturnValueOnce(countQuery(100))
-      .mockReturnValueOnce(countQuery(100))
-      .mockReturnValueOnce(rowsQuery([
+    mockSql
+      .mockResolvedValueOnce([{ count: 100 }])
+      .mockResolvedValueOnce([{ count: 100 }])
+      .mockResolvedValueOnce([
         venueRow("2026-06-21T14:18:32.113Z"),
         venueRow("2026-06-21T14:21:27.265Z"),
-      ]));
+      ]);
 
     const { GET } = await import("../health/route");
     const res = await GET(new NextRequest("http://localhost/api/health"));
@@ -107,13 +88,14 @@ describe("GET /api/health", () => {
     ]);
     expect(json.staleSince).toBeNull();
     expect(json.lastBusynessRefresh).toBe("2026-06-21T14:21:27.265Z");
+    expect(mockSql).toHaveBeenCalledTimes(3);
   });
 
   it("reports venue BestTime and signal coverage for each launch zone", async () => {
-    mockFrom
-      .mockReturnValueOnce(countQuery(3))
-      .mockReturnValueOnce(countQuery(2))
-      .mockReturnValueOnce(rowsQuery([
+    mockSql
+      .mockResolvedValueOnce([{ count: 3 }])
+      .mockResolvedValueOnce([{ count: 2 }])
+      .mockResolvedValueOnce([
         venueRow("2026-06-21T14:18:32.113Z"),
         venueRow("2026-06-21T14:21:27.265Z", {
           zone_id: "dilworth-charlotte",
@@ -125,7 +107,7 @@ describe("GET /api/health", () => {
           besttime_venue_id: "bt-venue-3",
           venue_signals: { busyness_0_100: 63, last_busyness_refresh: "2026-06-21T14:22:27.265Z" },
         }),
-      ]));
+      ]);
 
     const { GET } = await import("../health/route");
     const res = await GET(new NextRequest("http://localhost/api/health"));
@@ -166,13 +148,13 @@ describe("GET /api/health", () => {
   });
 
   it("degrades when a full daily busyness refresh is missed", async () => {
-    mockFrom
-      .mockReturnValueOnce(countQuery(100))
-      .mockReturnValueOnce(countQuery(100))
-      .mockReturnValueOnce(rowsQuery([
+    mockSql
+      .mockResolvedValueOnce([{ count: 100 }])
+      .mockResolvedValueOnce([{ count: 100 }])
+      .mockResolvedValueOnce([
         venueRow("2026-06-20T20:00:00.000Z"),
         venueRow("2026-06-21T14:21:27.265Z"),
-      ]));
+      ]);
 
     const { GET } = await import("../health/route");
     const res = await GET(new NextRequest("http://localhost/api/health"));
@@ -183,10 +165,10 @@ describe("GET /api/health", () => {
   });
 
   it("degrades when signal coverage drops below eighty percent", async () => {
-    mockFrom
-      .mockReturnValueOnce(countQuery(100))
-      .mockReturnValueOnce(countQuery(79))
-      .mockReturnValueOnce(rowsQuery([venueRow("2026-06-21T14:21:27.265Z")]));
+    mockSql
+      .mockResolvedValueOnce([{ count: 100 }])
+      .mockResolvedValueOnce([{ count: 79 }])
+      .mockResolvedValueOnce([venueRow("2026-06-21T14:21:27.265Z")]);
 
     const { GET } = await import("../health/route");
     const res = await GET(new NextRequest("http://localhost/api/health"));

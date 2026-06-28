@@ -4,7 +4,6 @@ import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/upstashRateLimit";
 import { sql } from "@/lib/db";
-import { MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +21,6 @@ const PushSubscriptionSchema = z.object({
 const DeleteSubscriptionSchema = z.object({
   endpoint: z.string().url().optional(),
 });
-
-function configError(error: unknown) {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  return NextResponse.json({ error: "Server configuration is incomplete." }, { status: 503 });
-}
 
 async function readJson(req: NextRequest): Promise<unknown> {
   try {
@@ -50,15 +44,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  let userId: string | null;
-  try {
-    userId = await getAuthenticatedUserId(req);
-  } catch (error) {
-    const response = configError(error);
-    if (response) return response;
-    throw error;
-  }
-
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers });
 
   const parsed = PushSubscriptionSchema.safeParse(await readJson(req));
@@ -83,15 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 export async function DELETE(req: NextRequest): Promise<NextResponse> {
-  let userId: string | null;
-  try {
-    userId = await getAuthenticatedUserId(req);
-  } catch (error) {
-    const response = configError(error);
-    if (response) return response;
-    throw error;
-  }
-
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const parsed = DeleteSubscriptionSchema.safeParse(await readJson(req));

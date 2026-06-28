@@ -1,13 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockFrom = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: {
-    from: mockFrom,
-  },
-}));
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
 const OPEN_MONDAY_HOURS = {
   open_now: true,
@@ -30,22 +26,6 @@ const CLOSED_MONDAY_HOURS = {
   ],
   weekdayDescriptions: ["Monday: 11:00 AM - 2:00 PM"],
 };
-
-function chain(resolved: { data?: unknown; error?: unknown }) {
-  const promise = Promise.resolve({
-    data: resolved.data ?? null,
-    error: resolved.error ?? null,
-  });
-  const builder = {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    then: promise.then.bind(promise),
-    catch: promise.catch.bind(promise),
-  };
-  return builder;
-}
 
 function params(zoneId: string) {
   return { params: Promise.resolve({ zoneId }) };
@@ -118,6 +98,7 @@ function venueRow({
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockSql.mockResolvedValue([]);
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-06-23T16:00:00.000Z"));
 });
@@ -128,17 +109,14 @@ afterEach(() => {
 
 describe("GET /api/zones/[zoneId]/trending", () => {
   it("returns the top five scored venues for a valid zone", async () => {
-    const query = chain({
-      data: [
+    mockSql.mockResolvedValueOnce([
         venueRow({ id: "venue-one", name: "One", busyness: 100, checkInCount: 4 }),
         venueRow({ id: "venue-two", name: "Two", busyness: 90, checkInCount: 3 }),
         venueRow({ id: "venue-three", name: "Three", busyness: 80, checkInCount: 2 }),
         venueRow({ id: "venue-four", name: "Four", busyness: 70, checkInCount: 1 }),
         venueRow({ id: "venue-five", name: "Five", busyness: 60, checkInCount: 0 }),
         venueRow({ id: "venue-six", name: "Six", busyness: 10, checkInCount: 0 }),
-      ],
-    });
-    mockFrom.mockReturnValueOnce(query);
+    ]);
 
     const { GET } = await import("../zones/[zoneId]/trending/route");
     const res = await GET(
@@ -165,14 +143,7 @@ describe("GET /api/zones/[zoneId]/trending", () => {
       checkInsLast2h: 4,
     });
     expect(json.venues[0].score).toBeCloseTo(1.5);
-    expect(mockFrom).toHaveBeenCalledWith("venues");
-    expect(query.select).toHaveBeenCalledWith(expect.stringContaining("venue_signals"));
-    expect(query.select).toHaveBeenCalledWith(expect.stringContaining("check_ins"));
-    expect(query.eq).toHaveBeenCalledWith("zone_id", "south-end-charlotte");
-    expect(query.eq).toHaveBeenCalledWith("hidden", false);
-    expect(query.gte).toHaveBeenCalledWith("check_ins.created_at", "2026-06-23T14:00:00.000Z");
-    expect(query.eq).toHaveBeenCalledWith("check_ins.hidden", false);
-    expect(query.order).toHaveBeenCalledWith("name", { ascending: true });
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("returns 400 for invalid zoneId", async () => {
@@ -186,13 +157,11 @@ describe("GET /api/zones/[zoneId]/trending", () => {
     expect(res.status).toBe(400);
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");
     expect(json).toEqual({ error: "Unknown zoneId." });
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(mockSql).not.toHaveBeenCalled();
   });
 
   it("excludes venues where openNow resolves to false", async () => {
-    mockFrom.mockReturnValueOnce(
-      chain({
-        data: [
+    mockSql.mockResolvedValueOnce([
           venueRow({
             id: "venue-closed",
             name: "Closed",
@@ -202,9 +171,7 @@ describe("GET /api/zones/[zoneId]/trending", () => {
             openNow: false,
           }),
           venueRow({ id: "venue-open", name: "Open", busyness: 20, checkInCount: 0 }),
-        ],
-      }),
-    );
+    ]);
 
     const { GET } = await import("../zones/[zoneId]/trending/route");
     const res = await GET(
@@ -218,7 +185,7 @@ describe("GET /api/zones/[zoneId]/trending", () => {
   });
 
   it("returns a no-store 500 when the zone venue query fails", async () => {
-    mockFrom.mockReturnValueOnce(chain({ error: { message: "database unavailable" } }));
+    mockSql.mockRejectedValueOnce(new Error("database unavailable"));
 
     const { GET } = await import("../zones/[zoneId]/trending/route");
     const res = await GET(

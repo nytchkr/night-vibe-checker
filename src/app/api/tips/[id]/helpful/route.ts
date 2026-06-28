@@ -7,7 +7,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import type { APIResponse } from "@/types";
@@ -25,31 +24,12 @@ function meta(requestId: string) {
   return { cached: false, generatedAt: new Date().toISOString(), requestId };
 }
 
-function missingSupabaseConfigResponse(
-  error: unknown,
-  responseMeta: { cached: boolean; generatedAt: string; requestId: string },
-): NextResponse<APIResponse<never>> | null {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  return NextResponse.json<APIResponse<never>>(
-    { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: responseMeta },
-    { status: 503 },
-  );
-}
-
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const requestId = uuidv4();
   const responseMeta = meta(requestId);
-
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingSupabaseConfigResponse(error, responseMeta);
-    if (response) return response;
-    throw error;
-  }
 
   const rate = await checkRateLimit(`tip-helpful:POST:${getClientIp(req)}`, HELPFUL_RATE_LIMIT_MAX, HELPFUL_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);

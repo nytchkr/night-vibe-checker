@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 const RatingBodySchema = z.object({
@@ -28,11 +27,6 @@ function errorJson(
   );
 }
 
-function missingConfigResponse(error: unknown): NextResponse<APIResponse<never>> | null {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  return errorJson("MISSING_ENV", "Server configuration is incomplete.", 503);
-}
-
 function averageRating(rows: Array<{ rating: unknown }>): number {
   const ratings = rows
     .map((row) => Number(row.rating))
@@ -47,14 +41,6 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingConfigResponse(error);
-    if (response) return response;
-    throw error;
-  }
-
   const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return errorJson("UNAUTHORIZED", "Login required to rate this venue.", 401);

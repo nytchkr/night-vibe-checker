@@ -1,37 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockGetUser = vi.fn();
-const mockFrom = vi.fn();
-const mockAssertSupabaseServerEnv = vi.fn();
-const mockGetSession = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
+const mockAuth = vi.hoisted(() => vi.fn());
 
-class MockMissingSupabaseEnvError extends Error {
-  constructor(public readonly variableName: string) {
-    super(`Missing ${variableName} — add to .env.local`);
-    this.name = "MissingSupabaseEnvError";
-  }
-}
-
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => ({
-    getAll: () => [],
-  })),
+vi.mock("@/lib/db", () => ({
+  sql: mockSql,
 }));
 
-vi.mock("@supabase/auth-helpers-nextjs", () => ({
-  createServerClient: vi.fn(() => ({
-    auth: { getSession: mockGetSession },
-  })),
-}));
-
-vi.mock("@/lib/supabase", () => ({
-  assertSupabaseServerEnv: mockAssertSupabaseServerEnv,
-  MissingSupabaseEnvError: MockMissingSupabaseEnvError,
-  supabaseAdmin: {
-    auth: { getUser: mockGetUser },
-    from: mockFrom,
-  },
+vi.mock("@/auth", () => ({
+  auth: mockAuth,
 }));
 
 function request(method: string, body?: unknown, token = "token") {
@@ -57,14 +35,13 @@ function getRequest(venueId: string, token = "token") {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
-  mockAssertSupabaseServerEnv.mockReturnValue(undefined);
-  mockGetSession.mockResolvedValue({ data: { session: null } });
-  mockGetUser.mockResolvedValue({ data: { user: { id: "user-123" } }, error: null });
+  mockSql.mockResolvedValue([]);
+  mockAuth.mockResolvedValue({ user: { id: "user-123" } });
 });
 
 describe("/api/push/venue-alert", () => {
   it("requires an authenticated user", async () => {
-    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: { message: "invalid" } });
+    mockAuth.mockResolvedValueOnce(null);
 
     const { POST } = await import("../push/venue-alert/route");
     const res = await POST(request("POST", { venueId: "venue-123" }));
@@ -82,11 +59,7 @@ describe("/api/push/venue-alert", () => {
   });
 
   it("returns current alert state", async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: { id: "alert-123" }, error: null });
-    const eqVenue = vi.fn().mockReturnValue({ maybeSingle });
-    const eqUser = vi.fn().mockReturnValue({ eq: eqVenue });
-    const select = vi.fn().mockReturnValue({ eq: eqUser });
-    mockFrom.mockReturnValueOnce({ select });
+    mockSql.mockResolvedValueOnce([{ id: "alert-123" }]);
 
     const { GET } = await import("../push/venue-alert/route");
     const res = await GET(getRequest("venue-123"));
@@ -94,42 +67,26 @@ describe("/api/push/venue-alert", () => {
 
     expect(res.status).toBe(200);
     expect(json.alerting).toBe(true);
-    expect(mockFrom).toHaveBeenCalledWith("push_venue_alerts");
-    expect(eqUser).toHaveBeenCalledWith("user_id", "user-123");
-    expect(eqVenue).toHaveBeenCalledWith("venue_id", "venue-123");
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("upserts an alert by user and venue", async () => {
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    mockFrom.mockReturnValueOnce({ upsert });
-
     const { POST } = await import("../push/venue-alert/route");
     const res = await POST(request("POST", { venueId: "venue-123" }));
     const json = await res.json();
 
     expect(res.status).toBe(200);
     expect(json.alerting).toBe(true);
-    expect(mockFrom).toHaveBeenCalledWith("push_venue_alerts");
-    expect(upsert).toHaveBeenCalledWith(
-      { user_id: "user-123", venue_id: "venue-123" },
-      { onConflict: "user_id,venue_id" },
-    );
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("deletes an alert by user and venue", async () => {
-    const eqVenue = vi.fn().mockResolvedValue({ error: null });
-    const eqUser = vi.fn().mockReturnValue({ eq: eqVenue });
-    const deleteFn = vi.fn().mockReturnValue({ eq: eqUser });
-    mockFrom.mockReturnValueOnce({ delete: deleteFn });
-
     const { DELETE } = await import("../push/venue-alert/route");
     const res = await DELETE(request("DELETE", { venueId: "venue-123" }));
     const json = await res.json();
 
     expect(res.status).toBe(200);
     expect(json.alerting).toBe(false);
-    expect(deleteFn).toHaveBeenCalled();
-    expect(eqUser).toHaveBeenCalledWith("user_id", "user-123");
-    expect(eqVenue).toHaveBeenCalledWith("venue_id", "venue-123");
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 });

@@ -43,13 +43,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const data = await sql`
-    SELECT id, name, category, zone_id
-    FROM venues
-    WHERE name ILIKE ${`%${q}%`}
-      AND COALESCE(hidden, false) = false
-    LIMIT 5
-  `;
+  let data: unknown[];
+  try {
+    const rows = await sql`
+      SELECT id, name, category, zone_id
+      FROM venues
+      WHERE name ILIKE ${`%${q}%`}
+        AND COALESCE(hidden, false) = false
+      LIMIT 5
+    `;
+    data = Array.isArray(rows) ? rows : [];
+  } catch {
+    return NextResponse.json(
+      { error: { code: "DB_ERROR", message: "Could not load venue suggestions." } },
+      { status: 500 },
+    );
+  }
 
   const suggestions = (data as VenueSuggestionRow[]).map(mapSuggestion);
 
