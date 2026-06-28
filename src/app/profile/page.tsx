@@ -168,13 +168,22 @@ function StatCard({
   icon: React.ReactNode;
   accentClassName: string;
 }) {
+  const statId = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const labelId = `profile-stat-${statId}-label`;
+  const valueId = `profile-stat-${statId}-value`;
+
   return (
-    <Card className="min-h-28 rounded-[8px] border-white/[0.08] bg-[#14141A] p-4">
+    <Card
+      role="group"
+      aria-labelledby={labelId}
+      aria-describedby={valueId}
+      className="min-h-28 rounded-[8px] border-white/[0.08] bg-[#14141A] p-4"
+    >
       <div className="flex h-full flex-col justify-between gap-4">
         <span className={accentClassName}>{icon}</span>
         <div className="min-w-0">
-          <p className="truncate text-2xl font-black leading-none tracking-normal text-white">{value}</p>
-          <p className="mt-2 text-xs font-bold uppercase leading-4 tracking-[0.12em] text-white/45">{label}</p>
+          <p id={valueId} className="truncate text-2xl font-black leading-none tracking-normal text-white">{value}</p>
+          <h2 id={labelId} className="mt-2 text-xs font-bold uppercase leading-4 tracking-[0.12em] text-white/45">{label}</h2>
         </div>
       </div>
     </Card>

@@ -271,7 +271,7 @@ export function VenuePredictionCard({
             </div>
 
             {hourlyLoading ? (
-              <div className="mt-4 grid grid-cols-6 gap-2" role="status" aria-label="Loading...">
+              <div className="mt-4 grid grid-cols-6 gap-2" role="status" aria-label="Loading hourly forecast">
                 {Array.from({ length: 6 }).map((_, index) => (
                   <div key={index} className="h-20 animate-pulse rounded-xl bg-white/[0.06]" />
                 ))}
@@ -282,7 +282,12 @@ export function VenuePredictionCard({
                   const busyness = clampPercent(item.busyness);
                   const color = busynessColor(busyness);
                   return (
-                    <div key={item.hour} className="min-w-0 rounded-xl bg-white/[0.045] px-2 py-3 text-center">
+                    <div
+                      key={item.hour}
+                      className="min-w-0 rounded-xl bg-white/[0.045] px-2 py-3 text-center"
+                      role="img"
+                      aria-label={`Hour ${item.hour}: ${busyness}% busy`}
+                    >
                       <p className="truncate text-[11px] font-black text-white/50">{formatHourLabel(item.hour)}</p>
                       <div className="mx-auto mt-3 flex h-14 w-2 items-end rounded-full bg-white/10" aria-hidden="true">
                         <div

@@ -1188,6 +1188,7 @@ export function VenuePageClient({
                     aria-selected={active}
                     aria-controls={`venue-${item.value}-panel`}
                     id={`venue-${item.value}-tab`}
+                    tabIndex={active ? 0 : -1}
                     onClick={() => setTab(item.value)}
                     className={`min-h-11 border-b-2 px-3 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
                       active
@@ -1208,6 +1209,7 @@ export function VenuePageClient({
                 id="venue-overview-panel"
                 role="tabpanel"
                 aria-labelledby="venue-overview-tab"
+                tabIndex={0}
               >
               <div>
                 {googleRatingData && (
@@ -1346,6 +1348,7 @@ export function VenuePageClient({
               id="venue-vibe-panel"
               role="tabpanel"
               aria-labelledby="venue-vibe-tab"
+              tabIndex={0}
             >
           <div className="border-b border-white/[0.06]">
             <div className="mx-auto max-w-lg overflow-x-auto px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -1518,6 +1521,7 @@ export function VenuePageClient({
               id="venue-tips-panel"
               role="tabpanel"
               aria-labelledby="venue-tips-tab"
+              tabIndex={0}
               className="mx-auto max-w-lg px-4 py-5"
             >
               <VenueTips venueId={venue.id} />

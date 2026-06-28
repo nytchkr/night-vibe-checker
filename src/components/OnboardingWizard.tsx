@@ -93,10 +93,18 @@ export function OnboardingWizard() {
       tabIndex={-1}
     >
       <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md flex-col">
-        <div className="flex items-center justify-center gap-2 py-2" aria-hidden="true">
+        <div
+          className="flex items-center justify-center gap-2 py-2"
+          role="progressbar"
+          aria-label={`Onboarding step ${step + 1} of 3`}
+          aria-valuemin={1}
+          aria-valuemax={3}
+          aria-valuenow={step + 1}
+        >
           {[0, 1, 2].map((dot) => (
             <span
               key={dot}
+              aria-hidden="true"
               className={cn(
                 "h-1.5 rounded-full transition-all",
                 dot === step ? "w-7 bg-[#8B6CFF]" : "w-1.5 bg-white/20",
