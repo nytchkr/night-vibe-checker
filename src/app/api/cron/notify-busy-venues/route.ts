@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import "server-only";
 import webpush from "web-push";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 import { errorMessage, logCronRun } from "@/lib/cronHealth";

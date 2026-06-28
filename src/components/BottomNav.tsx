@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { span as MotionSpan } from "framer-motion/client";
 
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
@@ -255,11 +254,9 @@ function NavItem({
         {children}
         {showBadge && (badgeVariant === "streak" ? <StreakDot /> : <BadgeDot />)}
         {active && (
-          <MotionSpan
-            layoutId="bottom-nav-active-underline"
+          <span
             aria-hidden="true"
             className="absolute -bottom-1 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_12px_rgba(139,108,255,0.7)]"
-            transition={{ duration: 0.15, ease: "easeOut" }}
           />
         )}
       </span>
@@ -405,11 +402,9 @@ export function SidebarNav() {
             }`}
           >
             {active && (
-              <MotionSpan
-                layoutId="sidebar-nav-active-border"
+              <span
                 aria-hidden="true"
                 className="absolute left-0 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_14px_rgba(139,108,255,0.65)]"
-                transition={{ duration: 0.15, ease: "easeOut" }}
               />
             )}
             <Icon filled={active} />

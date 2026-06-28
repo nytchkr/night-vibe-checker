@@ -1,4 +1,7 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import bundleAnalyzer from "@next/bundle-analyzer";
+
+const withBundleAnalyzer = bundleAnalyzer({ enabled: process.env.ANALYZE === "true" });
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -106,8 +109,10 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+const sentryConfig = withSentryConfig(nextConfig, {
   silent: true,
   org: "nightvibe",
   project: "nightvibe-web",
 });
+
+export default withBundleAnalyzer(sentryConfig);

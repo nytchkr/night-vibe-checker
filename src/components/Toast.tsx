@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { AnimatePresence } from "framer-motion";
-import { div as MotionDiv } from "framer-motion/client";
 import { X } from "lucide-react";
 
 export type ToastVariant = "success" | "error" | "info";
@@ -84,11 +82,9 @@ export function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
       aria-atomic="false"
       className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] z-[10000] flex flex-col-reverse items-center gap-2 px-4 sm:bottom-6"
     >
-      <AnimatePresence initial={false}>
-        {toasts.map((toast) => (
-          <ToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />
-        ))}
-      </AnimatePresence>
+      {toasts.map((toast) => (
+        <ToastCard key={toast.id} toast={toast} onDismiss={onDismiss} />
+      ))}
     </div>
   );
 }
@@ -110,18 +106,13 @@ function ToastCard({
   const hasAction = Boolean(actionLabel && onAction);
 
   return (
-    <MotionDiv
-      layout
+    <div
       role={toast.variant === "error" ? "alert" : "status"}
       aria-live={toast.variant === "error" ? "assertive" : "polite"}
       aria-atomic="true"
-      initial={{ opacity: 0, y: 28, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 18, scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 420, damping: 34, mass: 0.7 }}
       className={[
         "pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-[14px] border px-4 py-3 text-sm font-bold leading-5",
-        "backdrop-blur-xl",
+        "backdrop-blur-xl transition duration-150 ease-out",
         styles.panel,
         styles.glow,
         className,
@@ -148,7 +139,7 @@ function ToastCard({
       >
         <X className="h-4 w-4" aria-hidden="true" />
       </button>
-    </MotionDiv>
+    </div>
   );
 }
 

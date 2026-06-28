@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import "server-only";
 import webpush from "web-push";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 import { logCronRun } from "@/lib/cronHealth";

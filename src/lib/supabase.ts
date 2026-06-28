@@ -8,6 +8,8 @@
 //                    bypasses RLS for trusted background operations
 // ============================================================
 
+import "server-only";
+
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // --------------- Env validation -----------------------------

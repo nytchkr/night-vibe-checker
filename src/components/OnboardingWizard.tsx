@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Building2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PushOptIn } from "@/components/PushOptIn";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import {
   LEGACY_ONBOARDING_STORAGE_KEY,
@@ -22,6 +22,22 @@ const zones = [
   { id: "dilworth-charlotte", label: "Dilworth" },
   { id: "south-park-charlotte", label: "SouthPark" },
 ] as const;
+
+const PushOptIn = dynamic(
+  () => import("@/components/PushOptIn").then((mod) => mod.PushOptIn),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="mt-8 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3"
+        aria-hidden="true"
+      >
+        <div className="h-5 w-32 rounded-full bg-white/10" />
+        <div className="mt-2 h-4 w-56 max-w-full rounded-full bg-white/[0.06]" />
+      </div>
+    ),
+  },
+);
 
 function hasCompletedOnboarding() {
   try {
