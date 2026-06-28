@@ -6,7 +6,7 @@ import Script from "next/script";
 import { BottomNav, SidebarNav, YouStreakProvider } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
-import { PWAInstallRuntime } from "@/components/PWAInstallRuntime";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { RoutePrefetch } from "@/components/RoutePrefetch";
 import { ToastProvider } from "@/hooks/useToast";
 import "./globals.css";
@@ -152,7 +152,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <OnboardingWizard />
               </OnboardingGateProvider>
             </div>
-            <PWAInstallRuntime />
+            <PWAInstallPrompt />
             <BottomNav />
           </YouStreakProvider>
         </ToastProvider>
