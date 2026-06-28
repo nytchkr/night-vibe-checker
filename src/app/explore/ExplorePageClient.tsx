@@ -321,7 +321,12 @@ function ExploreEmptyState({ hasActiveSearchOrFilter, onClear }: { hasActiveSear
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#8B6CFF]/25 bg-[#8B6CFF]/10 text-[#8B6CFF]" aria-hidden="true">
         <SearchX className="h-6 w-6" strokeWidth={2.2} />
       </div>
-      <h2 className="mt-4 font-display text-[20px] font-black text-white">No venues found in this area yet.</h2>
+      <h2
+        className="mt-4 font-display text-[20px] font-black text-white"
+        aria-label="No venues found in this area yet — we're adding more soon."
+      >
+        No venues found in this area yet.
+      </h2>
       {hasActiveSearchOrFilter ? (
         <button
           type="button"
