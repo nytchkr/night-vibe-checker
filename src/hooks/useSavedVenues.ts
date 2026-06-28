@@ -266,5 +266,5 @@ export function useSavedVenues() {
     }
   }, [getAccessToken, savedIds]);
 
-  return { error, isSaved, loading, refreshVenueSavedState, savedIds, savedVenues, toggle };
+  return { error, isSaved, loading, refresh, refreshVenueSavedState, savedIds, savedVenues, toggle };
 }

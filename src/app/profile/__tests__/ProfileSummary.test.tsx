@@ -1,13 +1,47 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../page";
 
-const { mockGetSession, mockOnAuthStateChange } = vi.hoisted(() => ({
+const {
+  mockGetSession,
+  mockOnAuthStateChange,
+  mockSignInWithOtp,
+  mockSignOut,
+  mockRefreshSaved,
+  mockToggleSaved,
+  savedVenuesState,
+} = vi.hoisted(() => ({
   mockGetSession: vi.fn(),
   mockOnAuthStateChange: vi.fn(),
+  mockSignInWithOtp: vi.fn(),
+  mockSignOut: vi.fn(),
+  mockRefreshSaved: vi.fn(),
+  mockToggleSaved: vi.fn(),
+  savedVenuesState: {
+    error: null as string | null,
+    loading: false,
+    savedVenues: [] as Array<{
+      venueId: string;
+      placeId: string | null;
+      alertThreshold: number;
+      savedAt: string | null;
+      createdAt: string | null;
+      currentBusyness: number | null;
+      venue: {
+        id: string;
+        placeId: string;
+        name: string;
+        category: string;
+        photoUrl?: string;
+        openNow?: boolean | null;
+        open_now?: boolean | null;
+        opening_hours?: { open_now?: boolean | null } | null;
+      } | null;
+    }>,
+  },
 }));
 
 vi.mock("next/link", async () => {
@@ -27,12 +61,25 @@ vi.mock("next/link", async () => {
   };
 });
 
+vi.mock("next/image", () => ({
+  default: function ImageStub({ alt, src }: { alt: string; src: string }) {
+    return <img alt={alt} src={src} />;
+  },
+}));
+
 vi.mock("@/components/PageTransition", () => ({
   PageTransition: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-vi.mock("@/components/OnboardingOverlay", () => ({
-  OnboardingOverlay: () => null,
+vi.mock("@/hooks/useSavedVenues", () => ({
+  SAVED_VENUES_EVENT: "nightvibe:saved-venues-changed",
+  useSavedVenues: () => ({
+    error: savedVenuesState.error,
+    loading: savedVenuesState.loading,
+    savedVenues: savedVenuesState.savedVenues,
+    refresh: mockRefreshSaved,
+    toggle: mockToggleSaved,
+  }),
 }));
 
 vi.mock("@/lib/supabase-browser", () => ({
@@ -40,17 +87,11 @@ vi.mock("@/lib/supabase-browser", () => ({
     auth: {
       getSession: mockGetSession,
       onAuthStateChange: mockOnAuthStateChange,
-      signInWithOAuth: vi.fn(),
-      signOut: vi.fn(),
+      signInWithOtp: mockSignInWithOtp,
+      signOut: mockSignOut,
     },
   }),
 }));
-
-type MockResponse = {
-  ok: boolean;
-  status: number;
-  json: () => Promise<unknown>;
-};
 
 const session = {
   access_token: "token-123",
@@ -61,30 +102,8 @@ const session = {
   },
 };
 
-function jsonResponse(body: unknown, status = 200): MockResponse {
-  return {
-    ok: status >= 200 && status < 300,
-    status,
-    json: () => Promise.resolve(body),
-  };
-}
-
-function pendingResponse(): Promise<MockResponse> {
-  return new Promise(() => undefined);
-}
-
-function mockProfileFetch(profileResponse: MockResponse | Promise<MockResponse>) {
-  const fetchMock = vi.fn((input: RequestInfo | URL) => {
-    if (String(input) === "/api/user/profile") return Promise.resolve(profileResponse);
-    return Promise.resolve(jsonResponse({}));
-  });
-
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
-}
-
-function renderSignedInProfile(profileResponse: MockResponse | Promise<MockResponse>) {
-  mockGetSession.mockResolvedValue({ data: { session } });
+function mockAuth(nextSession: typeof session | null) {
+  mockGetSession.mockResolvedValue({ data: { session: nextSession } });
   mockOnAuthStateChange.mockReturnValue({
     data: {
       subscription: {
@@ -92,15 +111,18 @@ function renderSignedInProfile(profileResponse: MockResponse | Promise<MockRespo
       },
     },
   });
-  return {
-    fetchMock: mockProfileFetch(profileResponse),
-    ...render(<ProfilePage />),
-  };
 }
 
-describe("Profile summary", () => {
+describe("Profile saved spots", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    savedVenuesState.error = null;
+    savedVenuesState.loading = false;
+    savedVenuesState.savedVenues = [];
+    mockRefreshSaved.mockResolvedValue(undefined);
+    mockToggleSaved.mockResolvedValue(false);
+    mockSignInWithOtp.mockResolvedValue({ error: null });
+    mockSignOut.mockResolvedValue({ error: null });
   });
 
   afterEach(() => {
@@ -108,81 +130,115 @@ describe("Profile summary", () => {
     vi.unstubAllGlobals();
   });
 
-  it("fetches /api/user/profile with the bearer token and renders profile stats", async () => {
-    const { fetchMock } = renderSignedInProfile(jsonResponse({
-      userId: "user-123",
-      totalCheckIns: 12,
-      uniqueVenues: 5,
-      streak: 4,
-      topVenues: [
-        { venueId: "venue-1", venueName: "Trio", checkInCount: 7 },
-        { venueId: "venue-2", venueName: "Slate", checkInCount: 3 },
-        { venueId: "venue-3", venueName: "Vinyl", checkInCount: 2 },
-      ],
-    }));
-
-    expect(await screen.findByText("Test Reporter")).not.toBeNull();
-    expect(screen.getByText("tester@example.com")).not.toBeNull();
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/user/profile", {
-        headers: { Authorization: "Bearer token-123" },
-        cache: "no-store",
-      });
-    });
-
-    const stats = screen.getByLabelText("Profile stats");
-    expect(within(stats).getByText("Total Check-ins")).not.toBeNull();
-    expect(within(stats).getByText("12")).not.toBeNull();
-    expect(within(stats).getByText("Unique Venues")).not.toBeNull();
-    expect(within(stats).getByText("5")).not.toBeNull();
-    expect(within(stats).getByText("Current Streak")).not.toBeNull();
-    expect(within(stats).getByText("4")).not.toBeNull();
-    expect(within(stats).getByText("Top Venue")).not.toBeNull();
-    expect(within(stats).getByText("Trio")).not.toBeNull();
-
-    const topVenues = screen.getByLabelText("Top Venues");
-    expect(within(topVenues).getByText("Trio")).not.toBeNull();
-    expect(within(topVenues).getByText("Slate")).not.toBeNull();
-    expect(within(topVenues).getByText("Vinyl")).not.toBeNull();
-    expect(within(topVenues).getByText("7")).not.toBeNull();
-  });
-
-  it("shows the requested empty state when the user has no check-ins", async () => {
-    renderSignedInProfile(jsonResponse({
-      userId: "user-123",
-      totalCheckIns: 0,
-      uniqueVenues: 0,
-      streak: 0,
-      topVenues: [],
-    }));
-
-    expect(await screen.findByText("Start exploring and check in to see your stats")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Explore spots" }).getAttribute("href")).toBe("/explore");
-  });
-
-  it("shows three skeleton cards while profile summary is loading", async () => {
-    renderSignedInProfile(pendingResponse());
-
-    expect(await screen.findByLabelText("Loading profile")).not.toBeNull();
-    expect(screen.queryByText("Start exploring and check in to see your stats")).toBeNull();
-  });
-
-  it("shows the logged-out profile pitch for guests", async () => {
-    mockGetSession.mockResolvedValue({ data: { session: null } });
-    mockOnAuthStateChange.mockReturnValue({
-      data: {
-        subscription: {
-          unsubscribe: vi.fn(),
+  it("shows saved venue cards for signed-in users without check-in stats", async () => {
+    mockAuth(session);
+    savedVenuesState.savedVenues = [
+      {
+        venueId: "venue-1",
+        placeId: "place-1",
+        alertThreshold: 70,
+        savedAt: "2026-06-28T00:00:00.000Z",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        currentBusyness: 72,
+        venue: {
+          id: "venue-1",
+          placeId: "place-1",
+          name: "Trio",
+          category: "Nightclub",
+          photoUrl: "https://example.com/trio.jpg",
+          openNow: true,
         },
       },
-    });
-    vi.stubGlobal("fetch", vi.fn());
+    ];
 
     render(<ProfilePage />);
 
-    expect(await screen.findByRole("heading", { name: "Know before you go." })).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Or sign in with email" }).getAttribute("href")).toBe("/login?return=/profile");
+    expect(await screen.findByRole("heading", { name: "Your saved spots" })).not.toBeNull();
+    expect(screen.getByText("tester@example.com")).not.toBeNull();
+    const venueLinks = screen.getAllByRole("link").filter((link) => link.getAttribute("href") === "/venues/venue-1");
+    expect(venueLinks.length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Unsave Trio" })).not.toBeNull();
+    expect(screen.queryByText("Total Check-ins")).toBeNull();
+    expect(screen.queryByText("Current Streak")).toBeNull();
+    expect(screen.queryByText("Top Venues")).toBeNull();
+  });
+
+  it("unsaves a venue from the saved spots list", async () => {
+    mockAuth(session);
+    savedVenuesState.savedVenues = [
+      {
+        venueId: "venue-1",
+        placeId: "place-1",
+        alertThreshold: 70,
+        savedAt: null,
+        createdAt: null,
+        currentBusyness: null,
+        venue: {
+          id: "venue-1",
+          placeId: "place-1",
+          name: "Trio",
+          category: "Nightclub",
+          openNow: false,
+        },
+      },
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+
+    render(<ProfilePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Unsave Trio" }));
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/saved-venues", {
+        method: "DELETE",
+        headers: {
+          Authorization: "Bearer token-123",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ venueId: "venue-1" }),
+      });
+    });
+    expect(mockRefreshSaved).toHaveBeenCalled();
+  });
+
+  it("shows the saved-spots empty state", async () => {
+    mockAuth(session);
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByText("You have not saved any spots yet. Tap the heart on a venue to save it.")).not.toBeNull();
+  });
+
+  it("shows the email magic-link form for guests", async () => {
+    mockAuth(null);
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Sign in to save your favourite spots" })).not.toBeNull();
+    expect(screen.getByText("nytchkr remembers the places you love")).not.toBeNull();
+
+    const input = screen.getByLabelText("Email address");
+    fireEvent.change(input, { target: { value: "guest@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Send magic link" }));
+
+    await waitFor(() => {
+      expect(mockSignInWithOtp).toHaveBeenCalledWith({
+        email: "guest@example.com",
+        options: { emailRedirectTo: "http://localhost:3000/auth/callback?return=/profile" },
+      });
+    });
+
+    expect(screen.getByText("Check your email for a magic link.")).not.toBeNull();
+  });
+
+  it("shows a compact sign out action for signed-in users", async () => {
+    mockAuth(session);
+
+    render(<ProfilePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+
+    expect(screen.queryByText("Total Check-ins")).toBeNull();
+    await waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalled();
+    });
   });
 });
