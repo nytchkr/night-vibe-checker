@@ -8,6 +8,7 @@ import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
 const routerPrefetch = vi.fn();
+const routerPush = vi.fn();
 
 vi.mock("next/dynamic", () => ({
   default: () => function DynamicStub() {
@@ -35,7 +36,7 @@ vi.mock("next/link", async () => {
 });
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ prefetch: routerPrefetch }),
+  useRouter: () => ({ prefetch: routerPrefetch, push: routerPush }),
 }));
 
 vi.mock("@vercel/analytics", () => ({
@@ -227,6 +228,17 @@ function createVenue({
 function mockFetchWithVenues(nextVenues: ConsumerVenue[]) {
   vi.mocked(fetch).mockImplementation((input: RequestInfo | URL) => {
     const url = input.toString();
+    if (url.includes("/api/venues/suggest")) {
+      return Promise.resolve(new Response(JSON.stringify({
+        suggestions: nextVenues.slice(0, 5).map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+          category: venue.category,
+          zoneId: venue.zoneId,
+        })),
+      }), { status: 200 }));
+    }
+
     if (url.includes("/api/activity/feed")) {
       return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
     }
@@ -380,6 +392,21 @@ describe("ExplorePageClient venue search", () => {
     const results = venueResults();
     expect(within(results).getByRole("link", { name: /^Open Sports Bar/ })).toBeTruthy();
     expect(within(results).queryByRole("link", { name: /^Open Neon Lounge/ })).toBeNull();
+  });
+
+  it("shows autocomplete suggestions and navigates to a selected venue", async () => {
+    await renderExplore();
+
+    const input = screen.getByRole("searchbox", { name: "Search venues" });
+    fireEvent.change(input, { target: { value: "Neo" } });
+
+    const listbox = await screen.findByRole("listbox", { name: "Search suggestions" });
+    expect(input.getAttribute("aria-autocomplete")).toBe("list");
+    expect(input.getAttribute("aria-controls")).toBe("explore-search-suggestions");
+
+    await userEvent.click(within(listbox).getByRole("option", { name: /Neon Lounge/ }));
+
+    expect(routerPush).toHaveBeenCalledWith("/venues/neon-lounge");
   });
 
   it("sorts by Trending, Most Active, and Highest Rated client-side", async () => {

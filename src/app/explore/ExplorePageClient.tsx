@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type TouchEvent } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -67,6 +67,12 @@ type ActivityFeedItem = {
   busyness: "dead" | "moderate" | "packed";
   crowd_feel: string;
   checked_in_at: string;
+};
+type VenueSuggestion = {
+  id: string;
+  name: string;
+  category: string | null;
+  zoneId: string | null;
 };
 
 const EXPLORE_SORT_STORAGE_KEY = "nv_explore_sort";
@@ -903,11 +909,14 @@ export function ExplorePageClient() {
   const prefetchedVenueIdsRef = useRef<Set<string>>(new Set());
   const activitySectionRef = useRef<HTMLElement | null>(null);
   const activityViewedRef = useRef(false);
+  const searchContainerRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const pullStartYRef = useRef<number | null>(null);
   const pullDeltaRef = useRef(0);
   const [pullDelta, setPullDelta] = useState(0);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState<VenueSuggestion[]>([]);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
 
   const fetchVenues = useCallback(async ({
     reset = false,
@@ -1083,6 +1092,48 @@ export function ExplorePageClient() {
     const id = window.setTimeout(() => setDebouncedSearchQuery(searchQuery), 200);
     return () => window.clearTimeout(id);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length < 2) {
+      setSearchSuggestions([]);
+      setIsSuggestionsOpen(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const id = window.setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/venues/suggest?q=${encodeURIComponent(trimmedQuery)}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`${res.status}`);
+        const json = (await res.json()) as { suggestions?: VenueSuggestion[] };
+        if (controller.signal.aborted) return;
+        setSearchSuggestions(Array.isArray(json.suggestions) ? json.suggestions.slice(0, 5) : []);
+        setIsSuggestionsOpen(true);
+      } catch {
+        if (controller.signal.aborted) return;
+        setSearchSuggestions([]);
+        setIsSuggestionsOpen(false);
+      }
+    }, 200);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(id);
+    };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!searchContainerRef.current || searchContainerRef.current.contains(event.target as Node)) return;
+      setIsSuggestionsOpen(false);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, []);
 
   useEffect(() => {
     if (!hasInitializedExploreFilters) return;
@@ -1277,7 +1328,22 @@ export function ExplorePageClient() {
   function clearSearch() {
     setSearchQuery("");
     setDebouncedSearchQuery("");
+    setSearchSuggestions([]);
+    setIsSuggestionsOpen(false);
     searchInputRef.current?.focus();
+  }
+
+  function selectSearchSuggestion(suggestion: VenueSuggestion) {
+    setIsSuggestionsOpen(false);
+    setSearchSuggestions([]);
+    trackAnalytics("explore_search_suggestion_clicked", { venue_id: suggestion.id });
+    router.push(`/venues/${encodeURIComponent(suggestion.id)}`);
+  }
+
+  function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      setIsSuggestionsOpen(false);
+    }
   }
 
   function selectExploreSort(option: ExploreSortOption) {
@@ -1426,17 +1492,27 @@ export function ExplorePageClient() {
           </AnimatePresence>
 
           <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
-            <div className="relative">
+            <div ref={searchContainerRef} className="relative">
               <label htmlFor="venue-search" className="sr-only">
                 Search South End venues
               </label>
               <input
                 ref={searchInputRef}
                 aria-label="Search venues"
+                aria-autocomplete="list"
+                aria-controls="explore-search-suggestions"
+                aria-expanded={isSuggestionsOpen && searchSuggestions.length > 0}
                 id="venue-search"
                 type="search"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  if (event.target.value.trim().length >= 2) setIsSuggestionsOpen(true);
+                }}
+                onFocus={() => {
+                  if (searchSuggestions.length > 0) setIsSuggestionsOpen(true);
+                }}
+                onKeyDown={handleSearchKeyDown}
                 placeholder="Search South End, Dilworth, venue name..."
                 className="w-full rounded-xl border border-white/10 bg-[rgba(255,255,255,.05)] px-4 py-3 pl-11 pr-12 text-base font-medium text-white transition-all duration-200 ease-out placeholder:text-[#9CA2AE] focus:border-violet/60 focus:outline-none focus:ring-2 focus:ring-violet/40 focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               />
@@ -1471,6 +1547,30 @@ export function ExplorePageClient() {
                 >
                   <X className="h-4 w-4" strokeWidth={2.4} />
                 </button>
+              )}
+              {isSuggestionsOpen && searchSuggestions.length > 0 && (
+                <div
+                  id="explore-search-suggestions"
+                  role="listbox"
+                  aria-label="Search suggestions"
+                  className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-white/[0.08] bg-[#0A0A0E] shadow-2xl shadow-black/30"
+                >
+                  {searchSuggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.id}
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      onClick={() => selectSearchSuggestion(suggestion)}
+                      className="block w-full px-4 py-3 text-left transition-colors hover:bg-white/[0.06] focus:bg-white/[0.08] focus:outline-none"
+                    >
+                      <span className="block truncate text-sm font-bold text-white">{suggestion.name}</span>
+                      <span className="mt-0.5 block truncate text-xs font-semibold text-white/50">
+                        {suggestion.category ?? "Venue"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
