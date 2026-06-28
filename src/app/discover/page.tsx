@@ -3,8 +3,8 @@
 // ============================================================
 // Discover Page  (/discover)
 //
-// Shows a map view of nearby venues when a Google Maps API key
-// is configured (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY).
+// Shows a map view of nearby venues when a public maps browser key
+// is configured.
 //
 // Fallback: if the key is absent the map is replaced with a
 // friendly placeholder and a list of nearby venues fetched
