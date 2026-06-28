@@ -10,13 +10,16 @@ import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from 
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { redis } from "@/lib/upstashRedis";
 import type { APIResponse } from "@/types";
 
 const TIP_LIMIT = 5;
-const CHECK_IN_LIMIT = 20;
+const GOOGLE_REVIEW_LIMIT = 5;
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 const ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages";
+const GOOGLE_PLACES_DETAILS_URL = "https://maps.googleapis.com/maps/api/place/details/json";
 const AI_TIPS_CACHE_CONTROL = "s-maxage=3600, stale-while-revalidate=86400";
+const AI_TIPS_REDIS_TTL_SECONDS = 3600;
 const TIP_POST_RATE_LIMIT_MAX = 5;
 const TIP_POST_RATE_LIMIT_WINDOW_MS = 60_000;
 const TipBodySchema = z.object({
@@ -42,15 +45,20 @@ export type VenueTip = {
   author_initials: string;
 };
 
-type VenueTipCheckIn = {
-  busyness: "dead" | "moderate" | "packed" | string | null;
-  created_at: string | null;
-};
-
 type VenueTipVenue = {
   id: string;
+  place_id: string | null;
   name: string;
   category: string | null;
+};
+
+type GooglePlacesReviewsResponse = {
+  status?: string;
+  result?: {
+    reviews?: Array<{
+      text?: unknown;
+    }>;
+  };
 };
 
 function meta(requestId: string, cached = false) {
@@ -115,41 +123,34 @@ function emptyAiTipsResponse(): NextResponse<{ tips: string[] }> {
   return NextResponse.json({ tips: [] }, { headers: { "Cache-Control": AI_TIPS_CACHE_CONTROL } });
 }
 
-function hourLabel(hour: number): string {
-  const normalized = ((hour % 24) + 24) % 24;
-  if (normalized === 0) return "12am";
-  if (normalized < 12) return `${normalized}am`;
-  if (normalized === 12) return "12pm";
-  return `${normalized - 12}pm`;
+function aiTipsResponse(tips: string[]): NextResponse<{ tips: string[] }> {
+  return NextResponse.json({ tips }, { headers: { "Cache-Control": AI_TIPS_CACHE_CONTROL } });
 }
 
-function summarizeCheckIns(checkIns: VenueTipCheckIn[]): string {
-  const busynessCounts = new Map<string, number>();
-  const hourCounts = new Map<number, number>();
+function normalizeCachedAiTips(value: unknown): string[] | null {
+  const candidate = typeof value === "string" ? JSON.parse(value) as unknown : value;
+  const tips = (candidate as { tips?: unknown } | null)?.tips;
+  if (!Array.isArray(tips) || !tips.every((tip) => typeof tip === "string")) return null;
+  return tips;
+}
 
-  for (const checkIn of checkIns) {
-    const busyness = typeof checkIn.busyness === "string" ? checkIn.busyness : "";
-    if (busyness) busynessCounts.set(busyness, (busynessCounts.get(busyness) ?? 0) + 1);
-
-    const date = new Date(checkIn.created_at ?? "");
-    if (!Number.isNaN(date.getTime())) {
-      const hour = date.getUTCHours();
-      hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
-    }
+async function getCachedAiTips(cacheKey: string): Promise<string[] | null> {
+  try {
+    const cached = await redis.get(cacheKey);
+    if (!cached) return null;
+    return normalizeCachedAiTips(cached);
+  } catch (error) {
+    console.error("[venue-tips] Redis get failed:", error);
+    return null;
   }
+}
 
-  const typicalBusyness =
-    [...busynessCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
-  const peakHours = [...hourCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([hour]) => hourLabel(hour));
-
-  return `${checkIns.length} recent check-ins. Typical busyness: ${typicalBusyness}. ${
-    peakHours.length ? `Most check-ins cluster around ${peakHours.join(", ")}.` : "No clear peak hour yet."
-  } Busyness counts: ${
-    [...busynessCounts.entries()].map(([label, count]) => `${label} ${count}`).join(", ") || "none"
-  }.`;
+async function setCachedAiTips(cacheKey: string, tips: string[]): Promise<void> {
+  try {
+    await redis.set(cacheKey, { tips }, { ex: AI_TIPS_REDIS_TTL_SECONDS });
+  } catch (error) {
+    console.error("[venue-tips] Redis set failed:", error);
+  }
 }
 
 function splitTips(text: string): string[] {
@@ -173,28 +174,52 @@ function extractAnthropicText(payload: unknown): string {
     .trim();
 }
 
-async function fetchRecentCheckIns(venueId: string): Promise<VenueTipCheckIn[]> {
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("busyness, created_at")
-    .eq("venue_id", venueId)
-    .eq("hidden", false)
-    .order("created_at", { ascending: false })
-    .limit(CHECK_IN_LIMIT);
+async function fetchGoogleReviewTexts(placeId: string | null): Promise<string[]> {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+  if (!apiKey || !placeId) return [];
 
-  if (error || !data) return [];
-  return data as VenueTipCheckIn[];
+  const params = new URLSearchParams({
+    place_id: placeId,
+    fields: "reviews",
+    key: apiKey,
+  });
+
+  const res = await fetch(`${GOOGLE_PLACES_DETAILS_URL}?${params}`, { cache: "no-store" });
+  if (!res.ok) return [];
+
+  const payload = (await res.json().catch(() => null)) as GooglePlacesReviewsResponse | null;
+  if (payload?.status !== "OK") return [];
+
+  return (payload.result?.reviews ?? [])
+    .map((review) => (typeof review.text === "string" ? review.text.trim() : ""))
+    .filter(Boolean)
+    .slice(0, GOOGLE_REVIEW_LIMIT);
 }
 
-async function generateAiVenueTips(venue: VenueTipVenue, checkIns: VenueTipCheckIn[]): Promise<string[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return [];
+function genericTipsForCategory(category: string | null): string[] {
+  const normalized = (category ?? "").toLowerCase();
 
-  const summary = checkIns.length
-    ? summarizeCheckIns(checkIns)
-    : "No recent check-ins yet. Generate generic visitor tips from venue name and category only.";
-  const category = venue.category?.trim() || "venue";
-  const prompt = `Based on these check-in patterns for ${venue.name} (a ${category} in Charlotte NC): ${summary}. Write 2-3 short insider tips for visitors. Be specific and honest. Max 60 words total.`;
+  if (normalized.includes("bar")) {
+    return ["General bar tip: check current hours before you go.", "General bar tip: recent public reviews can help confirm the vibe tonight."];
+  }
+
+  if (normalized.includes("club") || normalized.includes("night")) {
+    return ["General nightlife tip: check current hours and entry rules before you go.", "General nightlife tip: recent public reviews can help confirm the vibe tonight."];
+  }
+
+  if (normalized.includes("restaurant") || normalized.includes("food")) {
+    return ["General restaurant tip: check current kitchen hours before you go.", "General restaurant tip: recent public reviews can help confirm the vibe tonight."];
+  }
+
+  return ["General venue tip: check current hours before you go.", "General venue tip: recent public reviews can help confirm the vibe tonight."];
+}
+
+async function generateAiVenueTips(venue: VenueTipVenue, reviewTexts: string[]): Promise<string[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || reviewTexts.length === 0) return genericTipsForCategory(venue.category);
+
+  const reviews = reviewTexts.join("\n");
+  const prompt = `Based on these real customer reviews for ${venue.name}, write 2-3 short insider tips for someone deciding whether to visit tonight. Focus on what the place is best for, what to order or experience, best time to go. Be specific and helpful. Only use what is in the reviews. Never fabricate specific menu items, prices, or events.\n\nReviews: ${reviews}`;
 
   const res = await fetch(ANTHROPIC_MESSAGES_URL, {
     method: "POST",
@@ -211,9 +236,10 @@ async function generateAiVenueTips(venue: VenueTipVenue, checkIns: VenueTipCheck
     cache: "no-store",
   });
 
-  if (!res.ok) return [];
+  if (!res.ok) return genericTipsForCategory(venue.category);
   const payload: unknown = await res.json().catch(() => null);
-  return splitTips(extractAnthropicText(payload));
+  const tips = splitTips(extractAnthropicText(payload));
+  return tips.length > 0 ? tips : genericTipsForCategory(venue.category);
 }
 
 export async function GET(
@@ -233,16 +259,25 @@ export async function GET(
     return emptyAiTipsResponse();
   }
 
-  const { data, error } = await findVisibleVenueByIdOrPlaceId(requestedVenueId, "id, name, category, hidden");
+  const { data, error } = await findVisibleVenueByIdOrPlaceId(requestedVenueId, "id, place_id, name, category, hidden");
   const venue = data as VenueTipVenue | null;
   if (error || !venue) {
     return emptyAiTipsResponse();
   }
 
-  const checkIns = await fetchRecentCheckIns(venue.id);
-  const tips = await generateAiVenueTips(venue, checkIns).catch(() => []);
+  const cacheKey = `nv:tips:${venue.id}`;
+  const cachedTips = await getCachedAiTips(cacheKey);
+  if (cachedTips) {
+    return aiTipsResponse(cachedTips);
+  }
 
-  return NextResponse.json({ tips }, { headers: { "Cache-Control": AI_TIPS_CACHE_CONTROL } });
+  const reviewTexts = await fetchGoogleReviewTexts(venue.place_id).catch(() => []);
+  const tips = reviewTexts.length > 0
+    ? await generateAiVenueTips(venue, reviewTexts).catch(() => genericTipsForCategory(venue.category))
+    : genericTipsForCategory(venue.category);
+  await setCachedAiTips(cacheKey, tips);
+
+  return aiTipsResponse(tips);
 }
 
 export async function POST(
@@ -260,7 +295,7 @@ export async function POST(
     throw error;
   }
 
-  const rate = checkRateLimit(`venue-tips:POST:${getClientIp(req)}`, TIP_POST_RATE_LIMIT_MAX, TIP_POST_RATE_LIMIT_WINDOW_MS);
+  const rate = await checkRateLimit(`venue-tips:POST:${getClientIp(req)}`, TIP_POST_RATE_LIMIT_MAX, TIP_POST_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);
   if (!rate.allowed) {
     const retrySeconds = Math.ceil((rate.retryAfterMs ?? TIP_POST_RATE_LIMIT_WINDOW_MS) / 1000);

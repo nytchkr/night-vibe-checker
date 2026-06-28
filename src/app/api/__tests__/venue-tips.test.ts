@@ -6,6 +6,8 @@ const mockFrom = vi.fn();
 const mockGetUser = vi.fn();
 const mockRpc = vi.fn();
 const mockFetch = vi.fn();
+const mockRedisGet = vi.fn();
+const mockRedisSet = vi.fn();
 
 class MockMissingSupabaseEnvError extends Error {
   constructor(public readonly variableName: string) {
@@ -21,6 +23,13 @@ vi.mock("@/lib/supabase", () => ({
     auth: { getUser: mockGetUser },
     from: mockFrom,
     rpc: mockRpc,
+  },
+}));
+
+vi.mock("@/lib/upstashRedis", () => ({
+  redis: {
+    get: mockRedisGet,
+    set: mockRedisSet,
   },
 }));
 
@@ -73,31 +82,37 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
   mockAssertSupabaseServerEnv.mockReturnValue(undefined);
+  mockRedisGet.mockResolvedValue(null);
+  mockRedisSet.mockResolvedValue("OK");
   mockAuth("user-123");
   process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+  process.env.GOOGLE_PLACES_API_KEY = "test-google-key";
   global.fetch = mockFetch;
 });
 
 describe("GET /api/venues/[id]/tips", () => {
-  it("returns AI venue tips from recent check-in patterns", async () => {
-    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
-    const checkInsChain = chain({
-      data: [
-        {
-          busyness: "packed",
-          created_at: "2026-06-21T00:00:00.000Z",
-        },
-        {
-          busyness: "moderate",
-          created_at: "2026-06-21T02:00:00.000Z",
-        },
-      ],
-    });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
-    mockFetch.mockResolvedValue({
+  it("returns AI venue tips from real Google review text", async () => {
+    const venueChain = chain({ data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false } });
+    mockFrom.mockReturnValueOnce(venueChain);
+    mockFetch.mockResolvedValueOnce({
       ok: true,
       json: vi.fn().mockResolvedValue({
-        content: [{ type: "text", text: "1. Arrive before midnight for easier entry.\n2. Expect packed energy around 8-10pm." }],
+        status: "OK",
+        result: {
+          reviews: [
+            { text: "Great cocktails and an upbeat crowd after work." },
+            { text: "The patio is best before it gets packed late." },
+            { text: "The DJ plays throwbacks on Fridays." },
+            { text: "Bartenders are fast even when the line is long." },
+            { text: "Best seats are by the front windows." },
+            { text: "Sixth review should not be sent." },
+          ],
+        },
+      }),
+    }).mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: "1. Best for after-work cocktails.\n2. Try the patio before it gets packed late." }],
       }),
     });
 
@@ -105,11 +120,13 @@ describe("GET /api/venues/[id]/tips", () => {
     const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
 
     expect(res.status).toBe(200);
-    expect(checkInsChain.select).toHaveBeenCalledWith("busyness, created_at");
-    expect(checkInsChain.eq).toHaveBeenCalledWith("venue_id", "venue-uuid");
-    expect(checkInsChain.order).toHaveBeenCalledWith("created_at", { ascending: false });
-    expect(checkInsChain.limit).toHaveBeenCalledWith(20);
+    expect(venueChain.select).toHaveBeenCalledWith("id, place_id, name, category, hidden");
     expect(res.headers.get("Cache-Control")).toBe("s-maxage=3600, stale-while-revalidate=86400");
+    expect(mockFetch).toHaveBeenNthCalledWith(
+      1,
+      "https://maps.googleapis.com/maps/api/place/details/json?place_id=google-place-1&fields=reviews&key=test-google-key",
+      { cache: "no-store" },
+    );
     expect(mockFetch).toHaveBeenCalledWith(
       "https://api.anthropic.com/v1/messages",
       expect.objectContaining({
@@ -119,37 +136,146 @@ describe("GET /api/venues/[id]/tips", () => {
         }),
       }),
     );
-    const anthropicBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const anthropicBody = JSON.parse(mockFetch.mock.calls[1][1].body);
     expect(anthropicBody.model).toBe("claude-haiku-4-5-20251001");
     expect(anthropicBody.messages[0].content).toContain("Night Spot");
+    expect(anthropicBody.messages[0].content).toContain("Only use what is in the reviews.");
+    expect(anthropicBody.messages[0].content).toContain("Great cocktails and an upbeat crowd after work.");
+    expect(anthropicBody.messages[0].content).not.toContain("Sixth review should not be sent.");
+    expect(anthropicBody.messages[0].content).not.toContain("check-in");
     const json = await res.json();
     expect(json.tips).toHaveLength(2);
     for (const tip of json.tips) {
       expect(typeof tip).toBe("string");
       expect(tip.trim().length).toBeGreaterThan(0);
     }
-    expect(json.tips).toEqual(["Arrive before midnight for easier entry.", "Expect packed energy around 8-10pm."]);
+    expect(json.tips).toEqual(["Best for after-work cocktails.", "Try the patio before it gets packed late."]);
+    expect(mockRedisGet).toHaveBeenCalledWith("nv:tips:venue-uuid");
+    expect(mockRedisSet).toHaveBeenCalledWith(
+      "nv:tips:venue-uuid",
+      { tips: ["Best for after-work cocktails.", "Try the patio before it gets packed late."] },
+      { ex: 3600 },
+    );
   });
 
-  it("returns empty tips when the Anthropic API key is missing", async () => {
-    delete process.env.ANTHROPIC_API_KEY;
-    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
-    const checkInsChain = chain({ data: [{ busyness: "packed", created_at: "2026-06-21T00:00:00.000Z" }] });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
+  it("returns cached AI tips without calling Anthropic", async () => {
+    mockRedisGet.mockResolvedValue({ tips: ["Cached door moves fast before 10."] });
+    const venueChain = chain({ data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false } });
+    mockFrom.mockReturnValueOnce(venueChain);
 
     const { GET } = await import("../venues/[id]/tips/route");
     const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
 
     expect(res.status).toBe(200);
+    expect(mockRedisGet).toHaveBeenCalledWith("nv:tips:venue-uuid");
     expect(mockFetch).not.toHaveBeenCalled();
-    expect(await res.json()).toEqual({ tips: [] });
+    expect(mockRedisSet).not.toHaveBeenCalled();
+    expect(await res.json()).toEqual({ tips: ["Cached door moves fast before 10."] });
   });
 
-  it("returns empty tips when Anthropic returns an error", async () => {
-    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
-    const checkInsChain = chain({ data: [{ busyness: "packed", created_at: "2026-06-21T00:00:00.000Z" }] });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
+  it("falls through to Anthropic when Redis get fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockRedisGet.mockRejectedValue(new Error("redis unavailable"));
+    const venueChain = chain({ data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false } });
+    mockFrom.mockReturnValueOnce(venueChain);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        status: "OK",
+        result: { reviews: [{ text: "Small dance floor, strong drinks, and a late crowd." }] },
+      }),
+    }).mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: "1. Go for strong drinks and a late dance crowd." }],
+      }),
+    });
+
+    const { GET } = await import("../venues/[id]/tips/route");
+    const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
+
+    expect(res.status).toBe(200);
+    expect(mockRedisGet).toHaveBeenCalledWith("nv:tips:venue-uuid");
+    expect(consoleError).toHaveBeenCalledWith("[venue-tips] Redis get failed:", expect.any(Error));
+    expect(mockFetch).toHaveBeenCalledWith("https://api.anthropic.com/v1/messages", expect.any(Object));
+    expect(mockRedisSet).toHaveBeenCalledWith(
+      "nv:tips:venue-uuid",
+      { tips: ["Go for strong drinks and a late dance crowd."] },
+      { ex: 3600 },
+    );
+    expect(await res.json()).toEqual({ tips: ["Go for strong drinks and a late dance crowd."] });
+    consoleError.mockRestore();
+  });
+
+  it("returns Anthropic tips when Redis set fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockRedisSet.mockRejectedValue(new Error("redis write failed"));
+    const venueChain = chain({ data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false } });
+    mockFrom.mockReturnValueOnce(venueChain);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        status: "OK",
+        result: { reviews: [{ text: "Gets loud after 11 and works best for groups." }] },
+      }),
+    }).mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: "1. Best for groups who want a loud late stop." }],
+      }),
+    });
+
+    const { GET } = await import("../venues/[id]/tips/route");
+    const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
+
+    expect(res.status).toBe(200);
+    expect(mockRedisGet).toHaveBeenCalledWith("nv:tips:venue-uuid");
+    expect(mockFetch).toHaveBeenCalledWith("https://api.anthropic.com/v1/messages", expect.any(Object));
+    expect(mockRedisSet).toHaveBeenCalledWith(
+      "nv:tips:venue-uuid",
+      { tips: ["Best for groups who want a loud late stop."] },
+      { ex: 3600 },
+    );
+    expect(consoleError).toHaveBeenCalledWith("[venue-tips] Redis set failed:", expect.any(Error));
+    expect(await res.json()).toEqual({ tips: ["Best for groups who want a loud late stop."] });
+    consoleError.mockRestore();
+  });
+
+  it("returns generic category tips when the Anthropic API key is missing", async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    const venueChain = chain({ data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false } });
+    mockFrom.mockReturnValueOnce(venueChain);
     mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        status: "OK",
+        result: { reviews: [{ text: "A real customer review." }] },
+      }),
+    });
+
+    const { GET } = await import("../venues/[id]/tips/route");
+    const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
+
+    expect(res.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(await res.json()).toEqual({
+      tips: [
+        "General bar tip: check current hours before you go.",
+        "General bar tip: recent public reviews can help confirm the vibe tonight.",
+      ],
+    });
+  });
+
+  it("returns generic category tips when Anthropic returns an error", async () => {
+    const venueChain = chain({ data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false } });
+    mockFrom.mockReturnValueOnce(venueChain);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        status: "OK",
+        result: { reviews: [{ text: "Real review text for the prompt." }] },
+      }),
+    }).mockResolvedValueOnce({
       ok: false,
       status: 500,
       json: vi.fn().mockResolvedValue({ error: { message: "upstream failed" } }),
@@ -160,22 +286,22 @@ describe("GET /api/venues/[id]/tips", () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toContain("s-maxage=3600");
-    expect(await res.json()).toEqual({ tips: [] });
+    expect(await res.json()).toEqual({
+      tips: [
+        "General bar tip: check current hours before you go.",
+        "General bar tip: recent public reviews can help confirm the vibe tonight.",
+      ],
+    });
   });
 
-  it("generates generic tips when the venue has no check-ins", async () => {
-    const venueChain = chain({ data: { id: "venue-uuid", name: "Night Spot", category: "bar", hidden: false } });
-    const checkInsChain = chain({ data: [] });
-    mockFrom.mockReturnValueOnce(venueChain).mockReturnValueOnce(checkInsChain);
+  it("returns generic category tips when Google has no reviews", async () => {
+    const venueChain = chain({ data: { id: "venue-uuid", place_id: "google-place-1", name: "Night Spot", category: "bar", hidden: false } });
+    mockFrom.mockReturnValueOnce(venueChain);
     mockFetch.mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
-        content: [
-          {
-            type: "text",
-            text: "1. Check the door policy before you go.\n2. Arrive earlier if you want a quieter first round.\n3. Budget extra time for parking.",
-          },
-        ],
+        status: "OK",
+        result: { reviews: [] },
       }),
     });
 
@@ -183,15 +309,14 @@ describe("GET /api/venues/[id]/tips", () => {
     const res = await GET(request("GET", "http://localhost/api/venues/venue-1/tips"), params());
 
     expect(res.status).toBe(200);
-    expect(mockFetch).toHaveBeenCalled();
-    const anthropicBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(anthropicBody.messages[0].content).toContain("No recent check-ins yet");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
     const json = await res.json();
-    expect(json.tips).toHaveLength(3);
-    for (const tip of json.tips) {
-      expect(typeof tip).toBe("string");
-      expect(tip.trim().length).toBeGreaterThan(0);
-    }
+    expect(json).toEqual({
+      tips: [
+        "General bar tip: check current hours before you go.",
+        "General bar tip: recent public reviews can help confirm the vibe tonight.",
+      ],
+    });
   });
 });
 

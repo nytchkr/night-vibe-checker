@@ -19,6 +19,13 @@ type VenueTip = {
 const MAX_TIP_LENGTH = 200;
 const MAX_VISIBLE_TIPS = 5;
 
+type VenueTipsProps = {
+  venueId: string;
+  title?: string;
+  subtitle?: string;
+  maxTips?: number;
+};
+
 function normalizeTips(json: unknown): VenueTip[] {
   const source = Array.isArray(json)
     ? json
@@ -69,7 +76,12 @@ function formatTipDate(iso: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
 }
 
-export function VenueTips({ venueId }: { venueId: string }) {
+export function VenueTips({
+  venueId,
+  title = "Tips",
+  subtitle = "Tips from locals, organized from real review text.",
+  maxTips = MAX_VISIBLE_TIPS,
+}: VenueTipsProps) {
   const haptic = useHaptic();
   const [tips, setTips] = useState<VenueTip[]>([]);
   const [tipText, setTipText] = useState("");
@@ -189,14 +201,15 @@ export function VenueTips({ venueId }: { venueId: string }) {
     });
   }
 
-  const tipItems = useMemo(() => tips.slice(0, MAX_VISIBLE_TIPS), [tips]);
+  const visibleTipCount = Math.max(1, Math.min(MAX_VISIBLE_TIPS, Math.floor(maxTips)));
+  const tipItems = useMemo(() => tips.slice(0, visibleTipCount), [tips, visibleTipCount]);
 
   return (
     <section className="space-y-3 border-t border-white/[0.06] pt-5" role="region" aria-label="Venue tips">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg font-bold text-white">Tips</h2>
-          <p className="mt-1 text-xs font-semibold text-white/40">Tips from locals, organized from recent check-ins.</p>
+          <h2 className="font-display text-lg font-bold text-white">{title}</h2>
+          <p className="mt-1 text-xs font-semibold text-white/40">{subtitle}</p>
         </div>
         {authChecked && accessToken ? (
           <Button
@@ -248,7 +261,7 @@ export function VenueTips({ venueId }: { venueId: string }) {
                         {formatTipDate(tip.created_at)}
                       </time>
                     ) : tip.ai_generated ? (
-                      <span className="block text-xs font-medium text-white/40">From recent check-in patterns</span>
+                      <span className="block text-xs font-medium text-white/40">From Google review text</span>
                     ) : (
                       <span />
                     )}
