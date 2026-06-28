@@ -8,7 +8,7 @@ const contentSecurityPolicy = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://maps.googleapis.com https://lh3.googleusercontent.com https://places.googleapis.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.besttime.app",
+  "connect-src 'self' https://*.neon.tech https://api.besttime.app https://upstash.io https://*.upstash.io",
   "font-src 'self' data:",
   "frame-ancestors 'none'",
 ].join("; ");
@@ -61,10 +61,6 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "accounts.google.com",
-      },
-      {
-        protocol: "https",
-        hostname: "**.supabase.co",
       },
     ],
   },

@@ -2,7 +2,6 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 
 const TRACK_RATE_LIMIT_MAX = 30;
@@ -31,16 +30,6 @@ function jsonError(message: string, status: number): NextResponse {
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) {
-      console.error("[track] Supabase configuration error:", error.message);
-      return jsonError("Server configuration is incomplete.", 503);
-    }
-    throw error;
-  }
-
   const ip = getClientIp(req);
   const rate = await checkRateLimit(`track:POST:${ip}`, TRACK_RATE_LIMIT_MAX, TRACK_RATE_LIMIT_WINDOW_MS);
   const headers = rateLimitHeaders(rate);

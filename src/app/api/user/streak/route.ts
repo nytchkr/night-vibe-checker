@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -21,15 +20,6 @@ type UserStreakErrorResponse =
 const ET_TIME_ZONE = "America/New_York";
 
 export async function GET(req: NextRequest): Promise<NextResponse<UserStreakResponse | UserStreakErrorResponse>> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) {
-      return NextResponse.json({ error: "Server configuration is incomplete." }, { status: 503 });
-    }
-    throw error;
-  }
-
   const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 

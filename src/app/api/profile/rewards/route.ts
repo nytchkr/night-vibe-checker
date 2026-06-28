@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { computeLevel } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
@@ -15,15 +14,6 @@ type RewardsResponse = {
 };
 
 export async function GET(req: NextRequest): Promise<NextResponse<RewardsResponse | { error: string }>> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) {
-      return NextResponse.json({ error: "Server configuration is incomplete." }, { status: 503 });
-    }
-    throw error;
-  }
-
   const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

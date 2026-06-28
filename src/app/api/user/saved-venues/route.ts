@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 
 export const dynamic = "force-dynamic";
@@ -40,12 +39,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 
 async function getUserId(req: NextRequest): Promise<string | null> {
   return getAuthenticatedUserId(req);
-}
-
-function missingConfigResponse(error: unknown): NextResponse<{ error: string }> | null {
-  if (!(error instanceof MissingSupabaseEnvError)) return null;
-  console.error("[user/saved-venues GET] Supabase configuration error:", error.message);
-  return NextResponse.json({ error: "Server configuration is incomplete." }, { status: 503 });
 }
 
 async function loadVenues(savedVenueIds: string[]): Promise<Map<string, VenueRow>> {
@@ -96,14 +89,6 @@ function readPhotoUrls(venue: VenueRow | undefined): string[] {
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse<SavedVenuesResponse | { error: string }>> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    const response = missingConfigResponse(error);
-    if (response) return response;
-    throw error;
-  }
-
   const userId = await getUserId(req);
   if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 

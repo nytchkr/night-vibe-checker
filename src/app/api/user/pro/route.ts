@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -10,15 +9,6 @@ const NO_STORE_HEADERS = {
 };
 
 export async function GET(req: NextRequest): Promise<NextResponse<{ isPro: boolean } | { error: string }>> {
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) {
-      return NextResponse.json({ error: "Server configuration is incomplete." }, { status: 503, headers: NO_STORE_HEADERS });
-    }
-    throw error;
-  }
-
   const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401, headers: NO_STORE_HEADERS });

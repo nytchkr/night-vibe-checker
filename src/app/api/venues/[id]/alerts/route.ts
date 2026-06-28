@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -15,18 +14,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const meta = { cached: false, generatedAt: new Date().toISOString() };
-
-  try {
-    assertSupabaseServerEnv();
-  } catch (error) {
-    if (error instanceof MissingSupabaseEnvError) {
-      return json<never>(
-        { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta },
-        { status: 503 },
-      );
-    }
-    throw error;
-  }
 
   const userId = await getAuthenticatedUserId(req);
   if (!userId) {

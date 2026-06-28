@@ -4,7 +4,6 @@ import webpush from "web-push";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 import { logCronRun } from "@/lib/cronHealth";
 import { sql } from "@/lib/db";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 export const dynamic = "force-dynamic";
@@ -36,14 +35,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const startedAt = Date.now();
   try {
-    assertSupabaseServerEnv();
     webpush.setVapidDetails(
       getRequiredEnv("VAPID_EMAIL"),
       getRequiredEnv("VAPID_PUBLIC_KEY"),
       getRequiredEnv("VAPID_PRIVATE_KEY"),
     );
   } catch (error) {
-    const message = error instanceof MissingSupabaseEnvError ? "Server configuration is incomplete." : error instanceof Error ? error.message : "Missing push configuration.";
+    const message = error instanceof Error ? error.message : "Missing push configuration.";
     await logCronRun({ jobName: "send-alerts", startedAt, error: message });
     return NextResponse.json({ error: message }, { status: 503 });
   }
