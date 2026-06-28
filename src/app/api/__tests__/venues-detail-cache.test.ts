@@ -1,11 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockFindVisibleVenueByIdOrPlaceId = vi.fn();
+const { mockFindVisibleVenueByIdOrPlaceId, mockComputeVenueMfRatioFromCheckIns } = vi.hoisted(() => ({
+  mockFindVisibleVenueByIdOrPlaceId: vi.fn(),
+  mockComputeVenueMfRatioFromCheckIns: vi.fn(),
+}));
 
 vi.mock("@/lib/venueLookup", () => ({
   findVisibleVenueByIdOrPlaceId: mockFindVisibleVenueByIdOrPlaceId,
   normalizeVenueLookupId: (id: string) => id.trim(),
+}));
+
+vi.mock("@/lib/mfRatio", () => ({
+  computeVenueMfRatioFromCheckIns: mockComputeVenueMfRatioFromCheckIns,
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  supabaseAdmin: {},
 }));
 
 function venue(overrides: Record<string, unknown> = {}) {
@@ -54,6 +65,11 @@ function googlePhotoUrl(reference: string, key = "places-test-key") {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockComputeVenueMfRatioFromCheckIns.mockResolvedValue({
+    mfRatio: null,
+    sampleSize: 0,
+    computedAt: "2026-06-28T04:00:00.000Z",
+  });
 });
 
 afterEach(() => {
@@ -74,6 +90,63 @@ describe("GET /api/venues/[id] cache headers", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=600");
     expect(json.data.venue.id).toBe("venue-1");
+  });
+
+  it("uses live check-in ratio when the cached venue signal ratio is null", async () => {
+    mockFindVisibleVenueByIdOrPlaceId.mockResolvedValueOnce({
+      data: venue(),
+      error: null,
+    });
+    mockComputeVenueMfRatioFromCheckIns.mockResolvedValueOnce({
+      mfRatio: 60,
+      sampleSize: 5,
+      computedAt: "2026-06-28T04:00:00.000Z",
+    });
+
+    const res = await getVenueDetail();
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(mockComputeVenueMfRatioFromCheckIns).toHaveBeenCalledWith("venue-1");
+    expect(json.data.venue.signal.mfRatio).toBe(60);
+    expect(json.data.venue.signal.sampleSize).toBe(5);
+    expect(json.data.venue.mf_ratio).toBe(60);
+    expect(json.data.venue.mf_sample_size).toBe(5);
+  });
+
+  it("hides stale cached ratio when live check-ins are below the ratio sample floor", async () => {
+    mockFindVisibleVenueByIdOrPlaceId.mockResolvedValueOnce({
+      data: venue({
+        venue_signals: [
+          {
+            venue_id: "venue-1",
+            place_id: "place-venue-1",
+            busyness_0_100: 72,
+            busyness_source: "crowd",
+            mf_ratio: 64,
+            confidence_0_1: 0.5,
+            sample_size: 10,
+            computed_at: "2026-06-26T04:00:00.000Z",
+            last_busyness_refresh: null,
+          },
+        ],
+      }),
+      error: null,
+    });
+    mockComputeVenueMfRatioFromCheckIns.mockResolvedValueOnce({
+      mfRatio: null,
+      sampleSize: 4,
+      computedAt: "2026-06-28T04:00:00.000Z",
+    });
+
+    const res = await getVenueDetail();
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.data.venue.signal.busyness0To100).toBe(72);
+    expect(json.data.venue.signal.mfRatio).toBeNull();
+    expect(json.data.venue.signal.sampleSize).toBe(4);
+    expect(json.data.venue.mf_ratio).toBeNull();
   });
 
   it("hydrates missing venue photos from Google Places details server-side", async () => {

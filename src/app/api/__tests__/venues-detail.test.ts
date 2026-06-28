@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockFrom = vi.fn();
+const { mockFrom, mockComputeVenueMfRatioFromCheckIns } = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockComputeVenueMfRatioFromCheckIns: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase", () => ({
   supabaseAdmin: { from: mockFrom },
+}));
+
+vi.mock("@/lib/mfRatio", () => ({
+  computeVenueMfRatioFromCheckIns: mockComputeVenueMfRatioFromCheckIns,
 }));
 
 function queryResult(resolved: { data?: unknown; error?: unknown }) {
@@ -54,7 +61,7 @@ function venue(overrides: Record<string, unknown> = {}) {
         mf_ratio: 61,
         confidence_0_1: 0.5,
         sample_size: 10,
-        computed_at: "2026-06-23T01:30:00.000Z",
+        computed_at: new Date().toISOString(),
         last_busyness_refresh: null,
       },
     ],
@@ -65,6 +72,11 @@ function venue(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
+  mockComputeVenueMfRatioFromCheckIns.mockResolvedValue({
+    mfRatio: null,
+    sampleSize: 0,
+    computedAt: "2026-06-28T04:00:00.000Z",
+  });
 });
 
 describe("GET /api/venues/[id]", () => {
