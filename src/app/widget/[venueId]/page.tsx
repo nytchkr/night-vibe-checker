@@ -11,7 +11,7 @@ type WidgetPageProps = {
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "NightVibe busyness widget",
+  title: "nytchkr busyness widget",
   robots: { index: false, follow: false },
 };
 
@@ -81,7 +81,7 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
               <span aria-hidden="true">{feel.icon}</span>
               {feel.label}
             </span>
-            <span className="font-display text-[11px] font-semibold text-white/35">Powered by NightVibe</span>
+            <span className="font-display text-[11px] font-semibold text-white/35">Powered by nytchkr</span>
           </div>
         </div>
       </article>

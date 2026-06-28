@@ -20,7 +20,7 @@ type VenueShareMethod = "native" | "clipboard" | "failed";
 export function createVenueShareData(venueName: string, url: string): ShareData {
   return {
     title: venueName,
-    text: `Check out ${venueName} on NightVibe!`,
+    text: `Check out ${venueName} on nytchkr.`,
     url,
   };
 }

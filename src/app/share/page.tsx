@@ -29,10 +29,10 @@ export default async function SharePage({ searchParams }: SharePageProps) {
     <div className="min-h-[calc(100vh-5rem)] bg-[#0A0A0E] px-5 py-10 text-white">
       <section className="mx-auto flex min-h-[520px] w-full max-w-md flex-col justify-center">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-[#8B6CFF]">
-          NightVibe
+          nytchkr
         </p>
         <h1 className="font-display mt-4 text-3xl font-semibold tracking-normal text-white">
-          Shared to NightVibe
+          Shared to nytchkr
         </h1>
         <p className="mt-3 text-sm leading-6 text-white/70">
           Your shared link is ready. Head back to the map to find the right spot for tonight.

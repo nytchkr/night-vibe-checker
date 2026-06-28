@@ -107,7 +107,7 @@ const ZONE_ACTIVITY_TARGETS: Array<{ id: OnboardingZone["id"]; name: string }> =
 ];
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
-const OUT_OF_ZONE_SEARCH_MESSAGE = "NightVibe isn't live in your area yet. We're starting in South End Charlotte.";
+const OUT_OF_ZONE_SEARCH_MESSAGE = "nytchkr isn't live in your area yet. We're starting in South End Charlotte.";
 const PULL_TO_REFRESH_THRESHOLD_PX = 60;
 
 async function getSupabaseBrowserClient() {

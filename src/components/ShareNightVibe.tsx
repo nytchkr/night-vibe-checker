@@ -6,7 +6,7 @@ import { Toast } from "@/components/Toast";
 
 const NIGHTVIBE_SHARE_URL = "https://nytchkr.com";
 const NIGHTVIBE_SHARE_DATA = {
-  title: "NightVibe",
+  title: "nytchkr",
   text: "Real-time nightlife intel for South End Charlotte. Know before you go.",
   url: NIGHTVIBE_SHARE_URL,
 };
@@ -51,7 +51,7 @@ export function ShareNightVibeCard() {
           <div className="min-w-0">
             <h2 className="font-display text-sm font-bold text-white">Know before you go 🌃</h2>
             <p className="mt-1 text-xs leading-5 text-white/50">
-              Share <span className="font-display">NightVibe</span> with your crew so you can see who's out tonight.
+              Share <span className="font-display">nytchkr</span> with your crew so you can see who's out tonight.
             </p>
           </div>
           <button

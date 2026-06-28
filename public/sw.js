@@ -44,7 +44,7 @@ async function cacheFirstAppShell(request, pathname) {
 }
 
 self.addEventListener("push", (event) => {
-  const fallback = { title: "NightVibe", body: "Friday night picks are ready.", url: "/" };
+  const fallback = { title: "nytchkr", body: "Friday night picks are ready.", url: "/" };
   let payload = fallback;
   if (event.data) {
     try {

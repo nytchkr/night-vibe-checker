@@ -128,13 +128,13 @@ export default function PWAInstallBanner() {
   return (
     <aside
       role="status"
-      aria-label="Install NightVibe"
+      aria-label="Install nytchkr"
       className="fixed bottom-16 left-3 right-3 z-[1500] mx-auto max-w-md rounded-2xl border border-[#8B6CFF] bg-[#0A0A0E] px-4 py-4 text-white shadow-[0_18px_48px_rgba(0,0,0,0.45)]"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <p className="flex-1 text-sm font-medium leading-snug text-white">
           {hasPrompt
-            ? "Add NightVibe to your home screen for the full experience"
+            ? "Add nytchkr to your home screen for the full experience"
             : "Tap Share → Add to Home Screen"}
         </p>
         <div className="flex shrink-0 items-center gap-2">

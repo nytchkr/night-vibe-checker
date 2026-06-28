@@ -113,7 +113,7 @@ export default function PWAInstallPromptSheet() {
       <div className="mx-auto flex max-w-lg flex-col gap-4">
         <div className="space-y-1">
           <h2 id="pwa-install-prompt-title" className="text-base font-semibold leading-tight text-white">
-            Add Night Vibe to your home screen
+            Add nytchkr to your home screen
           </h2>
           <p className="text-sm leading-5 text-white/70">Get faster access to live venue vibes</p>
         </div>

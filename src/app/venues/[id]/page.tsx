@@ -10,20 +10,20 @@ import { VenuePageClient } from "./VenuePageClient";
 
 const genericMetadata: Metadata = {
   title: {
-    absolute: "NightVibe",
+    absolute: "nytchkr",
   },
   description: "Find the hottest spots in Charlotte tonight",
   alternates: {
     canonical: "/",
   },
   openGraph: {
-    title: "NightVibe",
+    title: "nytchkr",
     description: "Find the hottest spots in Charlotte tonight",
     images: [DEFAULT_OG_IMAGE_PATH],
   },
   twitter: {
     card: "summary_large_image",
-    title: "NightVibe",
+    title: "nytchkr",
     description: "Find the hottest spots in Charlotte tonight",
     images: [DEFAULT_OG_IMAGE_PATH],
   },
@@ -72,7 +72,7 @@ function mapVenueMetadataRow(row: Record<string, unknown>): VenueMetadataRow {
   return {
     id: String(row.id ?? ""),
     slug: typeof row.slug === "string" && row.slug.length > 0 ? row.slug : null,
-    name: String(row.name ?? "NightVibe"),
+    name: String(row.name ?? "nytchkr"),
     description: typeof row.editorial_summary === "string" ? row.editorial_summary : null,
     neighborhood: typeof row.neighborhood === "string" ? row.neighborhood : null,
     lat: row.lat == null ? null : Number(row.lat),
@@ -143,7 +143,7 @@ export async function generateMetadata({ params }: VenuePageProps): Promise<Meta
 
   if (!venue) return genericMetadata;
 
-  const title = `${venue.name} | NightVibe Charlotte`;
+  const title = `${venue.name} | nytchkr Charlotte`;
   const description = getVenueMetadataDescription(venue);
   const image = venue.photos[0] ?? DEFAULT_OG_IMAGE_PATH;
   const canonical = getVenuePublicUrl({ id: venue.id, slug: venue.slug ?? undefined });

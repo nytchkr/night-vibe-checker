@@ -50,7 +50,7 @@ describe("GET /api/venues/[id]/share-card", () => {
     expect(res.status).toBe(200);
     expect(json).toEqual({
       shareUrl: "https://nytchkr.com/venues/venue-1?ref=share",
-      text: "Bar X is Packed right now on NightVibe",
+      text: "Bar X is Packed right now on nytchkr",
     });
   });
 
@@ -62,7 +62,7 @@ describe("GET /api/venues/[id]/share-card", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.text).toBe("Bar X on NightVibe — check the vibe!");
+    expect(json.text).toBe("Bar X on nytchkr — check the vibe!");
   });
 
   it("returns 404 when the venue cannot be found", async () => {

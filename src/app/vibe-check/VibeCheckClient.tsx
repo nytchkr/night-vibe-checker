@@ -390,9 +390,9 @@ export default function VibeCheckClient({
     const venueUrl = typeof window !== "undefined"
       ? new URL(venueBackHref, window.location.origin).toString()
       : venueBackHref;
-    const venueTitle = effectiveVenueName || "NightVibe";
+    const venueTitle = effectiveVenueName || "nytchkr";
     const shareData = {
-      title: `NightVibe: ${venueTitle}`,
+      title: `nytchkr: ${venueTitle}`,
       text: `${shareBusyness.emoji} ${shareBusyness.label} at ${venueTitle}. ${shareCrowd.emoji} ${shareCrowd.label}.`,
       url: venueUrl,
     };
@@ -485,7 +485,7 @@ export default function VibeCheckClient({
               </div>
 
               <p className="mt-6 text-xs font-semibold text-white/35">
-                <span className="font-display">NightVibe</span> · South End Charlotte
+                <span className="font-display">nytchkr</span> · South End Charlotte
               </p>
             </article>
 

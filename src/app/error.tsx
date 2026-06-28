@@ -9,7 +9,7 @@ export default function Error({
 }) {
   return (
     <div className="flex min-h-screen-safe flex-col items-center justify-center bg-[#0A0A0E] px-6 text-center font-sans text-white">
-      <p className="font-display text-sm font-black uppercase tracking-normal text-[#8B6CFF]">NightVibe</p>
+      <p className="font-display text-sm font-black uppercase tracking-normal text-[#8B6CFF]">nytchkr</p>
       <h1 className="mt-4 font-display text-3xl font-black tracking-normal text-white">
         Something went wrong.
       </h1>

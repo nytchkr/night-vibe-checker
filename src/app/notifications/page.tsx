@@ -89,7 +89,7 @@ export default async function NotificationsPage() {
         <header className="mt-7 mb-8">
           <h1 className="font-display text-3xl font-black tracking-tight text-white">Notifications</h1>
           <p className="mt-2 text-sm font-semibold text-white/45">
-            Choose when <span className="font-display">NightVibe</span> should reach you.
+            Choose when <span className="font-display">nytchkr</span> should reach you.
           </p>
         </header>
 

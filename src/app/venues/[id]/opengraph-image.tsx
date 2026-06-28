@@ -14,7 +14,7 @@ function getBusynessText(busynessScore: number | null | undefined): string {
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const venue = await getConsumerVenueById(id);
-  const venueName = venue?.name ?? "NightVibe";
+  const venueName = venue?.name ?? "nytchkr";
   const busynessScore = venue?.signal?.busyness0To100 ?? null;
 
   return new ImageResponse(
@@ -32,7 +32,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         }}
       >
         <div style={{ color: "#8B6CFF", fontSize: 36, fontWeight: 900, marginBottom: 24 }}>
-          NightVibe
+          nytchkr
         </div>
         <div style={{ color: "white", fontSize: 72, fontWeight: 900, textAlign: "center" }}>
           {venueName}

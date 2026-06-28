@@ -1,7 +1,7 @@
 {
   "name": "nytchkr",
   "short_name": "nytchkr",
-  "description": "Know the vibe before you go",
+  "description": "Find your spot tonight in Charlotte",
   "start_url": "/map",
   "display": "standalone",
   "orientation": "portrait",

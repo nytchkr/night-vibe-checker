@@ -12,10 +12,10 @@ type ShareCardResponse = {
 
 function buildShareText(venueName: string, busynessScore: number | null | undefined): string {
   if (busynessScore == null || !Number.isFinite(busynessScore)) {
-    return `${venueName} on NightVibe — check the vibe!`;
+    return `${venueName} on nytchkr — check the vibe!`;
   }
 
-  return `${venueName} is ${getBusynessState(busynessScore).label} right now on NightVibe`;
+  return `${venueName} is ${getBusynessState(busynessScore).label} right now on nytchkr`;
 }
 
 export async function GET(

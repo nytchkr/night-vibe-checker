@@ -88,7 +88,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             },
           },
           JSON.stringify({
-            title: "NightVibe Alert",
+            title: "nytchkr Alert",
             body: `${venue.name} is ${Math.round(busyness)}% busy right now`,
             url: `/venues/${encodeURIComponent(venue.id)}`,
           }),
