@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { LazyVenueMapClient } from "@/components/LazyVenueMapClient";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "NightVibe - South End Charlotte",
+  title: "nytchkr - Find your spot tonight",
   description:
-    "Find South End Charlotte bars and clubs by live crowd level, vibe signals, and real venue data before you go out.",
+    "Find where to eat or hang out in Charlotte tonight with real busyness and real vibes in South End.",
   alternates: {
-    canonical: "/",
+    canonical: "/explore",
   },
 };
 
 export default function Home() {
-  return <LazyVenueMapClient />;
+  redirect("/explore");
 }
