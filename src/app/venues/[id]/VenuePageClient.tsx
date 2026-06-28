@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, ChevronDown, ChevronLeft, Clock, Globe, MapPin, Phone, X } from "lucide-react";
+import { BusynessForecast } from "@/components/BusynessForecast";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { CheckInButton } from "@/components/CheckInButton";
@@ -1512,6 +1513,8 @@ export function VenuePageClient({
               hourlyLoading={bestTimeForecastLoading}
               hourlyUpdatedOn={bestTimeForecastUpdatedOn}
             />
+
+            <BusynessForecast venueId={venue.id} />
           </div>
             </div>
           )}

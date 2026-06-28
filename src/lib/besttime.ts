@@ -35,8 +35,8 @@ const NO_BESTTIME_FORECAST_REASON = "No BestTime forecast available";
 const BESTTIME_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
 function apiKey(): string {
-  const key = process.env.BESTTIME_API_KEY;
-  if (!key) throw new Error("BESTTIME_API_KEY is not set.");
+  const key = process.env.BESTTIME_PRIVATE_KEY ?? process.env.BESTTIME_API_KEY;
+  if (!key) throw new Error("BESTTIME_PRIVATE_KEY is not set.");
   return key;
 }
 

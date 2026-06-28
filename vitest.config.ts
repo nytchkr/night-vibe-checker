@@ -64,12 +64,14 @@ export default defineConfig({
     // Resolve the same alias used by tsconfig.json.
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "server-only": path.resolve(__dirname, "./src/test/server-only.ts"),
     },
   },
 
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "server-only": path.resolve(__dirname, "./src/test/server-only.ts"),
     },
   },
 });
