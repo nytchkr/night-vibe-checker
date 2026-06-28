@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<PortalRespons
 
   try {
     const origin = getRequestOrigin(req);
+    const stripe = getStripeClient();
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${origin}/profile/saved`,

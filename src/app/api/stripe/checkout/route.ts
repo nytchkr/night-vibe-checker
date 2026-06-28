@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/apiAuth";
-import { stripe } from "@/lib/stripe";
+import { getStripeClient } from "@/lib/stripe";
 import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckoutRespo
   }
 
   try {
-    const customerId = await getOrCreateStripeCustomer(user);
+    const stripe = getStripeClient();
+    const customerId = await getOrCreateStripeCustomer(user, stripe);
     const origin = getRequestOrigin(req);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -75,7 +76,10 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckoutRespo
   }
 }
 
-async function getOrCreateStripeCustomer(user: { id: string; email?: string | null }): Promise<string> {
+async function getOrCreateStripeCustomer(
+  user: { id: string; email?: string | null },
+  stripe: ReturnType<typeof getStripeClient>,
+): Promise<string> {
   const existingCustomerId = await readStripeCustomerId(user);
   if (existingCustomerId) {
     await syncStripeCustomerToUserRow(user, existingCustomerId);
