@@ -10,6 +10,7 @@ import { ArrowLeft, ChevronDown, Clock, Globe, MapPin, Phone } from "lucide-reac
 import { BusynessForecast } from "@/components/BusynessForecast";
 import { BusynessMeter } from "@/components/BusynessMeter";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
+import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
 import { SkeletonVenueDetail } from "@/components/SkeletonVenueDetail";

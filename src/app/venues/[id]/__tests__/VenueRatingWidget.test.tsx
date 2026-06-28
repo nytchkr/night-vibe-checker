@@ -63,6 +63,12 @@ vi.mock("@/components/CategoryBadge", () => ({
   ),
 }));
 
+vi.mock("@/components/OpenNowBadge", () => ({
+  OpenNowBadge: ({ openNow }: { openNow?: boolean | null }) => (
+    <span>{openNow === false ? "Closed" : openNow === true ? "Open" : "Hours unknown"}</span>
+  ),
+}));
+
 vi.mock("@/components/SaveButton", () => ({
   SaveButton: ({
     children,
