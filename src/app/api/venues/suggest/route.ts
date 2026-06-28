@@ -60,7 +60,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const suggestions = (data as VenueSuggestionRow[]).map(mapSuggestion);
+  const suggestions = ((data ?? []) as VenueSuggestionRow[]).map(mapSuggestion);
 
   return NextResponse.json(
     { suggestions },
