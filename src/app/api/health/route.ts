@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { publicRateLimit } from "@/lib/apiRateLimit";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 type ZoneSignalCoverage = {
   zone_id: string;
@@ -37,12 +37,15 @@ const BUSYNESS_STALE_AFTER_MS = 30 * 60 * 60 * 1000;
 
 async function countRows(table: "venues" | "venue_signals"): Promise<number | null> {
   try {
-    const query = supabaseAdmin.from(table).select("*", { count: "exact", head: true });
+    const query =
+      table === "venues"
+        ? sql`SELECT COUNT(*)::int AS count FROM venues`
+        : sql`SELECT COUNT(*)::int AS count FROM venue_signals`;
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
     const result = await Promise.race([query, timeout]);
 
-    if (!result || result.error) return null;
-    return result.count ?? null;
+    if (!result) return null;
+    return Number((result as Array<{ count: number }>)[0]?.count ?? 0);
   } catch {
     return null;
   }
@@ -65,15 +68,21 @@ function firstSignal(row: VenueHealthRow): { busyness_0_100: number | null; last
 
 async function getVenueHealthRows(): Promise<VenueHealthRow[] | null> {
   try {
-    const query = supabaseAdmin
-      .from("venues")
-      .select("zone_id, besttime_venue_id, open_now, venue_signals(busyness_0_100, last_busyness_refresh)")
-      .in("zone_id", LAUNCH_ZONES.map((zone) => zone.id));
+    const query = sql`
+      SELECT
+        v.zone_id,
+        v.besttime_venue_id,
+        v.open_now,
+        to_jsonb(vs) AS venue_signals
+      FROM venues v
+      LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+      WHERE v.zone_id = ANY(${LAUNCH_ZONES.map((zone) => zone.id)}::text[])
+    `;
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
     const result = await Promise.race([query, timeout]);
 
-    if (!result || result.error) return null;
-    return (result.data ?? []) as VenueHealthRow[];
+    if (!result) return null;
+    return result as VenueHealthRow[];
   } catch {
     return null;
   }

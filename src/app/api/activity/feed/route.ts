@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { publicRateLimit } from "@/lib/apiRateLimit";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -36,32 +36,29 @@ export async function GET(req: NextRequest): Promise<NextResponse<{ items: Activ
   const headers = { ...DYNAMIC_HEADERS, ...rate.headers };
   const since = new Date(Date.now() - RECENT_ACTIVITY_WINDOW_MS).toISOString();
 
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, venue_id, busyness, crowd_feel, created_at")
-    .not("venue_id", "is", null)
-    .eq("hidden", false)
-    .gte("created_at", since)
-    .order("created_at", { ascending: false })
-    .limit(ACTIVITY_LIMIT);
+  const data = await sql`
+    SELECT id, venue_id, busyness, crowd_feel, created_at
+    FROM check_ins
+    WHERE venue_id IS NOT NULL
+      AND hidden = false
+      AND created_at >= ${since}
+    ORDER BY created_at DESC
+    LIMIT ${ACTIVITY_LIMIT}
+  `;
 
-  if (error) {
-    console.error("[activity/feed GET] DB error:", error);
-    return NextResponse.json(
-      { error: "Could not fetch activity feed." },
-      { status: 500, headers }
-    );
-  }
-
-  const rawRows = (data ?? []) as CheckInFeedRow[];
+  const rawRows = data as CheckInFeedRow[];
   const validRows = rawRows.filter(
     (row) => row.id && row.venue_id && row.created_at && row.busyness && row.crowd_feel
   );
 
   const venueIds = Array.from(new Set(validRows.map((r) => r.venue_id as string)));
-  const { data: venueData } = venueIds.length
-    ? await supabaseAdmin.from("venues").select("id, name, hidden").in("id", venueIds)
-    : { data: [] };
+  const venueData = venueIds.length
+    ? await sql`
+        SELECT id, name, hidden
+        FROM venues
+        WHERE id = ANY(${venueIds}::uuid[])
+      `
+    : [];
   const venueMap = new Map<string, { name: string; hidden: boolean }>(
     ((venueData ?? []) as { id: string; name: string; hidden?: boolean | null }[]).map((v) => [
       v.id,

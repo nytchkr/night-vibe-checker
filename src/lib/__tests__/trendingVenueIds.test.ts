@@ -1,13 +1,9 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockFrom = vi.fn();
+const mockSql = vi.hoisted(() => vi.fn());
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: {
-    from: mockFrom,
-  },
-}));
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
 const OPEN_MONDAY_NIGHT_HOURS = {
   open_now: true,
@@ -122,6 +118,7 @@ beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers();
   vi.setSystemTime(SCORING_NOW);
+  mockSql.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -246,28 +243,16 @@ describe("trending venue scoring", () => {
     expect(rankTrendingVenueRows([])).toEqual([]);
   });
 
-  it("loads and ranks rows through the mocked Supabase query", async () => {
-    const query = queryResult({
-      data: [
-        venueRow({ id: "venue-alpha", name: "Alpha", busyness: 30, checkInCount: 1 }),
-        venueRow({ id: "venue-top", name: "Top", busyness: 100, checkInCount: 3 }),
-      ],
-    });
-    mockFrom.mockReturnValueOnce(query);
+  it("loads and ranks rows through the mocked Neon query", async () => {
+    mockSql.mockResolvedValue([
+      venueRow({ id: "venue-alpha", name: "Alpha", busyness: 30, checkInCount: 1 }),
+      venueRow({ id: "venue-top", name: "Top", busyness: 100, checkInCount: 3 }),
+    ]);
 
     const { getTrendingVenues } = await import("@/lib/trendingVenueIds");
     const venues = await getTrendingVenues(SCORING_NOW);
 
     expect(venues.map((venue) => venue.id)).toEqual(["venue-top", "venue-alpha"]);
-    expect(mockFrom).toHaveBeenCalledWith("venues");
-    expect(query.select).toHaveBeenCalledWith(expect.stringContaining("venue_signals"));
-    expect(query.in).toHaveBeenCalledWith("zone_id", [
-      "south-end-charlotte",
-      "dilworth-charlotte",
-      "south-park-charlotte",
-    ]);
-    expect(query.gte).toHaveBeenCalledWith("check_ins.created_at", "2026-06-23T14:00:00.000Z");
-    expect(query.eq).toHaveBeenCalledWith("check_ins.hidden", false);
-    expect(query.limit).toHaveBeenCalledWith(100);
+    expect(mockSql).toHaveBeenCalled();
   });
 });

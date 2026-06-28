@@ -1,5 +1,5 @@
 import { requireAdminPage } from "@/lib/adminAuth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -52,54 +52,53 @@ function missingTable(error: unknown): boolean {
 
 async function loadRecentCheckIns(): Promise<{ rows: CheckInRow[]; emailByUserId: Map<string, string> }> {
   const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, venue_id, user_id, busyness, crowd_feel, created_at, venues(name)")
-    .eq("hidden", false)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  if (error) throw error;
-
-  const rows = (data ?? []) as CheckInRow[];
+  const rows = (await sql`
+    SELECT ci.id, ci.venue_id, ci.user_id, ci.busyness, ci.crowd_feel, ci.created_at,
+           jsonb_build_object('name', v.name) AS venues
+    FROM check_ins ci
+    LEFT JOIN venues v ON v.id = ci.venue_id
+    WHERE ci.hidden = false
+      AND ci.created_at >= ${cutoff}
+    ORDER BY ci.created_at DESC
+    LIMIT 100
+  `) as CheckInRow[];
   const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => Boolean(id))));
-  const emailEntries = await Promise.all(
-    userIds.map(async (userId) => {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
-      return [userId, userData.user?.email ?? userId] as const;
-    }),
-  );
+  const profileRows = userIds.length
+    ? (await sql`
+        SELECT id, email
+        FROM profiles
+        WHERE id = ANY(${userIds})
+      `) as Array<{ id: string; email: string | null }>
+    : [];
+  const emailEntries = profileRows.map((row) => [row.id, row.email ?? row.id] as const);
 
   return { rows, emailByUserId: new Map(emailEntries) };
 }
 
 async function loadVenues(): Promise<VenueRow[]> {
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, name, category, address")
-    .eq("hidden", false)
-    .order("name", { ascending: true })
-    .limit(500);
-
-  if (error) throw error;
-  return (data ?? []) as VenueRow[];
+  return (await sql`
+    SELECT id, name, category, address
+    FROM venues
+    WHERE COALESCE(hidden, false) = false
+    ORDER BY name ASC
+    LIMIT 500
+  `) as VenueRow[];
 }
 
 async function loadFlaggedAccounts(): Promise<{ rows: UserScoreRow[]; available: boolean }> {
-  const { data, error } = await supabaseAdmin
-    .from("user_scores")
-    .select("user_id, points_total, last_checkin_at")
-    .eq("flagged_for_review", true)
-    .order("last_checkin_at", { ascending: false, nullsFirst: false })
-    .limit(100);
-
-  if (error) {
+  try {
+    const data = await sql`
+      SELECT user_id, points_total, last_checkin_at
+      FROM user_scores
+      WHERE flagged_for_review = true
+      ORDER BY last_checkin_at DESC NULLS LAST
+      LIMIT 100
+    `;
+    return { rows: data as UserScoreRow[], available: true };
+  } catch (error) {
     if (missingTable(error)) return { rows: [], available: false };
     throw error;
   }
-
-  return { rows: (data ?? []) as UserScoreRow[], available: true };
 }
 
 function RemoveButton({ label }: { label: string }) {

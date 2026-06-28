@@ -9,7 +9,7 @@ import {
 import { CONSUMER_VENUE_SELECT, mapConsumerVenue } from "@/lib/consumerVenue";
 import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { inZone } from "@/lib/zone";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
@@ -129,16 +129,17 @@ async function explainWithLLM(facts: AISuggestExplanationFacts): Promise<string 
 }
 
 async function loadSuggestVenues(): Promise<ConsumerVenue[]> {
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select(CONSUMER_VENUE_SELECT)
-    .in("zone_id", LAUNCH_ZONE_IDS)
-    .eq("hidden", false)
-    .limit(100);
+  void CONSUMER_VENUE_SELECT;
+  const data = await sql`
+    SELECT v.*, to_jsonb(vs) AS venue_signals
+    FROM venues v
+    LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+    WHERE v.zone_id = ANY(${LAUNCH_ZONE_IDS}::text[])
+      AND COALESCE(v.hidden, false) = false
+    LIMIT 100
+  `;
 
-  if (error) throw error;
-
-  return ((data ?? []) as Record<string, unknown>[])
+  return (data as Record<string, unknown>[])
     .map(mapConsumerVenue)
     .filter((venue) => inZone(venue.lat, venue.lng));
 }

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createServerClient } from "@supabase/ssr";
 import { Clock, MapPin } from "lucide-react";
+import { auth } from "@/auth";
+import { sql } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ReportedBusyness } from "@/types";
@@ -66,32 +66,6 @@ const weekHeaderFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
 });
-
-function getSupabaseEnv() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase public environment variables.");
-  }
-
-  return { supabaseUrl, supabaseAnonKey };
-}
-
-async function createCookieSupabaseClient() {
-  const cookieStore = await cookies();
-  const { supabaseUrl, supabaseAnonKey } = getSupabaseEnv();
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll: () => cookieStore.getAll(),
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
 
 function getEasternDateParts(date: Date): { year: number; month: number; day: number } | null {
   if (!Number.isFinite(date.getTime())) return null;
@@ -173,42 +147,26 @@ function busynessClassName(value: ReportedBusyness | null): string {
 }
 
 async function loadCheckIns(): Promise<CheckInRow[]> {
-  const supabase = await createCookieSupabaseClient();
-  const [{ data: authData }, { data: sessionData }] = await Promise.all([
-    supabase.auth.getUser(),
-    supabase.auth.getSession(),
-  ]);
-  const user = authData.user;
-  const accessToken = sessionData.session?.access_token;
+  const session = await auth();
+  if (!session?.user?.id) redirect("/sign-in?return=/vibe-check/history");
 
-  if (!user || !accessToken) {
-    redirect("/login?return=/vibe-check/history");
-  }
+  const rows = (await sql`
+    SELECT ci.id,
+           ci.venue_id AS "venueId",
+           coalesce(v.name, ci.venue_name) AS "venueName",
+           v.address AS "venueAddress",
+           ci.busyness,
+           ci.crowd_feel,
+           ci.created_at AS "createdAt"
+    FROM check_ins ci
+    LEFT JOIN venues v ON v.id = ci.venue_id
+    WHERE ci.user_id = ${session.user.id}
+      AND ci.hidden = false
+    ORDER BY ci.created_at DESC
+    LIMIT 50
+  `) as CheckInRow[];
 
-  const response = await fetch(await apiUrl("/api/user/check-ins"), {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    cache: "no-store",
-  });
-
-  if (response.status === 401) {
-    redirect("/login?return=/vibe-check/history");
-  }
-
-  if (!response.ok) {
-    throw new Error("Could not load check-in history.");
-  }
-
-  const payload = (await response.json()) as UserCheckInsApiResponse;
-  return payload.data?.checkIns ?? [];
-}
-
-async function apiUrl(path: string): Promise<string> {
-  const headerStore = await headers();
-  const host = headerStore.get("host") ?? "localhost:3000";
-  const protocol = headerStore.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  return `${protocol}://${host}${path}`;
+  return rows;
 }
 
 export default async function VibeCheckHistoryPage() {

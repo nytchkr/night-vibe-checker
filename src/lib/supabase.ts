@@ -111,16 +111,3 @@ export const supabaseAdmin: SupabaseClient = new Proxy({} as SupabaseClient, {
     return Reflect.set(client, prop, value, client);
   },
 });
-
-// --------------- Browser client (client components only) ----
-// Creates a new client per call with session persistence via localStorage.
-// Safe to call from "use client" components — never call server-side.
-
-export function createBrowserClient(): SupabaseClient {
-  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-  });
-}

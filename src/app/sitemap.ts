@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { SITE_URL, getVenuePublicPath } from "@/lib/seo";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 type SitemapVenueRow = {
   id: string;
@@ -14,12 +14,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let data: SitemapVenueRow[] | null = null;
 
   try {
-    const result = await supabaseAdmin
-      .from("venues")
-      .select("id, slug, updated_at")
-      .eq("hidden", false)
-      .order("name", { ascending: true });
-    data = result.data as SitemapVenueRow[] | null;
+    data = (await sql`
+      SELECT id, slug, updated_at
+      FROM venues
+      WHERE COALESCE(hidden, false) = false
+      ORDER BY name ASC
+    `) as SitemapVenueRow[];
   } catch {
     data = null;
   }

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { mapConsumerVenue } from "@/lib/consumerVenue";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { scoreTrendingVenue } from "@/lib/trendingVenueIds";
 import type { ConsumerVenue } from "@/types";
 
@@ -91,24 +91,29 @@ export async function GET(
     return NextResponse.json({ error: "Unknown zoneId." }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
+  void ZONE_TRENDING_SELECT;
   const recentCutoff = cutoffIso();
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select(ZONE_TRENDING_SELECT)
-    .eq("zone_id", zoneId)
-    .eq("hidden", false)
-    .gte("check_ins.created_at", recentCutoff)
-    .eq("check_ins.hidden", false)
-    .order("name", { ascending: true });
-
-  if (error) {
-    return NextResponse.json(
-      { error: "Could not load zone trending venues." },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
-  }
-
-  const rows = (data ?? []) as ZoneTrendingRow[];
+  const rows = (await sql`
+    SELECT
+      v.*,
+      to_jsonb(vs) AS venue_signals,
+      COALESCE(
+        jsonb_agg(
+          jsonb_build_object('venue_id', ci.venue_id, 'created_at', ci.created_at, 'hidden', ci.hidden)
+        ) FILTER (WHERE ci.id IS NOT NULL),
+        '[]'::jsonb
+      ) AS check_ins
+    FROM venues v
+    LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+    LEFT JOIN check_ins ci
+      ON ci.venue_id = v.id
+      AND ci.created_at >= ${recentCutoff}
+      AND ci.hidden = false
+    WHERE v.zone_id = ${zoneId}
+      AND COALESCE(v.hidden, false) = false
+    GROUP BY v.id, vs.venue_id
+    ORDER BY v.name ASC
+  `) as ZoneTrendingRow[];
   const scored = rows
     .filter((row) => row.hidden !== true)
     .filter((row) => row.open_now !== false)

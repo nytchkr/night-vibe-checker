@@ -21,7 +21,7 @@ const nextConfig = {
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
   experimental: {
-    optimizePackageImports: ["lucide-react", "@supabase/ssr", "framer-motion"],
+    optimizePackageImports: ["lucide-react", "framer-motion"],
   },
   env: {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? "",

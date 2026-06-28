@@ -9,6 +9,10 @@ import { VenueRating } from "@/components/VenueRating";
 
 const lightHaptic = vi.hoisted(() => vi.fn());
 
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: { user: { id: "user-123" } }, status: "authenticated" }),
+}));
+
 vi.mock("@vercel/analytics", () => ({
   track: vi.fn(),
 }));

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { incrementConfirmedCheckins, updateUserScore } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
@@ -23,27 +23,23 @@ async function checkAgreement(req: NextRequest): Promise<NextResponse> {
   const earliest = new Date(now - 90 * 60_000).toISOString();
   const latest = new Date(now - 30 * 60_000).toISOString();
 
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, user_id, venue_id, busyness, crowd_feel, created_at")
-    .not("user_id", "is", null)
-    .eq("agreement_bonus_applied", false)
-    .gte("created_at", earliest)
-    .lte("created_at", latest)
-    .order("created_at", { ascending: true })
-    .limit(100);
-
-  if (error) {
-    console.error("[cron/check-agreement] eligible lookup failed:", error);
-    return NextResponse.json({ error: "Agreement check failed." }, { status: 500 });
-  }
+  const data = (await sql`
+    SELECT id, user_id, venue_id, busyness, crowd_feel, created_at
+    FROM check_ins
+    WHERE user_id IS NOT NULL
+      AND agreement_bonus_applied = false
+      AND created_at >= ${earliest}
+      AND created_at <= ${latest}
+    ORDER BY created_at ASC
+    LIMIT 100
+  `) as AgreementCheckIn[];
 
   let agreementBonuses = 0;
   let penalties = 0;
   let processed = 0;
   const errors: Array<{ checkinId: string; error: string }> = [];
 
-  for (const checkIn of (data ?? []) as AgreementCheckIn[]) {
+  for (const checkIn of data) {
     try {
       const result = await processCheckIn(checkIn);
       if (result.processed) processed += 1;
@@ -56,7 +52,7 @@ async function checkAgreement(req: NextRequest): Promise<NextResponse> {
   }
 
   return NextResponse.json({
-    checked: data?.length ?? 0,
+    checked: data.length,
     processed,
     agreementBonuses,
     penalties,
@@ -94,33 +90,30 @@ async function processCheckIn(checkIn: AgreementCheckIn): Promise<{ processed: b
 async function getAgreementPeers(checkIn: AgreementCheckIn, createdAtMs: number): Promise<AgreementCheckIn[]> {
   const start = new Date(createdAtMs - 30 * 60_000).toISOString();
   const end = new Date(createdAtMs + 30 * 60_000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, user_id, venue_id, busyness, crowd_feel, created_at")
-    .eq("venue_id", checkIn.venue_id)
-    .neq("user_id", checkIn.user_id)
-    .gte("created_at", start)
-    .lte("created_at", end)
-    .eq("hidden", false);
-
-  if (error) throw error;
-  return (data ?? []) as AgreementCheckIn[];
+  return (await sql`
+    SELECT id, user_id, venue_id, busyness, crowd_feel, created_at
+    FROM check_ins
+    WHERE venue_id = ${checkIn.venue_id}
+      AND user_id <> ${checkIn.user_id}
+      AND created_at >= ${start}
+      AND created_at <= ${end}
+      AND hidden = false
+  `) as AgreementCheckIn[];
 }
 
 async function getPenaltyPeers(checkIn: AgreementCheckIn, createdAtMs: number): Promise<AgreementCheckIn[]> {
   const end = new Date(createdAtMs + 60 * 60_000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, user_id, venue_id, busyness, crowd_feel, created_at")
-    .eq("venue_id", checkIn.venue_id)
-    .neq("user_id", checkIn.user_id)
-    .gte("created_at", checkIn.created_at)
-    .lte("created_at", end)
-    .eq("hidden", false);
-
-  if (error) throw error;
+  const data = (await sql`
+    SELECT id, user_id, venue_id, busyness, crowd_feel, created_at
+    FROM check_ins
+    WHERE venue_id = ${checkIn.venue_id}
+      AND user_id <> ${checkIn.user_id}
+      AND created_at >= ${checkIn.created_at}
+      AND created_at <= ${end}
+      AND hidden = false
+  `) as AgreementCheckIn[];
   const byUser = new Map<string, AgreementCheckIn>();
-  for (const peer of (data ?? []) as AgreementCheckIn[]) {
+  for (const peer of data) {
     if (peer.user_id && !byUser.has(peer.user_id)) byUser.set(peer.user_id, peer);
   }
   return [...byUser.values()];
@@ -168,23 +161,21 @@ function withinOneStep(left: number, right: number): boolean {
 }
 
 async function hasPointsEvent(checkinId: string, eventType: string): Promise<boolean> {
-  const { count, error } = await supabaseAdmin
-    .from("points_events")
-    .select("id", { count: "exact", head: true })
-    .eq("checkin_id", checkinId)
-    .eq("event_type", eventType);
-
-  if (error) throw error;
-  return (count ?? 0) > 0;
+  const rows = (await sql`
+    SELECT COUNT(*)::int AS count
+    FROM points_events
+    WHERE checkin_id = ${checkinId}
+      AND event_type = ${eventType}
+  `) as Array<{ count: number }>;
+  return Number(rows[0]?.count ?? 0) > 0;
 }
 
 async function markAgreementProcessed(checkinId: string): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from("check_ins")
-    .update({ agreement_bonus_applied: true })
-    .eq("id", checkinId);
-
-  if (error) throw error;
+  await sql`
+    UPDATE check_ins
+    SET agreement_bonus_applied = true
+    WHERE id = ${checkinId}
+  `;
 }
 
 export const GET = checkAgreement;

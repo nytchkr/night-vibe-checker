@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -72,56 +72,43 @@ export async function GET(
 
   const recentCutoff = cutoffIso();
 
-  const liveCountQuery = supabaseAdmin
-    .from("check_ins")
-    .select("id, venues!inner(zone_id, hidden)", { count: "exact", head: true })
-    .eq("hidden", false)
-    .eq("venues.zone_id", zoneId)
-    .eq("venues.hidden", false)
-    .gt("created_at", recentCutoff);
+  const [liveCountRows, topVenueRows, venueCountRows] = await Promise.all([
+    sql`
+      SELECT COUNT(*)::int AS count
+      FROM check_ins ci
+      INNER JOIN venues v ON v.id = ci.venue_id
+      WHERE ci.hidden = false
+        AND v.zone_id = ${zoneId}
+        AND COALESCE(v.hidden, false) = false
+        AND ci.created_at > ${recentCutoff}
+    `,
+    sql`
+      SELECT ci.venue_id, jsonb_build_object('id', v.id, 'name', v.name) AS venues
+      FROM check_ins ci
+      INNER JOIN venues v ON v.id = ci.venue_id
+      WHERE ci.hidden = false
+        AND v.zone_id = ${zoneId}
+        AND COALESCE(v.hidden, false) = false
+        AND ci.created_at > ${recentCutoff}
+      LIMIT 500
+    `,
+    sql`
+      SELECT COUNT(*)::int AS count
+      FROM venues
+      WHERE zone_id = ${zoneId}
+        AND COALESCE(hidden, false) = false
+    `,
+  ]) as [Array<{ count: number }>, RecentCheckInRow[], Array<{ count: number }>];
 
-  const topVenueQuery = supabaseAdmin
-    .from("check_ins")
-    .select("venue_id, venues!inner(id, name, zone_id, hidden)")
-    .eq("hidden", false)
-    .eq("venues.zone_id", zoneId)
-    .eq("venues.hidden", false)
-    .gt("created_at", recentCutoff)
-    .limit(500);
-
-  const venueCountQuery = supabaseAdmin
-    .from("venues")
-    .select("id", { count: "exact", head: true })
-    .eq("zone_id", zoneId)
-    .eq("hidden", false);
-
-  const [liveCountResult, topVenueResult, venueCountResult] = await Promise.all([
-    liveCountQuery,
-    topVenueQuery,
-    venueCountQuery,
-  ]);
-
-  if (liveCountResult.error || topVenueResult.error || venueCountResult.error) {
-    console.error("[zone-stats GET] DB error:", {
-      liveCountError: liveCountResult.error,
-      topVenueError: topVenueResult.error,
-      venueCountError: venueCountResult.error,
-    });
-    return NextResponse.json(
-      { error: "Could not load zone stats." },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
-  }
-
-  const topVenue = findTopVenue((topVenueResult.data ?? []) as RecentCheckInRow[]);
+  const topVenue = findTopVenue(topVenueRows);
 
   return NextResponse.json(
     {
       zoneId,
-      liveCheckInCount: liveCountResult.count ?? 0,
+      liveCheckInCount: liveCountRows[0]?.count ?? 0,
       topVenueId: topVenue?.id ?? null,
       topVenueName: topVenue?.name ?? null,
-      venueCount: venueCountResult.count ?? 0,
+      venueCount: venueCountRows[0]?.count ?? 0,
     },
     { status: 200, headers: CACHE_HEADERS },
   );

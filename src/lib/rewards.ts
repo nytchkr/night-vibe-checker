@@ -80,12 +80,13 @@ export async function incrementConfirmedCheckins(userId: string): Promise<void> 
 }
 
 export async function getUserScore(userId: string): Promise<UserScoreRow | null> {
-  const [data] = await sql`
+  const rows = (await sql`
     SELECT user_id, points_total, level, streak_count, trusted_reporter, flagged_for_review, confirmed_checkins
     FROM user_scores
     WHERE user_id = ${userId}
     LIMIT 1
-  `;
+  `) as UserScoreRow[];
+  const data = rows[0];
   return (data as UserScoreRow | undefined) ?? null;
 }
 

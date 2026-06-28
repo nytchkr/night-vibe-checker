@@ -4,7 +4,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -43,21 +43,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, name, category, zone_id")
-    .ilike("name", `%${q}%`)
-    .eq("hidden", false)
-    .limit(5);
+  const data = await sql`
+    SELECT id, name, category, zone_id
+    FROM venues
+    WHERE name ILIKE ${`%${q}%`}
+      AND COALESCE(hidden, false) = false
+    LIMIT 5
+  `;
 
-  if (error) {
-    return NextResponse.json(
-      { error: { code: "DB_ERROR", message: "Could not load venue suggestions." } },
-      { status: 500 },
-    );
-  }
-
-  const suggestions = ((data ?? []) as VenueSuggestionRow[]).map(mapSuggestion);
+  const suggestions = (data as VenueSuggestionRow[]).map(mapSuggestion);
 
   return NextResponse.json(
     { suggestions },

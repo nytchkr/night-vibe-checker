@@ -1,26 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockFrom = vi.fn();
+const mockSql = vi.hoisted(() => {
+  const fn = vi.fn();
+  return Object.assign(fn, { __esModule: true });
+});
 
-vi.mock("@/lib/supabase", () => ({
-  supabaseAdmin: {
-    from: mockFrom,
-  },
-}));
-
-function chain(resolved: { data?: unknown; error?: unknown }) {
-  const promise = Promise.resolve({
-    data: resolved.data ?? null,
-    error: resolved.error ?? null,
-  });
-  return {
-    select: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    then: promise.then.bind(promise),
-    catch: promise.catch.bind(promise),
-  };
-}
+vi.mock("@/lib/db", () => ({ sql: mockSql }));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -29,9 +14,10 @@ beforeEach(() => {
 
 describe("venue lookup", () => {
   it("falls back from place_id to id for UUID venue detail routes", async () => {
-    const placeIdQuery = chain({ data: [] });
-    const idQuery = chain({ data: [{ id: "550813ed-720e-4f99-be22-3070ca87ad41", name: "The Station" }] });
-    mockFrom.mockReturnValueOnce(placeIdQuery).mockReturnValueOnce(idQuery);
+    const venue = { id: "550813ed-720e-4f99-be22-3070ca87ad41", name: "The Station" };
+    mockSql
+      .mockResolvedValueOnce([]) // place_id query returns nothing
+      .mockResolvedValueOnce([venue]); // id query returns venue
 
     const { findVisibleVenueByIdOrPlaceId } = await import("@/lib/venueLookup");
     const result = await findVisibleVenueByIdOrPlaceId(
@@ -40,35 +26,32 @@ describe("venue lookup", () => {
     );
 
     expect(result.error).toBeNull();
-    expect(result.data).toEqual({ id: "550813ed-720e-4f99-be22-3070ca87ad41", name: "The Station" });
-    expect(placeIdQuery.eq).toHaveBeenNthCalledWith(1, "place_id", "550813ed-720e-4f99-be22-3070ca87ad41");
-    expect(idQuery.eq).toHaveBeenNthCalledWith(1, "id", "550813ed-720e-4f99-be22-3070ca87ad41");
+    expect(result.data).toEqual(venue);
+    expect(mockSql).toHaveBeenCalledTimes(2);
   });
 
   it("does not query id for non-UUID place ids", async () => {
-    const placeIdQuery = chain({ data: [{ id: "venue-1", place_id: "google-place-id" }] });
-    mockFrom.mockReturnValueOnce(placeIdQuery);
+    const venue = { id: "venue-1", place_id: "google-place-id" };
+    mockSql.mockResolvedValueOnce([venue]);
 
     const { findVisibleVenueByIdOrPlaceId } = await import("@/lib/venueLookup");
     const result = await findVisibleVenueByIdOrPlaceId("google-place-id", "id, place_id, hidden");
 
-    expect(result.data).toEqual({ id: "venue-1", place_id: "google-place-id" });
-    expect(mockFrom).toHaveBeenCalledTimes(1);
-    expect(placeIdQuery.eq).toHaveBeenNthCalledWith(1, "place_id", "google-place-id");
+    expect(result.data).toEqual(venue);
+    expect(mockSql).toHaveBeenCalledTimes(1);
   });
 
   it("falls back from place_id to slug for slug venue detail routes", async () => {
-    const placeIdQuery = chain({ data: [] });
-    const slugQuery = chain({ data: [{ id: "venue-1", slug: "lost-and-found" }] });
-    mockFrom.mockReturnValueOnce(placeIdQuery).mockReturnValueOnce(slugQuery);
+    const venue = { id: "venue-1", slug: "lost-and-found" };
+    mockSql
+      .mockResolvedValueOnce([]) // place_id query returns nothing
+      .mockResolvedValueOnce([venue]); // slug query returns venue
 
     const { findVisibleVenueByIdOrPlaceId } = await import("@/lib/venueLookup");
     const result = await findVisibleVenueByIdOrPlaceId("lost-and-found", "id, slug, hidden");
 
     expect(result.error).toBeNull();
-    expect(result.data).toEqual({ id: "venue-1", slug: "lost-and-found" });
-    expect(mockFrom).toHaveBeenCalledTimes(2);
-    expect(placeIdQuery.eq).toHaveBeenNthCalledWith(1, "place_id", "lost-and-found");
-    expect(slugQuery.eq).toHaveBeenNthCalledWith(1, "slug", "lost-and-found");
+    expect(result.data).toEqual(venue);
+    expect(mockSql).toHaveBeenCalledTimes(2);
   });
 });

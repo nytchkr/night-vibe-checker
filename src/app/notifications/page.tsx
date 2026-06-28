@@ -1,10 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { ArrowLeft } from "lucide-react";
-import { supabaseAdmin } from "@/lib/supabase";
+import { auth } from "@/auth";
+import { sql } from "@/lib/db";
 import { NotificationsClient, type NotificationPrefs } from "./NotificationsClient";
 
 export const dynamic = "force-dynamic";
@@ -38,33 +37,19 @@ function normalizePrefs(value: unknown): NotificationPrefs {
 }
 
 export default async function NotificationsPage() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll().map(({ name, value }) => ({ name, value })),
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
-
-  const { data } = await supabase.auth.getSession();
-  const session = data.session;
+  const session = await auth();
 
   if (!session?.user.id) {
-    redirect(`/login?return=${encodeURIComponent("/notifications")}`);
+    redirect(`/sign-in?return=${encodeURIComponent("/notifications")}`);
   }
 
-  const { data: prefsRow } = await supabaseAdmin
-    .from("user_preferences")
-    .select("notify_busy_venues, notify_weekly_summary")
-    .eq("user_id", session.user.id)
-    .maybeSingle();
+  const rows = (await sql`
+    SELECT notify_busy_venues, notify_weekly_summary
+    FROM user_preferences
+    WHERE user_id = ${session.user.id}
+    LIMIT 1
+  `) as Array<{ notify_busy_venues?: unknown; notify_weekly_summary?: unknown }>;
+  const prefsRow = rows[0] ?? null;
 
   const initialPrefs = normalizePrefs(
     prefsRow

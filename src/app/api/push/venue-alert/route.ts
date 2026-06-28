@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
@@ -114,22 +115,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   });
   if (!parsed.success) return validationError(meta, PRIVATE_GET_CACHE_HEADERS);
 
-  const { data, error } = await supabaseAdmin
-    .from("push_venue_alerts")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("venue_id", parsed.data.venueId)
-    .maybeSingle();
+  const data = (await sql`
+    SELECT id
+    FROM push_venue_alerts
+    WHERE user_id = ${userId}
+      AND venue_id = ${parsed.data.venueId}
+    LIMIT 1
+  `) as Array<{ id: string }>;
 
-  if (error) {
-    console.error("[push venue-alert GET] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch venue alert state." }, meta },
-      { status: 500, headers: PRIVATE_GET_CACHE_HEADERS },
-    );
-  }
-
-  return stateResponse(parsed.data.venueId, Boolean(data), meta, PRIVATE_GET_CACHE_HEADERS);
+  return stateResponse(parsed.data.venueId, data.length > 0, meta, PRIVATE_GET_CACHE_HEADERS);
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -149,18 +143,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const parsed = await readVenueId(req, meta);
   if (parsed.response) return parsed.response;
 
-  const { error } = await supabaseAdmin.from("push_venue_alerts").upsert(
-    { user_id: userId, venue_id: parsed.venueId },
-    { onConflict: "user_id,venue_id" },
-  );
-
-  if (error) {
-    console.error("[push venue-alert POST] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save venue alert." }, meta },
-      { status: 500 },
-    );
-  }
+  await sql`
+    INSERT INTO push_venue_alerts (user_id, venue_id)
+    VALUES (${userId}, ${parsed.venueId})
+    ON CONFLICT (user_id, venue_id) DO NOTHING
+  `;
 
   return stateResponse(parsed.venueId, true, meta);
 }
@@ -182,19 +169,11 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const parsed = await readVenueId(req, meta);
   if (parsed.response) return parsed.response;
 
-  const { error } = await supabaseAdmin
-    .from("push_venue_alerts")
-    .delete()
-    .eq("user_id", userId)
-    .eq("venue_id", parsed.venueId);
-
-  if (error) {
-    console.error("[push venue-alert DELETE] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not remove venue alert." }, meta },
-      { status: 500 },
-    );
-  }
+  await sql`
+    DELETE FROM push_venue_alerts
+    WHERE user_id = ${userId}
+      AND venue_id = ${parsed.venueId}
+  `;
 
   return stateResponse(parsed.venueId, false, meta);
 }

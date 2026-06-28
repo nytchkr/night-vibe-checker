@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { discoverZone } from "@/lib/places";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse, ConsumerVenue } from "@/types";
 import type { DiscoveredVenue } from "@/lib/places";
@@ -93,62 +93,50 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const discovered = Array.from(discoveredByPlaceId.values());
   const now = generatedAt;
-  const rows = discovered.map((venue) => ({
-    place_id: venue.placeId,
-    zone_id: venue.zoneId,
-    name: venue.name,
-    address: venue.address,
-    lat: venue.lat,
-    lng: venue.lng,
-    venue_type: venue.category,
-    category: venue.category,
-    google_rating: venue.googleRating ?? null,
-    total_ratings: venue.totalRatings ?? null,
-    price_level: venue.priceLevel ?? null,
-    photo_reference: venue.photoReference ?? null,
-    photo_url: venue.photoUrl ?? null,
-    photo_urls: venue.photoUrls ?? [],
-    opening_hours: venue.openingHours ?? null,
-    open_now: venue.openNow ?? null,
-    updated_at: now,
-  }));
-
-  const { error: upsertError } = await supabaseAdmin
-    .from("venues")
-    .upsert(rows, { onConflict: "place_id" });
-
-  if (upsertError) {
-    console.error("[venues/discover] upsert failed:", upsertError);
-    return NextResponse.json<APIResponse<never>>(
-      {
-        status: "error",
-        error: { code: "DB_ERROR", message: "Failed to upsert venues into database." },
-        meta: { cached: false, generatedAt, requestId },
-      },
-      { status: 500 }
-    );
+  for (const venue of discovered) {
+    await sql`
+      INSERT INTO venues (
+        place_id, zone_id, name, address, lat, lng, venue_type, category, google_rating,
+        total_ratings, price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, updated_at
+      )
+      VALUES (
+        ${venue.placeId}, ${venue.zoneId}, ${venue.name}, ${venue.address}, ${venue.lat}, ${venue.lng},
+        ${venue.category}, ${venue.category}, ${venue.googleRating ?? null}, ${venue.totalRatings ?? null},
+        ${venue.priceLevel ?? null}, ${venue.photoReference ?? null}, ${venue.photoUrl ?? null},
+        ${venue.photoUrls ?? []}, ${JSON.stringify(venue.openingHours ?? null)}::jsonb, ${venue.openNow ?? null}, ${now}
+      )
+      ON CONFLICT (place_id) DO UPDATE SET
+        zone_id = EXCLUDED.zone_id,
+        name = EXCLUDED.name,
+        address = EXCLUDED.address,
+        lat = EXCLUDED.lat,
+        lng = EXCLUDED.lng,
+        venue_type = EXCLUDED.venue_type,
+        category = EXCLUDED.category,
+        google_rating = EXCLUDED.google_rating,
+        total_ratings = EXCLUDED.total_ratings,
+        price_level = EXCLUDED.price_level,
+        photo_reference = EXCLUDED.photo_reference,
+        photo_url = EXCLUDED.photo_url,
+        photo_urls = EXCLUDED.photo_urls,
+        opening_hours = EXCLUDED.opening_hours,
+        open_now = EXCLUDED.open_now,
+        updated_at = EXCLUDED.updated_at
+    `;
   }
 
   // Return the venues we just upserted from the DB to confirm persisted state
-  const { data: venueRows, error: fetchError } = await supabaseAdmin
-    .from("venues")
-    .select("id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings, price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, updated_at, hidden")
-    .in("zone_id", LAUNCH_ZONES.map((zone) => zone.id))
-    .eq("hidden", false)
-    .order("name", { ascending: true })
-    .limit(100);
+  const venueRows = await sql`
+    SELECT id, slug, place_id, zone_id, name, address, lat, lng, category, google_rating, total_ratings,
+           price_level, photo_reference, photo_url, photo_urls, opening_hours, open_now, updated_at, hidden
+    FROM venues
+    WHERE zone_id = ANY(${LAUNCH_ZONES.map((zone) => zone.id)}::text[])
+      AND COALESCE(hidden, false) = false
+    ORDER BY name ASC
+    LIMIT 100
+  `;
 
-  if (fetchError) {
-    console.error("[venues/discover] post-upsert fetch failed:", fetchError);
-    // Still return success — the upsert worked; we just can't return the list
-    return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; discovered: number }>>({
-      status: "success",
-      data: { zone: LAUNCH_ZONE, discovered: discovered.length },
-      meta: { cached: false, generatedAt, requestId },
-    }, { headers: EDGE_CACHE_HEADERS });
-  }
-
-  const venues: ConsumerVenue[] = ((venueRows ?? []) as Record<string, unknown>[]).map((row) => ({
+  const venues: ConsumerVenue[] = (venueRows as Record<string, unknown>[]).map((row) => ({
     id: row.id as string,
     slug: (row.slug ?? undefined) as string | undefined,
     placeId: row.place_id as string,

@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PAGE_ROUTES = ["/admin", "/profile", "/saved", "/notifications"] as const;
 const PROTECTED_API_ROUTES = [
@@ -8,7 +8,7 @@ const PROTECTED_API_ROUTES = [
   "/api/push/subscribe",
   "/api/push/venue-alert",
 ] as const;
-const LEGACY_HOSTS = new Set(["nytchkr.com"]);
+const LEGACY_HOSTS = new Set(["night-vibe-checker.vercel.app"]);
 const CANONICAL_HOST = "nytchkr.com";
 const CSP_HEADER = "Content-Security-Policy";
 const NONCE_HEADER = "x-nonce";
@@ -145,7 +145,12 @@ async function handleMiddleware(req: NextRequest & { auth?: unknown }): Promise<
   return response;
 }
 
-export const middleware = auth(handleMiddleware);
+const authMiddleware = auth(handleMiddleware);
+
+export function middleware(req: NextRequest, ctx?: NextFetchEvent): Promise<MiddlewareResponse> {
+  return (authMiddleware as unknown as (request: NextRequest, event?: NextFetchEvent) => Promise<MiddlewareResponse>)(req, ctx);
+}
+
 export default middleware;
 
 export const config = {
