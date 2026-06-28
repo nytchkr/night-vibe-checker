@@ -56,6 +56,23 @@ describe("middleware route protection", () => {
     expect(firstCsp).not.toBe(secondCsp);
   });
 
+  it("canonicalizes production aliases before auth routes can generate callbacks", async () => {
+    for (const host of [
+      "www.nytchkr.com",
+      "night-vibe-checker.vercel.app",
+      "calm-pond-08a894f0f.7.azurestaticapps.net",
+    ]) {
+      const response = await callMiddleware(
+        new NextRequest(`https://${host}/api/auth/signin/google?callbackUrl=%2Fexplore`)
+      );
+
+      expect(response.status).toBe(308);
+      expect(response.headers.get("location")).toBe(
+        "https://nytchkr.com/api/auth/signin/google?callbackUrl=%2Fexplore"
+      );
+    }
+  });
+
   it("protects authenticated-only page routes and nested paths", () => {
     expect(isProtectedPageRoute("/admin")).toBe(true);
     expect(isProtectedPageRoute("/admin/dashboard")).toBe(true);

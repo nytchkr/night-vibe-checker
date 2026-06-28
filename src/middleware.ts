@@ -8,8 +8,12 @@ const PROTECTED_API_ROUTES = [
   "/api/push/subscribe",
   "/api/push/venue-alert",
 ] as const;
-const LEGACY_HOSTS = new Set(["night-vibe-checker.vercel.app"]);
 const CANONICAL_HOST = "nytchkr.com";
+const CANONICAL_REDIRECT_HOSTS = new Set([
+  "www.nytchkr.com",
+  "night-vibe-checker.vercel.app",
+  "calm-pond-08a894f0f.7.azurestaticapps.net",
+]);
 const CSP_HEADER = "Content-Security-Policy";
 const NONCE_HEADER = "x-nonce";
 
@@ -117,7 +121,7 @@ async function handleMiddleware(req: NextRequest & { auth?: unknown }): Promise<
   const nonce = createNonce();
   const upgradeInsecureRequests = shouldUpgradeInsecureRequests(req);
 
-  if (LEGACY_HOSTS.has(req.nextUrl.hostname)) {
+  if (CANONICAL_REDIRECT_HOSTS.has(req.nextUrl.hostname)) {
     const redirectUrl = req.nextUrl.clone();
     redirectUrl.protocol = "https:";
     redirectUrl.hostname = CANONICAL_HOST;
