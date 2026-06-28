@@ -449,7 +449,6 @@ test.describe("Map tab", () => {
 
   test("clicking Saved tab navigates to /saved", async ({ page }) => {
     await page.goto("/map");
-    await page.waitForLoadState("networkidle");
 
     const savedTab = page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Saved" });
     await expect(savedTab).toBeVisible();

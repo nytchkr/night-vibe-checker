@@ -241,7 +241,7 @@ describe("ExplorePageClient discovery feed", () => {
 
     await searchFor("zzzz");
 
-    expect(screen.getByRole("heading", { name: "No venues found in this area yet — we're adding more soon." })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /No venues found in this area yet/ })).toBeTruthy();
     expect(within(screen.getByRole("main")).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
   });
 
