@@ -3,7 +3,8 @@ import "server-only";
 import webpush from "web-push";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 import { logCronRun } from "@/lib/cronHealth";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 export const dynamic = "force-dynamic";
@@ -47,37 +48,27 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: message }, { status: 503 });
   }
 
-  const { data: savedRows, error: savedError } = await supabaseAdmin
-    .from("saved_venues")
-    .select("user_id, venue_id, alert_threshold");
-
-  if (savedError) {
-    console.error("[cron send-alerts] saved venue query failed:", savedError);
-    await logCronRun({ jobName: "send-alerts", startedAt, error: savedError.message });
-    return NextResponse.json({ error: "Could not load saved venues." }, { status: 500 });
-  }
+  const savedRows = await sql`
+    SELECT user_id, venue_id, alert_threshold
+    FROM saved_venues
+  `;
 
   let sent = 0;
   let errors = 0;
 
-  for (const row of (savedRows ?? []) as SavedVenueRow[]) {
+  for (const row of savedRows as SavedVenueRow[]) {
     const venue = await getConsumerVenueById(row.venue_id);
     const busyness = venue?.signal?.busyness0To100;
     const threshold = row.alert_threshold ?? 70;
     if (!venue || typeof busyness !== "number" || busyness < threshold) continue;
 
-    const { data: subscriptions, error: subscriptionError } = await supabaseAdmin
-      .from("push_subscriptions")
-      .select("endpoint,p256dh,auth")
-      .eq("user_id", row.user_id);
+    const subscriptions = await sql`
+      SELECT endpoint, p256dh, auth
+      FROM push_subscriptions
+      WHERE user_id = ${row.user_id}
+    `;
 
-    if (subscriptionError) {
-      console.error("[cron send-alerts] subscription query failed:", subscriptionError);
-      errors += 1;
-      continue;
-    }
-
-    for (const subscription of (subscriptions ?? []) as PushSubscriptionRow[]) {
+    for (const subscription of subscriptions as PushSubscriptionRow[]) {
       try {
         await webpush.sendNotification(
           {

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 
 export const MF_RATIO_LOOKBACK_HOURS = 24;
@@ -64,15 +64,14 @@ export async function computeVenueMfRatioFromCheckIns(
   nowMs = Date.now()
 ): Promise<ComputedMfRatio> {
   const cutoff = new Date(nowMs - MF_RATIO_LOOKBACK_HOURS * 60 * 60_000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, gender, reporter_gender, gender_self_report, created_at")
-    .eq("venue_id", venueId)
-    .eq("hidden", false)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false });
+  const rows = await sql`
+    SELECT id, gender, reporter_gender, gender_self_report, created_at
+    FROM check_ins
+    WHERE venue_id = ${venueId}
+      AND hidden = false
+      AND created_at >= ${cutoff}
+    ORDER BY created_at DESC
+  `;
 
-  if (error) throw error;
-
-  return computeMfRatioFromCheckIns((data ?? []) as CheckInGenderRow[], nowMs);
+  return computeMfRatioFromCheckIns(rows as CheckInGenderRow[], nowMs);
 }

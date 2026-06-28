@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -14,16 +16,6 @@ const DEFAULT_NOTIFICATION_PREFS = {
   notifyBusyVenues: false,
   notifyWeeklySummary: false,
 } as const;
-
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
 
 function json<T>(body: APIResponse<T>, init?: ResponseInit): NextResponse<APIResponse<T>> {
   return NextResponse.json(body, init);
@@ -44,7 +36,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return json<never>(
       { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to save notification preferences." }, meta },
@@ -70,24 +62,19 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { error } = await supabaseAdmin
-    .from("user_preferences")
-    .upsert(
-      {
-        user_id: userId,
-        notify_busy_venues: parsed.data.notificationPrefs.notifyBusyVenues,
-        notify_weekly_summary: parsed.data.notificationPrefs.notifyWeeklySummary,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-
-  if (error) {
-    return json<never>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save notification preferences." }, meta },
-      { status: 500 },
-    );
-  }
+  await sql`
+    INSERT INTO user_preferences (user_id, notify_busy_venues, notify_weekly_summary, updated_at)
+    VALUES (
+      ${userId},
+      ${parsed.data.notificationPrefs.notifyBusyVenues},
+      ${parsed.data.notificationPrefs.notifyWeeklySummary},
+      now()
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      notify_busy_venues = EXCLUDED.notify_busy_venues,
+      notify_weekly_summary = EXCLUDED.notify_weekly_summary,
+      updated_at = now()
+  `;
 
   return json({
     status: "success",
@@ -111,7 +98,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return json<never>(
       { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to read notification preferences." }, meta },
@@ -119,20 +106,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("user_preferences")
-    .select("notify_busy_venues, notify_weekly_summary")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const rows = (await sql`
+    SELECT notify_busy_venues, notify_weekly_summary
+    FROM user_preferences
+    WHERE user_id = ${userId}
+    LIMIT 1
+  `) as Array<{ notify_busy_venues?: unknown; notify_weekly_summary?: unknown }>;
 
-  if (error) {
-    return json<never>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not read notification preferences." }, meta },
-      { status: 500, headers: { "Cache-Control": "private, no-cache" } },
-    );
-  }
-
-  const row = data as { notify_busy_venues?: unknown; notify_weekly_summary?: unknown } | null;
+  const row = rows[0] ?? null;
   const notificationPrefs = {
     notifyBusyVenues:
       typeof row?.notify_busy_venues === "boolean" ? row.notify_busy_venues : DEFAULT_NOTIFICATION_PREFS.notifyBusyVenues,

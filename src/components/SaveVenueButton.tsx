@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { track } from "@vercel/analytics";
 import { Heart } from "lucide-react";
 import { useOnboardingGate } from "@/components/OnboardingGate";
 import { useHaptic } from "@/hooks/useHaptic";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 const SAVED_VENUES_EVENT = "nytchkr:saved-venues-changed";
 
@@ -37,15 +37,14 @@ export function SaveVenueButton({
   includeVenueNameInLabel = true,
   onSavedChange,
 }: SaveVenueButtonProps) {
+  const { data: session } = useSession();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { consumePendingAction, requireAuth } = useOnboardingGate();
   const haptic = useHaptic();
   const [saved, setSaved] = useState(initialSaved);
   const [pending, setPending] = useState(false);
-  const [sessionAccessToken, setSessionAccessToken] = useState<string | null>(accessToken ?? null);
-
-  const activeAccessToken = accessToken ?? sessionAccessToken;
+  const isAuthenticated = Boolean(session?.user?.id || accessToken);
 
   useEffect(() => {
     setSaved(initialSaved);
@@ -56,18 +55,13 @@ export function SaveVenueButton({
 
     async function refreshSavedState() {
       try {
-        const client = createBrowserClient();
-        const { data } = await client.auth.getSession();
-        const token = accessToken ?? data.session?.access_token ?? null;
-
-        if (!cancelled) setSessionAccessToken(token);
-        if (!token) {
+        if (!isAuthenticated) {
           if (!cancelled) setSaved(false);
           return;
         }
 
         const res = await fetch("/api/saved-venues", {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
         if (!res.ok) return;
 
@@ -77,7 +71,7 @@ export function SaveVenueButton({
           setSaved(ids.includes(venueId));
         }
       } catch {
-        if (!cancelled) setSessionAccessToken(accessToken ?? null);
+        if (!cancelled) setSaved(initialSaved);
       }
     }
 
@@ -86,7 +80,7 @@ export function SaveVenueButton({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, venueId]);
+  }, [initialSaved, isAuthenticated, venueId]);
 
   function currentPath() {
     const query = searchParams.toString();
@@ -94,7 +88,7 @@ export function SaveVenueButton({
   }
 
   const toggleSaved = useCallback(async () => {
-    if (!activeAccessToken) return;
+    if (!isAuthenticated) return;
     const nextSaved = !saved;
 
     if (nextSaved) {
@@ -110,9 +104,9 @@ export function SaveVenueButton({
       const res = await fetch("/api/saved-venues", {
         method: nextSaved ? "POST" : "DELETE",
         headers: {
-          Authorization: `Bearer ${activeAccessToken}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ venueId }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -125,19 +119,19 @@ export function SaveVenueButton({
     } finally {
       setPending(false);
     }
-  }, [activeAccessToken, haptic, onSavedChange, saved, venueId]);
+  }, [haptic, isAuthenticated, onSavedChange, saved, venueId]);
 
   useEffect(() => {
-    if (!activeAccessToken || pending) return;
+    if (!isAuthenticated || pending) return;
     if (!consumePendingAction(`save:${venueId}`)) return;
     void toggleSaved();
-  }, [activeAccessToken, consumePendingAction, pending, toggleSaved, venueId]);
+  }, [consumePendingAction, isAuthenticated, pending, toggleSaved, venueId]);
 
   async function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
 
-    if (!activeAccessToken) {
+    if (!isAuthenticated) {
       await requireAuth({
         id: `save:${venueId}`,
         label: `Sign in to save ${venueName}.`,

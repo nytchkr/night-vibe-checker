@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Bell, CheckCircle2, Loader2 } from "lucide-react";
-import { createBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 
 export type NotificationPrefs = {
@@ -81,24 +80,16 @@ export function NotificationsClient({ initialPrefs }: NotificationsClientProps) 
     prefs.notifyBusyVenues !== savedPrefs.notifyBusyVenues ||
     prefs.notifyWeeklySummary !== savedPrefs.notifyWeeklySummary;
 
-  async function getToken(): Promise<string | null> {
-    const { data } = await createBrowserClient().auth.getSession();
-    return data.session?.access_token ?? null;
-  }
-
   async function savePrefs() {
     setSaveState("saving");
 
     try {
-      const token = await getToken();
-      if (!token) throw new Error("Missing session");
-
       const res = await fetch("/api/profile/notification-prefs", {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ notificationPrefs: prefs }),
       });
 

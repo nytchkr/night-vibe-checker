@@ -2,9 +2,9 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ToastProvider";
 import { useSavedVenues } from "@/hooks/useSavedVenues";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 type SaveButtonProps = {
   placeId: string;
@@ -16,20 +16,11 @@ type SaveButtonProps = {
 };
 
 function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange, children }: SaveButtonProps) {
+  const { data: session } = useSession();
   const { isSaved, refreshVenueSavedState, toggle, loading } = useSavedVenues();
   const { showToast } = useToast();
   const [pending, setPending] = useState(false);
   const saved = isSaved(placeId);
-
-  async function hasSession() {
-    try {
-      const client = createBrowserClient();
-      const { data } = await client.auth.getSession();
-      return Boolean(data.session);
-    } catch {
-      return false;
-    }
-  }
 
   useEffect(() => {
     async function loadSavedState() {
@@ -62,7 +53,7 @@ function SaveButtonInner({ placeId, className, ariaLabel, onSavedChange, childre
     event.preventDefault();
     event.stopPropagation();
 
-    if (!(await hasSession())) {
+    if (!session?.user?.id) {
       showToast("Sign in to save", "info");
       return;
     }

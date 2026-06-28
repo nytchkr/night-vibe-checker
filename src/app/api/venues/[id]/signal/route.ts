@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/apiRateLimit";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
@@ -65,25 +65,12 @@ export async function GET(
     );
   }
 
-  const { data: signal, error: signalError } = await supabaseAdmin
-    .from("venue_signals")
-    .select(
-      "venue_id, busyness_0_100, busyness_source, mf_ratio, confidence_0_1, sample_size, computed_at"
-    )
-    .eq("venue_id", venue.id)
-    .maybeSingle();
-
-  if (signalError) {
-    console.error("[venues/signal GET] DB error:", signalError);
-    return NextResponse.json<APIResponse<never>>(
-      {
-        status: "error",
-        error: { code: "DB_ERROR", message: "Could not fetch signal." },
-        meta,
-      },
-      { status: 500, headers }
-    );
-  }
+  const [signal] = (await sql`
+    SELECT venue_id, busyness_0_100, busyness_source, mf_ratio, confidence_0_1, sample_size, computed_at
+    FROM venue_signals
+    WHERE venue_id = ${venue.id as string}
+    LIMIT 1
+  `) as Array<Record<string, unknown>>;
 
   const sampleSize = Number(signal?.sample_size ?? 0);
 

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase-browser";
+import { useEffect, useState } from "react";
 
 type ForecastHour = {
   hour: number;
@@ -39,7 +38,6 @@ function formatHour(hour: number): string {
 }
 
 export function BestTimeWeekForecast({ venueId }: { venueId: string }) {
-  const supabase = useMemo(() => createBrowserClient(), []);
   const [state, setState] = useState<ForecastState>({ status: "loading" });
 
   useEffect(() => {
@@ -52,12 +50,10 @@ export function BestTimeWeekForecast({ venueId }: { venueId: string }) {
     setState({ status: "loading" });
 
     async function loadForecast() {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
       const res = await fetch(`/api/venues/${encodeURIComponent(venueId)}/besttime-forecast`, {
         cache: "no-store",
         signal: controller.signal,
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        credentials: "include",
       });
       if (!res.ok) throw new Error(`${res.status}`);
 
@@ -74,7 +70,7 @@ export function BestTimeWeekForecast({ venueId }: { venueId: string }) {
     });
 
     return () => controller.abort();
-  }, [supabase, venueId]);
+  }, [venueId]);
 
   return (
     <section className="rounded-[22px] border border-white/[0.08] bg-white/[0.04] p-4" aria-label="Full-week forecast">

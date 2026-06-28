@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { LAUNCH_ZONES, type LaunchZone } from "@/lib/launchZone";
 
 type VenueRow = {
@@ -249,77 +249,76 @@ async function writeBusyness(
     venueUpdate.besttime_venue_id = bestTimeVenueId;
   }
 
-  const { error: venueError } = await supabaseAdmin.from("venues").update(venueUpdate).eq("id", venue.id);
-  if (venueError) throw venueError;
+  await sql`
+    UPDATE venues
+    SET
+      last_busyness_refresh = ${venueUpdate.last_busyness_refresh},
+      besttime_venue_id = COALESCE(${venueUpdate.besttime_venue_id ?? null}, besttime_venue_id)
+    WHERE id = ${venue.id}
+  `;
 
-  const { error: signalError } = await supabaseAdmin.from("venue_signals").upsert(
-    {
-      venue_id: venue.id,
-      place_id: venue.place_id,
-      busyness_0_100: busyness,
-      busyness_source: source,
-      last_busyness_refresh: refreshedAt,
-      computed_at: refreshedAt,
-    },
-    { onConflict: "venue_id" }
-  );
-  if (signalError) throw signalError;
+  await sql`
+    INSERT INTO venue_signals (
+      venue_id, place_id, busyness_0_100, busyness_source, last_busyness_refresh, computed_at
+    )
+    VALUES (${venue.id}, ${venue.place_id}, ${busyness}, ${source}, ${refreshedAt}, ${refreshedAt})
+    ON CONFLICT (venue_id) DO UPDATE SET
+      place_id = EXCLUDED.place_id,
+      busyness_0_100 = EXCLUDED.busyness_0_100,
+      busyness_source = EXCLUDED.busyness_source,
+      last_busyness_refresh = EXCLUDED.last_busyness_refresh,
+      computed_at = EXCLUDED.computed_at
+  `;
 }
 
 async function writeUnavailableBusyness(venue: VenueRow, refreshedAt: string) {
-  const { error: venueError } = await supabaseAdmin
-    .from("venues")
-    .update({
-      besttime_venue_id: null,
-      last_busyness_refresh: refreshedAt,
-    })
-    .eq("id", venue.id);
-  if (venueError) throw venueError;
+  await sql`
+    UPDATE venues
+    SET besttime_venue_id = NULL,
+        last_busyness_refresh = ${refreshedAt}
+    WHERE id = ${venue.id}
+  `;
 
-  const { error: signalError } = await supabaseAdmin.from("venue_signals").upsert(
-    {
-      venue_id: venue.id,
-      place_id: venue.place_id,
-      busyness_0_100: null,
-      busyness_source: null,
-      last_busyness_refresh: refreshedAt,
-      computed_at: refreshedAt,
-    },
-    { onConflict: "venue_id" }
-  );
-  if (signalError) throw signalError;
+  await sql`
+    INSERT INTO venue_signals (
+      venue_id, place_id, busyness_0_100, busyness_source, last_busyness_refresh, computed_at
+    )
+    VALUES (${venue.id}, ${venue.place_id}, NULL, NULL, ${refreshedAt}, ${refreshedAt})
+    ON CONFLICT (venue_id) DO UPDATE SET
+      place_id = EXCLUDED.place_id,
+      busyness_0_100 = EXCLUDED.busyness_0_100,
+      busyness_source = EXCLUDED.busyness_source,
+      last_busyness_refresh = EXCLUDED.last_busyness_refresh,
+      computed_at = EXCLUDED.computed_at
+  `;
 }
 
 export async function refreshBusyness(limit?: number, zoneId?: LaunchZone["id"]): Promise<RefreshResult[]> {
   const zoneIds = zoneId ? [zoneId] : BESTTIME_ZONE_IDS;
-  let query = supabaseAdmin
-    .from("venues")
-    .select("id, place_id, name, address, zone_id, besttime_venue_id")
-    .eq("hidden", false)
-    .in("zone_id", zoneIds)
-    .order("last_busyness_refresh", { ascending: true, nullsFirst: true });
+  const maxRows = limit !== undefined && Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 100;
+  const venues = await sql`
+    SELECT id, place_id, name, address, zone_id, besttime_venue_id
+    FROM venues
+    WHERE COALESCE(hidden, false) = false
+      AND zone_id = ANY(${zoneIds}::text[])
+    ORDER BY last_busyness_refresh ASC NULLS FIRST
+    LIMIT ${maxRows}
+  `;
 
-  if (limit !== undefined && Number.isFinite(limit) && limit > 0) {
-    query = query.limit(limit);
-  }
-
-  const { data: venues, error } = await query;
-
-  if (error) throw error;
-
-  return refreshVenueRows((venues ?? []) as VenueRow[]);
+  return refreshVenueRows(venues as VenueRow[]);
 }
 
 export async function refreshBusynessForVenue(venueId: string): Promise<RefreshResult> {
-  const { data: venue, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, place_id, name, address, zone_id, besttime_venue_id")
-    .eq("id", venueId)
-    .single();
+  const venues = (await sql`
+    SELECT id, place_id, name, address, zone_id, besttime_venue_id
+    FROM venues
+    WHERE id = ${venueId}
+    LIMIT 1
+  `) as VenueRow[];
+  const venue = venues[0];
+  if (!venue) throw new Error("Venue not found");
 
-  if (error) throw error;
-
-  const [result] = await refreshVenueRows([venue as VenueRow]);
+  const [result] = await refreshVenueRows([venue]);
   return result ?? { venueId, ok: false, reason: "Venue refresh did not return a result." };
 }
 
@@ -446,11 +445,11 @@ async function refreshSingleVenueRow(venue: VenueRow, key: string): Promise<Refr
             needsRegister = true;
             bestTimeVenueId = null;
             registeredForecast = null;
-            const { error } = await supabaseAdmin
-              .from("venues")
-              .update({ besttime_venue_id: null })
-              .eq("id", venue.id);
-            if (error) throw error;
+            await sql`
+              UPDATE venues
+              SET besttime_venue_id = NULL
+              WHERE id = ${venue.id}
+            `;
             fallbackReason = "Stale BestTime ID cleared; re-registering";
           } else {
             if (registeredForecast !== null) {

@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Session } from "@supabase/supabase-js";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { Heart, Loader2, LogOut, Mail } from "lucide-react";
 import { PageTransition } from "@/components/PageTransition";
 import { VenuePhoto } from "@/components/VenuePhoto";
@@ -10,10 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createBrowserClient } from "@/lib/supabase-browser";
-
-const POST_AUTH_RETURN_KEY = "nytchkr.postAuthReturnUrl";
-
 type SavedVenue = {
   id: string;
   name: string;
@@ -27,44 +23,6 @@ type SavedVenuesResponse = {
   savedVenues?: SavedVenue[];
   error?: string;
 };
-
-function isValidEmailAddress(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function friendlyMagicLinkError(message: string) {
-  const normalizedMessage = message.toLowerCase();
-
-  if (
-    normalizedMessage.includes("rate") ||
-    normalizedMessage.includes("too many") ||
-    normalizedMessage.includes("over_email_send_rate_limit")
-  ) {
-    return "You have requested a few links recently. Wait a minute, then try again.";
-  }
-
-  if (
-    normalizedMessage.includes("invalid email") ||
-    normalizedMessage.includes("email address is invalid") ||
-    normalizedMessage.includes("unable to validate email")
-  ) {
-    return "Enter a valid email address, like name@example.com.";
-  }
-
-  return "We could not send the magic link. Check your email address and try again.";
-}
-
-function getRedirectOrigin(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
-}
-
-function storeReturnUrl(returnUrl: string) {
-  try {
-    window.sessionStorage.setItem(POST_AUTH_RETURN_KEY, returnUrl);
-  } catch {
-    // The callback URL also carries the return path.
-  }
-}
 
 function openNowLabel(openNow: boolean | null | undefined) {
   if (openNow === true) return "Open now";
@@ -96,19 +54,11 @@ function SavedSkeleton() {
 }
 
 function LoggedOutState({
-  email,
-  error,
-  sentEmail,
   signingIn,
-  onEmailChange,
-  onSubmit,
+  onSignIn,
 }: {
-  email: string;
-  error: string;
-  sentEmail: string;
   signingIn: boolean;
-  onEmailChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSignIn: () => void;
 }) {
   return (
     <section className="flex min-h-[calc(100dvh-9rem)] flex-col justify-center">
@@ -121,35 +71,11 @@ function LoggedOutState({
           Keep a shortlist of places for tonight and jump back to them from the Saved tab.
         </p>
 
-        <form onSubmit={onSubmit} className="mt-8 space-y-3">
-          <label htmlFor="saved-email" className="sr-only">
-            Email address
-          </label>
-          <input
-            id="saved-email"
-            type="email"
-            value={email}
-            onChange={(event) => onEmailChange(event.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
-            disabled={signingIn}
-            aria-invalid={error ? "true" : "false"}
-            aria-describedby={error ? "saved-email-error" : sentEmail ? "saved-email-sent" : undefined}
-            className="h-12 w-full rounded-[8px] border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white transition-colors placeholder:text-white/45 disabled:cursor-not-allowed disabled:opacity-60 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-          />
-          {error && (
-            <p id="saved-email-error" role="alert" className="text-xs font-semibold text-[#F0568C]">
-              {error}
-            </p>
-          )}
-          {sentEmail && !error && (
-            <p id="saved-email-sent" className="rounded-[8px] border border-[#00F5D4]/20 bg-[#00F5D4]/10 p-3 text-xs font-semibold leading-5 text-[#00F5D4]">
-              Magic link sent to {sentEmail}. Check your email to finish signing in.
-            </p>
-          )}
+        <div className="mt-8">
           <Button
-            type="submit"
-            disabled={!email.trim() || signingIn}
+            type="button"
+            onClick={onSignIn}
+            disabled={signingIn}
             className="h-12 w-full rounded-full bg-[#8B6CFF] text-sm font-black text-[#0A0A0E] hover:bg-[#A896FF] focus-visible:ring-[#8B6CFF]/70"
           >
             {signingIn ? (
@@ -160,11 +86,11 @@ function LoggedOutState({
             ) : (
               <>
                 <Mail className="h-4 w-4" aria-hidden="true" />
-                Email me a sign-in link
+                Continue with Google
               </>
             )}
           </Button>
-        </form>
+        </div>
       </div>
     </section>
   );
@@ -201,55 +127,23 @@ function SavedVenueCard({ venue }: { venue: SavedVenue }) {
 }
 
 export default function SavedPage() {
-  const supabaseBrowser = useMemo(() => createBrowserClient(), []);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const { data: session, status } = useSession();
   const [savedVenues, setSavedVenues] = useState<SavedVenue[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [sentEmail, setSentEmail] = useState("");
   const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function initAuth() {
-      try {
-        const { data } = await supabaseBrowser.auth.getSession();
-        if (!cancelled) setSession(data.session);
-      } finally {
-        if (!cancelled) setAuthChecked(true);
-      }
-    }
-
-    void initAuth();
-
-    const {
-      data: { subscription },
-    } = supabaseBrowser.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setAuthChecked(true);
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, [supabaseBrowser]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSavedVenues(accessToken: string) {
+    async function loadSavedVenues() {
       setLoading(true);
       setLoadError("");
 
       try {
         const response = await fetch("/api/user/saved-venues", {
-          headers: { Authorization: `Bearer ${accessToken}` },
           cache: "no-store",
+          credentials: "include",
         });
         const json = (await response.json()) as SavedVenuesResponse;
 
@@ -268,7 +162,7 @@ export default function SavedPage() {
       }
     }
 
-    if (!session?.access_token) {
+    if (!session?.user?.id) {
       setSavedVenues([]);
       setLoading(false);
       setLoadError("");
@@ -277,74 +171,36 @@ export default function SavedPage() {
       };
     }
 
-    void loadSavedVenues(session.access_token);
+    void loadSavedVenues();
 
     return () => {
       cancelled = true;
     };
-  }, [session?.access_token]);
+  }, [session?.user?.id]);
 
-  async function handleMagicLinkSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const emailAddress = email.trim();
-
-    if (!emailAddress || signingIn) return;
-    if (!isValidEmailAddress(emailAddress)) {
-      setEmailError("Enter a valid email address, like name@example.com.");
-      return;
-    }
-
+  async function handleSignIn() {
+    if (signingIn) return;
     setSigningIn(true);
-    setEmailError("");
-    setSentEmail("");
-
-    try {
-      storeReturnUrl("/saved");
-      const redirectTo = `${getRedirectOrigin()}/auth/callback?return=${encodeURIComponent("/saved")}`;
-      const { error } = await supabaseBrowser.auth.signInWithOtp({
-        email: emailAddress,
-        options: { emailRedirectTo: redirectTo },
-      });
-
-      if (error) {
-        setEmailError(friendlyMagicLinkError(error.message));
-        return;
-      }
-
-      setSentEmail(emailAddress);
-    } catch {
-      setEmailError("We could not send the magic link. Check your connection and try again.");
-    } finally {
-      setSigningIn(false);
-    }
+    await signIn("google", { callbackUrl: "/saved" });
   }
 
   async function handleSignOut() {
-    await supabaseBrowser.auth.signOut();
-    setSession(null);
-    setSavedVenues([]);
+    await signOut({ callbackUrl: "/" });
   }
 
   return (
     <PageTransition>
       <div className="mx-auto min-h-screen-safe w-full max-w-lg bg-[#0A0A0E] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 text-white">
-        {!authChecked && <SavedSkeleton />}
+        {status === "loading" && <SavedSkeleton />}
 
-        {authChecked && !session && (
+        {status === "unauthenticated" && (
           <LoggedOutState
-            email={email}
-            error={emailError}
-            sentEmail={sentEmail}
             signingIn={signingIn}
-            onEmailChange={(value) => {
-              setEmail(value);
-              if (emailError) setEmailError("");
-            }}
-            onSubmit={handleMagicLinkSubmit}
+            onSignIn={() => void handleSignIn()}
           />
         )}
 
-        {authChecked && session && (
+        {status === "authenticated" && session && (
           <div className="space-y-6">
             <header className="flex items-start justify-between gap-4">
               <div className="min-w-0">

@@ -1,7 +1,7 @@
-import { createServerClient } from "@supabase/ssr";
+import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-const PROTECTED_PAGE_ROUTES = ["/admin", "/vibe-check", "/notifications"] as const;
+const PROTECTED_PAGE_ROUTES = ["/admin", "/profile", "/saved", "/notifications"] as const;
 const PROTECTED_API_ROUTES = [
   "/api/ratings",
   "/api/venue-ratings",
@@ -28,13 +28,6 @@ export function isProtectedApiRequest(req: NextRequest): boolean {
   return PROTECTED_API_ROUTES.some((route) => isRouteOrChild(req.nextUrl.pathname, route));
 }
 
-function applySessionCookies(source: MiddlewareResponse, target: MiddlewareResponse): MiddlewareResponse {
-  source.cookies.getAll().forEach((cookie) => {
-    target.cookies.set(cookie);
-  });
-  return target;
-}
-
 function createNonce(): string {
   const nonceBytes = new Uint8Array(16);
   crypto.getRandomValues(nonceBytes);
@@ -50,17 +43,17 @@ export function contentSecurityPolicy(nonce: string, { upgradeInsecureRequests =
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' https://maps.googleapis.com https://va.vercel-scripts.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com",
-    "img-src 'self' data: blob: https://maps.googleapis.com https://*.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleusercontent.com https://storage.googleapis.com https://*.supabase.co https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org",
+    "img-src 'self' data: blob: https://maps.googleapis.com https://*.googleapis.com https://maps.gstatic.com https://*.gstatic.com https://*.googleusercontent.com https://storage.googleapis.com https://*.basemaps.cartocdn.com https://*.tile.openstreetmap.org",
     "font-src 'self' data: https://fonts.gstatic.com",
-    "connect-src 'self' https://maps.googleapis.com https://*.googleapis.com https://besttime.app https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://*.vercel-insights.com",
-    "frame-src 'self' https://accounts.google.com https://*.supabase.co",
+    "connect-src 'self' https://maps.googleapis.com https://*.googleapis.com https://besttime.app https://vitals.vercel-insights.com https://*.vercel-insights.com",
+    "frame-src 'self' https://accounts.google.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "object-src 'none'",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
-    "media-src 'self' https://*.supabase.co",
+    "media-src 'self'",
   ];
 
   if (upgradeInsecureRequests) {
@@ -87,24 +80,18 @@ function shouldUpgradeInsecureRequests(req: NextRequest): boolean {
   return !["localhost", "127.0.0.1", "0.0.0.0"].includes(req.nextUrl.hostname);
 }
 
-function loginRedirect(req: NextRequest, sessionResponse: MiddlewareResponse, nonce: string): MiddlewareResponse {
+function loginRedirect(req: NextRequest, nonce: string): MiddlewareResponse {
   const redirectUrl = req.nextUrl.clone();
   const returnPath = `${req.nextUrl.pathname}${req.nextUrl.search}`;
-  redirectUrl.pathname = "/login";
+  redirectUrl.pathname = "/sign-in";
   redirectUrl.search = "";
   redirectUrl.searchParams.set("return", returnPath);
 
-  return withSecurityHeaders(applySessionCookies(sessionResponse, NextResponse.redirect(redirectUrl)), nonce);
+  return withSecurityHeaders(NextResponse.redirect(redirectUrl), nonce);
 }
 
-function unauthorized(sessionResponse: MiddlewareResponse, nonce: string): MiddlewareResponse {
-  return withSecurityHeaders(
-    applySessionCookies(
-      sessionResponse,
-      NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    ),
-    nonce,
-  );
+function unauthorized(nonce: string): MiddlewareResponse {
+  return withSecurityHeaders(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), nonce);
 }
 
 async function shareRedirect(req: NextRequest, nonce: string): Promise<MiddlewareResponse> {
@@ -126,24 +113,9 @@ async function shareRedirect(req: NextRequest, nonce: string): Promise<Middlewar
   return withSecurityHeaders(NextResponse.redirect(redirectUrl, 303), nonce);
 }
 
-function rootAuthCodeRedirect(req: NextRequest, nonce: string): MiddlewareResponse | null {
-  if (req.nextUrl.pathname !== "/" || !req.nextUrl.searchParams.has("code")) {
-    return null;
-  }
-
-  const redirectUrl = req.nextUrl.clone();
-  redirectUrl.protocol = "https:";
-  redirectUrl.hostname = CANONICAL_HOST;
-  redirectUrl.port = "";
-  redirectUrl.pathname = "/auth/callback";
-  return withSecurityHeaders(NextResponse.redirect(redirectUrl, 308), nonce);
-}
-
-export async function middleware(req: NextRequest): Promise<MiddlewareResponse> {
+async function handleMiddleware(req: NextRequest & { auth?: unknown }): Promise<MiddlewareResponse> {
   const nonce = createNonce();
   const upgradeInsecureRequests = shouldUpgradeInsecureRequests(req);
-  const authCodeRedirect = rootAuthCodeRedirect(req, nonce);
-  if (authCodeRedirect) return authCodeRedirect;
 
   if (LEGACY_HOSTS.has(req.nextUrl.hostname)) {
     const redirectUrl = req.nextUrl.clone();
@@ -166,43 +138,15 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
     return shareRedirect(req, nonce);
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return response;
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return req.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => {
-          req.cookies.set(name, value);
-        });
-        requestHeaders.set("cookie", req.cookies.toString());
-        response = NextResponse.next({
-          request: {
-            headers: requestHeaders,
-          },
-        });
-        applySecurityHeaders(response, nonce, upgradeInsecureRequests);
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
-        });
-      },
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) return response;
-  if (isProtectedApiRequest(req)) return unauthorized(response, nonce);
-  if (isProtectedPageRoute(req.nextUrl.pathname)) return loginRedirect(req, response, nonce);
+  if (req.auth) return response;
+  if (isProtectedApiRequest(req)) return unauthorized(nonce);
+  if (isProtectedPageRoute(req.nextUrl.pathname)) return loginRedirect(req, nonce);
 
   return response;
 }
+
+export const middleware = auth(handleMiddleware);
+export default middleware;
 
 export const config = {
   matcher: [

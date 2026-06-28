@@ -1,34 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
-import { createBrowserClient } from "@/lib/supabase-browser";
-
-type SubscriptionRow = {
-  plan?: string | null;
-  status?: string | null;
-};
-
-type UserSubscriptionRow = {
-  pro?: boolean | null;
-  subscription_status?: string | null;
-};
-
-function isPaidSubscription(row: SubscriptionRow | null): boolean {
-  if (!row) return false;
-  const plan = row.plan?.toLowerCase();
-  const status = row.status?.toLowerCase();
-  return plan === "pro" && (status === "active" || status === "trialing");
-}
-
-function isPaidUser(row: UserSubscriptionRow | null): boolean {
-  if (!row) return false;
-  const status = row.subscription_status?.toLowerCase();
-  return row.pro === true || status === "active" || status === "trialing";
-}
 
 export function UpgradeButton() {
-  const supabaseBrowser = useMemo(() => createBrowserClient(), []);
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(false);
   const [checkingPlan, setCheckingPlan] = useState(true);
   const [hasSession, setHasSession] = useState(false);
@@ -41,9 +18,7 @@ export function UpgradeButton() {
     async function loadSubscription() {
       setCheckingPlan(true);
       try {
-        const { data: sessionData } = await supabaseBrowser.auth.getSession();
-        const userId = sessionData.session?.user.id;
-        if (!userId) {
+        if (!session?.user?.id) {
           if (!cancelled) {
             setHasSession(false);
             setIsPaid(false);
@@ -53,24 +28,13 @@ export function UpgradeButton() {
 
         if (!cancelled) setHasSession(true);
 
-        const [subscriptionResult, userResult] = await Promise.all([
-          supabaseBrowser
-            .from("subscriptions")
-            .select("plan,status")
-            .eq("user_id", userId)
-            .maybeSingle(),
-          supabaseBrowser
-            .from("users")
-            .select("pro,subscription_status")
-            .eq("id", userId)
-            .maybeSingle(),
-        ]);
+        const response = await fetch("/api/user/pro", {
+          credentials: "include",
+        });
+        const data = (await response.json().catch(() => null)) as { isPro?: boolean } | null;
 
         if (!cancelled) {
-          setIsPaid(
-            isPaidSubscription(subscriptionResult.data as SubscriptionRow | null) ||
-              isPaidUser(userResult.data as UserSubscriptionRow | null),
-          );
+          setIsPaid(response.ok && data?.isPro === true);
         }
       } catch {
         if (!cancelled) setIsPaid(false);
@@ -84,7 +48,7 @@ export function UpgradeButton() {
     return () => {
       cancelled = true;
     };
-  }, [supabaseBrowser]);
+  }, [session?.user?.id, status]);
 
   async function handleUpgrade() {
     if (loading) return;
@@ -93,18 +57,14 @@ export function UpgradeButton() {
     setError("");
 
     try {
-      const { data } = await supabaseBrowser.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
+      if (!session?.user?.id) {
         setError("Sign in before upgrading.");
         return;
       }
 
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: "include",
       });
       const json = (await response.json()) as { url?: string; error?: string };
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 export type RecentCheckIn = {
   id: string;
@@ -69,7 +68,7 @@ export function useVenueRealtimeCheckins(venueId: string | null | undefined): Ve
     const venueIdForRequests = normalizedVenueId;
 
     let cancelled = false;
-    const client = createBrowserClient();
+    let interval: number | null = null;
 
     async function refresh() {
       try {
@@ -84,18 +83,11 @@ export function useVenueRealtimeCheckins(venueId: string | null | undefined): Ve
 
     void refresh();
 
-    const channel = client
-      .channel(`venue-check-ins:${venueIdForRequests}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "check_ins", filter: `venue_id=eq.${venueIdForRequests}` },
-        () => void refresh(),
-      )
-      .subscribe();
+    interval = window.setInterval(() => void refresh(), 30_000);
 
     return () => {
       cancelled = true;
-      void client.removeChannel(channel);
+      if (interval !== null) window.clearInterval(interval);
     };
   }, [venueId]);
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/adminAuth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 function successResponse(req: NextRequest) {
   if ((req.headers.get("accept") ?? "").includes("text/html")) {
@@ -18,15 +18,7 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { id } = await params;
-  const { error } = await supabaseAdmin
-    .from("venues")
-    .update({ hidden: true })
-    .eq("id", id);
-
-  if (error) {
-    console.error("[admin/venues/hide] DB error:", error);
-    return NextResponse.json({ error: "Could not hide venue." }, { status: 500 });
-  }
+  await sql`UPDATE venues SET hidden = true WHERE id = ${id}`;
 
   return successResponse(req);
 }

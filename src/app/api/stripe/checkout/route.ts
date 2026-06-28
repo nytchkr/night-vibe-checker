@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { User } from "@supabase/supabase-js";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 import { stripe } from "@/lib/stripe";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +19,9 @@ type ErrorResponse = {
 
 export async function POST(req: NextRequest): Promise<NextResponse<CheckoutResponse | ErrorResponse>> {
   try {
-    assertSupabaseServerEnv();
     assertStripeCheckoutEnv();
   } catch (error) {
-    if (error instanceof MissingSupabaseEnvError || error instanceof MissingStripeEnvError) {
+    if (error instanceof MissingStripeEnvError) {
       return NextResponse.json(
         { error: "Server configuration is incomplete." },
         { status: 503, headers: NO_STORE_HEADERS },
@@ -31,7 +30,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckoutRespo
     throw error;
   }
 
-  const user = await getBearerUser(req.headers.get("Authorization"));
+  const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json(
       { error: "Authentication required." },
@@ -76,18 +75,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<CheckoutRespo
   }
 }
 
-async function getBearerUser(authHeader: string | null): Promise<User | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user;
-}
-
-async function getOrCreateStripeCustomer(user: User): Promise<string> {
-  const existingCustomerId = readStripeCustomerId(user);
+async function getOrCreateStripeCustomer(user: { id: string; email?: string | null }): Promise<string> {
+  const existingCustomerId = await readStripeCustomerId(user);
   if (existingCustomerId) {
     await syncStripeCustomerToUserRow(user, existingCustomerId);
     return existingCustomerId;
@@ -96,45 +85,37 @@ async function getOrCreateStripeCustomer(user: User): Promise<string> {
   const customer = await stripe.customers.create({
     email: user.email ?? undefined,
     metadata: {
-      supabase_user_id: user.id,
+      user_id: user.id,
     },
   });
-
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-    app_metadata: {
-      ...user.app_metadata,
-      stripe_customer_id: customer.id,
-    },
-  });
-
-  if (error) {
-    throw error;
-  }
 
   await syncStripeCustomerToUserRow(user, customer.id);
 
   return customer.id;
 }
 
-function readStripeCustomerId(user: User): string | null {
-  const value = user.app_metadata?.stripe_customer_id;
+async function readStripeCustomerId(user: { id: string }): Promise<string | null> {
+  const rows = (await sql`
+    SELECT stripe_customer_id
+    FROM users
+    WHERE id = ${user.id}
+    LIMIT 1
+  `) as Array<{ stripe_customer_id?: unknown }>;
+  const value = rows[0]?.stripe_customer_id;
   return typeof value === "string" && value.startsWith("cus_") ? value : null;
 }
 
-async function syncStripeCustomerToUserRow(user: User, customerId: string): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from("users")
-    .upsert(
-      {
-        id: user.id,
-        email: user.email ?? null,
-        stripe_customer_id: customerId,
-      },
-      { onConflict: "id" },
-    );
-
-  if (error) {
-    console.warn("[stripe checkout] users stripe customer sync skipped", error.message);
+async function syncStripeCustomerToUserRow(user: { id: string; email?: string | null }, customerId: string): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO users (id, email, stripe_customer_id)
+      VALUES (${user.id}, ${user.email ?? null}, ${customerId})
+      ON CONFLICT (id) DO UPDATE SET
+        email = EXCLUDED.email,
+        stripe_customer_id = EXCLUDED.stripe_customer_id
+    `;
+  } catch (error) {
+    console.warn("[stripe checkout] users stripe customer sync skipped", error);
   }
 }
 

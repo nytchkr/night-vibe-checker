@@ -1,9 +1,7 @@
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextResponse, type NextRequest } from "next/server";
-import { getAuthenticatedUserId } from "@/lib/apiAuth";
-import { assertSupabaseServerEnv, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUser, getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
 
 export type AdminUser = {
   id: string;
@@ -15,13 +13,15 @@ type RoleRow = {
 };
 
 async function userHasAdminRole(userId: string): Promise<boolean> {
-  const { data, error } = await supabaseAdmin
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .maybeSingle();
+  const rows = await sql`
+    SELECT role
+    FROM profiles
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
 
-  if (error || !data) return false;
+  const data = Array.isArray(rows) ? rows[0] : undefined;
+  if (!data) return false;
   return (data as RoleRow).role === "admin";
 }
 
@@ -49,29 +49,12 @@ async function hasAdminPassword(req: NextRequest): Promise<boolean> {
 }
 
 async function getCookieUserForPage(): Promise<AdminUser | null> {
-  assertSupabaseServerEnv();
-
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll().map(({ name, value }) => ({ name, value })),
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
-
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
+  const user = await getAuthenticatedUser();
+  if (!user) return null;
 
   return {
-    id: data.user.id,
-    email: data.user.email ?? null,
+    id: user.id,
+    email: user.email ?? null,
   };
 }
 
@@ -79,7 +62,7 @@ export async function requireAdminPage(returnPath = "/admin"): Promise<AdminUser
   const user = await getCookieUserForPage();
 
   if (!user) {
-    redirect(`/login?return=${encodeURIComponent(returnPath)}`);
+    redirect(`/sign-in?return=${encodeURIComponent(returnPath)}`);
   }
 
   const isAdmin = await userHasAdminRole(user.id);

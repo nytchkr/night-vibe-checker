@@ -4,18 +4,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
 import type { APIResponse, ConsumerCheckIn } from "@/types";
-
-async function getUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
 
 function mapCheckIn(row: Record<string, unknown>): ConsumerCheckIn {
   const venue = row.venues as { name?: unknown } | null | undefined;
@@ -36,7 +27,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const requestId = uuidv4();
   const meta = { cached: true, generatedAt: new Date().toISOString(), requestId };
 
-  const userId = await getUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "UNAUTHORIZED", message: "Valid authentication token required." }, meta },
@@ -44,26 +35,23 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { data, error, count } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, venue_id, place_id, busyness, crowd_feel, note, created_at, venues!inner(name)", { count: "exact" })
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(20);
+  const data = await sql`
+    SELECT ci.id, ci.venue_id, ci.place_id, ci.busyness, ci.crowd_feel, ci.note, ci.created_at,
+           jsonb_build_object('name', v.name) AS venues,
+           COUNT(*) OVER()::int AS total_count
+    FROM check_ins ci
+    LEFT JOIN venues v ON v.id = ci.venue_id
+    WHERE ci.user_id = ${userId}
+    ORDER BY ci.created_at DESC
+    LIMIT 20
+  `;
 
-  if (error) {
-    console.error("[check-ins/me GET] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch report history." }, meta },
-      { status: 500 }
-    );
-  }
-
-  const checkIns = ((data ?? []) as Record<string, unknown>[]).map(mapCheckIn);
+  const rows = data as Array<Record<string, unknown> & { total_count?: number }>;
+  const checkIns = rows.map(mapCheckIn);
 
   return NextResponse.json<APIResponse<{ checkIns: ConsumerCheckIn[]; totalCheckIns: number }>>({
     status: "success",
-    data: { checkIns, totalCheckIns: count ?? checkIns.length },
+    data: { checkIns, totalCheckIns: rows[0]?.total_count ?? checkIns.length },
     meta,
   });
 }

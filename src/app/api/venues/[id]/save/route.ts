@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { findVisibleVenueByIdOrPlaceId } from "@/lib/venueLookup";
-import { MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -54,49 +55,30 @@ export async function POST(
   const venueId = await getCanonicalVenueId(id);
   if (!venueId) return NextResponse.json({ error: "Venue not found." }, { status: 404 });
 
-  const existing = await supabaseAdmin
-    .from("saved_venues")
-    .select("id")
-    .eq("user_id", user)
-    .eq("venue_id", venueId)
-    .limit(1);
-
-  if (existing.error) {
-    console.error("[venues save POST] DB error:", existing.error);
-    return NextResponse.json({ error: "Could not read saved venue." }, { status: 500 });
-  }
-
-  const existingRows = Array.isArray(existing.data) ? existing.data : [];
+  const existingRows = (await sql`
+    SELECT id
+    FROM saved_venues
+    WHERE user_id = ${user}
+      AND venue_id = ${venueId}
+    LIMIT 1
+  `) as Array<{ id: string }>;
   if (existingRows.length > 0) {
-    const { error } = await supabaseAdmin
-      .from("saved_venues")
-      .delete()
-      .eq("user_id", user)
-      .eq("venue_id", venueId);
-
-    if (error) {
-      console.error("[venues save POST] DB error:", error);
-      return NextResponse.json({ error: "Could not unsave venue." }, { status: 500 });
-    }
+    await sql`
+      DELETE FROM saved_venues
+      WHERE user_id = ${user}
+        AND venue_id = ${venueId}
+    `;
 
     return NextResponse.json({ data: { venueId, saved: false }, venueId, saved: false });
   }
 
   const body = await readBody(req);
-  const { error } = await supabaseAdmin.from("saved_venues").upsert(
-    {
-      user_id: user,
-      venue_id: venueId,
-      alert_threshold: body.alertThreshold ?? 70,
-      created_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,venue_id" },
-  );
-
-  if (error) {
-    console.error("[venues save POST] DB error:", error);
-    return NextResponse.json({ error: "Could not save venue." }, { status: 500 });
-  }
+  await sql`
+    INSERT INTO saved_venues (user_id, venue_id, alert_threshold, created_at)
+    VALUES (${user}, ${venueId}, ${body.alertThreshold ?? 70}, now())
+    ON CONFLICT (user_id, venue_id) DO UPDATE SET
+      alert_threshold = EXCLUDED.alert_threshold
+  `;
 
   return NextResponse.json({ data: { venueId, saved: true }, venueId, saved: true });
 }
@@ -112,17 +94,13 @@ export async function GET(
   const venueId = await getCanonicalVenueId(id);
   if (!venueId) return NextResponse.json({ error: "Venue not found." }, { status: 404 });
 
-  const { data, error } = await supabaseAdmin
-    .from("saved_venues")
-    .select("id")
-    .eq("user_id", user)
-    .eq("venue_id", venueId)
-    .limit(1);
-
-  if (error) {
-    console.error("[venues save GET] DB error:", error);
-    return NextResponse.json({ error: "Could not read saved venue." }, { status: 500 });
-  }
+  const data = (await sql`
+    SELECT id
+    FROM saved_venues
+    WHERE user_id = ${user}
+      AND venue_id = ${venueId}
+    LIMIT 1
+  `) as Array<{ id: string }>;
 
   return NextResponse.json({ data: { venueId, saved: (data ?? []).length > 0 }, venueId, saved: (data ?? []).length > 0 });
 }
@@ -143,16 +121,12 @@ export async function PATCH(
     return NextResponse.json({ error: "alertThreshold is required." }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
-    .from("saved_venues")
-    .update({ alert_threshold: body.alertThreshold })
-    .eq("user_id", user)
-    .eq("venue_id", venueId);
-
-  if (error) {
-    console.error("[venues save PATCH] DB error:", error);
-    return NextResponse.json({ error: "Could not update alert threshold." }, { status: 500 });
-  }
+  await sql`
+    UPDATE saved_venues
+    SET alert_threshold = ${body.alertThreshold}
+    WHERE user_id = ${user}
+      AND venue_id = ${venueId}
+  `;
 
   return NextResponse.json({ data: { venueId, alertThreshold: body.alertThreshold }, venueId, alertThreshold: body.alertThreshold });
 }
@@ -168,16 +142,11 @@ export async function DELETE(
   const venueId = await getCanonicalVenueId(id);
   if (!venueId) return NextResponse.json({ error: "Venue not found." }, { status: 404 });
 
-  const { error } = await supabaseAdmin
-    .from("saved_venues")
-    .delete()
-    .eq("user_id", user)
-    .eq("venue_id", venueId);
-
-  if (error) {
-    console.error("[venues save DELETE] DB error:", error);
-    return NextResponse.json({ error: "Could not unsave venue." }, { status: 500 });
-  }
+  await sql`
+    DELETE FROM saved_venues
+    WHERE user_id = ${user}
+      AND venue_id = ${venueId}
+  `;
 
   return NextResponse.json({ data: { venueId, saved: false }, venueId, saved: false });
 }

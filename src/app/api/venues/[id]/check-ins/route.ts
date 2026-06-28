@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { publicRateLimit } from "@/lib/apiRateLimit";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 
 const CHECK_IN_LIMIT = 10;
@@ -80,34 +80,17 @@ async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> 
 async function fetchRecentCheckIns(venueId: string): Promise<{ data: RecentCheckInRow[] | null; error: unknown }> {
   const cutoff = new Date(Date.now() - RECENT_CHECK_IN_HOURS * 60 * 60_000).toISOString();
 
-  const primary = await supabaseAdmin
-    .from("check_ins")
-    .select("id, busyness_0_to_100, crowd_feel, gender, created_at")
-    .eq("venue_id", venueId)
-    .eq("hidden", false)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(CHECK_IN_LIMIT);
-
-  if (!primary.error || !isMissingColumnError(primary.error)) {
-    return {
-      data: primary.data as RecentCheckInRow[] | null,
-      error: primary.error,
-    };
-  }
-
-  const fallback = await supabaseAdmin
-    .from("check_ins")
-    .select("id, busyness, note, gender_self_report, created_at")
-    .eq("venue_id", venueId)
-    .eq("hidden", false)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(CHECK_IN_LIMIT);
-
   return {
-    data: fallback.data as RecentCheckInRow[] | null,
-    error: fallback.error,
+    data: (await sql`
+      SELECT id, busyness, crowd_feel, note, gender, gender_self_report, created_at
+      FROM check_ins
+      WHERE venue_id = ${venueId}
+        AND hidden = false
+        AND created_at >= ${cutoff}
+      ORDER BY created_at DESC
+      LIMIT ${CHECK_IN_LIMIT}
+    `) as RecentCheckInRow[],
+    error: null,
   };
 }
 

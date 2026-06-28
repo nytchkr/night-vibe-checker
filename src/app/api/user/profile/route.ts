@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { calculateUserStreak } from "@/app/api/user/streak/route";
 
 export const dynamic = "force-dynamic";
@@ -54,7 +56,7 @@ export async function GET(
     throw error;
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json(
       { error: "Authentication required." },
@@ -62,62 +64,43 @@ export async function GET(
     );
   }
 
-  const [totalResult, streakResult, venueResult] = await Promise.all([
-    supabaseAdmin
-      .from("check_ins")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("hidden", false),
-    supabaseAdmin
-      .from("check_ins")
-      .select("created_at")
-      .eq("user_id", userId)
-      .eq("hidden", false)
-      .order("created_at", { ascending: false }),
-    supabaseAdmin
-      .from("check_ins")
-      .select("venue_id,venues(name)")
-      .eq("user_id", userId)
-      .eq("hidden", false),
-  ]);
+  const [totalRows, streakResult, venueResult] = await Promise.all([
+    sql`
+      SELECT COUNT(*)::int AS count
+      FROM check_ins
+      WHERE user_id = ${userId}
+        AND hidden = false
+    `,
+    sql`
+      SELECT created_at
+      FROM check_ins
+      WHERE user_id = ${userId}
+        AND hidden = false
+      ORDER BY created_at DESC
+    `,
+    sql`
+      SELECT ci.venue_id, jsonb_build_object('name', v.name) AS venues
+      FROM check_ins ci
+      LEFT JOIN venues v ON v.id = ci.venue_id
+      WHERE ci.user_id = ${userId}
+        AND ci.hidden = false
+    `,
+  ]) as [Array<{ count: number }>, CheckInStreakRow[], CheckInVenueRow[]];
 
-  if (totalResult.error || streakResult.error || venueResult.error) {
-    console.error("[user/profile GET] check_ins DB error:", {
-      totalError: totalResult.error,
-      streakError: streakResult.error,
-      venueError: venueResult.error,
-    });
-    return NextResponse.json(
-      { error: "Could not fetch profile summary." },
-      { status: 500, headers: NO_STORE_HEADERS },
-    );
-  }
-
-  const venueRows = (venueResult.data ?? []) as CheckInVenueRow[];
-  const streakRows = (streakResult.data ?? []) as CheckInStreakRow[];
+  const venueRows = venueResult;
+  const streakRows = streakResult;
   const { topVenues, uniqueVenues } = summarizeVenues(venueRows);
 
   return NextResponse.json(
     {
       userId,
-      totalCheckIns: totalResult.count ?? streakRows.length,
+      totalCheckIns: totalRows[0]?.count ?? streakRows.length,
       uniqueVenues,
       streak: calculateUserStreak(streakRows).streak,
       topVenues,
     },
     { headers: NO_STORE_HEADERS },
   );
-}
-
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
 }
 
 function summarizeVenues(rows: CheckInVenueRow[]): { topVenues: TopVenue[]; uniqueVenues: number } {

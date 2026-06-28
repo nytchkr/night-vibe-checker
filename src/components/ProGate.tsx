@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 type ProGateProps = {
   children: ReactNode;
@@ -16,28 +16,25 @@ type ProGateProps = {
 type ProState = "loading" | "pro" | "locked";
 
 export function ProGate({ children, feature }: ProGateProps) {
-  const supabase = useMemo(() => createBrowserClient(), []);
+  const { data: session, status } = useSession();
   const [state, setState] = useState<ProState>("loading");
 
   useEffect(() => {
     let cancelled = false;
 
     async function checkProAccess() {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user.id;
-      if (!userId) {
+      if (!session?.user?.id) {
         if (!cancelled) setState("locked");
         return;
       }
 
-      const { data } = await supabase
-        .from("users")
-        .select("subscription_status")
-        .eq("id", userId)
-        .single();
+      const response = await fetch("/api/user/pro", {
+        credentials: "include",
+      });
+      const data = (await response.json().catch(() => null)) as { isPro?: boolean } | null;
 
       if (!cancelled) {
-        setState(data?.subscription_status === "active" ? "pro" : "locked");
+        setState(response.ok && data?.isPro ? "pro" : "locked");
       }
     }
 
@@ -45,18 +42,10 @@ export function ProGate({ children, feature }: ProGateProps) {
       if (!cancelled) setState("locked");
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      setState("loading");
-      void checkProAccess().catch(() => {
-        if (!cancelled) setState("locked");
-      });
-    });
-
     return () => {
       cancelled = true;
-      listener.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [session?.user?.id, status]);
 
   if (state === "pro") return <>{children}</>;
 

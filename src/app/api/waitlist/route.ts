@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { publicRateLimit } from "@/lib/apiRateLimit";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -44,24 +45,24 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const email = normalizeEmail(parsed.data.email);
 
-  const { data: existing, error: existingError } = await supabaseAdmin
-    .from("waitlist")
-    .select("email")
-    .eq("email", email)
-    .maybeSingle();
+  const existing = (await sql`
+    SELECT email
+    FROM waitlist
+    WHERE email = ${email}
+    LIMIT 1
+  `) as Array<{ email: string }>;
 
-  if (existingError) {
-    return jsonError("Could not check waitlist status.", 500, rate.headers);
-  }
-
-  if (existing) {
+  if (existing.length > 0) {
     return NextResponse.json({ error: "Already on the list!" }, { status: 409, headers: rate.headers });
   }
 
-  const { error: insertError } = await supabaseAdmin.from("waitlist").insert({ email });
-
-  if (insertError) {
-    if (insertError.code === "23505") {
+  try {
+    await sql`
+      INSERT INTO waitlist (email)
+      VALUES (${email})
+    `;
+  } catch (insertError) {
+    if (insertError instanceof Error && insertError.message.includes("duplicate")) {
       return NextResponse.json({ error: "Already on the list!" }, { status: 409, headers: rate.headers });
     }
 

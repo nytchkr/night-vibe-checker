@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
+import { signIn, useSession } from "next-auth/react";
 import { X } from "lucide-react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
@@ -38,21 +38,6 @@ function currentPath() {
 function safeReturnUrl(value: string | undefined): string {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return currentPath();
   return value;
-}
-
-function getRedirectOrigin(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || window.location.origin;
-}
-
-function getOAuthRedirectOrigin(): string {
-  const origin = getRedirectOrigin();
-  const { hostname } = new URL(origin);
-
-  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]") {
-    throw new Error("Google OAuth requires a production redirect origin.");
-  }
-
-  return origin;
 }
 
 function storePendingAction(action: PendingAuthAction) {
@@ -93,12 +78,10 @@ export function useOnboardingGate() {
 }
 
 export function OnboardingGateProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState("");
   const [googleSigningIn, setGoogleSigningIn] = useState(false);
-  const [emailSigningIn, setEmailSigningIn] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAuthAction | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const resumeRef = useRef<(() => void | Promise<void>) | null>(null);
@@ -106,11 +89,10 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
   const closeGate = useCallback(() => {
     setOpen(false);
     setError("");
-    setOtpSent(false);
   }, []);
 
-  const resumeAfterAuth = useCallback(async (session: Session | null) => {
-    if (!session) return;
+  const resumeAfterAuth = useCallback(async () => {
+    if (!session?.user?.id) return;
 
     const callback = resumeRef.current;
     resumeRef.current = null;
@@ -120,48 +102,20 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
     if (callback) {
       await callback();
     }
-  }, [closeGate]);
+  }, [closeGate, session?.user?.id]);
 
   useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: (() => void) | null = null;
-
-    async function startAuthListener() {
-      try {
-        const { createBrowserClient } = await import("@/lib/supabase-browser");
-        const client = createBrowserClient();
-
-        client.auth.getSession()
-          .then(({ data }) => {
-            if (!cancelled) void resumeAfterAuth(data.session);
-          })
-          .catch(() => undefined);
-
-        const {
-          data: { subscription },
-        } = client.auth.onAuthStateChange((_event, session) => {
-          if (!cancelled) void resumeAfterAuth(session);
-        });
-        unsubscribe = () => subscription.unsubscribe();
-      } catch {
-        // Auth-gated actions still open the modal; sign-in attempts surface their own errors.
-      }
-    }
-
-    void startAuthListener();
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-    };
-  }, [resumeAfterAuth]);
+    if (status !== "authenticated") return;
+    void resumeAfterAuth();
+  }, [resumeAfterAuth, status]);
 
   const requireAuth = useCallback(async (request: GateRequest) => {
-    const { createBrowserClient } = await import("@/lib/supabase-browser");
-    const client = createBrowserClient();
-    const { data } = await client.auth.getSession().catch(() => ({ data: { session: null } }));
-
-    if (data.session) return true;
+    if (session?.user?.id) {
+      if (request.onAuthenticated) {
+        await request.onAuthenticated();
+      }
+      return true;
+    }
 
     const action = {
       id: request.id,
@@ -175,7 +129,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
     setPendingAction(action);
     setOpen(true);
     return false;
-  }, []);
+  }, [session?.user?.id]);
 
   const consumePendingAction = useCallback((id: string) => {
     const action = readPendingAction();
@@ -191,40 +145,11 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
 
   useFocusTrap(open, dialogRef, closeGate);
 
-  function handleGoogleSignIn() {
+  async function handleGoogleSignIn() {
     if (googleSigningIn) return;
     setGoogleSigningIn(true);
     const returnTo = pendingAction?.returnTo ?? currentPath();
-    window.location.href = `/api/auth/google?return=${encodeURIComponent(returnTo)}`;
-  }
-
-  async function handleEmailSignIn() {
-    if (!email.trim() || emailSigningIn) return;
-
-    setEmailSigningIn(true);
-    setError("");
-
-    try {
-      const { createBrowserClient } = await import("@/lib/supabase-browser");
-      const client = createBrowserClient();
-      const origin = getRedirectOrigin();
-      const returnTo = pendingAction?.returnTo ?? currentPath();
-      const { error: signInError } = await client.auth.signInWithOtp({
-        email: email.trim(),
-        options: { emailRedirectTo: `${origin}/auth/callback?return=${encodeURIComponent(returnTo)}` },
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-        return;
-      }
-
-      setOtpSent(true);
-    } catch {
-      setError("Could not send the magic link. Try again.");
-    } finally {
-      setEmailSigningIn(false);
-    }
+    await signIn("google", { callbackUrl: returnTo });
   }
 
   return (
@@ -273,52 +198,16 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
               ))}
             </ul>
 
-            {otpSent ? (
-              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-white/70">
-                Magic link sent to <span className="font-bold text-white">{email}</span>.
-              </div>
-            ) : (
-              <div className="mt-5 space-y-3">
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={googleSigningIn}
-                  className="flex min-h-12 w-full items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-4 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                >
-                  {googleSigningIn ? "Connecting..." : "Continue with Google"}
-                </button>
-
-                <div className="flex items-center gap-3 text-[11.5px] font-semibold text-[#9CA2AE]">
-                  <span className="h-px flex-1 bg-white/10" />
-                  <span>or</span>
-                  <span className="h-px flex-1 bg-white/10" />
-                </div>
-
-                <div className="flex gap-2">
-                  <label htmlFor="onboarding-email" className="sr-only">
-                    Email address
-                  </label>
-                  <input
-                    id="onboarding-email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    onKeyDown={(event) => event.key === "Enter" && handleEmailSignIn()}
-                    placeholder="you@email.com"
-                    autoComplete="email"
-                    className="min-h-12 min-w-0 flex-1 rounded-2xl border border-white/15 bg-white/[0.05] px-4 text-sm font-semibold text-white placeholder:text-white/55 focus:border-[#8B6CFF]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleEmailSignIn}
-                    disabled={!email.trim() || emailSigningIn}
-                    className="min-h-12 rounded-2xl bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#A896FF] disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                  >
-                    {emailSigningIn ? "Sending" : "Email"}
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={() => void handleGoogleSignIn()}
+                disabled={googleSigningIn}
+                className="flex min-h-12 w-full items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.07] px-4 text-sm font-semibold text-[#F4F5F8] transition-colors hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                {googleSigningIn ? "Connecting..." : "Continue with Google"}
+              </button>
+            </div>
 
             {error ? (
               <p role="alert" className="mt-3 text-xs font-semibold text-[#F0568C]">
@@ -327,7 +216,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
             ) : null}
 
             <Link
-              href={`/login?return=${encodeURIComponent(pendingAction?.returnTo ?? currentPath())}`}
+              href={`/sign-in?return=${encodeURIComponent(pendingAction?.returnTo ?? currentPath())}`}
               className="mt-4 block text-center text-xs font-bold text-white/55 underline-offset-4 hover:text-white/70 hover:underline focus:outline-none focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
             >
               Open full sign-in page

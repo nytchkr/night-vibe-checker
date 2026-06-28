@@ -1,6 +1,6 @@
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { mapGoogleOpeningHours } from "@/lib/venueHours";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
@@ -164,13 +164,13 @@ export async function getLiveCheckInCountForVenueId(venueId: string, now = new D
   if (!normalizedVenueId) return 0;
 
   const cutoff = new Date(now.getTime() - 2 * 60 * 60_000).toISOString();
-  const { count, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id", { count: "exact", head: true })
-    .eq("venue_id", normalizedVenueId)
-    .eq("hidden", false)
-    .gte("created_at", cutoff);
+  const rows = (await sql`
+    SELECT COUNT(*)::int AS count
+    FROM check_ins
+    WHERE venue_id = ${normalizedVenueId}
+      AND hidden = false
+      AND created_at >= ${cutoff}
+  `) as Array<{ count: number }>;
 
-  if (error) return 0;
-  return Math.max(0, count ?? 0);
+  return Math.max(0, Number(rows[0]?.count ?? 0));
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/adminAuth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 function missingTable(error: unknown): boolean {
   const candidate = error as { code?: string; message?: string } | null | undefined;
@@ -24,12 +24,13 @@ export async function POST(
   if (auth instanceof NextResponse) return auth;
 
   const { userId } = await params;
-  const { error } = await supabaseAdmin
-    .from("user_scores")
-    .update({ flagged_for_review: false })
-    .eq("user_id", userId);
-
-  if (error) {
+  try {
+    await sql`
+      UPDATE user_scores
+      SET flagged_for_review = false
+      WHERE user_id = ${userId}
+    `;
+  } catch (error) {
     if (missingTable(error)) {
       return NextResponse.json({ error: "Rewards system not yet active." }, { status: 404 });
     }

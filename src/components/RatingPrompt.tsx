@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type RatingPromptProps = {
@@ -26,6 +27,7 @@ export function RatingPrompt({
   onSubmitted,
   venueId,
 }: RatingPromptProps) {
+  const { data: session } = useSession();
   const [rating, setRating] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function RatingPrompt({
   if (!isOpen) return null;
 
   async function submitRating() {
-    if (!accessToken || submitting || rating < 1 || rating > 5) return;
+    if ((!session?.user?.id && !accessToken) || submitting || rating < 1 || rating > 5) return;
 
     setSubmitting(true);
     setError(null);
@@ -55,9 +57,9 @@ export function RatingPrompt({
       const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}/rate`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ rating }),
       });
       const json = (await response.json().catch(() => ({}))) as RateResponse;

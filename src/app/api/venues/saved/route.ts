@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
-import { MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { MissingSupabaseEnvError } from "@/lib/supabase";
 import type { APIResponse, ConsumerVenue } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -38,18 +39,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabaseAdmin
-    .from("saved_venues")
-    .select("venue_id, alert_threshold, created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("[venues saved GET] DB error:", error);
-    return NextResponse.json({ error: "Could not fetch saved venues." }, { status: 500 });
-  }
-
-  const rows = (data ?? []) as SavedVenueRow[];
+  const rows = (await sql`
+    SELECT venue_id, alert_threshold, created_at
+    FROM saved_venues
+    WHERE user_id = ${userId}
+    ORDER BY created_at DESC
+  `) as SavedVenueRow[];
   const savedVenues = await Promise.all(rows.map(async (row): Promise<SavedVenueWithBusyness> => {
     const venue = await getConsumerVenueById(row.venue_id);
     return {

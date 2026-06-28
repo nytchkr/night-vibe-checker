@@ -1,7 +1,7 @@
 import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { mapConsumerVenue } from "@/lib/consumerVenue";
 import { getCharlotteTimeParts } from "@/lib/openNow";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import type { ConsumerVenue } from "@/types";
 
 export const TRENDING_VENUE_LIMIT = 5;
@@ -154,15 +154,33 @@ export function rankTrendingVenueRows(
     .slice(0, limit);
 }
 
-async function fetchTrendingRows(select: string, sinceIso: string) {
-  return supabaseAdmin
-    .from("venues")
-    .select(select)
-    .eq("hidden", false)
-    .in("zone_id", LAUNCH_ZONE_IDS)
-    .gte("check_ins.created_at", sinceIso)
-    .eq("check_ins.hidden", false)
-    .limit(QUERY_LIMIT);
+async function fetchTrendingRows(_select: string, sinceIso: string) {
+  const data = await sql`
+    SELECT
+      v.*,
+      to_jsonb(vs) AS venue_signals,
+      COALESCE(
+        jsonb_agg(
+          jsonb_build_object(
+            'venue_id', ci.venue_id,
+            'created_at', ci.created_at,
+            'hidden', ci.hidden
+          )
+        ) FILTER (WHERE ci.id IS NOT NULL),
+        '[]'::jsonb
+      ) AS check_ins
+    FROM venues v
+    LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+    LEFT JOIN check_ins ci
+      ON ci.venue_id = v.id
+      AND ci.created_at >= ${sinceIso}
+      AND ci.hidden = false
+    WHERE COALESCE(v.hidden, false) = false
+      AND v.zone_id = ANY(${LAUNCH_ZONE_IDS}::text[])
+    GROUP BY v.id, vs.venue_id
+    LIMIT ${QUERY_LIMIT}
+  `;
+  return { data, error: null };
 }
 
 export async function getTrendingVenues(now = new Date()): Promise<ConsumerVenue[]> {
@@ -179,7 +197,8 @@ export async function getTrendingVenues(now = new Date()): Promise<ConsumerVenue
   }
 
   if (error) {
-    throw new Error(error instanceof Error ? error.message : String((error as { message?: unknown }).message ?? error));
+    const errMsg = String((error as Record<string, unknown>)?.message ?? error);
+    throw new Error(errMsg);
   }
 
   return rankTrendingVenueRows(rows ?? [], TRENDING_VENUE_LIMIT, now).map((item) => item.venue);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshGooglePlacesDetailsForVenue, type PlaceDetailsVenueRow } from "@/lib/googlePlacesDetails";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
 
 export const dynamic = "force-dynamic";
@@ -15,16 +15,15 @@ async function refreshPlacesDetails(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const { data, error } = await supabaseAdmin
-      .from("venues")
-      .select("id, place_id, name, current_popularity_updated_at")
-      .not("place_id", "is", null)
-      .not("place_id", "like", "fallback:%")
-      .eq("hidden", false)
-      .order("current_popularity_updated_at", { ascending: true, nullsFirst: true })
-      .limit(50);
-
-    if (error) throw error;
+    const data = await sql`
+      SELECT id, place_id, name, current_popularity_updated_at
+      FROM venues
+      WHERE place_id IS NOT NULL
+        AND place_id NOT LIKE 'fallback:%'
+        AND COALESCE(hidden, false) = false
+      ORDER BY current_popularity_updated_at ASC NULLS FIRST
+      LIMIT 50
+    `;
 
     let updated = 0;
     let skipped = 0;
@@ -37,10 +36,11 @@ async function refreshPlacesDetails(req: NextRequest): Promise<NextResponse> {
           updated += 1;
         } else {
           skipped += 1;
-          await supabaseAdmin
-            .from("venues")
-            .update({ current_popularity_updated_at: new Date().toISOString() })
-            .eq("id", venue.id);
+          await sql`
+            UPDATE venues
+            SET current_popularity_updated_at = ${new Date().toISOString()}
+            WHERE id = ${venue.id}
+          `;
         }
       } catch (err) {
         skipped += 1;

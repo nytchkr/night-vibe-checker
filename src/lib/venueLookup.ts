@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_VENUE_LOOKUP_LENGTH = 200;
@@ -6,11 +6,6 @@ const MAX_VENUE_LOOKUP_LENGTH = 200;
 export type VenueLookupResult = {
   data: Record<string, unknown> | null;
   error: unknown;
-};
-
-type RawLookupResult = {
-  data?: unknown;
-  error?: unknown;
 };
 
 export function normalizeVenueLookupId(value: string | null | undefined): string {
@@ -28,26 +23,43 @@ export function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
 }
 
-function firstRow(data: unknown): Record<string, unknown> | null {
-  if (Array.isArray(data)) return (data[0] as Record<string, unknown> | undefined) ?? null;
-  return (data as Record<string, unknown> | null) ?? null;
-}
-
 async function queryVisibleVenue(
   column: "id" | "place_id" | "slug",
   id: string,
-  selectClause: string
+  _selectClause: string
 ): Promise<VenueLookupResult> {
-  const result = (await supabaseAdmin
-    .from("venues")
-    .select(selectClause)
-    .eq(column, id)
-    .eq("hidden", false)
-    .limit(1)) as RawLookupResult;
+  const rows = (
+    column === "id"
+      ? await sql`
+          SELECT v.*, to_jsonb(vs) AS venue_signals
+          FROM venues v
+          LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+          WHERE v.id = ${id}
+            AND COALESCE(v.hidden, false) = false
+          LIMIT 1
+        `
+      : column === "place_id"
+        ? await sql`
+            SELECT v.*, to_jsonb(vs) AS venue_signals
+            FROM venues v
+            LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+            WHERE v.place_id = ${id}
+              AND COALESCE(v.hidden, false) = false
+            LIMIT 1
+          `
+        : await sql`
+            SELECT v.*, to_jsonb(vs) AS venue_signals
+            FROM venues v
+            LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+            WHERE v.slug = ${id}
+              AND COALESCE(v.hidden, false) = false
+            LIMIT 1
+          `
+  ) as Array<Record<string, unknown>>;
 
   return {
-    data: firstRow(result.data),
-    error: result.error ?? null,
+    data: (rows[0] as Record<string, unknown> | undefined) ?? null,
+    error: null,
   };
 }
 

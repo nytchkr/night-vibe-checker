@@ -3,7 +3,8 @@ import { z } from "zod";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders, retryAfterSeconds } from "@/lib/upstashRateLimit";
-import { MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -69,21 +70,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   const { endpoint, keys } = parsed.data;
-  const { error } = await supabaseAdmin.from("push_subscriptions").upsert(
-    {
-      user_id: userId,
-      endpoint,
-      auth: keys.auth,
-      p256dh: keys.p256dh,
-      created_at: new Date().toISOString(),
-    },
-    { onConflict: "endpoint" },
-  );
-
-  if (error) {
-    console.error("[push subscribe POST] DB error:", error);
-    return NextResponse.json({ error: "Could not save push subscription." }, { status: 500, headers });
-  }
+  await sql`
+    INSERT INTO push_subscriptions (user_id, endpoint, auth, p256dh, created_at)
+    VALUES (${userId}, ${endpoint}, ${keys.auth}, ${keys.p256dh}, now())
+    ON CONFLICT (endpoint) DO UPDATE SET
+      user_id = EXCLUDED.user_id,
+      auth = EXCLUDED.auth,
+      p256dh = EXCLUDED.p256dh
+  `;
 
   return NextResponse.json({ data: { ok: true }, ok: true }, { headers });
 }
@@ -101,13 +95,17 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const parsed = DeleteSubscriptionSchema.safeParse(await readJson(req));
-  let query = supabaseAdmin.from("push_subscriptions").delete().eq("user_id", userId);
-  if (parsed.success && parsed.data.endpoint) query = query.eq("endpoint", parsed.data.endpoint);
-
-  const { error } = await query;
-  if (error) {
-    console.error("[push subscribe DELETE] DB error:", error);
-    return NextResponse.json({ error: "Could not remove push subscription." }, { status: 500 });
+  if (parsed.success && parsed.data.endpoint) {
+    await sql`
+      DELETE FROM push_subscriptions
+      WHERE user_id = ${userId}
+        AND endpoint = ${parsed.data.endpoint}
+    `;
+  } else {
+    await sql`
+      DELETE FROM push_subscriptions
+      WHERE user_id = ${userId}
+    `;
   }
 
   return NextResponse.json({ data: { ok: true }, ok: true });

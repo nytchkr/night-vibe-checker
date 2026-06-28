@@ -1,11 +1,12 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export async function isProUser(userId: string): Promise<boolean> {
-  const { data } = await supabaseAdmin
-    .from("users")
-    .select("subscription_status")
-    .eq("id", userId)
-    .single();
+  const [user] = await sql`
+    SELECT subscription_status
+    FROM users
+    WHERE id = ${userId}
+    LIMIT 1
+  `;
 
-  return data?.subscription_status === "active";
+  return user?.subscription_status === "active";
 }

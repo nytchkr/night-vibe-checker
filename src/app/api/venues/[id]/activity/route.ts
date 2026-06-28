@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/apiRateLimit";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse } from "@/types";
@@ -53,17 +53,17 @@ async function getPublicProfile(userId: string): Promise<PublicProfile> {
   const fallback: PublicProfile = { displayName: "Someone", avatarUrl: null };
 
   try {
-    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (error || !data.user) return fallback;
+    const rows = await sql`
+      SELECT display_name, avatar_url, email FROM profiles WHERE id = ${userId} LIMIT 1
+    `;
+    const row = Array.isArray(rows) ? (rows[0] as { display_name?: string; avatar_url?: string; email?: string } | undefined) : undefined;
+    if (!row) return fallback;
 
-    const metadata = (data.user.user_metadata ?? {}) as Record<string, unknown>;
     const displayName =
-      stringMetadataValue(metadata, ["display_name", "full_name", "name"]) ??
-      (typeof data.user.email === "string" && data.user.email.includes("@")
-        ? data.user.email.split("@")[0]
-        : null) ??
+      row.display_name?.trim() ||
+      (row.email?.includes("@") ? row.email.split("@")[0] : null) ||
       fallback.displayName;
-    const avatarUrl = stringMetadataValue(metadata, ["avatar_url", "picture"]);
+    const avatarUrl = row.avatar_url?.trim() || null;
 
     return { displayName, avatarUrl };
   } catch {
@@ -109,27 +109,16 @@ export async function GET(
   }
 
   const cutoff = new Date(Date.now() - ACTIVITY_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
-  const { data: checkIns, error: checkInsError } = await supabaseAdmin
-    .from("check_ins")
-    .select("user_id, created_at")
-    .eq("venue_id", venue.id as string)
-    .eq("hidden", false)
-    .not("user_id", "is", null)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(ACTIVITY_LIMIT);
-
-  if (checkInsError) {
-    console.error("[venues/activity GET] DB error:", checkInsError);
-    return NextResponse.json<APIResponse<never>>(
-      {
-        status: "error",
-        error: { code: "DB_ERROR", message: "Could not fetch venue activity." },
-        meta,
-      },
-      { status: 500, headers }
-    );
-  }
+  const checkIns = await sql`
+    SELECT user_id, created_at
+    FROM check_ins
+    WHERE venue_id = ${venue.id as string}
+      AND hidden = false
+      AND user_id IS NOT NULL
+      AND created_at >= ${cutoff}
+    ORDER BY created_at DESC
+    LIMIT ${ACTIVITY_LIMIT}
+  `;
 
   const rows = ((checkIns ?? []) as CheckInActivityRow[]).filter((row) => row.user_id);
   const uniqueUserIds = Array.from(new Set(rows.map((row) => row.user_id as string)));

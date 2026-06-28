@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const GOOGLE_PLACES_DETAILS_STATIC_FIELD_MASK = [
   "priceLevel",
@@ -221,25 +221,42 @@ export async function refreshGooglePlacesDetailsForVenue(
 
   const updatedFields = Object.keys(venueUpdate);
   if (updatedFields.length > 0) {
-    const { error } = await supabaseAdmin.from("venues").update(venueUpdate).eq("id", venue.id);
-    if (error) throw new Error(`Supabase venue update failed: ${error.message}`);
+    await sql`
+      UPDATE venues
+      SET
+        price_level = CASE WHEN ${Object.hasOwn(venueUpdate, "price_level")} THEN ${venueUpdate.price_level ?? null} ELSE price_level END,
+        rating = CASE WHEN ${Object.hasOwn(venueUpdate, "rating")} THEN ${venueUpdate.rating ?? null} ELSE rating END,
+        user_rating_count = CASE WHEN ${Object.hasOwn(venueUpdate, "user_rating_count")} THEN ${venueUpdate.user_rating_count ?? null} ELSE user_rating_count END,
+        website = CASE WHEN ${Object.hasOwn(venueUpdate, "website")} THEN ${venueUpdate.website ?? null} ELSE website END,
+        phone_number = CASE WHEN ${Object.hasOwn(venueUpdate, "phone_number")} THEN ${venueUpdate.phone_number ?? null} ELSE phone_number END,
+        phone = CASE WHEN ${Object.hasOwn(venueUpdate, "phone")} THEN ${venueUpdate.phone ?? null} ELSE phone END,
+        google_maps_uri = CASE WHEN ${Object.hasOwn(venueUpdate, "google_maps_uri")} THEN ${venueUpdate.google_maps_uri ?? null} ELSE google_maps_uri END,
+        current_popularity = CASE WHEN ${Object.hasOwn(venueUpdate, "current_popularity")} THEN ${venueUpdate.current_popularity ?? null} ELSE current_popularity END,
+        current_popularity_updated_at = CASE
+          WHEN ${Object.hasOwn(venueUpdate, "current_popularity_updated_at")} THEN ${venueUpdate.current_popularity_updated_at ?? null}
+          ELSE current_popularity_updated_at
+        END,
+        editorial_summary = CASE WHEN ${Object.hasOwn(venueUpdate, "editorial_summary")} THEN ${venueUpdate.editorial_summary ?? null} ELSE editorial_summary END,
+        opening_hours = CASE WHEN ${Object.hasOwn(venueUpdate, "opening_hours")} THEN ${JSON.stringify(venueUpdate.opening_hours ?? null)}::jsonb ELSE opening_hours END
+      WHERE id = ${venue.id}
+    `;
   }
 
   let popularityUpdated = false;
   if (currentPopularity != null && currentPopularity > 0 && currentPopularity <= 100) {
-    const { error } = await supabaseAdmin.from("venue_signals").upsert(
-      {
-        venue_id: venue.id,
-        place_id: venue.place_id,
-        busyness_0_100: currentPopularity,
-        busyness_source: "live",
-        confidence_0_1: 0.85,
-        computed_at: refreshedAt,
-        last_busyness_refresh: refreshedAt,
-      },
-      { onConflict: "venue_id" }
-    );
-    if (error) throw new Error(`Supabase venue_signals upsert failed: ${error.message}`);
+    await sql`
+      INSERT INTO venue_signals (
+        venue_id, place_id, busyness_0_100, busyness_source, confidence_0_1, computed_at, last_busyness_refresh
+      )
+      VALUES (${venue.id}, ${venue.place_id}, ${currentPopularity}, 'live', 0.85, ${refreshedAt}, ${refreshedAt})
+      ON CONFLICT (venue_id) DO UPDATE SET
+        place_id = EXCLUDED.place_id,
+        busyness_0_100 = EXCLUDED.busyness_0_100,
+        busyness_source = EXCLUDED.busyness_source,
+        confidence_0_1 = EXCLUDED.confidence_0_1,
+        computed_at = EXCLUDED.computed_at,
+        last_busyness_refresh = EXCLUDED.last_busyness_refresh
+    `;
     popularityUpdated = true;
   }
 

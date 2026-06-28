@@ -3,8 +3,9 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -18,37 +19,6 @@ type CheckInRow = {
   created_at: string | null;
 };
 
-async function getCookieUserId(req: NextRequest): Promise<string | null> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll: () => req.cookies.getAll().map(({ name, value }) => ({ name, value })),
-    },
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
-async function getBearerUserId(req: NextRequest): Promise<string | null> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
 export async function GET(req: NextRequest): Promise<NextResponse<StreakResponse | { error: string }>> {
   try {
     assertSupabaseServerEnv();
@@ -59,21 +29,18 @@ export async function GET(req: NextRequest): Promise<NextResponse<StreakResponse
     throw error;
   }
 
-  const userId = (await getCookieUserId(req)) ?? (await getBearerUserId(req));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error, count } = await supabaseAdmin
-    .from("check_ins")
-    .select("created_at", { count: "exact" })
-    .eq("user_id", userId)
-    .eq("hidden", false)
-    .order("created_at", { ascending: false });
+  const data = await sql`
+    SELECT created_at
+    FROM check_ins
+    WHERE user_id = ${userId}
+      AND hidden = false
+    ORDER BY created_at DESC
+  `;
 
-  if (error) {
-    return NextResponse.json({ error: "Could not fetch streak." }, { status: 500 });
-  }
-
-  const rows = (data ?? []) as CheckInRow[];
+  const rows = data as CheckInRow[];
   const checkInDays = new Set(
     rows
       .map((row) => toCharlotteDateKey(row.created_at))
@@ -83,7 +50,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<StreakResponse
   return NextResponse.json({
     currentStreak: getCurrentStreak(checkInDays),
     longestStreak: getLongestStreak(checkInDays),
-    totalCheckIns: count ?? rows.length,
+    totalCheckIns: rows.length,
   });
 }
 

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 type CronRunInput = {
   jobName: string;
@@ -14,14 +14,12 @@ export async function logCronRun({
   error = null,
 }: CronRunInput): Promise<void> {
   const durationMs = Math.max(0, Date.now() - startedAt);
-  const { error: insertError } = await supabaseAdmin.from("cron_runs").insert({
-    job_name: jobName,
-    duration_ms: durationMs,
-    venues_updated: venuesUpdated,
-    error,
-  });
-
-  if (insertError) {
+  try {
+    await sql`
+      INSERT INTO cron_runs (job_name, duration_ms, venues_updated, error)
+      VALUES (${jobName}, ${durationMs}, ${venuesUpdated}, ${error})
+    `;
+  } catch (insertError) {
     console.error(`[cron-health] Failed to log ${jobName}:`, insertError);
   }
 }

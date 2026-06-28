@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
@@ -102,24 +103,11 @@ export async function POST(
     );
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("venue_reports")
-    .insert({
-      venue_id: venueId,
-      user_id: null,
-      reason: parsed.data.reason,
-      notes: parsed.data.notes?.trim() || null,
-    })
-    .select("id, venue_id, reason, notes, created_at")
-    .single();
-
-  if (error || !data) {
-    console.error("[venue-report POST] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save venue report." }, meta: responseMeta },
-      { status: 500 },
-    );
-  }
+  const [data] = (await sql`
+    INSERT INTO venue_reports (venue_id, user_id, reason, notes)
+    VALUES (${venueId}, NULL, ${parsed.data.reason}, ${parsed.data.notes?.trim() || null})
+    RETURNING id, venue_id, reason, notes, created_at
+  `) as Array<Record<string, unknown>>;
 
   return NextResponse.json<APIResponse<{ report: typeof data }>>(
     { status: "success", data: { report: data }, meta: responseMeta },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { track } from "@vercel/analytics";
 import { Star } from "lucide-react";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -87,6 +88,7 @@ export function VenueRating({
   promptAfterCheckIn?: boolean;
   onRated?: () => void;
 }) {
+  const { data: session } = useSession();
   const { showToast } = useToast();
   const haptic = useHaptic();
   const [ratingState, setRatingState] = useState<VenueRatingState>(EMPTY_RATING_STATE);
@@ -103,8 +105,9 @@ export function VenueRating({
       setLoading(true);
       setError(null);
       try {
-        const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-        const res = await fetch(`/api/venue-ratings?venue_id=${encodeURIComponent(venueId)}`, { headers });
+        const res = await fetch(`/api/venue-ratings?venue_id=${encodeURIComponent(venueId)}`, {
+          credentials: "include",
+        });
         if (!res.ok) throw new Error(`${res.status}`);
         const json = await res.json();
         if (!cancelled) setRatingState(getRatingJsonValue(json));
@@ -119,10 +122,10 @@ export function VenueRating({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, venueId]);
+  }, [venueId]);
 
   async function submitRating(rating: number) {
-    if (!accessToken) {
+    if (!session?.user?.id && !accessToken) {
       setSubmissionStatus("Sign in to rate this venue.");
       showToast("Sign in to rate", "info");
       return;
@@ -149,9 +152,9 @@ export function VenueRating({
       const res = await fetch("/api/venue-ratings", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ venue_id: venueId, user_id: userId ?? undefined, rating }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -168,7 +171,7 @@ export function VenueRating({
     }
   }
 
-  const readOnly = !accessToken;
+  const readOnly = !session?.user?.id && !accessToken;
   const disabled = loading || pendingRating !== null;
   const displayRating = userAvgRating ?? googleRating ?? ratingState.averageRating;
   const displayCount = userRatingCount ?? ratingState.ratingCount;

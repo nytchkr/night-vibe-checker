@@ -1,6 +1,6 @@
 import "server-only";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { redis } from "@/lib/upstashRedis";
 
 export type VenueRatingAggregate = {
@@ -51,18 +51,17 @@ export async function getVenueRatingAggregate(venueId: string): Promise<VenueRat
       const cached = normalizeAggregate(await redis.get(key));
       if (cached) return visibleAggregate(cached);
     } catch (error) {
-      console.warn("[venue rating aggregate] Redis get failed; falling back to Supabase:", error);
+      console.warn("[venue rating aggregate] Redis get failed; falling back to Neon:", error);
     }
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("venue_ratings")
-    .select("rating")
-    .eq("venue_id", normalizedVenueId);
+  const rows = await sql`
+    SELECT rating
+    FROM venue_ratings
+    WHERE venue_id = ${normalizedVenueId}
+  `;
 
-  if (error) throw error;
-
-  const aggregate = summarizeRatings((data ?? []) as Array<{ rating: unknown }>);
+  const aggregate = summarizeRatings(rows as Array<{ rating: unknown }>);
 
   if (redis) {
     try {

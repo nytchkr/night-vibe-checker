@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { getClientIp } from "@/lib/apiSecurity";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import type { APIResponse } from "@/types";
@@ -69,16 +70,12 @@ export async function POST(
     );
   }
 
-  const { data, error } = await supabaseAdmin.rpc("increment_venue_tip_helpful", { tip_id: parsed.data });
-  const row = Array.isArray(data) ? data[0] : null;
-
-  if (error) {
-    console.error("[tip-helpful POST] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not mark tip helpful." }, meta: responseMeta },
-      { status: 500 },
-    );
-  }
+  const [row] = (await sql`
+    UPDATE venue_tips
+    SET helpful_count = COALESCE(helpful_count, 0) + 1
+    WHERE id = ${parsed.data}
+    RETURNING id, helpful_count
+  `) as Array<{ id: string; helpful_count: number }>;
 
   if (!row) {
     return NextResponse.json<APIResponse<never>>(

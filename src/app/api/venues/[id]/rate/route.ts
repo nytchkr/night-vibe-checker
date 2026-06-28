@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
@@ -31,16 +33,6 @@ function missingConfigResponse(error: unknown): NextResponse<APIResponse<never>>
   return errorJson("MISSING_ENV", "Server configuration is incomplete.", 503);
 }
 
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
 function averageRating(rows: Array<{ rating: unknown }>): number {
   const ratings = rows
     .map((row) => Number(row.rating))
@@ -63,7 +55,7 @@ export async function POST(
     throw error;
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return errorJson("UNAUTHORIZED", "Login required to rate this venue.", 401);
   }
@@ -86,27 +78,19 @@ export async function POST(
     return errorJson("VALIDATION_ERROR", "Rating must be a number from 1 to 5.", 400);
   }
 
-  const { error: upsertError } = await supabaseAdmin
-    .from("venue_ratings")
-    .upsert(
-      { venue_id: venueId, user_id: userId, rating: parsed.data.rating },
-      { onConflict: "venue_id,user_id" },
-    );
+  await sql`
+    INSERT INTO venue_ratings (venue_id, user_id, rating)
+    VALUES (${venueId}, ${userId}, ${parsed.data.rating})
+    ON CONFLICT (venue_id, user_id) DO UPDATE SET rating = EXCLUDED.rating
+  `;
 
-  if (upsertError) {
-    return errorJson("DB_ERROR", "Could not save venue rating.", 500);
-  }
+  const data = await sql`
+    SELECT rating
+    FROM venue_ratings
+    WHERE venue_id = ${venueId}
+  `;
 
-  const { data, error: averageError } = await supabaseAdmin
-    .from("venue_ratings")
-    .select("rating")
-    .eq("venue_id", venueId);
-
-  if (averageError) {
-    return errorJson("DB_ERROR", "Could not load venue rating average.", 500);
-  }
-
-  const response = { ok: true, avg_rating: averageRating((data ?? []) as Array<{ rating: unknown }>) };
+  const response = { ok: true, avg_rating: averageRating(data as Array<{ rating: unknown }>) };
 
   return json({ status: "success", ...response, data: response, meta: meta() });
 }

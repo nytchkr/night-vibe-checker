@@ -4,10 +4,9 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/auth-helpers-nextjs";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
@@ -30,38 +29,8 @@ type VenueAlertStateResponse = APIResponse<{ venueId: string; alerting: boolean 
   alerting: boolean;
 };
 
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
-async function getCookieUserId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll().map(({ name, value }) => ({ name, value })),
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
-
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user.id ?? null;
-}
-
 async function getUserId(req: NextRequest): Promise<string | null> {
-  return (await getCookieUserId()) ?? (await getBearerUserId(req.headers.get("Authorization")));
+  return getAuthenticatedUserId(req);
 }
 
 function responseMeta(): ResponseMeta {

@@ -1,7 +1,8 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 
 const TRACK_RATE_LIMIT_MAX = 30;
@@ -63,18 +64,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: parsed.error.errors.map((error) => error.message).join("; ") }, { status: 400, headers });
   }
 
-  const { error } = await supabaseAdmin.from("analytics_events").insert({
-    event: parsed.data.event,
-    venue_id: parsed.data.venueId ?? null,
-    user_id: null,
-    ip_hash: hashIp(ip),
-    meta: parsed.data.meta ?? null,
-  });
-
-  if (error) {
-    console.error("[track] insert failed:", error);
-    return NextResponse.json({ error: "Could not record event." }, { status: 500, headers });
-  }
+  await sql`
+    INSERT INTO analytics_events (event, venue_id, user_id, ip_hash, meta)
+    VALUES (
+      ${parsed.data.event},
+      ${parsed.data.venueId ?? null},
+      NULL,
+      ${hashIp(ip)},
+      ${JSON.stringify(parsed.data.meta ?? null)}::jsonb
+    )
+  `;
 
   return new NextResponse(null, { status: 204, headers });
 }

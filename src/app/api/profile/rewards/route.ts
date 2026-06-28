@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { computeLevel } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
@@ -12,17 +14,6 @@ type RewardsResponse = {
   confirmed_checkins: number;
 };
 
-async function getBearerUserId(req: NextRequest): Promise<string | null> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
 export async function GET(req: NextRequest): Promise<NextResponse<RewardsResponse | { error: string }>> {
   try {
     assertSupabaseServerEnv();
@@ -33,21 +24,17 @@ export async function GET(req: NextRequest): Promise<NextResponse<RewardsRespons
     throw error;
   }
 
-  const userId = await getBearerUserId(req);
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabaseAdmin
-    .from("user_scores")
-    .select("points_total, level, streak_count, trusted_reporter, confirmed_checkins")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const rows = (await sql`
+    SELECT points_total, level, streak_count, trusted_reporter, confirmed_checkins
+    FROM user_scores
+    WHERE user_id = ${userId}
+    LIMIT 1
+  `) as Array<Partial<RewardsResponse>>;
 
-  if (error) {
-    console.error("[profile/rewards GET] DB error:", error);
-    return NextResponse.json({ error: "Could not load rewards." }, { status: 500 });
-  }
-
-  if (!data) {
+  if (!rows[0]) {
     return NextResponse.json({
       points_total: 0,
       level: "newcomer",
@@ -57,6 +44,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<RewardsRespons
     });
   }
 
+  const data = rows[0];
   const confirmedCheckins = Number(data.confirmed_checkins ?? 0);
   return NextResponse.json({
     points_total: Number(data.points_total ?? 0),

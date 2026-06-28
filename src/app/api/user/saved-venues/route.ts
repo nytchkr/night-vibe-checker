@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 
 export const dynamic = "force-dynamic";
@@ -37,40 +38,8 @@ type SavedVenuesResponse = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-async function getCookieUserId(req: NextRequest): Promise<string | null> {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => req.cookies.getAll(),
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
-
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
-async function getBearerUserId(req: NextRequest): Promise<string | null> {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
 async function getUserId(req: NextRequest): Promise<string | null> {
-  return (await getCookieUserId(req)) ?? (await getBearerUserId(req));
+  return getAuthenticatedUserId(req);
 }
 
 function missingConfigResponse(error: unknown): NextResponse<{ error: string }> | null {
@@ -84,23 +53,23 @@ async function loadVenues(savedVenueIds: string[]): Promise<Map<string, VenueRow
   const uuidIds = savedVenueIds.filter((id) => UUID_RE.test(id));
 
   if (uuidIds.length > 0) {
-    const { data, error } = await supabaseAdmin
-      .from("venues")
-      .select("id,place_id,name,category,venue_type,open_now,opening_hours,photo_url,photo_urls")
-      .in("id", uuidIds);
-    if (error) throw error;
-    for (const venue of (data ?? []) as VenueRow[]) {
+    const data = (await sql`
+      SELECT id, place_id, name, category, venue_type, open_now, opening_hours, photo_url, photo_urls
+      FROM venues
+      WHERE id = ANY(${uuidIds}::uuid[])
+    `) as VenueRow[];
+    for (const venue of data) {
       venueMap.set(venue.id, venue);
       if (venue.place_id) venueMap.set(venue.place_id, venue);
     }
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("venues")
-    .select("id,place_id,name,category,venue_type,open_now,opening_hours,photo_url,photo_urls")
-    .in("place_id", savedVenueIds);
-  if (error) throw error;
-  for (const venue of (data ?? []) as VenueRow[]) {
+  const data = (await sql`
+    SELECT id, place_id, name, category, venue_type, open_now, opening_hours, photo_url, photo_urls
+    FROM venues
+    WHERE place_id = ANY(${savedVenueIds}::text[])
+  `) as VenueRow[];
+  for (const venue of data) {
     venueMap.set(venue.id, venue);
     if (venue.place_id) venueMap.set(venue.place_id, venue);
   }
@@ -138,19 +107,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<SavedVenuesRes
   const userId = await getUserId(req);
   if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
-  const { data: savedRows, error: savedError } = await supabaseAdmin
-    .from("saved_venues")
-    .select("venue_id,created_at")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(5);
+  const savedRows = await sql`
+    SELECT venue_id, created_at
+    FROM saved_venues
+    WHERE user_id = ${userId}
+    ORDER BY created_at DESC
+    LIMIT 5
+  `;
 
-  if (savedError) {
-    console.error("[user/saved-venues GET] saved_venues DB error:", savedError);
-    return NextResponse.json({ error: "Could not fetch saved venues." }, { status: 500 });
-  }
-
-  const rows = (savedRows ?? []) as SavedVenueRow[];
+  const rows = savedRows as SavedVenueRow[];
   const venueIds = rows.map((row) => row.venue_id).filter(Boolean);
   const venuesById = venueIds.length > 0 ? await loadVenues(venueIds) : new Map<string, VenueRow>();
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { track } from "@vercel/analytics";
 import { button as MotionButton } from "framer-motion/client";
 import { Share2 } from "lucide-react";
@@ -33,11 +34,6 @@ const BUSYNESS_OPTIONS: BusynessOption[] = [
   { value: "moderate", label: "Moderate", submitValue: "moderate", crowdLevel: "moderate", accent: "#FFB020", ring: "rgba(255,176,32,0.14)" },
   { value: "packed", label: "Packed", submitValue: "packed", crowdLevel: "packed", accent: "#FF5B6A", ring: "rgba(255,91,106,0.14)" },
 ];
-
-async function getSupabaseBrowserClient() {
-  const { createBrowserClient } = await import("@/lib/supabase-browser");
-  return createBrowserClient();
-}
 
 const CROWD_OPTIONS: {
   value: CrowdCompositionFeel;
@@ -171,6 +167,7 @@ export default function VibeCheckClient({
   returnPath,
 }: VibeCheckClientProps) {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const haptic = useHaptic();
   const prefersReduced = useReducedMotion();
 
@@ -198,25 +195,12 @@ export default function VibeCheckClient({
   const [submitError, setSubmitError] = useState<{ type: "duplicate" | "generic"; msg: string } | null>(null);
   const [submittedSignal, setSubmittedSignal] = useState<VenueSignal | null>(null);
 
-  // Client-side auth gate — redirect unauthenticated users to login.
+  // Client-side auth gate — redirect unauthenticated users to sign-in.
   useEffect(() => {
-    let cancelled = false;
-
-    void getSupabaseBrowserClient()
-      .then((client) => client.auth.getSession())
-      .then(({ data }) => {
-        if (!cancelled && !data.session?.access_token) {
-          router.replace(`/login?return=${encodeURIComponent(returnPath)}`);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) router.replace(`/login?return=${encodeURIComponent(returnPath)}`);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [router, returnPath]);
+    if (status === "unauthenticated") {
+      router.replace(`/sign-in?return=${encodeURIComponent(returnPath)}`);
+    }
+  }, [router, returnPath, status]);
 
   useEffect(() => {
     if (venueId) return;
@@ -315,13 +299,8 @@ export default function VibeCheckClient({
     setSubmitError(null);
 
     try {
-      const client = await getSupabaseBrowserClient();
-      const { data: sessionData } = await client.auth.getSession();
-      const token = sessionData.session?.access_token;
-
-      if (!token) {
-        // Auth gate — redirect to login with return URL
-        router.push(`/login?return=${encodeURIComponent(returnPath)}`);
+      if (!session?.user?.id) {
+        router.push(`/sign-in?return=${encodeURIComponent(returnPath)}`);
         return;
       }
 
@@ -329,8 +308,8 @@ export default function VibeCheckClient({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           venueId: effectiveVenueId || undefined,
           venueName: effectiveVenueName || undefined,
@@ -381,6 +360,7 @@ export default function VibeCheckClient({
     note,
     returnPath,
     router,
+    session?.user?.id,
     selectedBusyness,
     haptic,
     genderSelfReport,

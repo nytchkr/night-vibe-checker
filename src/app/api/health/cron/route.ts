@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedCronRequest } from "@/lib/apiSecurity";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -35,23 +35,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("cron_runs")
-    .select("job_name, ran_at")
-    .in(
-      "job_name",
-      JOBS.map((job) => job.name)
-    )
-    .order("ran_at", { ascending: false })
-    .limit(100);
-
-  if (error) {
-    console.error("[health/cron] cron_runs query failed:", error);
-    return NextResponse.json(
-      { error: "Could not load cron health." },
-      { status: 500, headers: NO_STORE_HEADERS }
-    );
-  }
+  const data = await sql`
+    SELECT job_name, ran_at
+    FROM cron_runs
+    WHERE job_name = ANY(${JOBS.map((job) => job.name)}::text[])
+    ORDER BY ran_at DESC
+    LIMIT 100
+  `;
 
   const latestRunByJob = new Map<JobName, string>();
   for (const row of (data ?? []) as CronRunRow[]) {

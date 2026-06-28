@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { User } from "@supabase/supabase-js";
+import { getAuthenticatedUser } from "@/lib/apiAuth";
 import { stripe } from "@/lib/stripe";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +19,9 @@ type ErrorResponse = {
 
 export async function POST(req: NextRequest): Promise<NextResponse<PortalResponse | ErrorResponse>> {
   try {
-    assertSupabaseServerEnv();
     assertStripePortalEnv();
   } catch (error) {
-    if (error instanceof MissingSupabaseEnvError || error instanceof MissingStripeEnvError) {
+    if (error instanceof MissingStripeEnvError) {
       return NextResponse.json(
         { error: "Server configuration is incomplete." },
         { status: 503, headers: NO_STORE_HEADERS },
@@ -31,7 +30,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<PortalRespons
     throw error;
   }
 
-  const user = await getBearerUser(req.headers.get("Authorization"));
+  const user = await getAuthenticatedUser();
   if (!user) {
     return NextResponse.json(
       { error: "Authentication required." },
@@ -64,33 +63,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<PortalRespons
   }
 }
 
-async function getBearerUser(authHeader: string | null): Promise<User | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user;
-}
-
-function readStripeCustomerId(user: User): string | null {
-  const value = user.app_metadata?.stripe_customer_id;
-  return typeof value === "string" && value.startsWith("cus_") ? value : null;
-}
-
-async function getStripeCustomerId(user: User): Promise<string | null> {
-  const metadataCustomerId = readStripeCustomerId(user);
-  if (metadataCustomerId) return metadataCustomerId;
-
-  const { data, error } = await supabaseAdmin
-    .from("users")
-    .select("stripe_customer_id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error) return null;
-  const value = (data as { stripe_customer_id?: unknown } | null)?.stripe_customer_id;
+async function getStripeCustomerId(user: { id: string }): Promise<string | null> {
+  const rows = (await sql`
+    SELECT stripe_customer_id
+    FROM users
+    WHERE id = ${user.id}
+    LIMIT 1
+  `) as Array<{ stripe_customer_id?: unknown }>;
+  const value = rows[0]?.stripe_customer_id;
   return typeof value === "string" && value.startsWith("cus_") ? value : null;
 }
 

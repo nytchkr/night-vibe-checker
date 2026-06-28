@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -53,12 +53,29 @@ async function updateUserByCustomer(
   customerId: string,
   values: UserSubscriptionUpdate,
 ): Promise<{ error: Error | null }> {
-  const { error } = await supabaseAdmin
-    .from("users")
-    .update(values)
-    .eq("stripe_customer_id", customerId);
-
-  return { error: error ? new Error(error.message) : null };
+  try {
+    await sql`
+      UPDATE users
+      SET
+        pro = CASE WHEN ${Object.hasOwn(values, "pro")} THEN ${values.pro ?? false} ELSE pro END,
+        stripe_subscription_id = CASE
+          WHEN ${Object.hasOwn(values, "stripe_subscription_id")} THEN ${values.stripe_subscription_id ?? null}
+          ELSE stripe_subscription_id
+        END,
+        subscription_status = CASE
+          WHEN ${Object.hasOwn(values, "subscription_status")} THEN ${values.subscription_status ?? null}
+          ELSE subscription_status
+        END,
+        subscription_current_period_end = CASE
+          WHEN ${Object.hasOwn(values, "subscription_current_period_end")} THEN ${values.subscription_current_period_end ?? null}
+          ELSE subscription_current_period_end
+        END
+      WHERE stripe_customer_id = ${customerId}
+    `;
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
 }
 
 async function handleSubscriptionCreated(subscription: Stripe.Subscription): Promise<void> {

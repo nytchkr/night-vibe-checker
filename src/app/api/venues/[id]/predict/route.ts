@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchBestTimeDayRawForecast, type BestTimeDayForecast } from "@/lib/besttime";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import type {
   PredictionConfidenceLabel,
@@ -144,17 +144,15 @@ function normalizePredictions(
 
 async function fetchRecentCheckIns(venueId: string): Promise<CheckInRow[]> {
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, busyness, crowd_feel, note, gender, gender_self_report, created_at")
-    .eq("venue_id", venueId)
-    .eq("hidden", false)
-    .gte("created_at", cutoff)
-    .order("created_at", { ascending: false })
-    .limit(100);
-
-  if (error) throw error;
-  return (data ?? []) as CheckInRow[];
+  return (await sql`
+    SELECT id, busyness, crowd_feel, note, gender, gender_self_report, created_at
+    FROM check_ins
+    WHERE venue_id = ${venueId}
+      AND hidden = false
+      AND created_at >= ${cutoff}
+    ORDER BY created_at DESC
+    LIMIT 100
+  `) as CheckInRow[];
 }
 
 async function fetchBestTimeForecast(venue: VenuePredictionRow): Promise<BestTimeDayForecast | null> {

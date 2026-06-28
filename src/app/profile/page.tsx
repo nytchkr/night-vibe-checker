@@ -1,18 +1,16 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { signIn, signOut, useSession } from "next-auth/react";
 import { Heart, LogOut, Mail } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSavedVenues, type SavedVenue } from "@/hooks/useSavedVenues";
 import { getBusynessState } from "@/lib/busyness";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 function ProfileSkeleton() {
   return (
@@ -99,17 +97,11 @@ function SavedVenueCard({
 }
 
 function LoggedOutState({
-  email,
-  status,
   submitting,
-  onEmailChange,
-  onSubmit,
+  onSignIn,
 }: {
-  email: string;
-  status: string | null;
   submitting: boolean;
-  onEmailChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSignIn: () => void;
 }) {
   return (
     <section className="flex min-h-[calc(100dvh-9rem)] flex-col justify-center">
@@ -122,79 +114,28 @@ function LoggedOutState({
       </div>
 
       <Card className="mt-7 rounded-[8px] border-white/[0.08] bg-[#14141A] p-4">
-        <form className="space-y-3" onSubmit={onSubmit}>
-          <Input
-            type="email"
-            value={email}
-            onChange={(event) => onEmailChange(event.target.value)}
-            autoComplete="email"
-            placeholder="you@example.com"
-            aria-label="Email address"
-            required
-            className="h-12 rounded-[8px] border-white/10 bg-[#0A0A0E] text-white placeholder:text-white/32 focus-visible:ring-[#00F5D4]/70"
-          />
-          <Button
-            type="submit"
-            disabled={submitting}
-            className="h-12 w-full rounded-[8px] bg-[#8B6CFF] text-sm font-black text-white hover:bg-[#9B82FF] focus-visible:ring-[#8B6CFF]/70"
-          >
-            {submitting ? "Sending link..." : "Send magic link"}
-          </Button>
-        </form>
-        {status && <p className="mt-3 text-sm font-semibold text-[#00F5D4]">{status}</p>}
+        <Button
+          type="button"
+          disabled={submitting}
+          onClick={onSignIn}
+          className="h-12 w-full rounded-[8px] bg-[#8B6CFF] text-sm font-black text-white hover:bg-[#9B82FF] focus-visible:ring-[#00F5D4]/70"
+        >
+          {submitting ? "Connecting..." : "Continue with Google"}
+        </Button>
       </Card>
     </section>
   );
 }
 
 export default function ProfilePage() {
-  const supabaseBrowser = useMemo(() => createBrowserClient(), []);
+  const { data: session, status } = useSession();
   const { loading: savedLoading, refresh, savedVenues } = useSavedVenues();
-  const [session, setSession] = useState<Session | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [email, setEmail] = useState("");
-  const [authStatus, setAuthStatus] = useState<string | null>(null);
   const [submittingEmail, setSubmittingEmail] = useState(false);
   const [unsavingId, setUnsavingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function initAuth() {
-      const { data } = await supabaseBrowser.auth.getSession();
-      if (cancelled) return;
-      setSession(data.session);
-      setAuthChecked(true);
-    }
-
-    void initAuth();
-
-    const {
-      data: { subscription },
-    } = supabaseBrowser.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setAuthChecked(true);
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, [supabaseBrowser]);
-
-  async function handleMagicLinkSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSignIn() {
     setSubmittingEmail(true);
-    setAuthStatus(null);
-
-    const redirectTo = `${window.location.origin}/auth/callback?return=/profile`;
-    const { error } = await supabaseBrowser.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo },
-    });
-
-    setSubmittingEmail(false);
-    setAuthStatus(error ? "Could not send the link. Try again." : "Check your email for a magic link.");
+    await signIn("google", { callbackUrl: "/profile" });
   }
 
   async function handleUnsave(venueId: string) {
@@ -205,9 +146,9 @@ export default function ProfilePage() {
       await fetch("/api/saved-venues", {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ venueId }),
       });
       await refresh();
@@ -217,26 +158,22 @@ export default function ProfilePage() {
   }
 
   async function handleSignOut() {
-    await supabaseBrowser.auth.signOut();
-    setSession(null);
+    await signOut({ callbackUrl: "/" });
   }
 
   return (
     <PageTransition>
       <main className="mx-auto min-h-screen-safe w-full max-w-5xl bg-[#0A0A0E] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 text-white">
-        {!authChecked && <ProfileSkeleton />}
+        {status === "loading" && <ProfileSkeleton />}
 
-        {authChecked && !session && (
+        {status === "unauthenticated" && (
           <LoggedOutState
-            email={email}
-            status={authStatus}
             submitting={submittingEmail}
-            onEmailChange={setEmail}
-            onSubmit={(event) => void handleMagicLinkSubmit(event)}
+            onSignIn={() => void handleSignIn()}
           />
         )}
 
-        {authChecked && session && (
+        {status === "authenticated" && session && (
           <div className="space-y-6">
             <header className="flex items-start justify-between gap-4">
               <h1 className="text-3xl font-black tracking-tight text-white">Your saved spots</h1>

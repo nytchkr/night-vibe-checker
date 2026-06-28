@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
@@ -204,7 +204,7 @@ function isMissingContactColumn(error: unknown): boolean {
 }
 
 async function loadVenueRows(
-  select: string,
+  _select: string,
   params: {
     category: string | null;
     zoneId: string | null;
@@ -212,30 +212,21 @@ async function loadVenueRows(
   }
 ): Promise<VenueQueryResult> {
   const zoneIds = params.zoneId ? [params.zoneId] : LAUNCH_ZONE_IDS;
-  let query = supabaseAdmin
-    .from("venues")
-    .select(select)
-    .in("zone_id", zoneIds)
-    .eq("hidden", false);
+  if (params.searchIds?.length === 0) return { data: [], error: null };
 
-  if (params.category) {
-    query = query.ilike("category", params.category);
-  }
+  const rows = await sql`
+    SELECT v.*, to_jsonb(vs) AS venue_signals
+    FROM venues v
+    LEFT JOIN venue_signals vs ON vs.venue_id = v.id
+    WHERE v.zone_id = ANY(${zoneIds}::text[])
+      AND COALESCE(v.hidden, false) = false
+      AND (${params.category}::text IS NULL OR v.category ILIKE ${params.category})
+      AND (${params.searchIds}::uuid[] IS NULL OR v.id = ANY(${params.searchIds}::uuid[]))
+    ORDER BY v.name ASC
+    LIMIT 100
+  `;
 
-  if (params.searchIds) {
-    if (params.searchIds.length === 0) {
-      return { data: [], error: null };
-    }
-    query = query.in("id", params.searchIds);
-  } else {
-    query = query.order("name", { ascending: true });
-  }
-
-  const result = await query.limit(100);
-  return {
-    data: result.data as Record<string, unknown>[] | null,
-    error: result.error,
-  };
+  return { data: rows as Record<string, unknown>[], error: null };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
@@ -275,29 +266,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     let searchIds: string[] | null = null;
 
     if (searchQuery) {
-      const { data: searchRows, error: searchError } = await supabaseAdmin.rpc("search_venue_ids", {
-        search_query: searchQuery,
-        search_zone_id: zoneId,
-        search_category: category,
-        center_lat: hasRadiusFilter ? lat : null,
-        center_lng: hasRadiusFilter ? lng : null,
-        radius_m: hasRadiusFilter ? radiusMeters : null,
-        max_results: 100,
-      });
+      const searchRows = (await sql`
+        SELECT
+          id,
+          ts_rank_cd(search_vector, plainto_tsquery('english', ${searchQuery})) AS search_rank
+        FROM venues
+        WHERE COALESCE(hidden, false) = false
+          AND (${zoneId}::text IS NULL OR zone_id = ${zoneId})
+          AND (${category}::text IS NULL OR category ILIKE ${category})
+          AND (
+            search_vector @@ plainto_tsquery('english', ${searchQuery})
+            OR name ILIKE ${`%${searchQuery}%`}
+            OR address ILIKE ${`%${searchQuery}%`}
+          )
+        ORDER BY search_rank DESC NULLS LAST, name ASC
+        LIMIT 100
+      `) as VenueSearchRow[];
 
-      if (searchError) {
-        console.error("[venues] search DB error:", searchError);
-        return NextResponse.json<APIResponse<never>>(
-          {
-            status: "error",
-            error: { code: "DB_ERROR", message: "Could not search cached venues." },
-            meta: { cached: true, generatedAt, requestId },
-          },
-          { status: 500, headers }
-        );
-      }
-
-      const rankedRows = ((searchRows ?? []) as VenueSearchRow[]).filter((row) => row.id);
+      const rankedRows = searchRows.filter((row) => row.id);
       searchIds = rankedRows.map((row) => row.id);
       searchRankById = new Map(rankedRows.map((row) => [row.id, Number(row.search_rank ?? 0)]));
 

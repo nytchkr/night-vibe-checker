@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 
 const TIME_ZONE = "America/New_York";
 const UPDATE_BATCH_SIZE = 100;
@@ -198,28 +198,28 @@ export function inferCanonicalOpenNow({
 }
 
 export async function refreshOpenNow() {
-  const { data: venues, error } = await supabaseAdmin
-    .from("venues")
-    .select("id, category, opening_hours")
-    .eq("hidden", false)
-    .order("id", { ascending: true });
-
-  if (error) throw new Error(`refreshOpenNow fetch failed: ${JSON.stringify(error)}`);
+  const venues = (await sql`
+    SELECT id, category, opening_hours
+    FROM venues
+    WHERE COALESCE(hidden, false) = false
+    ORDER BY id ASC
+  `) as VenueOpenNowRow[];
 
   const charlotteTime = getCharlotteTimeParts();
-  const rows = (venues ?? []) as VenueOpenNowRow[];
+  const rows = venues;
   let updated = 0;
 
   for (let index = 0; index < rows.length; index += UPDATE_BATCH_SIZE) {
     const batch = rows.slice(index, index + UPDATE_BATCH_SIZE);
-    const updateRows = batch.map((venue) => ({
-      id: venue.id,
-      open_now: inferOpenNow(venue.category, charlotteTime, venue.opening_hours),
-    }));
-    const { error: updateError } = await supabaseAdmin.from("venues").upsert(updateRows, {
-      onConflict: "id",
-    });
-    if (updateError) throw new Error(`refreshOpenNow update failed: ${JSON.stringify(updateError)}`);
+    await Promise.all(
+      batch.map((venue) =>
+        sql`
+          UPDATE venues
+          SET open_now = ${inferOpenNow(venue.category, charlotteTime, venue.opening_hours)}
+          WHERE id = ${venue.id}
+        `,
+      ),
+    );
     updated += batch.length;
   }
 

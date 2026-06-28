@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
-
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
 
 function json<T>(body: APIResponse<T>, init?: ResponseInit): NextResponse<APIResponse<T>> {
   return NextResponse.json(body, init);
@@ -36,7 +28,7 @@ export async function DELETE(
     throw error;
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return json<never>(
       { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to manage venue alerts." }, meta },
@@ -53,18 +45,11 @@ export async function DELETE(
     );
   }
 
-  const { error } = await supabaseAdmin
-    .from("push_venue_alerts")
-    .delete()
-    .eq("user_id", userId)
-    .eq("venue_id", venueId);
-
-  if (error) {
-    return json<never>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not remove venue alert." }, meta },
-      { status: 500 },
-    );
-  }
+  await sql`
+    DELETE FROM push_venue_alerts
+    WHERE user_id = ${userId}
+      AND venue_id = ${venueId}
+  `;
 
   return json({ status: "success", data: { venueId, alerting: false }, meta });
 }

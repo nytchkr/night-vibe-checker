@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
@@ -74,16 +76,6 @@ function missingSupabaseConfigResponse(
     { status: "error", error: { code: "MISSING_ENV", message: "Server configuration is incomplete." }, meta: responseMeta },
     { status: 503 },
   );
-}
-
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
 }
 
 async function resolveVenueId(venueIdOrPlaceId: string): Promise<string | null> {
@@ -305,7 +297,7 @@ export async function POST(
     );
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return NextResponse.json<APIResponse<never>>(
       { status: "error", error: { code: "UNAUTHORIZED", message: "Login required to share a tip." }, meta: responseMeta },
@@ -348,19 +340,11 @@ export async function POST(
     );
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("venue_tips")
-    .insert({ venue_id: venueId, user_id: userId, tip_text: parsed.data.tip_text, tip: parsed.data.tip_text })
-    .select("id, venue_id, user_id, tip_text, helpful_count, created_at")
-    .single();
-
-  if (error || !data) {
-    console.error("[venue-tips POST] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save venue tip." }, meta: responseMeta },
-      { status: 500 },
-    );
-  }
+  const [data] = (await sql`
+    INSERT INTO venue_tips (venue_id, user_id, tip_text, tip)
+    VALUES (${venueId}, ${userId}, ${parsed.data.tip_text}, ${parsed.data.tip_text})
+    RETURNING id, venue_id, user_id, tip_text, helpful_count, created_at
+  `) as Array<Record<string, unknown>>;
 
   return NextResponse.json(mapTip(data as Record<string, unknown>), { status: 201, headers });
 }

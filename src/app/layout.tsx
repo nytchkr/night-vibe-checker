@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
 import Script from "next/script";
+import { AuthSessionProvider } from "@/components/AuthSessionProvider";
 import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
@@ -135,26 +136,28 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </span>
           </div>
         )}
-        <ToastProvider>
-          <div className="app-shell h-screen-safe">
-            <RoutePrefetch href="/map" />
-            <RoutePrefetch href="/explore" />
-            <RoutePrefetch href="/saved" />
-            <SidebarNav />
-            <OnboardingGateProvider>
-              <main
-                id="main-content"
-                tabIndex={-1}
-                className={`app-content scroll-touch ${isDev ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-5 lg:pb-0 lg:pt-0" : "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"}`}
-              >
-                {children}
-              </main>
-              <OnboardingWizard />
-            </OnboardingGateProvider>
-          </div>
-          <PWAInstallPrompt />
-          <BottomNav />
-        </ToastProvider>
+        <AuthSessionProvider>
+          <ToastProvider>
+            <div className="app-shell h-screen-safe">
+              <RoutePrefetch href="/map" />
+              <RoutePrefetch href="/explore" />
+              <RoutePrefetch href="/saved" />
+              <SidebarNav />
+              <OnboardingGateProvider>
+                <main
+                  id="main-content"
+                  tabIndex={-1}
+                  className={`app-content scroll-touch ${isDev ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-5 lg:pb-0 lg:pt-0" : "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"}`}
+                >
+                  {children}
+                </main>
+                <OnboardingWizard />
+              </OnboardingGateProvider>
+            </div>
+            <PWAInstallPrompt />
+            <BottomNav />
+          </ToastProvider>
+        </AuthSessionProvider>
         <Script id="service-worker-registration" nonce={nonce} strategy="afterInteractive">
           {`if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`}
         </Script>

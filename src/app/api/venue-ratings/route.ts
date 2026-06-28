@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 // Uses service role — bypasses RLS intentionally for server-side validation and writes.
@@ -35,16 +37,6 @@ function meta() {
 
 function json<T>(body: APIResponse<T>, init?: ResponseInit): NextResponse<APIResponse<T>> {
   return NextResponse.json(body, init);
-}
-
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
 }
 
 function missingConfigResponse(error: unknown, headers?: HeadersInit): NextResponse<APIResponse<never>> | null {
@@ -100,37 +92,28 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("venue_ratings")
-    .select("rating")
-    .eq("venue_id", venueId.data);
+  const data = await sql`
+    SELECT rating
+    FROM venue_ratings
+    WHERE venue_id = ${venueId.data}
+  `;
 
-  if (error) {
-    return json<never>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch venue ratings." }, meta: meta() },
-      { status: 500, headers: PRIVATE_CACHE_HEADERS },
-    );
-  }
+  const summary = summarizeRatings(data as Array<{ rating: unknown }>);
 
-  const summary = summarizeRatings((data ?? []) as Array<{ rating: unknown }>);
-
-  const authHeader = req.headers.get("Authorization");
-  const hasBearer = Boolean(authHeader?.startsWith("Bearer ") && authHeader.slice(7).trim());
-  const responseHeaders = hasBearer ? PRIVATE_CACHE_HEADERS : EDGE_CACHE_HEADERS;
+  const userId = await getAuthenticatedUserId(req);
+  const responseHeaders = userId ? PRIVATE_CACHE_HEADERS : EDGE_CACHE_HEADERS;
 
   let userRating: number | null = null;
-  if (hasBearer) {
-    const userId = await getBearerUserId(authHeader);
-    if (userId) {
-      const { data: userRow } = await supabaseAdmin
-        .from("venue_ratings")
-        .select("rating")
-        .eq("venue_id", venueId.data)
-        .eq("user_id", userId)
-        .maybeSingle();
+  if (userId) {
+    const [userRow] = (await sql`
+      SELECT rating
+      FROM venue_ratings
+      WHERE venue_id = ${venueId.data}
+        AND user_id = ${userId}
+      LIMIT 1
+    `) as Array<{ rating?: unknown }>;
 
-      userRating = normalizeStoredRating(userRow?.rating);
-    }
+    userRating = normalizeStoredRating(userRow?.rating);
   }
 
   const responseData: VenueRatingsData = { ...summary, userRating };
@@ -150,7 +133,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     throw error;
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) {
     return json<never>(
       {
@@ -228,16 +211,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  const { error } = await supabaseAdmin
-    .from("venue_ratings")
-    .upsert({ venue_id: venueId, user_id: userId, rating }, { onConflict: "venue_id,user_id" });
-
-  if (error) {
-    return json<never>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save venue rating." }, meta: meta() },
-      { status: 500 },
-    );
-  }
+  await sql`
+    INSERT INTO venue_ratings (venue_id, user_id, rating)
+    VALUES (${venueId}, ${userId}, ${rating})
+    ON CONFLICT (venue_id, user_id) DO UPDATE SET rating = EXCLUDED.rating
+  `;
 
   return json({ status: "success", data: { venue_id: venueId, user_id: userId, rating }, meta: meta() });
 }

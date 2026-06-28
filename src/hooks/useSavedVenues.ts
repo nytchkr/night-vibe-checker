@@ -1,14 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import type { ConsumerVenue } from "@/types";
 
 export const SAVED_VENUES_EVENT = "nytchkr:saved-venues-changed";
-
-async function getSupabaseBrowserClient() {
-  const { createBrowserClient } = await import("@/lib/supabase-browser");
-  return createBrowserClient();
-}
 
 type SavedVenuesResponse = {
   place_ids?: string[];
@@ -91,24 +87,18 @@ function readSavedVenues(json: SavedVenuesResponse): SavedVenue[] {
 }
 
 export function useSavedVenues() {
+  const { data: session, status } = useSession();
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
   const [savedVenues, setSavedVenues] = useState<SavedVenue[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const getAccessToken = useCallback(async () => {
-    const client = await getSupabaseBrowserClient();
-    const { data } = await client.auth.getSession();
-    return data.session?.access_token ?? null;
-  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const token = await getAccessToken();
-      if (!token) {
+      if (!session?.user?.id) {
         setSavedIds(new Set());
         setSavedVenues([]);
         setError("Sign in to view your saved venues.");
@@ -116,7 +106,7 @@ export function useSavedVenues() {
       }
 
       const res = await fetch("/api/venues/saved", {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
 
       if (!res.ok) {
@@ -136,25 +126,12 @@ export function useSavedVenues() {
     } finally {
       setLoading(false);
     }
-  }, [getAccessToken]);
+  }, [session?.user?.id]);
 
   useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
+    if (status === "loading") return;
 
     void refresh();
-
-    void getSupabaseBrowserClient()
-      .then((client) => {
-        if (cancelled) return;
-        const {
-          data: { subscription },
-        } = client.auth.onAuthStateChange(() => {
-          void refresh();
-        });
-        unsubscribe = () => subscription.unsubscribe();
-      })
-      .catch(() => undefined);
 
     function handleSavedVenuesChanged() {
       void refresh();
@@ -163,17 +140,14 @@ export function useSavedVenues() {
     window.addEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
 
     return () => {
-      cancelled = true;
-      unsubscribe?.();
       window.removeEventListener(SAVED_VENUES_EVENT, handleSavedVenuesChanged);
     };
-  }, [refresh]);
+  }, [refresh, status]);
 
   const isSaved = useCallback((placeId: string) => savedIds.has(placeId), [savedIds]);
 
   const refreshVenueSavedState = useCallback(async (placeId: string) => {
-    const token = await getAccessToken();
-    if (!token) {
+    if (!session?.user?.id) {
       setSavedIds((current) => {
         const next = new Set(current);
         next.delete(placeId);
@@ -183,7 +157,7 @@ export function useSavedVenues() {
     }
 
     const res = await fetch(`/api/venues/${encodeURIComponent(placeId)}/save`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include",
     });
 
     if (!res.ok) return null;
@@ -205,11 +179,10 @@ export function useSavedVenues() {
     });
 
     return saved;
-  }, [getAccessToken]);
+  }, [session?.user?.id]);
 
   const toggle = useCallback(async (placeId: string) => {
-    const token = await getAccessToken();
-    if (!token) {
+    if (!session?.user?.id) {
       throw new Error("AUTH_REQUIRED");
     }
 
@@ -229,9 +202,9 @@ export function useSavedVenues() {
       const res = await fetch(`/api/venues/${encodeURIComponent(placeId)}/save`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({}),
       });
 
@@ -264,7 +237,7 @@ export function useSavedVenues() {
       });
       throw error;
     }
-  }, [getAccessToken, savedIds]);
+  }, [savedIds, session?.user?.id]);
 
   return { error, isSaved, loading, refresh, refreshVenueSavedState, savedIds, savedVenues, toggle };
 }

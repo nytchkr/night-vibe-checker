@@ -28,16 +28,16 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
   });
 }
 
-export async function savePushSubscription(accessToken: string): Promise<PushSubscription | null> {
+export async function savePushSubscription(): Promise<PushSubscription | null> {
   const subscription = await subscribeToPush();
   if (!subscription) return null;
 
   const response = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(subscription.toJSON()),
   });
 

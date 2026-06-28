@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { distanceMeters } from "@/lib/distance";
 
 export type Level = "newcomer" | "regular" | "local" | "insider";
@@ -36,34 +36,57 @@ export async function updateUserScore(
   reason: string,
   checkinId?: string,
 ): Promise<void> {
-  const { error } = await supabaseAdmin.rpc("apply_points_event", {
-    p_user_id: userId,
-    p_delta: delta,
-    p_event_type: eventType,
-    p_reason: reason,
-    p_checkin_id: checkinId ?? null,
-  });
-
-  if (error) throw error;
+  await sql`
+    INSERT INTO user_scores (user_id)
+    VALUES (${userId})
+    ON CONFLICT (user_id) DO NOTHING
+  `;
+  await sql`
+    INSERT INTO points_events (user_id, points_delta, event_type, reason, checkin_id)
+    VALUES (${userId}, ${delta}, ${eventType}, ${reason}, ${checkinId ?? null})
+  `;
+  await sql`
+    UPDATE user_scores
+    SET
+      points_total = COALESCE(points_total, 0) + ${delta},
+      level = CASE
+        WHEN COALESCE(confirmed_checkins, 0) >= ${LEVEL_THRESHOLDS.insider} THEN 'insider'
+        WHEN COALESCE(confirmed_checkins, 0) >= ${LEVEL_THRESHOLDS.local} THEN 'local'
+        WHEN COALESCE(confirmed_checkins, 0) >= ${LEVEL_THRESHOLDS.regular} THEN 'regular'
+        ELSE 'newcomer'
+      END,
+      trusted_reporter = COALESCE(confirmed_checkins, 0) >= ${LEVEL_THRESHOLDS.local},
+      last_checkin_at = CASE WHEN ${eventType} = 'checkin' THEN now() ELSE last_checkin_at END,
+      updated_at = now()
+    WHERE user_id = ${userId}
+  `;
 }
 
 export async function incrementConfirmedCheckins(userId: string): Promise<void> {
-  const { error } = await supabaseAdmin.rpc("increment_confirmed_checkins_and_recompute", {
-    p_user_id: userId,
-  });
-
-  if (error) throw error;
+  await sql`
+    INSERT INTO user_scores (user_id, confirmed_checkins)
+    VALUES (${userId}, 1)
+    ON CONFLICT (user_id) DO UPDATE SET
+      confirmed_checkins = COALESCE(user_scores.confirmed_checkins, 0) + 1,
+      level = CASE
+        WHEN COALESCE(user_scores.confirmed_checkins, 0) + 1 >= ${LEVEL_THRESHOLDS.insider} THEN 'insider'
+        WHEN COALESCE(user_scores.confirmed_checkins, 0) + 1 >= ${LEVEL_THRESHOLDS.local} THEN 'local'
+        WHEN COALESCE(user_scores.confirmed_checkins, 0) + 1 >= ${LEVEL_THRESHOLDS.regular} THEN 'regular'
+        ELSE 'newcomer'
+      END,
+      trusted_reporter = COALESCE(user_scores.confirmed_checkins, 0) + 1 >= ${LEVEL_THRESHOLDS.local},
+      updated_at = now()
+  `;
 }
 
 export async function getUserScore(userId: string): Promise<UserScoreRow | null> {
-  const { data, error } = await supabaseAdmin
-    .from("user_scores")
-    .select("user_id, points_total, level, streak_count, trusted_reporter, flagged_for_review, confirmed_checkins")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return (data as UserScoreRow | null) ?? null;
+  const [data] = await sql`
+    SELECT user_id, points_total, level, streak_count, trusted_reporter, flagged_for_review, confirmed_checkins
+    FROM user_scores
+    WHERE user_id = ${userId}
+    LIMIT 1
+  `;
+  return (data as UserScoreRow | undefined) ?? null;
 }
 
 export async function getUserTrustWeight(userId: string): Promise<number> {
@@ -76,54 +99,54 @@ export async function getUserTrustWeight(userId: string): Promise<number> {
 
 export async function checkFirstReportOfNight(venueId: string, userId: string): Promise<boolean> {
   const cutoff = new Date(Date.now() - 6 * 60 * 60_000).toISOString();
-  const { count, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("id", { count: "exact", head: true })
-    .eq("venue_id", venueId)
-    .neq("user_id", userId)
-    .gte("created_at", cutoff)
-    .eq("hidden", false);
-
-  if (error) throw error;
-  return (count ?? 0) === 0;
+  const rows = (await sql`
+    SELECT COUNT(*)::int AS count
+    FROM check_ins
+    WHERE venue_id = ${venueId}
+      AND user_id <> ${userId}
+      AND created_at >= ${cutoff}
+      AND hidden = false
+  `) as Array<{ count: number }>;
+  return Number(rows[0]?.count ?? 0) === 0;
 }
 
 export async function checkStreakBonus(userId: string): Promise<boolean> {
   const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60_000).toISOString();
-  const [{ data: checkIns, error: checkInsError }, { count: streakEvents, error: eventsError }] = await Promise.all([
-    supabaseAdmin
-      .from("check_ins")
-      .select("created_at")
-      .eq("user_id", userId)
-      .eq("hidden", false)
-      .gte("created_at", cutoff),
-    supabaseAdmin
-      .from("points_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("event_type", "streak")
-      .gte("created_at", cutoff),
-  ]);
-
-  if (checkInsError) throw checkInsError;
-  if (eventsError) throw eventsError;
+  const [checkIns, streakRows] = await Promise.all([
+    sql`
+      SELECT created_at
+      FROM check_ins
+      WHERE user_id = ${userId}
+        AND hidden = false
+        AND created_at >= ${cutoff}
+    `,
+    sql`
+      SELECT COUNT(*)::int AS count
+      FROM points_events
+      WHERE user_id = ${userId}
+        AND event_type = 'streak'
+        AND created_at >= ${cutoff}
+    `,
+  ]) as [Array<{ created_at: string | null }>, Array<{ count: number }>];
 
   const dates = new Set(
-    ((checkIns ?? []) as Array<{ created_at: string | null }>)
+    checkIns
       .map((row) => dateKey(row.created_at))
       .filter((value): value is string => Boolean(value)),
   );
 
-  return dates.size >= 3 && (streakEvents ?? 0) === 0;
+  return dates.size >= 3 && Number(streakRows[0]?.count ?? 0) === 0;
 }
 
 export async function refreshStreakCount(userId: string): Promise<number> {
   const streakCount = await getRollingDistinctCheckInDayCount(userId);
-  const { error } = await supabaseAdmin
-    .from("user_scores")
-    .upsert({ user_id: userId, streak_count: streakCount, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-
-  if (error) throw error;
+  await sql`
+    INSERT INTO user_scores (user_id, streak_count, updated_at)
+    VALUES (${userId}, ${streakCount}, now())
+    ON CONFLICT (user_id) DO UPDATE SET
+      streak_count = EXCLUDED.streak_count,
+      updated_at = EXCLUDED.updated_at
+  `;
   return streakCount;
 }
 
@@ -135,18 +158,17 @@ export async function checkAbuseSoftSignals(
 ): Promise<{ shouldFlag: boolean; reasons: string[] }> {
   const reasons: string[] = [];
 
-  const { data: lastCheckIn, error: lastError } = await supabaseAdmin
-    .from("check_ins")
-    .select("id, venue_id, lat_reported, lng_reported, created_at")
-    .eq("user_id", userId)
-    .not("lat_reported", "is", null)
-    .not("lng_reported", "is", null)
-    .neq("venue_id", venueId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (lastError) throw lastError;
+  const lastCheckInRows = (await sql`
+    SELECT id, venue_id, lat_reported, lng_reported, created_at
+    FROM check_ins
+    WHERE user_id = ${userId}
+      AND lat_reported IS NOT NULL
+      AND lng_reported IS NOT NULL
+      AND venue_id <> ${venueId}
+    ORDER BY created_at DESC
+    LIMIT 1
+  `) as Array<{ lat_reported: number; lng_reported: number; created_at: string }>;
+  const lastCheckIn = lastCheckInRows[0];
 
   const previous = lastCheckIn as { lat_reported: number; lng_reported: number; created_at: string } | null;
   if (previous) {
@@ -159,26 +181,25 @@ export async function checkAbuseSoftSignals(
   }
 
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60_000).toISOString();
-  const [{ count: penaltyCount, error: penaltyError }, { count: checkinCount, error: checkinError }] = await Promise.all([
-    supabaseAdmin
-      .from("points_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("event_type", "penalty")
-      .gte("created_at", cutoff),
-    supabaseAdmin
-      .from("points_events")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("event_type", "checkin")
-      .gte("created_at", cutoff),
-  ]);
+  const [penaltyRows, checkinRows] = await Promise.all([
+    sql`
+      SELECT COUNT(*)::int AS count
+      FROM points_events
+      WHERE user_id = ${userId}
+        AND event_type = 'penalty'
+        AND created_at >= ${cutoff}
+    `,
+    sql`
+      SELECT COUNT(*)::int AS count
+      FROM points_events
+      WHERE user_id = ${userId}
+        AND event_type = 'checkin'
+        AND created_at >= ${cutoff}
+    `,
+  ]) as [Array<{ count: number }>, Array<{ count: number }>];
 
-  if (penaltyError) throw penaltyError;
-  if (checkinError) throw checkinError;
-
-  const totalCheckins = checkinCount ?? 0;
-  if (totalCheckins > 0 && (penaltyCount ?? 0) / totalCheckins > 0.4) {
+  const totalCheckins = Number(checkinRows[0]?.count ?? 0);
+  if (totalCheckins > 0 && Number(penaltyRows[0]?.count ?? 0) / totalCheckins > 0.4) {
     reasons.push("high_penalty_rate");
   }
 
@@ -186,26 +207,27 @@ export async function checkAbuseSoftSignals(
 }
 
 export async function flagUserForReview(userId: string): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from("user_scores")
-    .upsert({ user_id: userId, flagged_for_review: true, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-
-  if (error) throw error;
+  await sql`
+    INSERT INTO user_scores (user_id, flagged_for_review, updated_at)
+    VALUES (${userId}, true, now())
+    ON CONFLICT (user_id) DO UPDATE SET
+      flagged_for_review = true,
+      updated_at = now()
+  `;
 }
 
 async function getRollingDistinctCheckInDayCount(userId: string): Promise<number> {
   const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60_000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("created_at")
-    .eq("user_id", userId)
-    .eq("hidden", false)
-    .gte("created_at", cutoff);
-
-  if (error) throw error;
+  const data = (await sql`
+    SELECT created_at
+    FROM check_ins
+    WHERE user_id = ${userId}
+      AND hidden = false
+      AND created_at >= ${cutoff}
+  `) as Array<{ created_at: string | null }>;
 
   return new Set(
-    ((data ?? []) as Array<{ created_at: string | null }>)
+    data
       .map((row) => dateKey(row.created_at))
       .filter((value): value is string => Boolean(value)),
   ).size;

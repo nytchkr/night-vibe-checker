@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Bell, Check, Loader2 } from "lucide-react";
 import { savePushSubscription } from "@/lib/push";
-import { createBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/useToast";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -20,25 +20,20 @@ type PushOptInProps = {
 };
 
 export function PushOptIn({ accessToken, venueId, venueName, className, buttonLabel, onAttemptComplete }: PushOptInProps) {
+  const { data: session } = useSession();
   const haptic = useHaptic();
   const { showToast } = useToast();
   const [state, setState] = useState<PushState>("idle");
 
-  async function getAccessToken(): Promise<string | null> {
-    if (accessToken) return accessToken;
-    const { data } = await createBrowserClient().auth.getSession();
-    return data.session?.access_token ?? null;
-  }
-
-  async function saveVenueAlert(token: string) {
+  async function saveVenueAlert() {
     if (!venueId) return;
 
     const res = await fetch("/api/push/venue-alert", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({ venueId }),
     });
 
@@ -58,15 +53,14 @@ export function PushOptIn({ accessToken, venueId, venueName, className, buttonLa
     setState("saving");
 
     try {
-      const token = await getAccessToken();
-      if (!token) {
+      if (!session?.user?.id && !accessToken) {
         setState("error");
         showToast("Sign in to enable alerts", "error");
         onAttemptComplete?.();
         return;
       }
 
-      const subscription = await savePushSubscription(token);
+      const subscription = await savePushSubscription();
       if (!subscription) {
         const permission = Notification.permission;
         setState("denied");
@@ -75,7 +69,7 @@ export function PushOptIn({ accessToken, venueId, venueName, className, buttonLa
         return;
       }
 
-      await saveVenueAlert(token);
+      await saveVenueAlert();
 
       setState("success");
       showToast(venueName ? `We'll alert you when ${venueName} gets busy.` : "Busy venue alerts are on.", "success");

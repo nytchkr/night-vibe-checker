@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { MapPin, UsersRound } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import { PageTransition } from "@/components/PageTransition";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createBrowserClient } from "@/lib/supabase-browser";
 import type { CrowdFeel, ReportedBusyness } from "@/types";
 
 type ProfileCheckInRecord = {
@@ -176,6 +175,7 @@ function CheckInRow({ item }: { item: CheckInItem }) {
 }
 
 export default function ProfileCheckInsPage() {
+  const { data: session, status } = useSession();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
@@ -188,11 +188,7 @@ export default function ProfileCheckInsPage() {
       setError("");
 
       try {
-        const client = createBrowserClient();
-        const { data } = await client.auth.getSession();
-        const session: Session | null = data.session;
-
-        if (!session?.access_token) {
+        if (!session?.user?.id) {
           if (!cancelled) {
             setCheckIns([]);
             setError("Sign in to view your check-in history.");
@@ -201,7 +197,7 @@ export default function ProfileCheckInsPage() {
         }
 
         const res = await fetch("/api/profile/check-ins", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          credentials: "include",
         });
 
         if (!res.ok) {
@@ -236,12 +232,13 @@ export default function ProfileCheckInsPage() {
       }
     }
 
+    if (status === "loading") return;
     void loadCheckIns();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [session?.user?.id, status]);
 
   const groupedCheckIns = useMemo(() => groupCheckIns(checkIns), [checkIns]);
 

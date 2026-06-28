@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -28,38 +30,20 @@ export async function GET(req: NextRequest): Promise<NextResponse<UserStreakResp
     throw error;
   }
 
-  const userId = await getBearerUserId(req.headers.get("Authorization"));
+  const userId = await getAuthenticatedUserId(req);
   if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
 
-  const { data, error } = await supabaseAdmin
-    .from("check_ins")
-    .select("created_at")
-    .eq("user_id", userId)
-    .eq("hidden", false)
-    .order("created_at", { ascending: false });
+  const data = await sql`
+    SELECT created_at
+    FROM check_ins
+    WHERE user_id = ${userId}
+      AND hidden = false
+    ORDER BY created_at DESC
+  `;
 
-  if (error) {
-    console.error("[user/streak GET] check_ins DB error:", error);
-    return NextResponse.json(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch streak." } },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json(calculateUserStreak((data ?? []) as CheckInRow[]), {
+  return NextResponse.json(calculateUserStreak(data as CheckInRow[]), {
     headers: { "Cache-Control": "private, no-cache" },
   });
-}
-
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
 }
 
 export function calculateUserStreak(rows: CheckInRow[], now = new Date()): UserStreakResponse {

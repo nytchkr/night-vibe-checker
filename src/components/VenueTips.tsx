@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Plus, Send, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useHaptic } from "@/hooks/useHaptic";
-import { createBrowserClient } from "@/lib/supabase-browser";
 
 type VenueTip = {
   id: string;
@@ -82,20 +82,19 @@ export function VenueTips({
   subtitle = "Tips from locals, organized from real review text.",
   maxTips = MAX_VISIBLE_TIPS,
 }: VenueTipsProps) {
+  const { data: session, status } = useSession();
   const haptic = useHaptic();
   const [tips, setTips] = useState<VenueTip[]>([]);
   const [tipText, setTipText] = useState("");
   const [composing, setComposing] = useState(false);
   const [expandedTipIds, setExpandedTipIds] = useState<Set<string>>(() => new Set());
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const trimmedTip = tipText.trim();
   const remaining = MAX_TIP_LENGTH - tipText.length;
-  const canSubmit = Boolean(accessToken) && trimmedTip.length > 0 && tipText.length <= MAX_TIP_LENGTH && !submitting;
+  const canSubmit = Boolean(session?.user?.id) && trimmedTip.length > 0 && tipText.length <= MAX_TIP_LENGTH && !submitting;
 
   useEffect(() => {
     if (!venueId) return;
@@ -122,33 +121,8 @@ export function VenueTips({
     return () => controller.abort();
   }, [venueId]);
 
-  useEffect(() => {
-    const client = createBrowserClient();
-    let cancelled = false;
-
-    async function fetchAuthState() {
-      const { data } = await client.auth.getSession();
-      if (cancelled) return;
-      setAccessToken(data.session?.access_token ?? null);
-      setAuthChecked(true);
-    }
-
-    void fetchAuthState();
-    const {
-      data: { subscription },
-    } = client.auth.onAuthStateChange((_event, session) => {
-      setAccessToken(session?.access_token ?? null);
-      setAuthChecked(true);
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, []);
-
   async function submitTip() {
-    if (!canSubmit || !accessToken) return;
+    if (!canSubmit) return;
 
     haptic.light();
     setSubmitting(true);
@@ -157,9 +131,9 @@ export function VenueTips({
       const res = await fetch(`/api/venues/${encodeURIComponent(venueId)}/tips`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ tip_text: trimmedTip }),
       });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -211,7 +185,7 @@ export function VenueTips({
           <h2 className="font-display text-lg font-bold text-white">{title}</h2>
           <p className="mt-1 text-xs font-semibold text-white/40">{subtitle}</p>
         </div>
-        {authChecked && accessToken ? (
+        {status === "authenticated" && session?.user?.id ? (
           <Button
             type="button"
             onClick={() => setComposing(true)}
@@ -285,7 +259,7 @@ export function VenueTips({
       ) : (
         <div className="rounded-xl border border-[#8B6CFF]/20 bg-white/5 p-4">
           <p className="text-sm font-semibold text-white/70">No tips yet — be the first!</p>
-          {authChecked && accessToken ? (
+          {status === "authenticated" && session?.user?.id ? (
             <Button
               type="button"
               onClick={() => setComposing(true)}
@@ -298,7 +272,7 @@ export function VenueTips({
         </div>
       )}
 
-      {authChecked && accessToken && composing ? (
+      {status === "authenticated" && session?.user?.id && composing ? (
         <div className="space-y-2">
           <Textarea
             value={tipText}
@@ -323,9 +297,9 @@ export function VenueTips({
             </Button>
           </div>
         </div>
-      ) : authChecked && !accessToken ? (
+      ) : status === "unauthenticated" ? (
         <a
-          href={`/login?return=${encodeURIComponent(`/venues/${venueId}`)}`}
+          href={`/sign-in?return=${encodeURIComponent(`/venues/${venueId}`)}`}
           className="block rounded-xl border border-[#8B6CFF]/30 bg-[#8B6CFF]/10 p-3 text-center text-sm font-bold text-white transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
         >
           Sign in to leave a tip

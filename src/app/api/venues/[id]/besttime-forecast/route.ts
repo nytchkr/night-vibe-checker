@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { fetchBestTimeDayRawForecast, fetchBestTimeWeekRawForecast } from "@/lib/besttime";
 import { isProUser } from "@/lib/isPro";
-import { supabaseAdmin } from "@/lib/supabase";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { redis } from "@/lib/upstashRedis";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
@@ -70,21 +70,9 @@ async function setCachedForecast(cacheKey: string, forecast: ForecastResponse): 
   }
 }
 
-function bearerToken(req: NextRequest): string | null {
-  const header = req.headers.get("authorization");
-  if (!header?.toLowerCase().startsWith("bearer ")) return null;
-  const token = header.slice("bearer ".length).trim();
-  return token || null;
-}
-
 async function requestIsPro(req: NextRequest): Promise<boolean> {
-  const token = bearerToken(req);
-  if (!token) return false;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user?.id) return false;
-
-  return isProUser(data.user.id);
+  const userId = await getAuthenticatedUserId(req);
+  return userId ? isProUser(userId) : false;
 }
 
 export async function GET(

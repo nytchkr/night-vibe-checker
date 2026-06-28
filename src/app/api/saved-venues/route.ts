@@ -3,10 +3,11 @@
 */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
-import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { getAuthenticatedUserId } from "@/lib/apiAuth";
+import { sql } from "@/lib/db";
+import { assertSupabaseServerEnv, MissingSupabaseEnvError } from "@/lib/supabase";
 import type { APIResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -36,37 +37,8 @@ type SavedVenueMutationResponse = APIResponse<{ venueId: string; saved: boolean 
   saved: boolean;
 };
 
-async function getBearerUserId(authHeader: string | null): Promise<string | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.slice(7).trim();
-  if (!token) return null;
-
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-  if (error || !data.user) return null;
-  return data.user.id;
-}
-
-async function getCookieUserId(req: NextRequest): Promise<string | null> {
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => req.cookies.getAll(),
-      },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
-
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
-
 async function getUserId(req: NextRequest): Promise<string | null> {
-  return (await getCookieUserId(req)) ?? (await getBearerUserId(req.headers.get("Authorization")));
+  return getAuthenticatedUserId(req);
 }
 
 function missingSupabaseConfigResponse(
@@ -129,21 +101,14 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const userId = await getUserId(req);
   if (!userId) return unauthorized(meta, PRIVATE_GET_CACHE_HEADERS);
 
-  const { data, error } = await supabaseAdmin
-    .from("saved_venues")
-    .select("venue_id")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+  const data = (await sql`
+    SELECT venue_id
+    FROM saved_venues
+    WHERE user_id = ${userId}
+    ORDER BY created_at DESC
+  `) as Array<{ venue_id: string }>;
 
-  if (error) {
-    console.error("[saved-venues GET] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not fetch saved venues." }, meta },
-      { status: 500, headers: PRIVATE_GET_CACHE_HEADERS }
-    );
-  }
-
-  const savedVenueIds = (data ?? []).map((row) => row.venue_id as string);
+  const savedVenueIds = data.map((row) => row.venue_id);
 
   return NextResponse.json<SavedVenueIdsResponse>({
     status: "success",
@@ -172,18 +137,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const parsed = await readVenueId(req, meta);
   if (parsed.response) return parsed.response;
 
-  const { error } = await supabaseAdmin.from("saved_venues").upsert(
-    { user_id: userId, venue_id: parsed.placeId },
-    { onConflict: "user_id,venue_id" }
-  );
-
-  if (error) {
-    console.error("[saved-venues POST] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not save venue." }, meta },
-      { status: 500 }
-    );
-  }
+  await sql`
+    INSERT INTO saved_venues (user_id, venue_id)
+    VALUES (${userId}, ${parsed.placeId})
+    ON CONFLICT (user_id, venue_id) DO NOTHING
+  `;
 
   return NextResponse.json<SavedVenueMutationResponse>({
     status: "success",
@@ -212,19 +170,11 @@ export async function DELETE(req: NextRequest): Promise<NextResponse> {
   const parsed = await readVenueId(req, meta);
   if (parsed.response) return parsed.response;
 
-  const { error } = await supabaseAdmin
-    .from("saved_venues")
-    .delete()
-    .eq("user_id", userId)
-    .eq("venue_id", parsed.placeId);
-
-  if (error) {
-    console.error("[saved-venues DELETE] DB error:", error);
-    return NextResponse.json<APIResponse<never>>(
-      { status: "error", error: { code: "DB_ERROR", message: "Could not unsave venue." }, meta },
-      { status: 500 }
-    );
-  }
+  await sql`
+    DELETE FROM saved_venues
+    WHERE user_id = ${userId}
+      AND venue_id = ${parsed.placeId}
+  `;
 
   return NextResponse.json<SavedVenueMutationResponse>({
     status: "success",

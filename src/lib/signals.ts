@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { sql } from "@/lib/db";
 import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import type { CrowdFeel, ReportedBusyness } from "@/types";
 
@@ -103,19 +103,20 @@ export function computeSignalFromCheckIns(rows: SignalCheckInRow[], nowMs = Date
 export async function recomputeVenueSignal(venueId: string) {
   const cutoff = new Date(Date.now() - MF_RATIO_LOOKBACK_MINUTES * 60_000).toISOString();
 
-  const { data: venue, error: venueError } = await supabaseAdmin
-    .from("venues")
-    .select("id, place_id, last_busyness_refresh")
-    .eq("id", venueId)
-    .eq("hidden", false)
-    .single();
+  const venueRows = (await sql`
+    SELECT id, place_id, last_busyness_refresh
+    FROM venues
+    WHERE id = ${venueId}
+      AND COALESCE(hidden, false) = false
+    LIMIT 1
+  `) as Array<{ id: string; place_id: string; last_busyness_refresh?: string | null }>;
+  const venue = venueRows[0];
 
-  if (venueError || !venue) throw venueError ?? new Error("Venue not found");
+  if (!venue) throw new Error("Venue not found");
 
-  const [{ data: rows, error }, { data: existingSignal, error: signalError }] = await Promise.all([
-    supabaseAdmin
-      .from("check_ins")
-      .select(`
+  const [rows, existingSignals] = await Promise.all([
+    sql`
+      SELECT
         id,
         venue_id,
         place_id,
@@ -126,23 +127,26 @@ export async function recomputeVenueSignal(venueId: string) {
         reporter_gender,
         gender_self_report,
         created_at
-      `)
-      .eq("venue_id", venueId)
-      .eq("hidden", false)
-      .gte("created_at", cutoff)
-      .order("created_at", { ascending: false }),
-    supabaseAdmin
-      .from("venue_signals")
-      .select("busyness_0_100, busyness_source, last_busyness_refresh")
-      .eq("venue_id", venueId)
-      .maybeSingle(),
-  ]);
+      FROM check_ins
+      WHERE venue_id = ${venueId}
+        AND hidden = false
+        AND created_at >= ${cutoff}
+      ORDER BY created_at DESC
+    `,
+    sql`
+      SELECT busyness_0_100, busyness_source, last_busyness_refresh
+      FROM venue_signals
+      WHERE venue_id = ${venueId}
+      LIMIT 1
+    `,
+  ]) as [SignalCheckInRow[], Array<{ busyness_0_100?: number | null; busyness_source?: string | null; last_busyness_refresh?: string | null }>];
 
-  if (error) throw error;
-  if (signalError) throw signalError;
+  const existingSignal = existingSignals[0] as
+    | { busyness_0_100?: number | null; busyness_source?: string | null; last_busyness_refresh?: string | null }
+    | undefined;
 
-  const scoreByUserId = await getScoreByUserId((rows ?? []) as Array<SignalCheckInRow>);
-  const signalRows = ((rows ?? []) as SignalCheckInRow[]).map((row) => ({
+  const scoreByUserId = await getScoreByUserId(rows as Array<SignalCheckInRow>);
+  const signalRows = (rows as SignalCheckInRow[]).map((row) => ({
     ...row,
     trust_weight: trustWeightFromScore(row.user_id ? scoreByUserId.get(row.user_id) : null),
   }));
@@ -161,14 +165,42 @@ export async function recomputeVenueSignal(venueId: string) {
     last_busyness_refresh: existingSignal?.last_busyness_refresh ?? venue.last_busyness_refresh,
   };
 
-  const { data, error: upsertError } = await supabaseAdmin
-    .from("venue_signals")
-    .upsert(payload, { onConflict: "venue_id" })
-    .select()
-    .single();
+  const signalRowsResult = (await sql`
+    INSERT INTO venue_signals (
+      venue_id,
+      place_id,
+      busyness_0_100,
+      busyness_source,
+      mf_ratio,
+      confidence_0_1,
+      sample_size,
+      computed_at,
+      last_busyness_refresh
+    )
+    VALUES (
+      ${payload.venue_id},
+      ${payload.place_id},
+      ${payload.busyness_0_100},
+      ${payload.busyness_source},
+      ${payload.mf_ratio},
+      ${payload.confidence_0_1},
+      ${payload.sample_size},
+      ${payload.computed_at},
+      ${payload.last_busyness_refresh}
+    )
+    ON CONFLICT (venue_id) DO UPDATE SET
+      place_id = EXCLUDED.place_id,
+      busyness_0_100 = EXCLUDED.busyness_0_100,
+      busyness_source = EXCLUDED.busyness_source,
+      mf_ratio = EXCLUDED.mf_ratio,
+      confidence_0_1 = EXCLUDED.confidence_0_1,
+      sample_size = EXCLUDED.sample_size,
+      computed_at = EXCLUDED.computed_at,
+      last_busyness_refresh = EXCLUDED.last_busyness_refresh
+    RETURNING *
+  `) as Array<Record<string, unknown>>;
 
-  if (upsertError) throw upsertError;
-  return data;
+  return signalRowsResult[0];
 }
 
 function trustWeightFromScore(score: { trusted_reporter?: boolean; confirmed_checkins?: number } | null | undefined): number {
@@ -181,15 +213,14 @@ async function getScoreByUserId(rows: SignalCheckInRow[]): Promise<Map<string, {
   const userIds = [...new Set(rows.map((row) => row.user_id).filter((value): value is string => Boolean(value)))];
   if (userIds.length === 0) return new Map();
 
-  const { data, error } = await supabaseAdmin
-    .from("user_scores")
-    .select("user_id, trusted_reporter, confirmed_checkins")
-    .in("user_id", userIds);
-
-  if (error) throw error;
+  const data = (await sql`
+    SELECT user_id, trusted_reporter, confirmed_checkins
+    FROM user_scores
+    WHERE user_id = ANY(${userIds}::uuid[])
+  `) as Array<{ user_id: string; trusted_reporter: boolean; confirmed_checkins: number }>;
 
   return new Map(
-    ((data ?? []) as Array<{ user_id: string; trusted_reporter: boolean; confirmed_checkins: number }>).map((score) => [
+    data.map((score) => [
       score.user_id,
       score,
     ]),

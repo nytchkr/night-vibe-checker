@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { Loader2, X } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { div as MotionDiv } from "framer-motion/client";
-import { createBrowserClient } from "@/lib/supabase-browser";
 import { formatRewardMessages } from "@/lib/rewardMessages";
 import { useHaptic } from "@/hooks/useHaptic";
 import { useToast } from "@/hooks/useToast";
@@ -81,6 +81,7 @@ function errorMessageFrom(status: number, payload: unknown) {
 }
 
 export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
+  const { data: session } = useSession();
   const { showToast } = useToast();
   const haptic = useHaptic();
   const [state, setState] = useState<CheckInState>("idle");
@@ -171,11 +172,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
     setState("loading");
 
     try {
-      const client = createBrowserClient();
-      const { data } = await client.auth.getSession();
-      const token = data.session?.access_token;
-
-      if (!token) {
+      if (!session?.user?.id) {
         setState("requires-auth");
         setConfirmOpen(false);
         return;
@@ -185,7 +182,6 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
         method: "POST",
         credentials: "include",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ venue_id: venueId }),
@@ -259,7 +255,7 @@ export function CheckInButton({ venueId, venueName }: CheckInButtonProps) {
     const returnTo = `/venues/${encodeURIComponent(venueId)}`;
     return (
       <Link
-        href={`/login?return=${encodeURIComponent(returnTo)}`}
+        href={`/sign-in?return=${encodeURIComponent(returnTo)}`}
         className="flex min-h-[54px] w-full items-center justify-center rounded-full border border-[#8B6CFF]/35 bg-[#8B6CFF]/10 px-5 text-base font-black text-[#F4F5F8] transition-colors hover:bg-[#8B6CFF]/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
       >
         Sign in to check in
