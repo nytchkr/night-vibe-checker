@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 const PROTECTED_PAGE_ROUTES = ["/admin", "/vibe-check", "/notifications"] as const;
 const PROTECTED_API_ROUTES = [
-  "/api/check-ins",
   "/api/ratings",
   "/api/venue-ratings",
   "/api/push/subscribe",

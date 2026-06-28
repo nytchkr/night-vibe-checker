@@ -61,11 +61,9 @@ describe("middleware route protection", () => {
   });
 
   it("protects only POST requests for write APIs", () => {
-    expect(isProtectedApiRequest(request("POST", "/api/check-ins"))).toBe(true);
     expect(isProtectedApiRequest(request("POST", "/api/ratings"))).toBe(true);
     expect(isProtectedApiRequest(request("POST", "/api/venue-ratings"))).toBe(true);
     expect(isProtectedApiRequest(request("POST", "/api/push/subscribe"))).toBe(true);
-    expect(isProtectedApiRequest(request("GET", "/api/check-ins"))).toBe(false);
     expect(isProtectedApiRequest(request("GET", "/api/venue-ratings"))).toBe(false);
     expect(isProtectedApiRequest(request("GET", "/api/venues"))).toBe(false);
     expect(isProtectedApiRequest(request("POST", "/api/widget/venue-1"))).toBe(false);
