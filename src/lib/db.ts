@@ -1,5 +1,10 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
+import { neonConfig } from "@neondatabase/serverless";
+
+// Force HTTP-only mode — prevents ws native binding issues in Azure Functions
+neonConfig.webSocketConstructor = undefined;
+neonConfig.useSecureWebSocket = false;
 
 function getDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;

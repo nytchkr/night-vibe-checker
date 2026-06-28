@@ -15,6 +15,7 @@ const contentSecurityPolicy = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   // react-leaflet is incompatible with React 18 StrictMode's double-invoke in dev
   reactStrictMode: false,
   compress: true,
