@@ -46,8 +46,8 @@ function createNonce(): string {
   return btoa(binary);
 }
 
-export function contentSecurityPolicy(nonce: string): string {
-  return [
+export function contentSecurityPolicy(nonce: string, { upgradeInsecureRequests = true }: { upgradeInsecureRequests?: boolean } = {}): string {
+  const directives = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' https://maps.googleapis.com https://va.vercel-scripts.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com",
@@ -62,12 +62,17 @@ export function contentSecurityPolicy(nonce: string): string {
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "media-src 'self' https://*.supabase.co",
-    "upgrade-insecure-requests",
-  ].join("; ");
+  ];
+
+  if (upgradeInsecureRequests) {
+    directives.push("upgrade-insecure-requests");
+  }
+
+  return directives.join("; ");
 }
 
-function applySecurityHeaders(response: MiddlewareResponse, nonce: string): MiddlewareResponse {
-  response.headers.set(CSP_HEADER, contentSecurityPolicy(nonce));
+function applySecurityHeaders(response: MiddlewareResponse, nonce: string, upgradeInsecureRequests = true): MiddlewareResponse {
+  response.headers.set(CSP_HEADER, contentSecurityPolicy(nonce, { upgradeInsecureRequests }));
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -77,6 +82,10 @@ function applySecurityHeaders(response: MiddlewareResponse, nonce: string): Midd
 
 function withSecurityHeaders(response: MiddlewareResponse, nonce: string): MiddlewareResponse {
   return applySecurityHeaders(response, nonce);
+}
+
+function shouldUpgradeInsecureRequests(req: NextRequest): boolean {
+  return !["localhost", "127.0.0.1", "0.0.0.0"].includes(req.nextUrl.hostname);
 }
 
 function loginRedirect(req: NextRequest, sessionResponse: MiddlewareResponse, nonce: string): MiddlewareResponse {
@@ -133,6 +142,7 @@ function rootAuthCodeRedirect(req: NextRequest, nonce: string): MiddlewareRespon
 
 export async function middleware(req: NextRequest): Promise<MiddlewareResponse> {
   const nonce = createNonce();
+  const upgradeInsecureRequests = shouldUpgradeInsecureRequests(req);
   const authCodeRedirect = rootAuthCodeRedirect(req, nonce);
   if (authCodeRedirect) return authCodeRedirect;
 
@@ -151,7 +161,7 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
       headers: requestHeaders,
     },
   });
-  applySecurityHeaders(response, nonce);
+  applySecurityHeaders(response, nonce, upgradeInsecureRequests);
 
   if (req.nextUrl.pathname === "/share" && req.method === "POST") {
     return shareRedirect(req, nonce);
@@ -176,7 +186,7 @@ export async function middleware(req: NextRequest): Promise<MiddlewareResponse> 
             headers: requestHeaders,
           },
         });
-        applySecurityHeaders(response, nonce);
+        applySecurityHeaders(response, nonce, upgradeInsecureRequests);
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options);
         });

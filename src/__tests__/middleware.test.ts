@@ -24,6 +24,12 @@ describe("middleware route protection", () => {
     expect(csp).toContain("upgrade-insecure-requests");
   });
 
+  it("can omit HTTPS upgrade directives for local HTTP test servers", () => {
+    const csp = contentSecurityPolicy("test-nonce", { upgradeInsecureRequests: false });
+
+    expect(csp).not.toContain("upgrade-insecure-requests");
+  });
+
   it("adds a fresh nonce CSP header to middleware responses", async () => {
     const firstResponse = await middleware(new NextRequest("https://nytchkr.com/map"));
     const secondResponse = await middleware(new NextRequest("https://nytchkr.com/map"));

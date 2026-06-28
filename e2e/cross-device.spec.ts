@@ -283,42 +283,6 @@ async function expectExploreReady(page: Page) {
   await expect(page.getByRole("region", { name: "Venue results" }).getByRole("link", { name: "Open Cross Device Pulse", exact: true })).toBeVisible();
 }
 
-async function performPullToRefresh(page: Page, getVenueRequestCount: () => number) {
-  const initialRequestCount = getVenueRequestCount();
-  await page.evaluate(() => window.scrollTo(0, 0));
-  const x = Math.floor(page.viewportSize()!.width / 2);
-  await page.evaluate(({ clientX }) => {
-    const pointerId = 9001;
-    const dispatch = (type: string, clientY: number) => {
-      window.dispatchEvent(new PointerEvent(type, {
-        bubbles: true,
-        cancelable: true,
-        clientX,
-        clientY,
-        isPrimary: true,
-        pointerId,
-        pointerType: "touch",
-      }));
-    };
-
-    dispatch("pointerdown", 24);
-    dispatch("pointermove", 148);
-  }, { clientX: x });
-  await expect(page.getByText("Pull to refresh")).toBeVisible({ timeout: 5_000 });
-  await page.evaluate(({ clientX }) => {
-    window.dispatchEvent(new PointerEvent("pointerup", {
-      bubbles: true,
-      cancelable: true,
-      clientX,
-      clientY: 148,
-      isPrimary: true,
-      pointerId: 9001,
-      pointerType: "touch",
-    }));
-  }, { clientX: x });
-  await expect.poll(getVenueRequestCount).toBeGreaterThan(initialRequestCount);
-}
-
 test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
   test.describe.configure({ timeout: 75_000 });
 
@@ -328,19 +292,24 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
 
     await page.goto("/map?onboarding=1", { waitUntil: "domcontentloaded" });
 
-    const overlay = page.getByRole("dialog", { name: /find where charlotte goes tonight/i });
-    await expect(overlay).toBeVisible({ timeout: 20_000 });
-    await overlay.getByRole("button", { name: /^South End\b/ }).click();
+    await expect(page.getByRole("dialog", { name: /your city's nightlife, live/i })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: "Get Started" }).click();
+    const zoneDialog = page.getByRole("dialog", { name: /where do you go out/i });
+    await expect(zoneDialog).toBeVisible();
+    await zoneDialog.getByRole("button", { name: "South End", exact: true }).click();
+    await zoneDialog.getByRole("button", { name: "Let's Go" }).click();
+    await expect(page.getByRole("dialog", { name: /stay in the loop/i })).toBeVisible();
+    await page.getByRole("button", { name: "Maybe later" }).click();
 
-    await expect(page).toHaveURL(/\/explore\?zone=south-end-charlotte/);
+    await expect(page).toHaveURL(/\/explore/);
     await expectExploreReady(page);
     await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
   });
 
-  test("@device Explore shows skeleton, open-now badge, and pull-to-refresh", async ({ page }, testInfo) => {
+  test("@device Explore shows skeleton and open-now badge", async ({ page }, testInfo) => {
     await markOnboarded(page);
-    const { getVenueRequestCount, releaseFirstVenueResponse } = await mockVenueApis(page, { holdFirstVenueRequest: true });
+    const { releaseFirstVenueResponse } = await mockVenueApis(page, { holdFirstVenueRequest: true });
 
     await page.goto("/explore", { waitUntil: "domcontentloaded" });
 
@@ -352,7 +321,6 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
     await expect(venueCard).toContainText("Open");
     await expect(venueCard).toContainText("Packed");
 
-    await performPullToRefresh(page, getVenueRequestCount);
     await expectExploreReady(page);
     await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);

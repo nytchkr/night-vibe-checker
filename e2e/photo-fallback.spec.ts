@@ -55,10 +55,9 @@ test("@device venue detail shows gradient photo fallback when photo_url is missi
   const photoRegion = page.getByLabel(`${venue!.name} photos`);
   await expect(photoRegion).toBeVisible();
 
-  const fallback = photoRegion.locator("> div").first();
-  await expect(fallback).toBeVisible();
+  await expect(photoRegion).toBeVisible();
   await expect.poll(async () => {
-    return fallback.evaluate((element) => getComputedStyle(element).backgroundImage);
+    return photoRegion.evaluate((element) => getComputedStyle(element).backgroundImage);
   }).toContain("gradient");
 
   await expect(photoRegion.locator("img")).toHaveCount(0);

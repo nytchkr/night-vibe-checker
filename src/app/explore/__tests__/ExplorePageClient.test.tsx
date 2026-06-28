@@ -574,7 +574,7 @@ describe("ExplorePageClient venue search", () => {
 
     render(<ExplorePageClient />);
 
-    await waitFor(() => expect(screen.getAllByRole("status", { name: "Loading..." })).toHaveLength(6));
+    await waitFor(() => expect(screen.getAllByRole("status", { name: "Loading venue card" })).toHaveLength(6));
     await act(async () => {
       resolveVenues(new Response(JSON.stringify({ data: { venues } }), { status: 200 }));
     });

@@ -42,7 +42,8 @@ export function OnboardingWizard() {
 
   useEffect(() => {
     setIsMounted(true);
-    setIsOpen(!hasCompletedOnboarding());
+    const forceOnboarding = new URLSearchParams(window.location.search).get("onboarding") === "1";
+    setIsOpen(forceOnboarding || !hasCompletedOnboarding());
   }, []);
 
   const finish = useCallback(() => {

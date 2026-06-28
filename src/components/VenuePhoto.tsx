@@ -102,6 +102,8 @@ export function VenuePhoto({
   return (
     <div
       className={`relative overflow-hidden bg-[#0A0A0E] ${className}`}
+      role="group"
+      aria-label={`${name} photos`}
       style={!showPhoto ? { background: gradientFor(name) } : undefined}
     >
       {showPhoto && !showCarousel ? (

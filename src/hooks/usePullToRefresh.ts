@@ -15,6 +15,10 @@ function isAtScrollTop() {
   );
 }
 
+function isTouchLikePointer(event: PointerEvent) {
+  return TOUCH_POINTER_TYPES.has(event.pointerType) || (event.pointerType === "" && navigator.maxTouchPoints > 0);
+}
+
 export function usePullToRefresh(onRefresh: () => Promise<void>, threshold = 80) {
   const startY = useRef(0);
   const startX = useRef(0);
@@ -47,7 +51,7 @@ export function usePullToRefresh(onRefresh: () => Promise<void>, threshold = 80)
     const handlePointerDown = (event: PointerEvent) => {
       if (
         !event.isPrimary ||
-        !TOUCH_POINTER_TYPES.has(event.pointerType) ||
+        !isTouchLikePointer(event) ||
         !isAtScrollTop() ||
         isRefreshing.current
       ) {

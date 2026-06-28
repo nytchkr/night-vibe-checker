@@ -14,11 +14,11 @@ export default function SkeletonCard() {
     <div
       className="relative flex min-h-[236px] overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-4 shadow-lg shadow-black/10 backdrop-blur-sm sm:h-[126px] sm:min-h-0 sm:flex-row sm:items-center"
       role="status"
-      aria-label="Loading..."
+      aria-label="Loading venue card"
       aria-live="polite"
       aria-atomic="true"
     >
-      <span className="sr-only">Loading...</span>
+      <span className="sr-only">Loading venue card</span>
       <div className="relative flex w-full flex-col gap-3 sm:flex-row sm:items-center">
         <ShimmerBlock className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto" />
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
