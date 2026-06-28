@@ -219,7 +219,7 @@ async function generateAiVenueTips(venue: VenueTipVenue, reviewTexts: string[]):
   if (!apiKey || reviewTexts.length === 0) return genericTipsForCategory(venue.category);
 
   const reviews = reviewTexts.join("\n");
-  const prompt = `Based on these real customer reviews for ${venue.name}, write 2-3 short insider tips for someone deciding whether to visit tonight. Focus on what the place is best for, what to order or experience, best time to go. Be specific and helpful. Only use what is in the reviews. Never fabricate specific menu items, prices, or events.\n\nReviews: ${reviews}`;
+  const prompt = `Based on these real customer reviews for ${venue.name}, write 2-3 short insider tips for someone deciding whether to visit tonight. Focus on: what the place is best for, what to order or do, best time to go. Be specific and helpful. Only use what is in the reviews. Never fabricate specific menu items, prices, or events.\n\nReviews: ${reviews}`;
 
   const res = await fetch(ANTHROPIC_MESSAGES_URL, {
     method: "POST",
