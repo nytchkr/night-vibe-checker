@@ -10,7 +10,7 @@ import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { sql } from "@/lib/db";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getClientIp } from "@/lib/apiSecurity";
-import { checkRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
 import { redis } from "@/lib/upstashRedis";
 import type { APIResponse } from "@/types";
 
