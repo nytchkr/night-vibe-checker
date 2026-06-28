@@ -1,114 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Heart, Map, Search, type LucideIcon } from "lucide-react";
 
 const VIEWED_VENUES_STORAGE_KEY = "nightvibe.viewed_venues";
 const EXPLORE_NEW_VENUES_STORAGE_KEY = "nightvibe.explore_has_new_venues";
 const EXPLORE_VENUES_EVENT = "nightvibe:explore-venues-updated";
-const STREAK_UPDATED_EVENT = "nightvibe:streak-changed";
-
-type UserStreakResponse = {
-  streak?: number | null;
-};
-
-type YouStreakContextValue = {
-  hasActiveStreak: boolean;
-  refreshStreak: () => void;
-};
-
-const YouStreakContext = createContext<YouStreakContextValue>({
-  hasActiveStreak: false,
-  refreshStreak: () => undefined,
-});
-
-export function YouStreakProvider({ children }: { children: React.ReactNode }) {
-  const [hasActiveStreak, setHasActiveStreak] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const refreshStreak = useCallback(() => {
-    setRefreshKey((current) => current + 1);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: (() => void) | null = null;
-    let focusTimer: ReturnType<typeof setTimeout> | null = null;
-
-    async function loadStreak(accessToken: string | null | undefined) {
-      if (!accessToken) {
-        if (!cancelled) setHasActiveStreak(false);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/user/streak", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          if (!cancelled) setHasActiveStreak(false);
-          return;
-        }
-
-        const data = (await res.json()) as UserStreakResponse;
-        if (!cancelled) setHasActiveStreak((data.streak ?? 0) >= 1);
-      } catch {
-        if (!cancelled) setHasActiveStreak(false);
-      }
-    }
-
-    async function startStreakSync() {
-      try {
-        const { createBrowserClient } = await import("@/lib/supabase-browser");
-        const client = createBrowserClient();
-        const { data: sessionData } = await client.auth.getSession();
-
-        if (cancelled) return;
-        void loadStreak(sessionData.session?.access_token);
-
-        const {
-          data: { subscription },
-        } = client.auth.onAuthStateChange((_event, session) => {
-          void loadStreak(session?.access_token);
-        });
-        unsubscribe = () => subscription.unsubscribe();
-      } catch {
-        if (!cancelled) setHasActiveStreak(false);
-      }
-    }
-
-    function handleFocus() {
-      if (focusTimer) clearTimeout(focusTimer);
-      focusTimer = setTimeout(refreshStreak, 2000);
-    }
-
-    void startStreakSync();
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener(STREAK_UPDATED_EVENT, refreshStreak);
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-      if (focusTimer) clearTimeout(focusTimer);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener(STREAK_UPDATED_EVENT, refreshStreak);
-    };
-  }, [refreshKey, refreshStreak]);
-
-  const value = useMemo(
-    () => ({ hasActiveStreak, refreshStreak }),
-    [hasActiveStreak, refreshStreak],
-  );
-
-  return <YouStreakContext.Provider value={value}>{children}</YouStreakContext.Provider>;
-}
-
-function useYouStreak() {
-  return useContext(YouStreakContext);
-}
 
 function parseStoredVenueIds(value: string | null): Set<string> {
   if (!value) return new Set();
@@ -132,110 +31,17 @@ function BadgeDot() {
   );
 }
 
-function StreakDot() {
-  return (
-    <span
-      aria-hidden="true"
-      className="absolute right-0.5 top-0.5 h-1.5 w-1.5 rounded-full bg-[#8B6CFF]"
-    />
-  );
-}
-
-function MapIcon({ filled }: { filled?: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={filled ? 2.5 : 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 21s7-5.1 7-11a7 7 0 1 0-14 0c0 5.9 7 11 7 11z" />
-      <circle cx={12} cy={10} r={2.5} fill={filled ? "#0A0A0E" : "none"} stroke={filled ? "#0A0A0E" : "currentColor"} />
-    </svg>
-  );
-}
-
-function ExploreIcon({ filled }: { filled?: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={filled ? 2.5 : 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx={11} cy={11} r={7} fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-
-function VibeCheckIcon({ filled }: { filled?: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={filled ? 2.5 : 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M8 4h8" />
-      <path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z" fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
-      <path d="M7 4h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
-      <path d="m9 13 2 2 4-5" />
-    </svg>
-  );
-}
-
-function YouIcon({ filled }: { filled?: boolean }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={24}
-      height={24}
-      viewBox="0 0 24 24"
-      fill={filled ? "currentColor" : "none"}
-      stroke="currentColor"
-      strokeWidth={filled ? 2.5 : 2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
-      <circle cx={12} cy={7} r={4} fill={filled ? "currentColor" : "none"} fillOpacity={filled ? 0.18 : undefined} />
-    </svg>
-  );
-}
-
 function NavItem({
   href,
   label,
   active,
   showBadge = false,
-  badgeVariant = "default",
   children,
 }: {
   href: string;
   label: string;
   active: boolean;
   showBadge?: boolean;
-  badgeVariant?: "default" | "streak";
   children: React.ReactNode;
 }) {
   return (
@@ -252,7 +58,7 @@ function NavItem({
     >
       <span className="relative transition-transform duration-150 ease-out group-hover:scale-105">
         {children}
-        {showBadge && (badgeVariant === "streak" ? <StreakDot /> : <BadgeDot />)}
+        {showBadge && <BadgeDot />}
         {active && (
           <span
             aria-hidden="true"
@@ -266,10 +72,9 @@ function NavItem({
 }
 
 const navItems = [
-  { href: "/map", label: "Map", Icon: MapIcon },
-  { href: "/explore", label: "Explore", Icon: ExploreIcon },
-  { href: "/vibe-check", label: "Vibe", Icon: VibeCheckIcon },
-  { href: "/you", label: "You", Icon: YouIcon },
+  { href: "/map", label: "Map", Icon: Map },
+  { href: "/explore", label: "Explore", Icon: Search },
+  { href: "/saved", label: "Saved", Icon: Heart },
 ];
 
 function shouldHideNavigation(pathname: string): boolean {
@@ -286,16 +91,25 @@ function getActiveStates(pathname: string) {
   return {
     mapActive: pathname.startsWith("/map") || pathname === "/",
     exploreActive: pathname.startsWith("/explore"),
-    vibeCheckActive: pathname.startsWith("/vibe-check"),
-    youActive: pathname.startsWith("/you") || pathname.startsWith("/profile"),
+    savedActive: pathname.startsWith("/saved") || pathname.startsWith("/profile/saved"),
   };
+}
+
+function NavIcon({ Icon, active, filled = false }: { Icon: LucideIcon; active: boolean; filled?: boolean }) {
+  return (
+    <Icon
+      size={24}
+      strokeWidth={active ? 2.5 : 2}
+      fill={filled && active ? "currentColor" : "none"}
+      aria-hidden="true"
+    />
+  );
 }
 
 export function BottomNav() {
   const pathname = usePathname();
   const [showExploreBadge, setShowExploreBadge] = useState(false);
-  const { hasActiveStreak } = useYouStreak();
-  const { mapActive, exploreActive, vibeCheckActive, youActive } = getActiveStates(pathname);
+  const { mapActive, exploreActive, savedActive } = getActiveStates(pathname);
 
   useEffect(() => {
     function refreshExploreBadge() {
@@ -348,20 +162,16 @@ export function BottomNav() {
       className="app-bottom-nav tap-highlight-none fixed bottom-0 left-0 right-0 z-50 border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
     >
       <div className="mx-auto flex h-16 w-full max-w-lg items-stretch px-3">
-        <NavItem href="/explore" label="Explore" active={exploreActive} showBadge={!exploreActive && showExploreBadge}>
-          <ExploreIcon filled={exploreActive} />
-        </NavItem>
-
         <NavItem href="/map" label="Map" active={mapActive}>
-          <MapIcon filled={mapActive} />
+          <NavIcon Icon={Map} active={mapActive} />
         </NavItem>
 
-        <NavItem href="/vibe-check" label="Vibe" active={vibeCheckActive}>
-          <VibeCheckIcon filled={vibeCheckActive} />
+        <NavItem href="/explore" label="Explore" active={exploreActive} showBadge={!exploreActive && showExploreBadge}>
+          <NavIcon Icon={Search} active={exploreActive} />
         </NavItem>
 
-        <NavItem href="/you" label="You" active={youActive} showBadge={hasActiveStreak} badgeVariant="streak">
-          <YouIcon filled={youActive} />
+        <NavItem href="/saved" label="Saved" active={savedActive}>
+          <NavIcon Icon={Heart} active={savedActive} filled />
         </NavItem>
       </div>
     </nav>
@@ -370,12 +180,11 @@ export function BottomNav() {
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { mapActive, exploreActive, vibeCheckActive, youActive } = getActiveStates(pathname);
+  const { mapActive, exploreActive, savedActive } = getActiveStates(pathname);
   const activeByHref: Record<string, boolean> = {
     "/map": mapActive,
     "/explore": exploreActive,
-    "/vibe-check": vibeCheckActive,
-    "/you": youActive,
+    "/saved": savedActive,
   };
 
   if (shouldHideNavigation(pathname)) {
@@ -407,7 +216,7 @@ export function SidebarNav() {
                 className="absolute left-0 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_14px_rgba(139,108,255,0.65)]"
               />
             )}
-            <Icon filled={active} />
+            <NavIcon Icon={Icon} active={active} filled={href === "/saved"} />
             <span>{label}</span>
           </Link>
         );

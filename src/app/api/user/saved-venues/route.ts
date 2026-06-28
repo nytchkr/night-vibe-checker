@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { assertSupabaseServerEnv, MissingSupabaseEnvError, supabaseAdmin } from "@/lib/supabase";
+import { inferCanonicalOpenNow } from "@/lib/openNow";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +14,25 @@ type VenueRow = {
   id: string;
   place_id: string | null;
   name: string | null;
+  category: string | null;
+  venue_type: string | null;
+  open_now: boolean | null;
+  opening_hours: unknown;
+  photo_url: string | string[] | null;
+  photo_urls: string[] | null;
 };
 
-type SavedVenueResponse = {
-  venue_id: string;
-  venue_name: string;
-  created_at: string;
+type SavedVenue = {
+  id: string;
+  name: string;
+  category: string;
+  openNow: boolean | null;
+  photoUrl?: string;
+  photoUrls?: string[];
+};
+
+type SavedVenuesResponse = {
+  savedVenues: SavedVenue[];
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -70,7 +84,10 @@ async function loadVenues(savedVenueIds: string[]): Promise<Map<string, VenueRow
   const uuidIds = savedVenueIds.filter((id) => UUID_RE.test(id));
 
   if (uuidIds.length > 0) {
-    const { data, error } = await supabaseAdmin.from("venues").select("id,place_id,name").in("id", uuidIds);
+    const { data, error } = await supabaseAdmin
+      .from("venues")
+      .select("id,place_id,name,category,venue_type,open_now,opening_hours,photo_url,photo_urls")
+      .in("id", uuidIds);
     if (error) throw error;
     for (const venue of (data ?? []) as VenueRow[]) {
       venueMap.set(venue.id, venue);
@@ -78,7 +95,10 @@ async function loadVenues(savedVenueIds: string[]): Promise<Map<string, VenueRow
     }
   }
 
-  const { data, error } = await supabaseAdmin.from("venues").select("id,place_id,name").in("place_id", savedVenueIds);
+  const { data, error } = await supabaseAdmin
+    .from("venues")
+    .select("id,place_id,name,category,venue_type,open_now,opening_hours,photo_url,photo_urls")
+    .in("place_id", savedVenueIds);
   if (error) throw error;
   for (const venue of (data ?? []) as VenueRow[]) {
     venueMap.set(venue.id, venue);
@@ -88,7 +108,25 @@ async function loadVenues(savedVenueIds: string[]): Promise<Map<string, VenueRow
   return venueMap;
 }
 
-export async function GET(req: NextRequest): Promise<NextResponse<SavedVenueResponse[] | { error: string }>> {
+function readPhotoUrls(venue: VenueRow | undefined): string[] {
+  if (!venue) return [];
+
+  const urls = new Set<string>();
+  const photoUrl = venue.photo_url;
+  if (typeof photoUrl === "string" && photoUrl.length > 0) urls.add(photoUrl);
+  if (Array.isArray(photoUrl)) {
+    for (const item of photoUrl) {
+      if (typeof item === "string" && item.length > 0) urls.add(item);
+    }
+  }
+  for (const item of venue.photo_urls ?? []) {
+    if (typeof item === "string" && item.length > 0) urls.add(item);
+  }
+
+  return Array.from(urls);
+}
+
+export async function GET(req: NextRequest): Promise<NextResponse<SavedVenuesResponse | { error: string }>> {
   try {
     assertSupabaseServerEnv();
   } catch (error) {
@@ -116,15 +154,25 @@ export async function GET(req: NextRequest): Promise<NextResponse<SavedVenueResp
   const venueIds = rows.map((row) => row.venue_id).filter(Boolean);
   const venuesById = venueIds.length > 0 ? await loadVenues(venueIds) : new Map<string, VenueRow>();
 
-  return NextResponse.json(
-    rows.map((row) => {
-      const venue = venuesById.get(row.venue_id);
-      return {
-        venue_id: venue?.id ?? row.venue_id,
-        venue_name: venue?.name?.trim() || row.venue_id,
-        created_at: row.created_at,
-      };
-    }),
-    { headers: { "Cache-Control": "private, no-cache" } },
-  );
+  const savedVenues = rows.map((row) => {
+    const venue = venuesById.get(row.venue_id);
+    const category = venue?.category?.trim() || venue?.venue_type?.trim() || "Venue";
+    const photoUrls = readPhotoUrls(venue);
+
+    return {
+      id: venue?.id ?? row.venue_id,
+      name: venue?.name?.trim() || row.venue_id,
+      category,
+      openNow: venue
+        ? inferCanonicalOpenNow({
+            category,
+            openingHours: venue.opening_hours,
+            refreshedAt: null,
+          }) ?? venue.open_now ?? null
+        : null,
+      ...(photoUrls.length > 0 ? { photoUrl: photoUrls[0], photoUrls } : {}),
+    };
+  });
+
+  return NextResponse.json({ savedVenues }, { headers: { "Cache-Control": "no-store" } });
 }

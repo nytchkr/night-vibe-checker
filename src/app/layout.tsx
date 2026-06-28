@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
 import Script from "next/script";
-import { BottomNav, SidebarNav, YouStreakProvider } from "@/components/BottomNav";
+import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
 import { OnboardingWizard } from "@/components/OnboardingWizard";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
@@ -12,8 +12,8 @@ import { ToastProvider } from "@/hooks/useToast";
 import "./globals.css";
 
 const siteUrl = "https://nytchkr.com";
-const title = "NightVibe";
-const description = "Find the hottest spots in Charlotte tonight";
+const title = "nytchkr - Find your spot tonight";
+const description = "Real busyness. Bars and restaurants in Charlotte.";
 const themeColor = "#0A0A0E";
 const canonicalUrl = "https://nytchkr.com";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://nytchkr.com"),
   title: {
     default: title,
-    template: "%s — NightVibe",
+    template: "%s — nytchkr",
   },
   description,
   alternates: {
@@ -59,13 +59,13 @@ export const metadata: Metadata = {
     title,
     description,
     url: canonicalUrl,
-    siteName: "NightVibe",
+    siteName: "nytchkr",
     images: [
       {
         url: ogImageUrl,
         width: 1200,
         height: 630,
-        alt: "NightVibe nightlife vibe tracker preview",
+        alt: "nytchkr nightlife vibe tracker preview",
       },
     ],
     type: "website",
@@ -136,25 +136,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         )}
         <ToastProvider>
-          <YouStreakProvider>
-            <div className="app-shell h-screen-safe">
-              <RoutePrefetch href="/map" />
-              <RoutePrefetch href="/explore" />
-              <SidebarNav />
-              <OnboardingGateProvider>
-                <main
-                  id="main-content"
-                  tabIndex={-1}
-                  className={`app-content scroll-touch ${isDev ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-5 lg:pb-0 lg:pt-0" : "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"}`}
-                >
-                  {children}
-                </main>
-                <OnboardingWizard />
-              </OnboardingGateProvider>
-            </div>
-            <PWAInstallPrompt />
-            <BottomNav />
-          </YouStreakProvider>
+          <div className="app-shell h-screen-safe">
+            <RoutePrefetch href="/map" />
+            <RoutePrefetch href="/explore" />
+            <RoutePrefetch href="/saved" />
+            <SidebarNav />
+            <OnboardingGateProvider>
+              <main
+                id="main-content"
+                tabIndex={-1}
+                className={`app-content scroll-touch ${isDev ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-5 lg:pb-0 lg:pt-0" : "pb-[calc(5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"}`}
+              >
+                {children}
+              </main>
+              <OnboardingWizard />
+            </OnboardingGateProvider>
+          </div>
+          <PWAInstallPrompt />
+          <BottomNav />
         </ToastProvider>
         <Script id="service-worker-registration" nonce={nonce} strategy="afterInteractive">
           {`if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');`}
