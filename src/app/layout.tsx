@@ -12,8 +12,8 @@ import { ToastProvider } from "@/hooks/useToast";
 import "./globals.css";
 
 const siteUrl = "https://nytchkr.com";
-const title = "nytchkr - Find your spot tonight";
-const description = "Real busyness. Bars and restaurants in Charlotte.";
+const title = "nytchkr — Find your spot tonight";
+const description = "Real busyness. Real vibes. Bars and restaurants in Charlotte.";
 const themeColor = "#0A0A0E";
 const canonicalUrl = "https://nytchkr.com";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
