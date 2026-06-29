@@ -28,9 +28,7 @@ type TestVenue = {
     placeId: string;
     busyness0To100: number | null;
     busynessSource: "live" | "forecast" | "crowd" | null;
-    mfRatio: number | null;
     confidence0To1: number;
-    sampleSize: number;
     computedAt: string;
     lastBusynessRefresh: string | null;
   } | null;
@@ -63,9 +61,7 @@ const venues: TestVenue[] = [
       placeId: "place-cross-device-pulse",
       busyness0To100: 91,
       busynessSource: "live",
-      mfRatio: 52,
       confidence0To1: 0.86,
-      sampleSize: 19,
       computedAt: generatedAt,
       lastBusynessRefresh: generatedAt,
     },
@@ -96,9 +92,7 @@ const venues: TestVenue[] = [
       placeId: "place-cross-device-lounge",
       busyness0To100: 63,
       busynessSource: "forecast",
-      mfRatio: 48,
       confidence0To1: 0.72,
-      sampleSize: 11,
       computedAt: generatedAt,
       lastBusynessRefresh: generatedAt,
     },

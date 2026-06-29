@@ -51,7 +51,6 @@ function venue(overrides: Record<string, unknown> = {}) {
         place_id: "place-venue-1",
         busyness_0_100: 72,
         busyness_source: "crowd",
-        mf_ratio: null,
         confidence_0_1: 0.5,
         sample_size: 10,
         computed_at: "2026-06-23T01:30:00.000Z",
@@ -79,8 +78,6 @@ beforeEach(() => {
   mockRedisGet.mockResolvedValue(null);
   mockRedisSet.mockResolvedValue("OK");
   mockComputeVenueMfRatioFromCheckIns.mockResolvedValue({
-    mfRatio: null,
-    sampleSize: 0,
     computedAt: "2026-06-28T04:00:00.000Z",
   });
 });
@@ -111,8 +108,6 @@ describe("GET /api/venues/[id] cache headers", () => {
       error: null,
     });
     mockComputeVenueMfRatioFromCheckIns.mockResolvedValueOnce({
-      mfRatio: 60,
-      sampleSize: 5,
       computedAt: "2026-06-28T04:00:00.000Z",
     });
 
@@ -136,7 +131,6 @@ describe("GET /api/venues/[id] cache headers", () => {
             place_id: "place-venue-1",
             busyness_0_100: 72,
             busyness_source: "crowd",
-            mf_ratio: 64,
             confidence_0_1: 0.5,
             sample_size: 10,
             computed_at: "2026-06-26T04:00:00.000Z",
@@ -147,8 +141,6 @@ describe("GET /api/venues/[id] cache headers", () => {
       error: null,
     });
     mockComputeVenueMfRatioFromCheckIns.mockResolvedValueOnce({
-      mfRatio: null,
-      sampleSize: 4,
       computedAt: "2026-06-28T04:00:00.000Z",
     });
 

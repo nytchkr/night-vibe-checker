@@ -102,7 +102,6 @@ function venueRow({
         place_id: `place-${id}`,
         busyness_0_100: busyness,
         busyness_source: busyness == null ? "unavailable" : "live",
-        mf_ratio: null,
         confidence_0_1: 0.5,
         sample_size: checkInCount,
         computed_at: UPDATED_AT,
