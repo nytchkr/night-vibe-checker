@@ -1,30 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { ArrowLeft, ChevronDown, Clock, Globe, MapPin, Phone } from "lucide-react";
-import { BusynessForecast } from "@/components/BusynessForecast";
-import { BusynessMeter } from "@/components/BusynessMeter";
+import { ArrowLeft, Clock, MapPin } from "lucide-react";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
-import { OpenNowBadge } from "@/components/OpenNowBadge";
-import { SaveButton } from "@/components/SaveButton";
-import { ShareButton } from "@/components/ShareButton";
+import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SkeletonVenueDetail } from "@/components/SkeletonVenueDetail";
 import { StarRating } from "@/components/StarRating";
 import { Toast } from "@/components/Toast";
 import { VenuePhoto } from "@/components/VenuePhoto";
-import { getNeighborhood } from "@/lib/neighborhood";
 import { summarizeVenueHours } from "@/lib/venueHours";
 import { useHaptic } from "@/hooks/useHaptic";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
 const VenueTips = dynamic(() => import("@/components/VenueTips").then((mod) => mod.VenueTips), {
   ssr: false,
-  loading: () => <div className="h-28 rounded-2xl border border-white/[0.06] bg-white/[0.04]" aria-hidden="true" />,
+  loading: () => <div className="h-28 rounded-2xl border border-white/[0.08] bg-white/[0.035]" aria-hidden="true" />,
 });
 
 function clampPercent(value: number | null | undefined): number {
@@ -34,26 +29,20 @@ function clampPercent(value: number | null | undefined): number {
 
 function getBusynessColor(percent: number): string {
   if (percent >= 67) return "#FF5B6A";
-  if (percent >= 50) return "#FFB020";
-  return "#00F5D4";
+  if (percent >= 34) return "#FFB020";
+  return "#5C6573";
 }
 
-function getDecisionLabel({
-  openNow,
-  busyness,
-}: {
-  openNow: boolean | null | undefined;
-  busyness: number | null | undefined;
-}): "PACKED" | "MODERATE" | "QUIET" | "CLOSED" | "NO READ" {
-  if (openNow === false) return "CLOSED";
-  if (busyness == null || !Number.isFinite(busyness)) return "NO READ";
-  if (busyness >= 67) return "PACKED";
-  if (busyness >= 50) return "MODERATE";
-  return "QUIET";
+function getBusynessLabel(percent: number): "Packed" | "Moderate" | "Dead" {
+  if (percent >= 67) return "Packed";
+  if (percent >= 34) return "Moderate";
+  return "Dead";
 }
 
-function getSourceChip(source: BusynessSource | null | undefined): "LIVE" | "FORECAST" {
-  return source === "forecast" ? "FORECAST" : "LIVE";
+function getSourceChip(source: BusynessSource | null | undefined): "LIVE" | "FORECAST" | null {
+  if (source === "live") return "LIVE";
+  if (source === "forecast") return "FORECAST";
+  return null;
 }
 
 function getGoogleRatingData(venue: ConsumerVenue | null | undefined): { rating: number; count: number } | null {
@@ -81,23 +70,11 @@ function trackAnalytics(event: string, properties: Record<string, string | numbe
   }
 }
 
-function FactRow({
-  icon: Icon,
-  label,
-  children,
-}: {
-  icon: typeof MapPin;
-  label: string;
-  children: ReactNode;
-}) {
+function SurfaceCard({ children, className = "", ...props }: ComponentPropsWithoutRef<"section">) {
   return (
-    <div className="flex gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4">
-      <Icon className="mt-0.5 h-5 w-5 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="text-xs font-black uppercase text-white/35">{label}</p>
-        <div className="mt-1 text-sm font-semibold leading-6 text-white/78">{children}</div>
-      </div>
-    </div>
+    <section {...props} className={`rounded-[22px] border border-white/[0.08] bg-white/[0.035] p-4 ${className}`}>
+      {children}
+    </section>
   );
 }
 
@@ -116,7 +93,6 @@ export function VenuePageClient({
   const [loading, setLoading] = useState(!initialVenue);
   const [error, setError] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
-  const [hoursExpanded, setHoursExpanded] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -144,9 +120,7 @@ export function VenuePageClient({
 
     async function fetchData() {
       try {
-        const venueRes = initialVenue
-          ? null
-          : await fetch(`/api/venues/${encodeURIComponent(venueId)}`);
+        const venueRes = initialVenue ? null : await fetch(`/api/venues/${encodeURIComponent(venueId)}`);
         if (venueRes && !venueRes.ok) throw new Error(`${venueRes.status}`);
         const venueJson = venueRes ? await venueRes.json() : null;
         if (cancelled) return;
@@ -167,27 +141,22 @@ export function VenuePageClient({
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessPercent = clampPercent(busyness);
-  const hasBusynessRead = busyness != null;
-  const busynessSource = signal?.busynessSource ?? null;
-  const sourceChip = getSourceChip(busynessSource);
-  const decisionLabel = getDecisionLabel({ openNow: venue?.openNow, busyness });
-  const decisionColor = decisionLabel === "CLOSED" || decisionLabel === "NO READ" ? "#9CA2AE" : getBusynessColor(busynessPercent);
+  const sourceChip = getSourceChip(signal?.busynessSource ?? null);
+  const hasBusynessRead = busyness != null && sourceChip !== null;
+  const busynessColor = getBusynessColor(busynessPercent);
+  const busynessLabel = getBusynessLabel(busynessPercent);
   const googleRatingData = getGoogleRatingData(venue);
-  const neighborhood = venue ? getNeighborhood(venue.lat, venue.lng) : "Charlotte";
   const hoursSummary = useMemo(() => summarizeVenueHours(venue?.openingHours), [venue?.openingHours]);
   const mapsHref = useMemo(() => (venue ? getMapsHref(venue) : "#"), [venue]);
-  const phoneHref = venue?.phoneNumber || venue?.phone ? `tel:${(venue.phoneNumber ?? venue.phone ?? "").replace(/[^\d+]/g, "")}` : null;
-  const phoneDisplay = venue?.phoneNumber ?? venue?.phone ?? null;
-  const websiteHref = venue?.website ?? null;
   const statusText = venue?.openNow === false
-    ? "Closed now"
+    ? "Closed"
     : venue?.openNow === true
       ? "Open now"
       : hoursSummary.hasHours
         ? hoursSummary.todayStatus
         : "Hours not available";
-  const openAndUncrowded = venue?.openNow !== false && hasBusynessRead && busynessPercent < 50;
-  const hoursPanelId = "venue-hours-list";
+  const statusColor = venue?.openNow === false ? "text-[#FF5B6A]" : venue?.openNow === true ? "text-[#20E58F]" : "text-[#9CA2AE]";
+  const todayHours = hoursSummary.hasHours ? hoursSummary.weekHours.find((hour) => hour.day === hoursSummary.today)?.hours : null;
 
   function goBackToMap() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -198,7 +167,7 @@ export function VenuePageClient({
     router.push("/map");
   }
 
-  function handleVenueSavedChange(saved: boolean) {
+  function handleVenueSavedChange(_venueId: string, saved: boolean) {
     setToast(saved ? "Saved!" : "Removed");
     if (saved) {
       haptic.success();
@@ -208,7 +177,7 @@ export function VenuePageClient({
   }
 
   return (
-    <div className="min-h-screen-safe bg-[#0A0A0E] pb-24">
+    <div className="min-h-screen-safe bg-[#0A0A0E] pb-24 font-sans text-[#F4F5F8]">
       {toast && (
         <Toast
           message={toast}
@@ -222,10 +191,7 @@ export function VenuePageClient({
 
       {!loading && error && (
         <div className="mx-auto max-w-lg px-4 py-6 pb-36">
-          <div
-            role="alert"
-            className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-5 text-center"
-          >
+          <div role="alert" className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-5 text-center">
             <p className="font-medium text-[#F4F5F8]">Could not load venue</p>
             <p className="mt-1 text-sm text-[#9CA2AE]">{error}</p>
             <Link
@@ -274,7 +240,7 @@ export function VenuePageClient({
           )}
 
           <section className="w-full bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div className="relative min-h-[390px] w-full overflow-hidden sm:min-h-[480px]">
+            <div className="relative min-h-[360px] w-full overflow-hidden sm:min-h-[460px]">
               <VenuePhoto
                 name={venue.name}
                 photoUrl={venue.photoUrl}
@@ -286,7 +252,7 @@ export function VenuePageClient({
                 priority={true}
                 fetchPriority="high"
               />
-              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.42),rgba(10,10,14,0.22)_40%,#0A0A0E_100%)]" aria-hidden="true" />
+              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.34),rgba(10,10,14,0.05)_45%,#0A0A0E_100%)]" aria-hidden="true" />
               <button
                 type="button"
                 onClick={goBackToMap}
@@ -295,208 +261,96 @@ export function VenuePageClient({
               >
                 <ArrowLeft className="h-5 w-5" aria-hidden="true" />
               </button>
-              <SaveButton
-                placeId={venue.id}
-                ariaLabel="Save venue"
-                onSavedChange={handleVenueSavedChange}
-                className="absolute right-4 top-4 h-11 w-11 bg-black/40 text-white/80 shadow-lg backdrop-blur hover:bg-black/55"
-              />
-              <div className="absolute inset-x-0 bottom-0 mx-auto max-w-lg px-4 pb-7">
-                <div className="flex flex-wrap items-center gap-2">
-                  <CategoryBadge category={venue.category} />
-                  <PriceLevelDisplay
-                    priceLevel={venue.priceLevel}
-                    className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-xs text-white/65 backdrop-blur"
-                  />
-                  <span className="rounded-full border border-white/15 bg-black/35 px-3 py-1 text-xs font-black text-white/65 backdrop-blur">
-                    {neighborhood}
-                  </span>
-                </div>
-                <h1 className="mt-4 font-display max-w-[24rem] text-4xl font-black leading-[1.02] text-white drop-shadow-lg sm:text-5xl">
-                  {venue.name}
-                </h1>
-                {venue.address && (
-                  <p className="mt-3 max-w-[24rem] text-sm font-medium leading-relaxed text-white/68">{venue.address}</p>
-                )}
-              </div>
             </div>
           </section>
 
-          <main className="mx-auto max-w-lg space-y-6 px-4 pb-8 pt-2">
-            <section className="rounded-[22px] border border-white/[0.08] bg-white/[0.045] p-4 shadow-2xl shadow-black/20" aria-label="Decision block">
+          <main className="mx-auto max-w-lg space-y-5 px-4 pb-8 pt-5">
+            <section aria-label="Venue identity">
+              <h1 className="font-display text-4xl font-black leading-[1.04] text-[#F4F5F8] sm:text-5xl">{venue.name}</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <CategoryBadge category={venue.category} className="border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[#F4F5F8]" />
+                <PriceLevelDisplay priceLevel={venue.priceLevel} className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9CA2AE]" />
+              </div>
+            </section>
+
+            {venue.address ? (
+              <a href={mapsHref} target="_blank" rel="noreferrer" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70">
+                <SurfaceCard className="flex gap-3">
+                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Address</p>
+                    <p className="mt-1 text-sm font-semibold leading-6 text-[#F4F5F8] underline decoration-white/20 underline-offset-4">{venue.address}</p>
+                  </div>
+                </SurfaceCard>
+              </a>
+            ) : null}
+
+            <SurfaceCard>
+              <div className="flex items-start gap-3">
+                <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Hours</p>
+                  <p className={`mt-1 text-base font-black ${statusColor}`}>{statusText}</p>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-[#9CA2AE]">{todayHours ?? "Today's hours unavailable"}</p>
+                </div>
+              </div>
+            </SurfaceCard>
+
+            <SurfaceCard aria-label="BestTime busyness meter">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.12em] text-white/35">Busyness right now</p>
-                  <div
-                    className="mt-3 inline-flex rounded-2xl border px-4 py-3 text-3xl font-black leading-none shadow-[0_0_24px_rgba(139,108,255,0.12)]"
-                    style={{
-                      borderColor: `${decisionColor}66`,
-                      color: decisionColor,
-                      backgroundColor: `${decisionColor}1A`,
-                    }}
-                  >
-                    {decisionLabel}
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full border border-white/12 bg-[#0A0A0E]/75 px-3 py-1.5 text-xs font-black text-white/72">
-                  {sourceChip}
-                </span>
-              </div>
-
-              <div className="mt-5">
-                <BusynessMeter
-                  value={busyness}
-                  source={busynessSource}
-                  sampleSize={signal?.sampleSize ?? 0}
-                  computedAt={signal?.computedAt ?? null}
-                />
-              </div>
-
-              {openAndUncrowded ? (
-                <p className="mt-4 rounded-2xl border border-[#00F5D4]/25 bg-[#00F5D4]/10 px-4 py-3 text-sm font-black text-[#00F5D4]">
-                  Not too crowded right now
-                </p>
-              ) : null}
-
-              {!hasBusynessRead ? (
-                <p className="mt-4 rounded-2xl border border-white/[0.08] bg-black/20 px-4 py-3 text-sm font-semibold text-white/45">
-                  Live busyness is not available for this venue yet.
-                </p>
-              ) : null}
-            </section>
-
-            <BusynessForecast venueId={venue.id} />
-
-            <section className="space-y-3" aria-label="Venue facts">
-              <div className="flex items-end justify-between gap-3">
-                <h2 className="font-display text-xl font-black text-white">The facts</h2>
-                <span className="text-xs font-semibold text-white/35">Google venue data</span>
-              </div>
-
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04]">
-                <button
-                  type="button"
-                  onClick={() => setHoursExpanded((expanded) => !expanded)}
-                  className="flex w-full items-center justify-between gap-4 p-4 text-left transition-colors hover:bg-white/[0.035] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-                  aria-expanded={hoursExpanded}
-                  aria-controls={hoursPanelId}
-                >
-                  <span className="min-w-0">
-                    <span className="flex flex-wrap items-center gap-2 text-sm font-black text-white">
-                      <Clock className="h-4 w-4 text-[#8B6CFF]" aria-hidden="true" />
-                      <OpenNowBadge openNow={venue.openNow ?? null} />
-                      {statusText}
-                    </span>
-                    <span className="mt-1 block truncate text-sm font-semibold text-white/45">
-                      {hoursSummary.hasHours ? hoursSummary.todayStatus : "Today's hours unavailable"}
-                    </span>
-                  </span>
-                  <ChevronDown
-                    size={18}
-                    className={`shrink-0 text-white/45 transition-transform ${hoursExpanded ? "rotate-180" : ""}`}
-                    aria-hidden="true"
-                  />
-                </button>
-                {hoursExpanded ? (
-                  hoursSummary.hasHours ? (
-                    <ul id={hoursPanelId} className="space-y-2 border-t border-white/[0.06] p-4">
-                      {hoursSummary.weekHours.map((hour, index) => {
-                        const isToday = hour.day === hoursSummary.today;
-                        return (
-                          <li
-                            key={`${hour.day}-${index}`}
-                            className={`grid grid-cols-[6.5rem_1fr] gap-3 text-[13px] ${
-                              isToday ? "text-[#8B6CFF]" : hour.closed || !hour.available ? "text-white/35" : "text-white/55"
-                            }`}
-                          >
-                            <span className="font-bold">{hour.day}</span>
-                            <span>{hour.hours}</span>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">BestTime busyness</p>
+                  {hasBusynessRead ? (
+                    <p className="mt-2 text-3xl font-black text-[#F4F5F8]">{busynessPercent}%</p>
                   ) : (
-                    <p id={hoursPanelId} className="border-t border-white/[0.06] p-4 text-[13px] font-medium text-white/45">
-                      Hours not available
-                    </p>
-                  )
+                    <p className="mt-2 text-lg font-black text-[#F4F5F8]">No busyness data yet</p>
+                  )}
+                </div>
+                {sourceChip ? (
+                  <span className="shrink-0 rounded-full border border-[#8B6CFF]/40 bg-[#8B6CFF]/15 px-3 py-1.5 text-xs font-black text-[#F4F5F8]">{sourceChip}</span>
                 ) : null}
               </div>
-
-              {venue.address ? (
-                <a href={mapsHref} target="_blank" rel="noreferrer" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70">
-                  <FactRow icon={MapPin} label="Address">
-                    <span className="underline decoration-white/20 underline-offset-4">{venue.address}</span>
-                  </FactRow>
-                </a>
-              ) : null}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4">
-                  <p className="text-xs font-black uppercase text-white/35">Price</p>
-                  <div className="mt-2 text-lg font-black text-white">
-                    {venue.priceLevel ? "$".repeat(venue.priceLevel) : <span className="text-sm text-white/42">Not listed</span>}
+              {hasBusynessRead ? (
+                <>
+                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
+                    <div className="h-full rounded-full transition-[width]" style={{ width: `${busynessPercent}%`, backgroundColor: busynessColor }} />
                   </div>
-                </div>
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.04] p-4">
-                  <p className="text-xs font-black uppercase text-white/35">Google rating</p>
-                  <div className="mt-2 min-h-6">
-                    {googleRatingData ? (
-                      <StarRating {...googleRatingData} />
-                    ) : (
-                      <span className="text-sm font-semibold text-white/42">Not listed</span>
-                    )}
+                  <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#9CA2AE]">
+                    <span>Dead</span>
+                    <span style={{ color: busynessColor }}>{busynessLabel}</span>
+                    <span>Packed</span>
                   </div>
+                </>
+              ) : (
+                <p className="mt-3 text-sm font-semibold leading-6 text-[#9CA2AE]">We do not have a live or forecast BestTime read for this venue.</p>
+              )}
+            </SurfaceCard>
+
+            <SurfaceCard>
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Google rating</p>
+              <div className="mt-3 min-h-6 text-lg">
+                {googleRatingData ? <StarRating {...googleRatingData} className="text-base" /> : <span className="text-sm font-semibold text-[#9CA2AE]">Not listed</span>}
+              </div>
+            </SurfaceCard>
+
+            <SurfaceCard aria-label="AI insider tips">
+              <VenueTips venueId={venue.id} title="AI insider tips" subtitle="AI-organized tips from real review text." maxTips={3} />
+            </SurfaceCard>
+
+            <SurfaceCard aria-label="Save venue">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-xl font-black text-[#F4F5F8]">Save this spot</h2>
+                  <p className="mt-1 text-sm font-semibold text-[#9CA2AE]">Keep it on your list for later.</p>
                 </div>
+                <SaveVenueButton
+                  venueId={venue.id}
+                  venueName={venue.name}
+                  onSavedChange={handleVenueSavedChange}
+                  className="h-12 w-12 border-[#8B6CFF]/45 bg-[#8B6CFF]/15 text-[#8B6CFF]"
+                />
               </div>
-
-              {phoneHref && phoneDisplay ? (
-                <a href={phoneHref} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70">
-                  <FactRow icon={Phone} label="Phone">
-                    <span className="underline decoration-white/20 underline-offset-4">{phoneDisplay}</span>
-                  </FactRow>
-                </a>
-              ) : null}
-
-              {websiteHref ? (
-                <a href={websiteHref} target="_blank" rel="noreferrer" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70">
-                  <FactRow icon={Globe} label="Website">
-                    <span className="underline decoration-white/20 underline-offset-4">Open website</span>
-                  </FactRow>
-                </a>
-              ) : null}
-            </section>
-
-            <section className="space-y-3" aria-label="What locals say">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#8B6CFF]">AI insider tips</p>
-              </div>
-              <VenueTips
-                venueId={venue.id}
-                title="What locals say"
-                subtitle="AI-organized tips from real review text."
-                maxTips={3}
-              />
-            </section>
-
-            <section className="space-y-3 rounded-[22px] border border-white/[0.08] bg-white/[0.04] p-4" aria-label="Save and share">
-              <h2 className="font-display text-xl font-black text-white">Save + share</h2>
-              <SaveButton
-                placeId={venue.id}
-                ariaLabel="Save venue"
-                onSavedChange={handleVenueSavedChange}
-                className="h-12 w-full rounded-2xl border-white/[0.12] bg-transparent text-white/82 hover:border-[#8B6CFF]/55 hover:bg-[#8B6CFF]/10 hover:text-white"
-              >
-                Save this place
-              </SaveButton>
-              <ShareButton
-                venueId={venue.id}
-                venueName={venue.name}
-                className="h-12 w-full rounded-2xl border border-white/[0.12] bg-transparent px-4 text-sm font-black text-white/82 hover:border-[#8B6CFF]/55 hover:bg-[#8B6CFF]/10 hover:text-white"
-              >
-                Share
-              </ShareButton>
-            </section>
+            </SurfaceCard>
           </main>
         </>
       )}

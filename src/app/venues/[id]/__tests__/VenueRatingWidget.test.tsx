@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsumerVenue } from "@/types";
@@ -85,6 +84,12 @@ vi.mock("@/components/SaveButton", () => ({
     "aria-label"?: string;
     ariaLabel?: string;
   }) => <button type="button" aria-label={explicitAriaLabel ?? ariaLabel ?? "Save venue"}>{children ?? "Save"}</button>,
+}));
+
+vi.mock("@/components/SaveVenueButton", () => ({
+  SaveVenueButton: ({ venueName }: { venueName: string }) => (
+    <button type="button" aria-label={`Save ${venueName}`}>Save</button>
+  ),
 }));
 
 vi.mock("@/components/ShareButton", () => ({
@@ -204,31 +209,31 @@ describe("VenuePageClient decision layout", () => {
     renderVenuePage();
 
     expect(screen.getByRole("heading", { name: "Neon Lounge" })).toBeTruthy();
-    expect(screen.getByLabelText("Decision block")).toBeTruthy();
+    expect(screen.getByLabelText("Venue identity")).toBeTruthy();
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryByRole("button", { name: /Report the vibe/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Check in/i })).toBeNull();
     expect(screen.queryByText(/Sign in to rate/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /Rate \d stars?/i })).toBeNull();
   });
 
-  it("shows the current busyness badge, source chip, forecast, and good-time hint", () => {
+  it("shows the current BestTime busyness meter and source chip", () => {
     renderVenuePage();
 
-    expect(screen.getByText("QUIET")).toBeTruthy();
+    expect(screen.getByText("42%")).toBeTruthy();
+    expect(screen.getByText("Moderate")).toBeTruthy();
     expect(screen.getByText("FORECAST")).toBeTruthy();
-    expect(screen.getByTestId("busyness-meter")).toBeTruthy();
-    expect(screen.getByLabelText("Hourly busyness forecast")).toBeTruthy();
-    expect(screen.getByText("Not too crowded right now")).toBeTruthy();
+    expect(screen.getByLabelText("BestTime busyness meter")).toBeTruthy();
   });
 
   it("shows closed when the venue is not open", () => {
     renderVenuePage(makeVenue({ openNow: false }));
 
-    expect(screen.getByText("CLOSED")).toBeTruthy();
+    expect(screen.getByText("Closed")).toBeTruthy();
     expect(screen.queryByText("Not too crowded right now")).toBeNull();
   });
 
-  it("renders the facts section with hours, address, price, Google rating, phone, and website", async () => {
+  it("renders address, hours, price, and Google rating in spec order", () => {
     renderVenuePage(makeVenue({
       phoneNumber: "(704) 555-1212",
       website: "https://example.com",
@@ -243,28 +248,26 @@ describe("VenuePageClient decision layout", () => {
       ],
     }));
 
-    expect(screen.getByRole("heading", { name: "The facts" })).toBeTruthy();
-    expect(screen.getAllByText("100 Camden Rd, Charlotte, NC").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("$$").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("bar")).toBeTruthy();
+    expect(screen.getByText("$$")).toBeTruthy();
+    expect(screen.getByText("Address")).toBeTruthy();
+    expect(screen.getByText("100 Camden Rd, Charlotte, NC")).toBeTruthy();
+    expect(screen.getByText("Hours")).toBeTruthy();
+    expect(screen.getByText("Open now")).toBeTruthy();
     expect(screen.getByTestId("google-stars")).toBeTruthy();
-    expect(screen.getByText("(704) 555-1212")).toBeTruthy();
-    expect(screen.getByText("Open website")).toBeTruthy();
-
-    const hoursButton = screen.getByRole("button", { name: /Open now/i });
-    await userEvent.click(hoursButton);
-    expect(hoursButton.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.queryByText("(704) 555-1212")).toBeNull();
+    expect(screen.queryByText("Open website")).toBeNull();
   });
 
-  it("renders local tips and full-width save/share actions", async () => {
+  it("renders AI insider tips and the single save action", async () => {
     renderVenuePage();
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "What locals say" })).toBeTruthy();
+      expect(screen.getByRole("heading", { name: "AI insider tips" })).toBeTruthy();
     });
     expect(screen.getByText("AI-organized tips from real review text.")).toBeTruthy();
     expect(screen.getByText("3 tips")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Save venue" }).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Save this place")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Share" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Save Neon Lounge" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Share" })).toBeNull();
   });
 });
