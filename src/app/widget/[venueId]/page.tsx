@@ -27,13 +27,11 @@ function barColor(value: number | null | undefined): string {
   return "bg-[#5C6573]";
 }
 
-function crowdFeel(venue: ConsumerVenue): { label: string; icon: string } {
-  const signal = venue.signal;
-  const mfRatio = signal?.mfRatio;
-  if (mfRatio == null || (signal?.sampleSize ?? 0) < 3) return { label: "No live reads yet", icon: "👥" };
-  if (mfRatio >= 60) return { label: "More guys", icon: "🕺" };
-  if (mfRatio <= 40) return { label: "More women", icon: "💃" };
-  return { label: "Mixed", icon: "👥" };
+function signalLabel(venue: ConsumerVenue): { label: string } {
+  const source = venue.signal?.busynessSource;
+  if (source === "live") return { label: "Live busyness" };
+  if (source === "forecast") return { label: "Forecast busyness" };
+  return { label: "Busyness signal" };
 }
 
 export default async function WidgetPage({ params }: WidgetPageProps) {
@@ -45,7 +43,7 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
   const percent = clampPercent(busyness);
   const busynessState = getBusynessState(busyness);
   const busynessSource = busyness != null ? venue.signal?.busynessSource : null;
-  const feel = crowdFeel(venue);
+  const feel = signalLabel(venue);
 
   return (
     <div className="flex min-h-[100dvh] items-start justify-center bg-[#0A0A0E] p-0 text-white sm:items-center sm:p-4">
@@ -78,7 +76,6 @@ export default async function WidgetPage({ params }: WidgetPageProps) {
 
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[11px] font-bold text-white/85">
-              <span aria-hidden="true">{feel.icon}</span>
               {feel.label}
             </span>
             <span className="font-display text-[11px] font-semibold text-white/35">Powered by nytchkr</span>

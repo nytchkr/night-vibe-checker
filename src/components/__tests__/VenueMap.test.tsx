@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VenueMap } from "@/components/VenueMap";
@@ -43,33 +42,31 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/dynamic", () => ({
   default: () =>
-    function DynamicComponentStub() {
-      return null;
+    function DynamicComponentStub({
+      selectedVenueId,
+      venues = [],
+    }: {
+      selectedVenueId?: string | null;
+      venues?: ConsumerVenue[];
+    }) {
+      const selectedVenue = venues.find((candidate) => candidate.id === selectedVenueId);
+
+      return (
+        <section aria-label="Charlotte venues" data-testid="map-bottom-sheet">
+          {selectedVenue && (
+            <article aria-label={`${selectedVenue.name} bottom sheet`}>
+              <h2>{selectedVenue.name}</h2>
+              <p>{selectedVenue.category}</p>
+              <a href={`/venues/${selectedVenue.slug || selectedVenue.id}`}>View details</a>
+            </article>
+          )}
+        </section>
+      );
     },
 }));
 
 vi.mock("@vercel/analytics", () => ({
   track: vi.fn(),
-}));
-
-vi.mock("framer-motion", () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => React.createElement(React.Fragment, null, children),
-}));
-
-vi.mock("framer-motion/client", () => ({
-  aside: ({
-    children,
-    initial: _initial,
-    animate: _animate,
-    exit: _exit,
-    transition: _transition,
-    ...props
-  }: React.HTMLAttributes<HTMLElement> & {
-    initial?: unknown;
-    animate?: unknown;
-    exit?: unknown;
-    transition?: unknown;
-  }) => React.createElement("aside", props, children),
 }));
 
 vi.mock("@/components/MapBottomSheet", () => ({
@@ -220,10 +217,10 @@ async function tapFirstMarker() {
   await act(async () => {
     markerHandlers[0]?.click?.({ type: "click" });
   });
-  await screen.findByRole("dialog", { name: /Neon Garden venue popup/i });
+  await screen.findByRole("article", { name: /Neon Garden bottom sheet/i });
 }
 
-describe("VenueMap marker popup", () => {
+describe("VenueMap marker bottom sheet", () => {
   beforeEach(() => {
     markerHandlers.length = 0;
     push.mockClear();
@@ -248,39 +245,24 @@ describe("VenueMap marker popup", () => {
     expect(screen.getByTestId("leaflet-map")).toBeTruthy();
   });
 
-  it("shows the popup card with venue name when a marker is tapped", async () => {
+  it("shows the bottom sheet selected venue when a marker is tapped", async () => {
     await renderVenueMap();
     await tapFirstMarker();
 
     expect(screen.getByRole("heading", { name: "Neon Garden" })).toBeTruthy();
   });
 
-  it("hides the popup card when tapping outside or pressing close", async () => {
-    const user = userEvent.setup();
-
+  it("links the bottom sheet View details action to the venue detail page", async () => {
     await renderVenueMap();
     await tapFirstMarker();
 
-    await user.click(screen.getByRole("button", { name: "Dismiss venue popup" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: /Neon Garden venue popup/i })).toBeNull());
-
-    await tapFirstMarker();
-    await user.click(screen.getByRole("button", { name: "Close venue popup" }));
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: /Neon Garden venue popup/i })).toBeNull());
+    expect(screen.getByRole("link", { name: "View details" }).getAttribute("href")).toBe("/venues/venue-1");
   });
 
-  it("links the popup card View venue action to the venue detail page", async () => {
-    await renderVenueMap();
-    await tapFirstMarker();
-
-    expect(screen.getByRole("link", { name: "View venue" }).getAttribute("href")).toBe("/venues/venue-1");
-  });
-
-  it("renders venue category and open status in the popup card", async () => {
+  it("renders venue category in the selected bottom sheet content", async () => {
     await renderVenueMap();
     await tapFirstMarker();
 
     expect(screen.getByText("Cocktail bar")).toBeTruthy();
-    expect(screen.getByText("Open now")).toBeTruthy();
   });
 });

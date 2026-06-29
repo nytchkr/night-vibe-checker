@@ -9,13 +9,10 @@ import L from "leaflet";
 import type { Map as LeafletMap } from "leaflet";
 import "leaflet.markercluster";
 import { track } from "@vercel/analytics";
-import { AnimatePresence } from "framer-motion";
-import { aside as MotionAside } from "framer-motion/client";
 import { Check, ChevronDown, LocateFixed, MapPin, RefreshCw, Search, X } from "lucide-react";
 import { Circle, CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { CITIES, DEFAULT_CITY } from "@/lib/cities";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
-import { inZone } from "@/lib/zone";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useHaptic } from "@/hooks/useHaptic";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -59,7 +56,11 @@ const CHARLOTTE_ZIP_CENTERS: Record<string, [number, number]> = {
 const OUT_OF_ZONE_GEO_MESSAGE = "You're outside our launch zone. Showing South End Charlotte.";
 const VENUE_FETCH_TIMEOUT_MS = 10_000;
 const SLOW_LOAD_DELAY_MS = 5_000;
-const SOUTH_END_MAP_CENTER: [number, number] = [LAUNCH_ZONES[0].center_lat, LAUNCH_ZONES[0].center_lng];
+const CHARLOTTE_LAUNCH_ZONE = {
+  center: [35.218, -80.85] as [number, number],
+  radiusM: 2500,
+};
+const SOUTH_END_MAP_CENTER: [number, number] = CHARLOTTE_LAUNCH_ZONE.center;
 const MAP_DEFAULT_ZOOM = 15;
 const MAP_CLUSTER_DISABLE_ZOOM = 13;
 const MAP_CLUSTER_RADIUS = 50;
@@ -127,11 +128,28 @@ function useSwipeDownToClose(isOpen: boolean, onClose: () => void) {
 
 type BusynessMapFilter = (typeof BUSYNESS_FILTERS)[number];
 
+function distanceMeters(from: [number, number], to: [number, number]): number {
+  const earthRadiusM = 6371000;
+  const fromLat = (from[0] * Math.PI) / 180;
+  const toLat = (to[0] * Math.PI) / 180;
+  const deltaLat = ((to[0] - from[0]) * Math.PI) / 180;
+  const deltaLng = ((to[1] - from[1]) * Math.PI) / 180;
+  const a =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(fromLat) * Math.cos(toLat) * Math.sin(deltaLng / 2) ** 2;
+
+  return earthRadiusM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function isInCharlotteLaunchZone(venue: ConsumerVenue): boolean {
+  return distanceMeters(CHARLOTTE_LAUNCH_ZONE.center, [venue.lat, venue.lng]) <= CHARLOTTE_LAUNCH_ZONE.radiusM;
+}
+
 function getBusynessColor(pct: number | null): string {
-  if (pct == null) return "#666";
-  if (pct < 35) return "#35F58A";
-  if (pct <= 65) return "#FFD166";
-  return "#F0568C";
+  if (pct == null) return "#444";
+  if (pct > 75) return "#FF5B6A";
+  if (pct >= 40) return "#FFB020";
+  return "#5C6573";
 }
 
 function hasLivePinPulse(venue: ConsumerVenue): boolean {
@@ -252,22 +270,17 @@ function RecenterButton({ center }: { center: [number, number] }) {
 
 function ZoneBoundaryCircles() {
   return (
-    <>
-      {LAUNCH_ZONES.map((zone) => (
-        <Circle
-          key={zone.id}
-          center={[zone.center_lat, zone.center_lng]}
-          radius={zone.radius_m}
-          pathOptions={{
-            color: "#8B6CFF",
-            dashArray: "8 10",
-            fillOpacity: 0,
-            opacity: 0.55,
-            weight: 1.5,
-          }}
-        />
-      ))}
-    </>
+    <Circle
+      center={CHARLOTTE_LAUNCH_ZONE.center}
+      radius={CHARLOTTE_LAUNCH_ZONE.radiusM}
+      pathOptions={{
+        color: "#8B6CFF",
+        dashArray: "8 10",
+        fillOpacity: 0,
+        opacity: 0.55,
+        weight: 1.5,
+      }}
+    />
   );
 }
 
@@ -933,10 +946,10 @@ function MapEmptyStateOverlay({
 
 function CrowdLegend() {
   const rows = [
-    { label: "Quiet", className: "bg-[#00F5D4]" },
-    { label: "Moderate", className: "bg-[#FFD166]" },
-    { label: "Packed", className: "bg-[#F0568C]" },
-    { label: "No data", className: "bg-[#666]" },
+    { label: "Dead", className: "bg-[#5C6573]" },
+    { label: "Moderate", className: "bg-[#FFB020]" },
+    { label: "Packed", className: "bg-[#FF5B6A]" },
+    { label: "Unknown", className: "bg-[#444]" },
   ];
 
   return (
@@ -986,82 +999,6 @@ function FilterFab({
         />
       )}
     </button>
-  );
-}
-
-function venueHref(venue: ConsumerVenue) {
-  return `/venues/${encodeURIComponent(venue.slug || venue.id)}`;
-}
-
-function MarkerVenuePopup({
-  onClose,
-  venue,
-}: {
-  onClose: () => void;
-  venue: ConsumerVenue | null;
-}) {
-  return (
-    <AnimatePresence>
-      {venue && (
-        <>
-          <button
-            type="button"
-            aria-label="Dismiss venue popup"
-            onClick={onClose}
-            className="fixed inset-0 z-10 cursor-default bg-transparent"
-          />
-          <MotionAside
-            key={venue.id}
-            role="dialog"
-            aria-modal="false"
-            aria-label={`${venue.name} venue popup`}
-            className="fixed bottom-20 inset-x-4 rounded-2xl bg-[#14141A] border border-white/[0.08] p-4 shadow-2xl z-20"
-            initial={{ y: 16, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 16, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="truncate font-semibold text-white">{venue.name}</h2>
-                <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="truncate text-xs font-semibold text-white/55">{venue.category}</span>
-                  {venue.openNow && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#00F5D4]/35 bg-[#00F5D4]/12 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-[#00F5D4]">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#00F5D4] shadow-[0_0_10px_rgba(0,245,212,0.7)]" aria-hidden="true" />
-                      Open now
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                aria-label="Close venue popup"
-                onClick={onClose}
-                className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/75 transition hover:bg-white/[0.1] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                <X aria-hidden="true" className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <Link
-                href={venueHref(venue)}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-4 text-sm font-black text-white transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                View venue
-              </Link>
-              <Link
-                href={`/vibe-check?venueId=${encodeURIComponent(venue.id)}`}
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#8B6CFF] px-4 text-sm font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.32)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                Check in
-              </Link>
-            </div>
-          </MotionAside>
-        </>
-      )}
-    </AnimatePresence>
   );
 }
 
@@ -1215,7 +1152,6 @@ export function VenueMap({
   const { isDesktop } = useDevice();
   const [venues, setVenues] = useState<ConsumerVenue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string | null>(null);
-  const [markerPopupVenueId, setMarkerPopupVenueId] = useState<string | null>(null);
   const [sheetSnap, setSheetSnap] = useState<MapSheetSnap>("collapsed");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeZoneFilter, setActiveZoneFilter] = useState<ZoneFilterId>(ALL_ZONES_FILTER);
@@ -1346,7 +1282,9 @@ export function VenueMap({
       (position) => {
         const location: [number, number] = [position.coords.latitude, position.coords.longitude];
         setUserLocation(location);
-        setIsUserOutsideLaunchZone(!inZone(location[0], location[1]));
+        setIsUserOutsideLaunchZone(
+          distanceMeters(CHARLOTTE_LAUNCH_ZONE.center, location) > CHARLOTTE_LAUNCH_ZONE.radiusM,
+        );
       },
       () => undefined,
       { maximumAge: 5 * 60 * 1000, timeout: 8000 },
@@ -1354,7 +1292,7 @@ export function VenueMap({
   }, []);
 
   const visibleVenues = useMemo(
-    () => venues.filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng)),
+    () => venues.filter((venue) => Number.isFinite(venue.lat) && Number.isFinite(venue.lng) && isInCharlotteLaunchZone(venue)),
     [venues],
   );
   const zoneVenues = useMemo(
@@ -1376,16 +1314,10 @@ export function VenueMap({
   const activeZoneLabel = activeZoneFilter === ALL_ZONES_FILTER
     ? "this zone"
     : ZONE_FILTERS.find((zone) => zone.id === activeZoneFilter)?.label ?? "this zone";
-  const markerPopupVenue = useMemo(
-    () => (markerPopupVenueId ? venues.find((venue) => venue.id === markerPopupVenueId) ?? null : null),
-    [markerPopupVenueId, venues],
-  );
-
   useEffect(() => {
     if (!selectedVenueId) return;
     if (filteredVenues.some((venue) => venue.id === selectedVenueId)) return;
     setSelectedVenueId(null);
-    setMarkerPopupVenueId(null);
   }, [filteredVenues, selectedVenueId]);
 
   useEffect(() => {
@@ -1405,7 +1337,6 @@ export function VenueMap({
     }
 
     setSelectedVenueId(venue.id);
-    setMarkerPopupVenueId(null);
     setSheetSnap("mid");
     mapRef.current?.flyTo([venue.lat, venue.lng], Math.max(mapRef.current.getZoom(), 16), {
       animate: true,
@@ -1424,13 +1355,8 @@ export function VenueMap({
     haptic.light();
     trackAnalytics("map_pin_tapped", { venueId: venue.id });
     setSelectedVenueId(venue.id);
-    setMarkerPopupVenueId(venue.id);
-    setSheetSnap("collapsed");
+    setSheetSnap("mid");
   }, [haptic]);
-
-  const dismissMarkerPopup = useCallback(() => {
-    setMarkerPopupVenueId(null);
-  }, []);
 
   return (
     <main
@@ -1490,7 +1416,7 @@ export function VenueMap({
           <ZoneBoundaryCircles />
           <UserLocationDot location={userLocation} />
           <ViewportVenueCountTracker venues={filteredVenues} onCountChange={setVisibleViewportVenueCount} />
-          <DismissMapPopupOnBackgroundTap onDismiss={dismissMarkerPopup} />
+          <DismissMapPopupOnBackgroundTap onDismiss={() => setSelectedVenueId(null)} />
 
           <ClusteredVenueMarkers
             venues={filteredVenues}
@@ -1588,27 +1514,16 @@ export function VenueMap({
         </div>
       )}
 
-      <Link
-        href="/vibe-check"
-        className="fixed bottom-28 right-4 z-[1000] rounded-full bg-[#8B6CFF] px-5 py-3 font-black text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.5)] transition-transform hover:scale-[1.02] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 lg:bottom-6"
-      >
-        + Report vibe
-      </Link>
-
-      {!markerPopupVenue && (
-        <MapBottomSheet
-          cityName={city.name}
-          launchZoneNotice={isUserOutsideLaunchZone ? OUT_OF_ZONE_GEO_MESSAGE : null}
-          loading={loading}
-          onVenueSelect={selectVenueFromList}
-          selectedVenueId={selectedVenueId}
-          setSnap={setSheetSnap}
-          snap={sheetSnap}
-          venues={filteredVenues}
-        />
-      )}
-
-      <MarkerVenuePopup venue={markerPopupVenue} onClose={dismissMarkerPopup} />
+      <MapBottomSheet
+        cityName={city.name}
+        launchZoneNotice={isUserOutsideLaunchZone ? OUT_OF_ZONE_GEO_MESSAGE : null}
+        loading={loading}
+        onVenueSelect={selectVenueFromList}
+        selectedVenueId={selectedVenueId}
+        setSnap={setSheetSnap}
+        snap={sheetSnap}
+        venues={filteredVenues}
+      />
 
       <style jsx global>{`
         .venue-pin-packed {
@@ -1630,10 +1545,11 @@ export function VenueMap({
         }
 
         .venue-pin-live-dot::before {
-          animation: livePin 2s ease-out infinite;
+          animation: pulse 2s ease-out infinite;
           background: transparent;
           border: 2px solid var(--venue-pin-color);
           border-radius: inherit;
+          box-shadow: 0 0 0 0 var(--venue-pin-color);
           content: "";
           inset: 0;
           opacity: 0.7;
@@ -1642,18 +1558,21 @@ export function VenueMap({
           z-index: -1;
         }
 
-        @keyframes livePin {
+        @keyframes pulse {
           0% {
+            box-shadow: 0 0 0 0 var(--venue-pin-color);
             opacity: 0.7;
             transform: scale(1);
           }
 
           70% {
+            box-shadow: 0 0 0 14px rgba(255, 255, 255, 0);
             opacity: 0;
             transform: scale(2.4);
           }
 
           100% {
+            box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
             opacity: 0;
             transform: scale(1);
           }

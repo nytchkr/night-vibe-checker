@@ -139,7 +139,7 @@ export function OnboardingWizard() {
               Your city's nightlife, live.
             </h1>
             <p className="mt-4 max-w-xs text-base font-semibold leading-7 text-white/58">
-              Real vibes. Real check-ins. No algorithms.
+              Real venues. Useful signals. No guesswork.
             </p>
             <div className="mt-10 w-full">
               <Button

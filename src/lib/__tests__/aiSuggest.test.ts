@@ -52,7 +52,7 @@ describe("aiSuggest real-data guardrails", () => {
     expect(result.pick.facts.mfRatio).toBeNull();
   });
 
-  it("uses stored busyness and M/F facts only when confidence permits", async () => {
+  it("uses stored busyness and blocks M/F explanation language", async () => {
     const result = await explainRankedVenue(
       ranked(
         venue({
@@ -61,7 +61,7 @@ describe("aiSuggest real-data guardrails", () => {
             placeId: "place-venue-1",
             busyness0To100: 74,
             busynessSource: "live",
-            mfRatio: 0.62,
+            mfRatio: null,
             confidence0To1: 0.8,
             sampleSize: 12,
             computedAt: "2026-06-26T20:00:00.000Z",
@@ -70,18 +70,15 @@ describe("aiSuggest real-data guardrails", () => {
           },
         }),
       ),
-      async (facts) =>
-        `${facts.name} is ${facts.busynessBucket} right now from ${facts.busynessSource}, with ${Math.round(
-          (facts.mfRatio ?? 0) * 100,
-        )}% M / ${100 - Math.round((facts.mfRatio ?? 0) * 100)}% F from recent check-ins.`,
+      async (facts) => `${facts.name} is ${facts.busynessBucket} right now from ${facts.busynessSource}, with a balanced M/F ratio.`,
     );
 
-    expect(result.blocklistEvent).toBeNull();
+    expect(result.blocklistEvent?.reason).toBe("missing_mf_fact");
     expect(result.pick.facts.busynessBucket).toBe("packed");
     expect(result.pick.facts.busynessSource).toBe("live");
-    expect(result.pick.facts.mfRatio).toBe(0.62);
+    expect(result.pick.facts.mfRatio).toBeNull();
     expect(result.pick.explanation).toContain("packed right now from live");
-    expect(result.pick.explanation).toContain("62% M / 38% F");
+    expect(result.pick.explanation).not.toMatch(/\b(M\/F|male|female|men|women)\b/i);
   });
 
   it("degrades vague vibes-only intent to default real filters", async () => {

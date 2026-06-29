@@ -66,7 +66,7 @@ describe("OnboardingWizard", () => {
   it("renders screen 1 welcome on first launch with no localStorage key", async () => {
     await renderWelcome();
 
-    expect(screen.getByText("Real vibes. Real check-ins. No algorithms.")).toBeTruthy();
+    expect(screen.getByText("Real venues. Useful signals. No guesswork.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Get Started" })).toBeTruthy();
   });
 

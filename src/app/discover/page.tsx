@@ -12,7 +12,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Toast } from "@/components/Toast";
 
 // --------------- Map placeholder ----------------------------
@@ -113,7 +113,6 @@ function EmptyState({ onRefresh }: { onRefresh: () => void }) {
 // --------------- Main page ----------------------------------
 
 export default function DiscoverPage() {
-  const router = useRouter();
   const [venues, setVenues] = useState<Array<{ placeId: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -146,14 +145,6 @@ export default function DiscoverPage() {
     fetchVenues();
   }, [fetchVenues]);
 
-  function handleVibeCheck(venue: { placeId: string; name: string }) {
-    const params = new URLSearchParams({
-      venueId: venue.placeId,
-      venueName: venue.name,
-    });
-    router.push(`/vibe-check?${params.toString()}`);
-  }
-
   return (
     <div className="min-h-screen-safe bg-[#0A0A0E]">
       {/* Toast */}
@@ -176,7 +167,7 @@ export default function DiscoverPage() {
             Map the night
           </h1>
           <p className="text-white/40 text-xs mt-2 font-medium">
-            Scan nearby energy — jump straight into a vibe check
+            Scan nearby energy and open the spot that fits tonight
           </p>
         </div>
       </header>
@@ -263,14 +254,13 @@ export default function DiscoverPage() {
           {!isLoading && !fetchError && venues.length > 0 && (
             <div className="space-y-3">
               {venues.map((venue) => (
-                <button
+                <Link
                   key={venue.placeId}
-                  type="button"
-                  onClick={() => handleVibeCheck(venue)}
-                  className="w-full rounded-2xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-left text-white text-sm font-semibold hover:bg-white/[0.07] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                  href={`/venues/${encodeURIComponent(venue.placeId)}`}
+                  className="block w-full rounded-2xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 text-left text-white text-sm font-semibold hover:bg-white/[0.07] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
                 >
                   {venue.name}
-                </button>
+                </Link>
               ))}
             </div>
           )}

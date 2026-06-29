@@ -189,8 +189,8 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
               </button>
             </div>
 
-            <ul className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-bold text-white/70" aria-label="Check in at venues · See the M/F vibe · Save your spots">
-              {["Check in at venues", "See the M/F vibe", "Save your spots"].map((item, index) => (
+            <ul className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-bold text-white/70" aria-label="Find venues · See busyness · Save your spots">
+              {["Find venues", "See busyness", "Save your spots"].map((item, index) => (
                 <li key={item} className="flex items-center gap-2">
                   <span>{item}</span>
                   {index < 2 ? <span className="text-white/25" aria-hidden="true">·</span> : null}

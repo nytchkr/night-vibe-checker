@@ -3,20 +3,14 @@
 // ============================================================
 // VenueCard  — NV-061, NV-065
 //
-// FullCard: crowd-first layout
-//   1. Full-width crowd color bar at top (40% fill opacity)
-//   2. Venue name 19px, Space Grotesk
-//   3. Vibe score plain text in #8B6CFF, 18px
-//   4. Time ago + report count, white/40, 11px
-//   5. "Report →" pill button, right-aligned, canonical violet
-//   Max height ~90px. No VibeScoreRing, no star rating, no save button.
+// FullCard: compact discovery card with venue facts and a detail link.
 //
 // CompactCard: map popup variant — unchanged from prior version.
 // ============================================================
 
 import { VibeTagBadge } from "./VibeTagBadge";
 import { SaveVenueButton } from "./SaveVenueButton";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { StarRating } from "./StarRating";
 import { VenuePhoto } from "@/components/VenuePhoto";
@@ -67,9 +61,9 @@ interface VenueCardProps {
   accessToken?: string | null;
   onSaveToggle?: (venueId: string, saved: boolean) => void;
   priority?: boolean;
-  /** Live crowd level from check-ins */
+  /** Live or forecast crowd level */
   crowdBadge?: CrowdLevel;
-  /** ISO string of most recent check-in */
+  /** ISO string of most recent signal update */
   lastReportedAt?: string;
   /** Number of reports in the time window */
   reportCount?: number;
@@ -92,6 +86,10 @@ function PriceLevel({ level }: { level?: number }) {
       <span className="opacity-30">{"$".repeat(4 - level)}</span>
     </span>
   );
+}
+
+function venueHref(venue: VenueShape): string {
+  return `/venues/${encodeURIComponent(venue.id || venue.placeId)}`;
 }
 
 function CompactCard({
@@ -158,14 +156,12 @@ function CompactCard({
           </div>
         )}
 
-        <Button
-          type="button"
-          onClick={() => onVibeCheck?.(venue)}
-          disabled={isChecking}
+        <Link
+          href={venueHref(venue)}
           className="mt-3 min-h-11 w-full rounded-full bg-[#8B6CFF] text-[13px] font-semibold text-[#0A0A0E] shadow-[0_0_18px_rgba(139,108,255,0.24)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#9C85FF] active:scale-95"
         >
-          {isChecking ? "Checking..." : "Check vibe"}
-        </Button>
+          View details
+        </Link>
       </CardContent>
     </Card>
   );
@@ -254,16 +250,13 @@ function FullCard({
           </div>
         </div>
 
-        {/* Report button */}
-        <button
-          type="button"
-          onClick={() => onVibeCheck?.(venue)}
-          disabled={isChecking}
-          aria-label={`Report vibe for ${venue.name}`}
+        <Link
+          href={venueHref(venue)}
+          aria-label={`View details for ${venue.name}`}
           className="flex min-h-[44px] flex-shrink-0 items-center rounded-full border border-[#8B6CFF]/50 px-4 py-2 text-[13px] font-semibold text-[#8B6CFF] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-[#8B6CFF]/10 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 disabled:opacity-40 disabled:hover:translate-y-0 disabled:active:scale-100"
         >
-          {isChecking ? "…" : "Check in →"}
-        </button>
+          View details →
+        </Link>
       </div>
     </div>
   );

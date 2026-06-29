@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "About — nytchkr",
-  description: "Learn how nytchkr uses real Charlotte venue data, busyness signals, and check-ins.",
+  description: "Learn how nytchkr uses real Charlotte venue data and busyness signals.",
   alternates: {
     canonical: "/about",
   },
@@ -21,13 +21,13 @@ export default function AboutPage() {
         </h1>
         <p className="mt-4 text-[15px] font-medium leading-7 text-[#9CA2AE]">
           nytchkr shows real Charlotte venue signals from trusted sources: venue facts from Google Places,
-          busyness from scheduled forecasts, and M/F vibe from user check-ins.
+          and busyness from scheduled forecasts.
         </p>
         <div className="mt-8 rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-4">
           <h2 className="font-display text-[19px] font-semibold text-[#F4F5F8]">Data promise</h2>
           <p className="mt-3 text-[13px] font-medium leading-6 text-[#9CA2AE]">
             Empty venues stay empty until there is real data. We do not invent live crowd numbers,
-            M/F splits, venue photos, or venue details.
+            venue photos, or venue details.
           </p>
         </div>
         <Link

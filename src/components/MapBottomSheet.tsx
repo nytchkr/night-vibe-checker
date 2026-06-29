@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
 import { Info } from "lucide-react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
-import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
@@ -67,32 +66,19 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
-function MfRatioChip({ venue }: { venue: ConsumerVenue }) {
-  const signal = venue.signal;
-  const sampleSize = signal?.sampleSize ?? 0;
-  const percents = sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO ? getMFRatioPercents(signal?.mfRatio) : null;
-
-  if (!percents) return null;
-
-  return (
-    <span className="shrink-0 rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-1 text-[11px] font-black text-white/55">
-      M/F {percents.male}/{percents.female}
-    </span>
-  );
-}
-
 function venueHref(venue: ConsumerVenue) {
   return `/venues/${encodeURIComponent(venue.slug || venue.id)}`;
 }
 
 function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
   return (
-    <section className="rounded-[18px] border border-white/[0.08] bg-white/[0.055] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
+    <section className="rounded-[18px] border border-white/[0.08] bg-[rgba(255,255,255,0.035)] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="truncate font-display text-[22px] font-semibold leading-tight text-white">
             {venue.name}
           </h2>
+          <p className="mt-1 truncate text-sm font-black text-white/72">{venue.category}</p>
           <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white/55">
             {venue.address}
           </p>
@@ -100,13 +86,7 @@ function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
         <BusynessBadge venue={venue} />
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
-        <Link
-          href={`/vibe-check?venueId=${encodeURIComponent(venue.id)}`}
-          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_22px_rgba(139,108,255,0.34)] transition-colors hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
-        >
-          Check in →
-        </Link>
+      <div className="mt-4 grid grid-cols-1 gap-2">
         <Link
           href={venueHref(venue)}
           className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-5 text-sm font-black text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
@@ -154,7 +134,6 @@ function VenueRow({
         </div>
         <div className="mt-3 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center justify-end gap-2">
-            <MfRatioChip venue={venue} />
             <span className="truncate text-xs font-semibold text-white/55">{venue.address}</span>
           </div>
         </div>
@@ -349,7 +328,7 @@ export default function MapBottomSheet({
       ref={sheetRef}
       aria-label={`${cityName} venues`}
       role="region"
-      className="bottom-sheet scroll-touch gpu-layer absolute inset-x-0 bottom-0 z-[1100] h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] max-h-[85dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[#0A0A0E]/95 shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
+      className="bottom-sheet scroll-touch gpu-layer absolute inset-x-0 bottom-0 z-[1100] h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] max-h-[85dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[rgba(255,255,255,0.035)] shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

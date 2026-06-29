@@ -8,7 +8,6 @@ import {
   Sparkles,
   TrendingDown,
   TrendingUp,
-  Users,
   type LucideIcon,
 } from "lucide-react";
 import { PredictionSkeleton } from "@/components/PredictionSkeleton";
@@ -35,33 +34,33 @@ type LockedChipConfig = {
   Icon: LucideIcon;
 };
 
-const EMPTY_COPY = "Not enough reports yet — be the first to check in";
+const EMPTY_COPY = "Not enough busyness data yet.";
 const PRO_COPY = "More real-data forecasts planned for Pro. No invented crowd data.";
 
-function reportLabel(count: number): string {
-  return `${count} check-in ${count === 1 ? "report" : "reports"}`;
+function signalLabel(count: number): string {
+  return `${count} crowd ${count === 1 ? "signal" : "signals"}`;
 }
 
-function compactReportLabel(count: number): string {
-  return `${count} ${count === 1 ? "report" : "reports"}`;
+function compactSignalLabel(count: number): string {
+  return `${count} ${count === 1 ? "signal" : "signals"}`;
 }
 
 function chipSource(hasBestTimeData: boolean, count: number): string {
   if (hasBestTimeData && count === 0) return "BestTime only";
-  if (hasBestTimeData) return `BestTime + ${compactReportLabel(count)}`;
-  return compactReportLabel(count);
+  if (hasBestTimeData) return `BestTime + ${compactSignalLabel(count)}`;
+  return compactSignalLabel(count);
 }
 
 function forecastSourceLabel(hasBestTimeData: boolean, count: number): string {
   if (hasBestTimeData) {
-    return `AI forecast — based on BestTime data + ${reportLabel(count)}`;
+    return `AI forecast - based on BestTime data + ${signalLabel(count)}`;
   }
-  return `AI forecast — based on ${reportLabel(count)}`;
+  return `AI forecast - based on ${signalLabel(count)}`;
 }
 
 function footerAttribution(hasBestTimeData: boolean, count: number): string {
-  if (hasBestTimeData) return `Powered by BestTime + ${compactReportLabel(count)}`;
-  return `Based on ${reportLabel(count)}`;
+  if (hasBestTimeData) return `Powered by BestTime + ${compactSignalLabel(count)}`;
+  return `Based on ${signalLabel(count)}`;
 }
 
 function clampPercent(value: number): number {
@@ -99,7 +98,7 @@ function bestTimeTitle(response: PredictionResponse): string {
 }
 
 function getLockedChips(count: number, hasBestTimeData: boolean): LockedChipConfig[] {
-  const crowdSource = count >= 3 ? compactReportLabel(count) : "Needs 3 reports";
+  const crowdSource = count >= 3 ? compactSignalLabel(count) : "Needs BestTime data";
   return [
     {
       title: "Full crowd forecast",
@@ -108,16 +107,16 @@ function getLockedChips(count: number, hasBestTimeData: boolean): LockedChipConf
       Icon: Clock3,
     },
     {
-      title: "Vibe trend",
-      body: "Up or down vs. typical",
-      source: count > 0 ? `${compactReportLabel(count)} recent` : "Needs reports",
+      title: "Crowd trend",
+      body: "Busier or quieter than typical",
+      source: count > 0 ? `${compactSignalLabel(count)} recent` : "Needs BestTime data",
       Icon: count >= 3 ? TrendingUp : TrendingDown,
     },
     {
-      title: "Crowd profile",
-      body: "Predicted M/F mix",
+      title: "Best window",
+      body: "When to go tonight",
       source: crowdSource,
-      Icon: Users,
+      Icon: Clock3,
     },
   ];
 }
