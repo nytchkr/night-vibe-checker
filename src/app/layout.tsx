@@ -141,7 +141,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <div className="app-shell h-screen-safe">
               <RoutePrefetch href="/map" />
               <RoutePrefetch href="/explore" />
-              <RoutePrefetch href="/saved" />
+              <RoutePrefetch href="/profile" />
               <SidebarNav />
               <OnboardingGateProvider>
                 <main

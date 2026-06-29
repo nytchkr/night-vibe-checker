@@ -41,7 +41,13 @@ vi.mock("next/link", async () => {
 });
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/venues/venue-1",
   useRouter: () => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({ data: null, status: "unauthenticated" }),
 }));
 
 vi.mock("@vercel/analytics", () => ({

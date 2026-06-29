@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Heart, Map, Search, type LucideIcon } from "lucide-react";
+import { Map, Search, User, type LucideIcon } from "lucide-react";
 
 const VIEWED_VENUES_STORAGE_KEY = "nytchkr.viewed_venues";
 const EXPLORE_NEW_VENUES_STORAGE_KEY = "nytchkr.explore_has_new_venues";
@@ -74,7 +74,7 @@ function NavItem({
 const navItems = [
   { href: "/map", label: "Map", Icon: Map },
   { href: "/explore", label: "Explore", Icon: Search },
-  { href: "/saved", label: "Saved", Icon: Heart },
+  { href: "/profile", label: "You", Icon: User },
 ];
 
 function shouldHideNavigation(pathname: string): boolean {
@@ -91,7 +91,7 @@ function getActiveStates(pathname: string) {
   return {
     mapActive: pathname.startsWith("/map") || pathname === "/",
     exploreActive: pathname.startsWith("/explore"),
-    savedActive: pathname.startsWith("/saved") || pathname.startsWith("/profile/saved"),
+    youActive: pathname.startsWith("/profile"),
   };
 }
 
@@ -109,7 +109,7 @@ function NavIcon({ Icon, active, filled = false }: { Icon: LucideIcon; active: b
 export function BottomNav() {
   const pathname = usePathname();
   const [showExploreBadge, setShowExploreBadge] = useState(false);
-  const { mapActive, exploreActive, savedActive } = getActiveStates(pathname);
+  const { mapActive, exploreActive, youActive } = getActiveStates(pathname);
 
   useEffect(() => {
     function refreshExploreBadge() {
@@ -170,8 +170,8 @@ export function BottomNav() {
           <NavIcon Icon={Search} active={exploreActive} />
         </NavItem>
 
-        <NavItem href="/saved" label="Saved" active={savedActive}>
-          <NavIcon Icon={Heart} active={savedActive} filled />
+        <NavItem href="/profile" label="You" active={youActive}>
+          <NavIcon Icon={User} active={youActive} />
         </NavItem>
       </div>
     </nav>
@@ -180,11 +180,11 @@ export function BottomNav() {
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { mapActive, exploreActive, savedActive } = getActiveStates(pathname);
+  const { mapActive, exploreActive, youActive } = getActiveStates(pathname);
   const activeByHref: Record<string, boolean> = {
     "/map": mapActive,
     "/explore": exploreActive,
-    "/saved": savedActive,
+    "/profile": youActive,
   };
 
   if (shouldHideNavigation(pathname)) {
@@ -216,7 +216,7 @@ export function SidebarNav() {
                 className="absolute left-0 top-1/2 h-8 w-0.5 -translate-y-1/2 rounded-full bg-[#8B6CFF] shadow-[0_0_14px_rgba(139,108,255,0.65)]"
               />
             )}
-            <NavIcon Icon={Icon} active={active} filled={href === "/saved"} />
+            <NavIcon Icon={Icon} active={active} />
             <span>{label}</span>
           </Link>
         );

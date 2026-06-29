@@ -105,7 +105,7 @@ export function useSavedVenues() {
         return;
       }
 
-      const res = await fetch("/api/venues/saved", {
+      const res = await fetch("/api/user/saved-venues", {
         credentials: "include",
       });
 
