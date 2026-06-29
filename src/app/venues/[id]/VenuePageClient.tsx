@@ -39,10 +39,35 @@ function getBusynessLabel(percent: number): "Packed" | "Moderate" | "Dead" {
   return "Dead";
 }
 
-function getSourceChip(source: BusynessSource | null | undefined): "LIVE" | "FORECAST" | null {
-  if (source === "live") return "LIVE";
-  if (source === "forecast") return "FORECAST";
+type BestTimeSourceChip = {
+  label: "LIVE" | "FORECAST";
+  className: string;
+};
+
+function getBestTimeSourceChip(source: BusynessSource | null | undefined): BestTimeSourceChip | null {
+  if (source === "live") {
+    return {
+      label: "LIVE",
+      className: "border-[#20E58F]/40 bg-[#20E58F]/12 text-[#20E58F]",
+    };
+  }
+  if (source === "forecast") {
+    return {
+      label: "FORECAST",
+      className: "border-[#8B6CFF]/40 bg-[#8B6CFF]/15 text-[#F4F5F8]",
+    };
+  }
   return null;
+}
+
+function getBestTimeEmptyCopy(source: BusynessSource | null | undefined): string {
+  if (source === "crowd") {
+    return "Crowd reports exist, but BestTime has not returned a live or forecast read for this venue yet.";
+  }
+  if (source === "unavailable") {
+    return "BestTime marked this venue unavailable, so no live or forecast percentage is shown.";
+  }
+  return "We do not have a live or forecast BestTime read for this venue.";
 }
 
 function getGoogleRatingData(venue: ConsumerVenue | null | undefined): { rating: number; count: number } | null {
@@ -141,10 +166,11 @@ export function VenuePageClient({
   const signal = venue?.signal;
   const busyness = signal?.busyness0To100 ?? null;
   const busynessPercent = clampPercent(busyness);
-  const sourceChip = getSourceChip(signal?.busynessSource ?? null);
+  const sourceChip = getBestTimeSourceChip(signal?.busynessSource ?? null);
   const hasBusynessRead = busyness != null && sourceChip !== null;
   const busynessColor = getBusynessColor(busynessPercent);
   const busynessLabel = getBusynessLabel(busynessPercent);
+  const bestTimeEmptyCopy = getBestTimeEmptyCopy(signal?.busynessSource ?? null);
   const googleRatingData = getGoogleRatingData(venue);
   const hoursSummary = useMemo(() => summarizeVenueHours(venue?.openingHours), [venue?.openingHours]);
   const mapsHref = useMemo(() => (venue ? getMapsHref(venue) : "#"), [venue]);
@@ -267,23 +293,29 @@ export function VenuePageClient({
           <main className="mx-auto max-w-lg space-y-5 px-4 pb-8 pt-5">
             <section aria-label="Venue identity">
               <h1 className="font-display text-4xl font-black leading-[1.04] text-[#F4F5F8] sm:text-5xl">{venue.name}</h1>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Venue category and price level">
                 <CategoryBadge category={venue.category} className="border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[#F4F5F8]" />
-                <PriceLevelDisplay priceLevel={venue.priceLevel} className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9CA2AE]" />
+                {venue.priceLevel ? (
+                  <PriceLevelDisplay priceLevel={venue.priceLevel} className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9CA2AE]" />
+                ) : (
+                  <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs font-semibold text-[#9CA2AE]">
+                    Price not listed
+                  </span>
+                )}
               </div>
             </section>
 
-            {venue.address ? (
-              <a href={mapsHref} target="_blank" rel="noreferrer" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70">
-                <SurfaceCard className="flex gap-3">
-                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Address</p>
-                    <p className="mt-1 text-sm font-semibold leading-6 text-[#F4F5F8] underline decoration-white/20 underline-offset-4">{venue.address}</p>
-                  </div>
-                </SurfaceCard>
-              </a>
-            ) : null}
+            <a href={mapsHref} target="_blank" rel="noreferrer" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70">
+              <SurfaceCard className="flex gap-3">
+                <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Address</p>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-[#F4F5F8] underline decoration-white/20 underline-offset-4">
+                    {venue.address || "Open in Maps"}
+                  </p>
+                </div>
+              </SurfaceCard>
+            </a>
 
             <SurfaceCard>
               <div className="flex items-start gap-3">
@@ -307,7 +339,12 @@ export function VenuePageClient({
                   )}
                 </div>
                 {sourceChip ? (
-                  <span className="shrink-0 rounded-full border border-[#8B6CFF]/40 bg-[#8B6CFF]/15 px-3 py-1.5 text-xs font-black text-[#F4F5F8]">{sourceChip}</span>
+                  <span
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${sourceChip.className}`}
+                    aria-label={`Busyness source ${sourceChip.label.toLowerCase()}`}
+                  >
+                    {sourceChip.label}
+                  </span>
                 ) : null}
               </div>
               {hasBusynessRead ? (
@@ -322,7 +359,7 @@ export function VenuePageClient({
                   </div>
                 </>
               ) : (
-                <p className="mt-3 text-sm font-semibold leading-6 text-[#9CA2AE]">We do not have a live or forecast BestTime read for this venue.</p>
+                <p className="mt-3 text-sm font-semibold leading-6 text-[#9CA2AE]">{bestTimeEmptyCopy}</p>
               )}
             </SurfaceCard>
 
