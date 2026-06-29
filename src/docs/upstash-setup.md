@@ -4,7 +4,7 @@ Ticket: NV-INFRA-004
 
 ## Scope
 
-Night Vibe Checker uses Upstash for production Redis-backed infrastructure. The Azure Static Web Apps production runtime must receive the Upstash values from Azure Application Settings. Do not commit these values to this repository, `.env` files, or GitHub workflow files.
+nytchkr uses Upstash for production Redis-backed infrastructure. The Azure Static Web Apps production runtime must receive the Upstash values from Azure Application Settings. Do not commit these values to this repository, `.env` files, or GitHub workflow files.
 
 The Azure Static Web Apps deployment workflow is:
 
@@ -40,7 +40,7 @@ Add these exact names in Azure Static Web Apps Application settings:
 
 1. Open the Azure Portal.
 2. Go to Static Web Apps.
-3. Select the Night Vibe Checker production Static Web App.
+3. Select the nytchkr production Static Web App.
 4. Open Configuration.
 5. Open Application settings.
 6. Add each required Upstash variable with its value from the Upstash console.

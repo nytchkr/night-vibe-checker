@@ -107,7 +107,6 @@ function createVenue({
     priceLevel,
     openNow,
     current_popularity: null,
-    vibe_score: null,
     trending: false,
     hidden: false,
     signal: createSignal({ venueId: id, busyness, source }),

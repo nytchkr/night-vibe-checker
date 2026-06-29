@@ -36,6 +36,6 @@ describe("POST /api/account/delete", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ success: true });
-    expect(mockSql).toHaveBeenCalledTimes(3); // check_ins, saved_venues, profiles
+    expect(mockSql).toHaveBeenCalledTimes(2); // saved_venues, profiles
   });
 });

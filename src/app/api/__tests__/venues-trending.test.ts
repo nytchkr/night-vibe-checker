@@ -33,7 +33,6 @@ const venue: ConsumerVenue = {
   priceLevel: null,
   openNow: true,
   current_popularity: null,
-  vibe_score: null,
   trending: true,
   hidden: false,
   signal: null,

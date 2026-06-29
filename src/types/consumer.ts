@@ -18,46 +18,6 @@ export interface APIResponse<T> {
   };
 }
 
-// --------------- Legacy shims --------------------------------
-// VenueBasic and VibeReport were removed from vibe.ts.
-// Kept here as minimal shims so E2E specs continue to compile
-// until they are rewritten against the new ConsumerVenue type.
-
-export interface VenueBasic {
-  placeId: string;
-  name: string;
-  googleRating?: number;
-  totalRatings?: number;
-  priceLevel?: number;
-  address?: string;
-  lat?: number;
-  lng?: number;
-  type?: string;
-  /** @deprecated use busyness signals from ConsumerVenue.signal */
-  cachedVibeScore?: number | null;
-}
-
-export interface VibeReport {
-  id?: string;
-  venueId?: string;
-  venueName?: string;
-  vibeScore: number;
-  vibeTags: string[];
-  energyLevel: string;
-  musicVibe: string;
-  bestFor: string[];
-  crowdType: string;
-  /** @deprecated use vibeSummary */
-  summary?: string;
-  vibeSummary?: string;
-  confidence: number | "low" | "medium" | "high";
-  fromPhoto?: boolean;
-  cached?: boolean;
-  cachedAt?: string;
-  generatedAt?: string;
-  [key: string]: unknown;
-}
-
 // --------------- Consumer domain types -----------------------
 
 export type BusynessSource = "live" | "forecast" | "crowd" | "unavailable";
@@ -104,7 +64,6 @@ export interface ConsumerVenue {
   openNow?: boolean | null;
   open_now?: boolean | null;
   current_popularity?: number | null;
-  vibe_score?: number | null;
   trending?: boolean | null;
   besttimeVenueId?: string;
   hidden: boolean;

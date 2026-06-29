@@ -9,7 +9,6 @@ vi.mock("@/lib/venueLookup", () => ({
   normalizeVenueLookupId: (v: string) => v,
 }));
 vi.mock("@/lib/venueRatingAggregate", () => ({ getVenueRatingAggregate: mockGetRatingAggregate }));
-vi.mock("@/lib/mfRatio", () => ({ computeVenueMfRatioFromCheckIns: vi.fn().mockResolvedValue({ mfRatio: null, sampleSize: 0, computedAt: "" }) }));
 vi.mock("@/lib/db", () => ({ sql: vi.fn().mockResolvedValue([]) }));
 vi.mock("@/lib/upstashRateLimit", () => ({ checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, limit: 60, remaining: 59 }), rateLimitHeaders: () => ({}) }));
 
@@ -34,7 +33,7 @@ const VENUE = {
   google_maps_uri: "https://maps.example.test/place",
   editorial_summary: "Cached launch-zone venue.",
   updated_at: "2026-06-23T01:30:00.000Z",
-  venue_signals: { venue_id: "venue-1", busyness_0_100: 72, busyness_source: "crowd", mf_ratio: 61, confidence_0_1: 0.5, sample_size: 10, computed_at: new Date().toISOString(), last_busyness_refresh: null },
+  venue_signals: { venue_id: "venue-1", busyness_0_100: 72, busyness_source: "live", confidence_0_1: 0.5, computed_at: new Date().toISOString(), last_busyness_refresh: null },
 };
 
 beforeEach(() => {

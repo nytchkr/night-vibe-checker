@@ -1,14 +1,8 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 
 type TestVenue = {
   id: string;
   name: string;
-};
-
-const meta = {
-  cached: true,
-  generatedAt: new Date().toISOString(),
-  requestId: "e2e-share",
 };
 
 async function getShareVenue(request: APIRequestContext): Promise<TestVenue> {
@@ -21,29 +15,9 @@ async function getShareVenue(request: APIRequestContext): Promise<TestVenue> {
   return venue!;
 }
 
-async function mockCheckIns(page: Page) {
-  await page.route("**/api/check-ins?**", (route) => {
-    const url = new URL(route.request().url());
-    if (route.request().method() !== "GET" || url.pathname !== "/api/check-ins") {
-      return route.continue();
-    }
-
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { checkIns: [] },
-        meta,
-      }),
-    });
-  });
-}
-
 test.describe("Venue detail share", () => {
   test("shares a venue detail link through native share or clipboard fallback", async ({ page, request }) => {
     const venue = await getShareVenue(request);
-    await mockCheckIns(page);
     await page.addInitScript(() => {
       window.localStorage.setItem("nv_onboarded", "1");
       Object.defineProperty(navigator, "share", {

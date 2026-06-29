@@ -48,19 +48,10 @@ function queryResult(resolved: { data?: unknown; error?: unknown }) {
   };
 }
 
-function checkIns(venueId: string, count: number) {
-  return Array.from({ length: count }, () => ({
-    venue_id: venueId,
-    created_at: "2026-06-23T01:00:00.000Z",
-    hidden: false,
-  }));
-}
-
 function venueRow({
   id,
   name,
   busyness,
-  checkInCount,
   openingHours = OPEN_MONDAY_NIGHT_HOURS,
   openNow = true,
   rating = null,
@@ -68,7 +59,6 @@ function venueRow({
   id: string;
   name: string;
   busyness: number | null;
-  checkInCount: number;
   openingHours?: unknown;
   openNow?: boolean | null;
   rating?: number | null;
@@ -103,12 +93,10 @@ function venueRow({
         busyness_0_100: busyness,
         busyness_source: busyness == null ? "unavailable" : "live",
         confidence_0_1: 0.5,
-        sample_size: checkInCount,
         computed_at: UPDATED_AT,
         last_busyness_refresh: UPDATED_AT,
       },
     ],
-    check_ins: checkIns(id, checkInCount),
   };
 }
 
@@ -127,9 +115,9 @@ afterEach(() => {
 describe("trending venue scoring", () => {
   it("ranks high busyness as the top discovery score", async () => {
     const rows = [
-      venueRow({ id: "venue-busy-fast", name: "Busy Fast", busyness: 100, checkInCount: 4 }),
-      venueRow({ id: "venue-busy-slow", name: "Busy Slow", busyness: 100, checkInCount: 0 }),
-      venueRow({ id: "venue-calm-fast", name: "Calm Fast", busyness: 20, checkInCount: 4 }),
+      venueRow({ id: "venue-busy-fast", name: "Busy Fast", busyness: 100 }),
+      venueRow({ id: "venue-busy-slow", name: "Busy Slow", busyness: 100 }),
+      venueRow({ id: "venue-calm-fast", name: "Calm Fast", busyness: 20 }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
@@ -148,8 +136,8 @@ describe("trending venue scoring", () => {
 
   it("excludes closed venues from trending results", async () => {
     const rows = [
-      venueRow({ id: "venue-closed", name: "Closed Bar", busyness: 80, checkInCount: 2, openingHours: CLOSED_MONDAY_NIGHT_HOURS, openNow: false }),
-      venueRow({ id: "venue-open", name: "Open Bar", busyness: 80, checkInCount: 2 }),
+      venueRow({ id: "venue-closed", name: "Closed Bar", busyness: 80, openingHours: CLOSED_MONDAY_NIGHT_HOURS, openNow: false }),
+      venueRow({ id: "venue-open", name: "Open Bar", busyness: 80 }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
@@ -160,10 +148,10 @@ describe("trending venue scoring", () => {
     expect(ranked.some((item) => item.venue.id === "venue-closed")).toBe(false);
   });
 
-  it("ignores check-in velocity in discovery-only trending", async () => {
+  it("breaks same-score ties by venue name", async () => {
     const rows = [
-      venueRow({ id: "venue-recent", name: "Recent", busyness: 70, checkInCount: 1 }),
-      venueRow({ id: "venue-quiet", name: "Quiet", busyness: 70, checkInCount: 0 }),
+      venueRow({ id: "venue-recent", name: "Recent", busyness: 70 }),
+      venueRow({ id: "venue-quiet", name: "Quiet", busyness: 70 }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
@@ -176,7 +164,7 @@ describe("trending venue scoring", () => {
 
   it("boosts scores during ET peak night hours", async () => {
     const rows = [
-      venueRow({ id: "venue-peak", name: "Peak", busyness: 100, checkInCount: 0 }),
+      venueRow({ id: "venue-peak", name: "Peak", busyness: 100 }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
@@ -187,7 +175,7 @@ describe("trending venue scoring", () => {
 
   it("applies the additional Friday or Saturday boost during ET night hours", async () => {
     const rows = [
-      venueRow({ id: "venue-friday", name: "Friday Peak", busyness: 100, checkInCount: 0 }),
+      venueRow({ id: "venue-friday", name: "Friday Peak", busyness: 100 }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
@@ -198,7 +186,7 @@ describe("trending venue scoring", () => {
 
   it("applies the Saturday pre-game ET boost before peak hours", async () => {
     const rows = [
-      venueRow({ id: "venue-pregame", name: "Pregame", busyness: 100, checkInCount: 0 }),
+      venueRow({ id: "venue-pregame", name: "Pregame", busyness: 100 }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
@@ -209,23 +197,23 @@ describe("trending venue scoring", () => {
 
   it("ranks venues with no busyness data by open-now and name", async () => {
     const rows = [
-      venueRow({ id: "venue-low-velocity", name: "Low Velocity", busyness: null, checkInCount: 1 }),
-      venueRow({ id: "venue-high-velocity", name: "High Velocity", busyness: null, checkInCount: 4 }),
+      venueRow({ id: "venue-low-signal", name: "Low Signal", busyness: null }),
+      venueRow({ id: "venue-high-signal", name: "High Signal", busyness: null }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
     const ranked = rankTrendingVenueRows(rows);
 
-    expect(ranked.map((item) => item.venue.id)).toEqual(["venue-high-velocity", "venue-low-velocity"]);
+    expect(ranked.map((item) => item.venue.id)).toEqual(["venue-high-signal", "venue-low-signal"]);
     expect(ranked[0].score).toBeCloseTo(0.2);
     expect(ranked[1].score).toBeCloseTo(0.2);
   });
 
   it("breaks equal-score ties by venue name alphabetically", async () => {
     const rows = [
-      venueRow({ id: "venue-zed", name: "Zed Room", busyness: 60, checkInCount: 2 }),
-      venueRow({ id: "venue-alpha", name: "Alpha Room", busyness: 60, checkInCount: 2 }),
-      venueRow({ id: "venue-metro", name: "Metro Room", busyness: 60, checkInCount: 2 }),
+      venueRow({ id: "venue-zed", name: "Zed Room", busyness: 60 }),
+      venueRow({ id: "venue-alpha", name: "Alpha Room", busyness: 60 }),
+      venueRow({ id: "venue-metro", name: "Metro Room", busyness: 60 }),
     ];
 
     const { rankTrendingVenueRows } = await import("@/lib/trendingVenueIds");
@@ -243,8 +231,8 @@ describe("trending venue scoring", () => {
 
   it("loads and ranks rows through the mocked Neon query", async () => {
     mockSql.mockResolvedValue([
-      venueRow({ id: "venue-alpha", name: "Alpha", busyness: 30, checkInCount: 1 }),
-      venueRow({ id: "venue-top", name: "Top", busyness: 100, checkInCount: 3 }),
+      venueRow({ id: "venue-alpha", name: "Alpha", busyness: 30 }),
+      venueRow({ id: "venue-top", name: "Top", busyness: 100 }),
     ]);
 
     const { getTrendingVenues } = await import("@/lib/trendingVenueIds");

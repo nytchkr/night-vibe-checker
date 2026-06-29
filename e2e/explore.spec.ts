@@ -22,7 +22,6 @@ const venues = [
     photoUrl: null,
     openNow: true,
     hidden: false,
-    vibe_score: 91,
     current_popularity: 68,
     googleRating: 4.6,
     signal: {
@@ -48,7 +47,6 @@ const venues = [
     photoUrl: null,
     openNow: true,
     hidden: false,
-    vibe_score: 42,
     current_popularity: 94,
     googleRating: 4.2,
     signal: {
@@ -74,7 +72,6 @@ const venues = [
     photoUrl: null,
     openNow: true,
     hidden: false,
-    vibe_score: null,
     current_popularity: null,
     googleRating: 4.9,
     signal: {

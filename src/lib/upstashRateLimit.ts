@@ -18,13 +18,6 @@ export const apiRateLimit = new Ratelimit({
   prefix: "nv:rl:api",
 });
 
-// Strict: 3 check-ins per hour per user
-export const checkInRateLimit = new Ratelimit({
-  redis: redis as unknown as RatelimitRedis,
-  limiter: Ratelimit.slidingWindow(3, "1 h"),
-  prefix: "nv:rl:checkin",
-});
-
 const keyedLimiters = new Map<string, Ratelimit>();
 
 function durationFromWindowMs(windowMs: number): SlidingWindowDuration {

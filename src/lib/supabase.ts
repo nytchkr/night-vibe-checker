@@ -1,5 +1,5 @@
 // ============================================================
-// Night Vibe Checker — Supabase client singletons
+// nytchkr — Supabase client singletons
 //
 // Two clients are exported:
 //   supabase       → anon/public client, safe to use in Server Components

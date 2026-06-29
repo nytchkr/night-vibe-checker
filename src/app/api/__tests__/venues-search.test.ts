@@ -26,7 +26,6 @@ function venue(id: string, name: string, overrides: Record<string, unknown> = {}
         busyness_0_100: null,
         busyness_source: null,
         confidence_0_1: 0,
-        sample_size: 0,
         computed_at: "2026-06-20T20:00:00.000Z",
         last_busyness_refresh: null,
       },

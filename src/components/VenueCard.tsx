@@ -54,8 +54,6 @@ interface VenueCardProps {
   venue: VenueShape;
   topTags?: string[];
   variant?: "full" | "compact";
-  onVibeCheck?: (venue: VenueShape) => void;
-  isChecking?: boolean;
   className?: string;
   isSaved?: boolean;
   accessToken?: string | null;
@@ -63,8 +61,6 @@ interface VenueCardProps {
   priority?: boolean;
   /** Live or forecast crowd level */
   crowdBadge?: CrowdLevel;
-  /** ISO string of most recent signal update */
-  lastReportedAt?: string;
 }
 
 // --------------- Compact card (map popup) -------------------
@@ -93,8 +89,6 @@ function venueHref(venue: VenueShape): string {
 function CompactCard({
   venue,
   topTags,
-  onVibeCheck,
-  isChecking,
   isSaved,
   accessToken,
   onSaveToggle,
@@ -169,20 +163,16 @@ function CompactCard({
 
 function FullCard({
   venue,
-  onVibeCheck,
-  isChecking,
   className,
   isSaved,
   accessToken,
   onSaveToggle,
   priority = false,
   crowdBadge,
-  lastReportedAt,
 }: Omit<VenueCardProps, "variant">) {
   const crowd = crowdBadge ? CROWD_CFG[crowdBadge] : null;
   const meta: string[] = [];
   const googleRatingData = getGoogleRatingData(venue);
-  if (lastReportedAt) meta.push(timeAgo(lastReportedAt));
 
   return (
     <div
@@ -262,7 +252,7 @@ function FullCard({
 
 export function VenueCard({ variant = "full", ...props }: VenueCardProps) {
   if (variant === "compact") {
-    const { crowdBadge: _cb, lastReportedAt: _lr, ...compactProps } = props;
+    const { crowdBadge: _cb, ...compactProps } = props;
     return <CompactCard {...compactProps} />;
   }
   return <FullCard {...props} />;

@@ -7,8 +7,7 @@ type GoldenPathVenue = {
   name: string;
   signal?: {
     busyness0To100: number | null;
-    busynessSource: "live" | "forecast" | "crowd" | null;
-    mfRatio: number | null;
+    busynessSource: "live" | "forecast" | null;
   } | null;
 };
 
@@ -98,7 +97,7 @@ test.describe("golden path", () => {
     const seededVenues = await getSeededVenues(request);
     const venue =
       seededVenues.find((candidate) => /^(live|forecast)$/.test(candidate.signal?.busynessSource ?? "")) ??
-      seededVenues.find((candidate) => candidate.signal?.busyness0To100 == null || candidate.signal?.mfRatio == null) ??
+      seededVenues.find((candidate) => candidate.signal?.busyness0To100 == null) ??
       seededVenues[0];
     if (!venue) return;
 
@@ -107,45 +106,5 @@ test.describe("golden path", () => {
     const badge = page.getByText(/LIVE|FORECAST/i).first();
     const noData = page.getByText(/no live reads|no busyness data|no reads yet/i).first();
     await expect(badge.or(noData)).toBeVisible({ timeout: 10000 });
-  });
-
-  test("venue detail is honest when mf_ratio is null", async ({ request, page }) => {
-    const seededVenues = await getSeededVenues(request);
-    const venue = seededVenues.find((candidate) => candidate.signal?.mfRatio == null);
-    if (!venue) return;
-
-    await page.goto(`/venues/${venue.id}`, { waitUntil: "domcontentloaded" });
-
-    await expect(page.getByText(/no live reads/i).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/50% guys|50% girls/i)).toHaveCount(0);
-  });
-
-  test("vibe report sheet appears on button click", async ({ request, page }) => {
-    const seededVenues = await getSeededVenues(request);
-    const venue = seededVenues[0];
-    if (!venue) return;
-
-    await page.goto(`/venues/${venue.id}`, { waitUntil: "domcontentloaded" });
-
-    const btn = page.getByRole("button", { name: /report the vibe/i });
-    await expect(btn).toBeVisible({ timeout: 10000 });
-    await expect(btn).toBeEnabled({ timeout: 10000 });
-    await btn.click();
-
-    const sheet = page.getByRole("dialog", { name: /report the vibe/i });
-    const loginPrompt = page.getByRole("dialog", { name: /login required/i });
-    await expect(sheet.or(loginPrompt)).toBeVisible({ timeout: 5000 });
-
-    if (await sheet.isVisible().catch(() => false)) {
-      await expect(sheet.getByRole("button", { name: /dead/i })).toBeVisible();
-      await expect(sheet.getByRole("button", { name: /moderate/i })).toBeVisible();
-      await expect(sheet.getByRole("button", { name: /packed/i })).toBeVisible();
-      await expect(sheet.getByRole("button", { name: /mostly guys/i })).toBeVisible();
-      await expect(sheet.getByRole("button", { name: /mostly girls/i })).toBeVisible();
-      await expect(sheet.getByRole("button", { name: /balanced/i })).toBeVisible();
-      await expect(sheet.getByRole("button", { name: /mixed/i })).toBeVisible();
-    } else {
-      await expect(loginPrompt.getByRole("link", { name: /log in/i })).toBeVisible();
-    }
   });
 });

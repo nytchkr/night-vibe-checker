@@ -137,7 +137,7 @@ describe("GET /api/venues/[id]/tips", () => {
     expect(anthropicBody.messages[0].content).toContain("Only use what is in the reviews.");
     expect(anthropicBody.messages[0].content).toContain("Great cocktails and an upbeat crowd after work.");
     expect(anthropicBody.messages[0].content).not.toContain("Sixth review should not be sent.");
-    expect(anthropicBody.messages[0].content).not.toContain("check-in");
+    expect(anthropicBody.messages[0].content).not.toContain("unsupported private data");
     const json = await res.json();
     expect(json.tips).toHaveLength(2);
     for (const tip of json.tips) {

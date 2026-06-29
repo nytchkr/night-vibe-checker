@@ -66,13 +66,13 @@ describe("rateLimit", () => {
   });
 
   it("resets the quota exactly when the window boundary is reached", () => {
-    expect(checkRateLimit("route:/api/check-ins", 1, 1_000).allowed).toBe(true);
+    expect(checkRateLimit("route:/api/venues", 1, 1_000).allowed).toBe(true);
 
     vi.advanceTimersByTime(999);
-    expect(checkRateLimit("route:/api/check-ins", 1, 1_000).allowed).toBe(false);
+    expect(checkRateLimit("route:/api/venues", 1, 1_000).allowed).toBe(false);
 
     vi.advanceTimersByTime(1);
-    expect(checkRateLimit("route:/api/check-ins", 1, 1_000)).toEqual({
+    expect(checkRateLimit("route:/api/venues", 1, 1_000)).toEqual({
       allowed: true,
       limit: 1,
       remaining: 0,

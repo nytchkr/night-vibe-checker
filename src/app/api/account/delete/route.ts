@@ -15,7 +15,6 @@ export async function POST(req: NextRequest): Promise<NextResponse<DeleteAccount
   if (!userId) return errorResponse("Authentication required.", 401);
 
   try {
-    await sql`DELETE FROM check_ins WHERE user_id = ${userId}`;
     await sql`DELETE FROM saved_venues WHERE user_id = ${userId}`;
     await sql`DELETE FROM profiles WHERE id = ${userId}`;
 

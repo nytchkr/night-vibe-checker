@@ -30,9 +30,7 @@ test.describe("NV-TEST-025 social features", () => {
 
     expect(response?.status(), "expected /leaderboard to return a non-error status").toBeLessThan(400);
     await expect(page.getByText("Most Active")).toBeVisible();
-    await expect(
-      page.getByRole("listitem").first().or(page.getByText(/No check-ins|Leaderboard is unavailable/i)),
-    ).toBeVisible();
+    await expect(page.getByRole("listitem").first().or(page.getByText(/Leaderboard is unavailable/i))).toBeVisible();
   });
 
   test("venue tips section visible on venue detail", async ({ page, request }) => {
@@ -60,7 +58,7 @@ test.describe("NV-TEST-025 social features", () => {
     const response = await page.goto(`/widget/${venue.id}`, { waitUntil: "domcontentloaded" });
 
     expect(response?.status(), "expected venue widget to return a non-error status").toBeLessThan(400);
-    await expect(page.getByText(/NightVibe|Busyness|Packed|Moderate|Quiet|No data/i).first()).toBeVisible();
+    await expect(page.getByText(/nytchkr|Busyness|Packed|Moderate|Quiet|No data/i).first()).toBeVisible();
   });
 
   test("search suggestions appear on map", async ({ page, request }) => {

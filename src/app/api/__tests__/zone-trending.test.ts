@@ -31,26 +31,16 @@ function params(zoneId: string) {
   return { params: Promise.resolve({ zoneId }) };
 }
 
-function checkIns(venueId: string, count: number) {
-  return Array.from({ length: count }, () => ({
-    venue_id: venueId,
-    created_at: "2026-06-23T15:30:00.000Z",
-    hidden: false,
-  }));
-}
-
 function venueRow({
   id,
   name,
   busyness,
-  checkInCount,
   openingHours = OPEN_MONDAY_HOURS,
   openNow = true,
 }: {
   id: string;
   name: string;
   busyness: number | null;
-  checkInCount: number;
   openingHours?: unknown;
   openNow?: boolean | null;
 }) {
@@ -85,12 +75,10 @@ function venueRow({
         busyness_0_100: busyness,
         busyness_source: busyness == null ? "unavailable" : "live",
         confidence_0_1: 0.5,
-        sample_size: checkInCount,
         computed_at: "2026-06-23T15:30:00.000Z",
         last_busyness_refresh: "2026-06-23T15:30:00.000Z",
       },
     ],
-    check_ins: checkIns(id, checkInCount),
   };
 }
 
@@ -109,12 +97,12 @@ afterEach(() => {
 describe("GET /api/zones/[zoneId]/trending", () => {
   it("returns the top five scored venues for a valid zone", async () => {
     mockSql.mockResolvedValueOnce([
-        venueRow({ id: "venue-one", name: "One", busyness: 100, checkInCount: 4 }),
-        venueRow({ id: "venue-two", name: "Two", busyness: 90, checkInCount: 3 }),
-        venueRow({ id: "venue-three", name: "Three", busyness: 80, checkInCount: 2 }),
-        venueRow({ id: "venue-four", name: "Four", busyness: 70, checkInCount: 1 }),
-        venueRow({ id: "venue-five", name: "Five", busyness: 60, checkInCount: 0 }),
-        venueRow({ id: "venue-six", name: "Six", busyness: 10, checkInCount: 0 }),
+        venueRow({ id: "venue-one", name: "One", busyness: 100 }),
+        venueRow({ id: "venue-two", name: "Two", busyness: 90 }),
+        venueRow({ id: "venue-three", name: "Three", busyness: 80 }),
+        venueRow({ id: "venue-four", name: "Four", busyness: 70 }),
+        venueRow({ id: "venue-five", name: "Five", busyness: 60 }),
+        venueRow({ id: "venue-six", name: "Six", busyness: 10 }),
     ]);
 
     const { GET } = await import("../zones/[zoneId]/trending/route");
@@ -164,11 +152,10 @@ describe("GET /api/zones/[zoneId]/trending", () => {
             id: "venue-closed",
             name: "Closed",
             busyness: 100,
-            checkInCount: 10,
             openingHours: CLOSED_MONDAY_HOURS,
             openNow: false,
           }),
-          venueRow({ id: "venue-open", name: "Open", busyness: 20, checkInCount: 0 }),
+          venueRow({ id: "venue-open", name: "Open", busyness: 20 }),
     ]);
 
     const { GET } = await import("../zones/[zoneId]/trending/route");

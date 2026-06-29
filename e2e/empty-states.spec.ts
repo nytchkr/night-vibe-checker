@@ -84,24 +84,6 @@ async function mockVenues(page: Page, venues = [nullSignalVenue, earlySignalVenu
     return route.continue();
   });
 
-  await page.route("**/api/check-ins**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
-
-    if (request.method() !== "GET" || url.pathname !== "/api/check-ins") {
-      return route.continue();
-    }
-
-    return route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "success",
-        data: { checkIns: [] },
-        meta,
-      }),
-    });
-  });
 }
 
 test.describe("NV-UX-002 empty states and boundaries", () => {
@@ -123,8 +105,6 @@ test.describe("NV-UX-002 empty states and boundaries", () => {
     await expect(page.getByText(nullSignalVenue.name)).toBeVisible();
     await expect(page.getByText("No data")).toBeVisible();
     await expect(page.getByText("No crowd read")).toBeVisible();
-    // MFRatioMiniBar returns text, not icon imagery, when signal is entirely absent.
-    await expect(page.getByRole("img", { name: /male/i })).toHaveCount(0);
   });
 
   test("venue detail returns the custom 404 page when a venue is not cached", async ({ page }) => {

@@ -120,7 +120,7 @@ describe("Profile saved spots", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows saved venue rows for signed-in users without check-in stats", async () => {
+  it("shows saved venue rows for signed-in users", async () => {
     mockAuth(session);
     savedVenuesState.savedVenues = [
       {

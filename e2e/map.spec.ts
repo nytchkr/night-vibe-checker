@@ -414,16 +414,6 @@ test.describe("Map tab", () => {
     await expect(page.getByText("Not live in your area yet")).toHaveCount(0);
   });
 
-  test("FAB links to /vibe-check", async ({ page }) => {
-    await page.goto("/map");
-    await page.waitForSelector(".leaflet-container", { timeout: 25000 });
-    const fab = page.getByRole("link", { name: /Report vibe/i });
-    await expect(fab).toBeVisible({ timeout: 10000 });
-    // /vibe-check requires auth — guests land on /login. Verify link href, not navigation.
-    const href = await fab.getAttribute("href");
-    expect(href).toMatch(/\/vibe-check/);
-  });
-
   test("bottom nav shows Map, Explore, and Saved tabs", async ({ page }) => {
     await page.goto("/map");
 
@@ -523,7 +513,6 @@ test.describe("Map bottom sheet", () => {
     await expect(popup.getByText("night_club")).toBeVisible();
     await expect(popup.getByText("Open now")).toBeVisible();
     await expect(popup.getByRole("link", { name: "View venue" })).toHaveAttribute("href", "/venues/map-packed-1");
-    await expect(popup.getByRole("link", { name: "Check in" })).toHaveAttribute("href", "/vibe-check?venueId=map-packed-1");
     await expect.poll(() => selectedPinCount(page), { timeout: 10000 }).toBeGreaterThanOrEqual(1);
   });
 

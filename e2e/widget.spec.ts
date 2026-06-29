@@ -62,7 +62,7 @@ test.describe("NV-TEST-021 embeddable busyness widget", () => {
 
     await page.goto(`/widget/${widgetVenue.id}`);
 
-    const widget = page.getByRole("region", { name: "NightVibe busyness widget" });
+    const widget = page.getByRole("region", { name: "nytchkr busyness widget" });
     await expect(widget).toBeVisible();
     await expect(widget.getByRole("heading", { name: widgetVenue.name })).toBeVisible();
     await expect(widget.getByText(widgetVenue.address)).toBeVisible();
@@ -78,7 +78,7 @@ test.describe("NV-TEST-021 embeddable busyness widget", () => {
     await expect(page.getByTestId("busyness-bar-fill")).toHaveAttribute("style", /width:\s*73%;/);
   });
 
-  test("?embed=1 does not show the NightVibe navbar", async ({ page }) => {
+  test("?embed=1 does not show the nytchkr navbar", async ({ page }) => {
     test.skip(isProductionBaseUrl(), "uses mocked /api/venues data and is only valid against a local app server");
     await mockVenues(page);
 

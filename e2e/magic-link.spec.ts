@@ -59,16 +59,16 @@ test.describe("Magic-link login flow", () => {
       });
     });
 
-    await page.goto("/login?return=/vibe-check?venueId=venue-123");
+    await page.goto("/login?return=/saved");
     await page.getByLabel(/email/i).fill("magic-link-e2e@example.com");
     await page.getByRole("button", { name: /send/i }).click();
 
     await expect(page.getByText("Check your email")).toBeVisible();
     await expect(page.getByText(/magic-link-e2e@example.com/)).toBeVisible();
-    expect(redirectTo).toContain("/auth/callback?return=%2Fvibe-check%3FvenueId%3Dvenue-123");
+    expect(redirectTo).toContain("/auth/callback?return=%2Fsaved");
     await expect
       .poll(() => page.evaluate(() => window.sessionStorage.getItem("nightvibe.postAuthReturnUrl")))
-      .toBe("/vibe-check?venueId=venue-123");
+      .toBe("/saved");
   });
 
   test("redirects authenticated users from login to the return URL", async ({ page }) => {
@@ -84,13 +84,13 @@ test.describe("Magic-link login flow", () => {
     test.skip(isProductionBaseUrl(), "uses a mocked Supabase session and is only valid against a local app server");
     await page.goto("/");
     await page.evaluate(() => {
-      window.sessionStorage.setItem("nightvibe.postAuthReturnUrl", "/vibe-check?venueId=venue-123");
+      window.sessionStorage.setItem("nightvibe.postAuthReturnUrl", "/saved");
     });
     await addLocalSession(page);
 
     await page.goto("/login?auth=callback");
 
-    await expect(page).toHaveURL(/\/vibe-check\?venueId=venue-123/);
+    await expect(page).toHaveURL(/\/saved/);
     await expect
       .poll(() => page.evaluate(() => window.sessionStorage.getItem("nightvibe.postAuthReturnUrl")))
       .toBeNull();

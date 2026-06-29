@@ -197,22 +197,6 @@ async function mockVenueApis(page: Page, options: { holdFirstVenueRequest?: bool
       });
     }
 
-    if (childRoute === "check-ins") {
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ checkIns: [] }),
-      });
-    }
-
-    if (childRoute === "activity") {
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ items: [] }),
-      });
-    }
-
     if (childRoute === "besttime-forecast") {
       return route.fulfill({
         status: 200,
@@ -320,7 +304,7 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
     await assertNoHorizontalOverflow(page);
   });
 
-  test("@device venue card opens map bottom sheet with check-in action", async ({ page }, testInfo) => {
+  test("@device venue card opens map bottom sheet with venue details", async ({ page }, testInfo) => {
     await markOnboarded(page);
     await mockVenueApis(page);
 
@@ -332,13 +316,12 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
     await mapSheet.getByRole("button", { name: /Cross Device Pulse/ }).click();
 
     await expect(mapSheet.getByRole("heading", { level: 2, name: "Cross Device Pulse" })).toBeVisible();
-    await expect(mapSheet.getByRole("link", { name: "Check in →" })).toBeVisible();
     await expect(mapSheet.getByText("Open").first()).toBeVisible();
     await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);
   });
 
-  test("@device venue detail shows check-in CTA and share button", async ({ page, request }, testInfo) => {
+  test("@device venue detail shows venue hero and share button", async ({ page, request }, testInfo) => {
     await markOnboarded(page);
     const venue = await getLaunchVenue(request);
     const venuePath = venue.slug ?? venue.id;
@@ -347,7 +330,6 @@ test.describe("@device NV-TEST-039 cross-device browser sweep", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: venue.name })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("region", { name: "Venue hero" })).toBeVisible();
-    await expect(page.getByRole("button", { name: `Check in at ${venue.name}` }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Share venue" }).first()).toBeVisible();
     await assertShellNavigation(page, testInfo);
     await assertNoHorizontalOverflow(page);

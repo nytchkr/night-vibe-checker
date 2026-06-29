@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { mockFindVisibleVenueByIdOrPlaceId, mockComputeVenueMfRatioFromCheckIns } = vi.hoisted(() => ({
+const { mockFindVisibleVenueByIdOrPlaceId } = vi.hoisted(() => ({
   mockFindVisibleVenueByIdOrPlaceId: vi.fn(),
-  mockComputeVenueMfRatioFromCheckIns: vi.fn(),
 }));
 const { mockRedisGet, mockRedisSet } = vi.hoisted(() => ({
   mockRedisGet: vi.fn(),
@@ -13,10 +12,6 @@ const { mockRedisGet, mockRedisSet } = vi.hoisted(() => ({
 vi.mock("@/lib/venueLookup", () => ({
   findVisibleVenueByIdOrPlaceId: mockFindVisibleVenueByIdOrPlaceId,
   normalizeVenueLookupId: (id: string) => id.trim(),
-}));
-
-vi.mock("@/lib/mfRatio", () => ({
-  computeVenueMfRatioFromCheckIns: mockComputeVenueMfRatioFromCheckIns,
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -50,9 +45,8 @@ function venue(overrides: Record<string, unknown> = {}) {
         venue_id: "venue-1",
         place_id: "place-venue-1",
         busyness_0_100: 72,
-        busyness_source: "crowd",
+        busyness_source: "live",
         confidence_0_1: 0.5,
-        sample_size: 10,
         computed_at: "2026-06-23T01:30:00.000Z",
         last_busyness_refresh: null,
       },
@@ -77,9 +71,6 @@ beforeEach(() => {
   vi.resetModules();
   mockRedisGet.mockResolvedValue(null);
   mockRedisSet.mockResolvedValue("OK");
-  mockComputeVenueMfRatioFromCheckIns.mockResolvedValue({
-    computedAt: "2026-06-28T04:00:00.000Z",
-  });
 });
 
 afterEach(() => {
@@ -102,27 +93,19 @@ describe("GET /api/venues/[id] cache headers", () => {
     expect(json.data.venue.id).toBe("venue-1");
   });
 
-  it("does not compute live check-in ratio for venue details", async () => {
+  it("returns venue details without legacy ratio fields", async () => {
     mockFindVisibleVenueByIdOrPlaceId.mockResolvedValueOnce({
       data: venue(),
       error: null,
     });
-    mockComputeVenueMfRatioFromCheckIns.mockResolvedValueOnce({
-      computedAt: "2026-06-28T04:00:00.000Z",
-    });
-
     const res = await getVenueDetail();
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(mockComputeVenueMfRatioFromCheckIns).not.toHaveBeenCalled();
-    expect(json.data.venue.signal.mfRatio).toBeUndefined();
-    expect(json.data.venue.signal.sampleSize).toBeUndefined();
-    expect(json.data.venue.mf_ratio).toBeUndefined();
-    expect(json.data.venue.mf_sample_size).toBeUndefined();
+    expect(json.data.venue.signal.busyness0To100).toBe(72);
   });
 
-  it("omits cached M/F ratio fields from venue details", async () => {
+  it("omits legacy signal fields from venue details", async () => {
     mockFindVisibleVenueByIdOrPlaceId.mockResolvedValueOnce({
       data: venue({
         venue_signals: [
@@ -130,9 +113,8 @@ describe("GET /api/venues/[id] cache headers", () => {
             venue_id: "venue-1",
             place_id: "place-venue-1",
             busyness_0_100: 72,
-            busyness_source: "crowd",
+            busyness_source: "live",
             confidence_0_1: 0.5,
-            sample_size: 10,
             computed_at: "2026-06-26T04:00:00.000Z",
             last_busyness_refresh: null,
           },
@@ -140,18 +122,11 @@ describe("GET /api/venues/[id] cache headers", () => {
       }),
       error: null,
     });
-    mockComputeVenueMfRatioFromCheckIns.mockResolvedValueOnce({
-      computedAt: "2026-06-28T04:00:00.000Z",
-    });
-
     const res = await getVenueDetail();
     const json = await res.json();
 
     expect(res.status).toBe(200);
     expect(json.data.venue.signal.busyness0To100).toBe(72);
-    expect(json.data.venue.signal.mfRatio).toBeUndefined();
-    expect(json.data.venue.signal.sampleSize).toBeUndefined();
-    expect(json.data.venue.mf_ratio).toBeUndefined();
   });
 
   it("hydrates missing venue photos from Google Places details server-side", async () => {

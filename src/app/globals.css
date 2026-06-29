@@ -7,7 +7,7 @@
 @tailwind utilities;
 
 /* ============================================================
-   Night Vibe Checker — Global Styles
+   nytchkr — Global Styles
    shadcn/ui dark (zinc) theme variables merged with brand tokens
    ============================================================ */
 
@@ -391,13 +391,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
-}
-
-/* vibeScoreReveal kept for VibeReport component use */
-@keyframes vibeScoreReveal {
-  0%   { opacity: 0; transform: scale(0.85); }
-  60%  { transform: scale(1.04); }
-  100% { opacity: 1; transform: scale(1); }
 }
 
 @keyframes toast-slide-in {

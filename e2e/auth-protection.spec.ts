@@ -20,14 +20,6 @@ async function getPublicVenue(request: APIRequestContext): Promise<TestVenue> {
 }
 
 test.describe("Auth protection middleware", () => {
-  test("unauthenticated: /vibe-check redirects to /login", async ({ page }) => {
-    await page.goto("/vibe-check");
-
-    await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByRole("heading", { name: "nytchkr" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
-  });
-
   test("unauthenticated: /notifications redirects to /login", async ({ page }) => {
     await page.goto("/notifications");
 
@@ -40,27 +32,6 @@ test.describe("Auth protection middleware", () => {
     await expect(page).toHaveURL(/\/profile$/);
     await expect(page.getByRole("heading", { name: "Sign in to track your nights" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
-  });
-
-  test("unauthenticated: POST /api/check-ins returns 401", async ({ page }) => {
-    await page.goto("/map");
-
-    const status = await page.evaluate(async () => {
-      const response = await fetch("/api/check-ins", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          venueId: "auth-protection-venue",
-          busyness: "moderate",
-          crowdFeel: "mixed",
-          note: "auth protection smoke",
-        }),
-      });
-
-      return response.status;
-    });
-
-    expect(status).toBe(401);
   });
 
   test("unauthenticated: /venues/[id] is publicly accessible", async ({ page, request }) => {

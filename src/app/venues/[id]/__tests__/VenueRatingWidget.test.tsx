@@ -165,7 +165,6 @@ function makeVenue(overrides: Partial<ConsumerVenue> = {}): ConsumerVenue {
     priceLevel: 2,
     openNow: true,
     current_popularity: null,
-    vibe_score: null,
     trending: false,
     hidden: false,
     signal: {
@@ -203,7 +202,7 @@ describe("VenuePageClient decision layout", () => {
     vi.clearAllMocks();
   });
 
-  it("renders a linear decision page without tabs, check-in, report, or user rating controls", () => {
+  it("renders a linear decision page without tabbed or user rating controls", () => {
     renderVenuePage();
 
     expect(screen.getByRole("heading", { name: "Neon Lounge" })).toBeTruthy();
