@@ -152,6 +152,13 @@ function getBusynessColor(pct: number | null): string {
   return "#5C6573";
 }
 
+function getBusynessPinBucket(pct: number | null): "packed" | "moderate" | "dead" | "unknown" {
+  if (pct == null) return "unknown";
+  if (pct > 75) return "packed";
+  if (pct >= 40) return "moderate";
+  return "dead";
+}
+
 function hasLivePinPulse(venue: ConsumerVenue): boolean {
   return venue.signal?.busynessSource === "live";
 }
@@ -354,12 +361,13 @@ function createVenueClusterPin(venue: ConsumerVenue, selectedVenueId: string | n
   const isSelected = selectedVenueId === venue.id;
   const busyness = venue.signal?.busyness0To100 ?? null;
   const color = getBusynessColor(busyness);
+  const bucket = getBusynessPinBucket(busyness);
   const dotSize = isSelected ? 18 : 14;
   const pulse = hasLivePinPulse(venue);
 
   return L.divIcon({
-    html: `<span class="${pulse ? "venue-pin-live-dot" : ""}" style="--venue-pin-color:${color}; --venue-pin-dot-size:${dotSize}px; background:${color};"></span>`,
-    className: `venue-cluster-pin${isSelected ? " venue-cluster-pin-selected" : ""}${isTrending ? " venue-cluster-pin-trending" : ""}`,
+    html: `<span class="venue-pin-dot${pulse ? " venue-pin-live-dot" : ""}" style="--venue-pin-color:${color}; --venue-pin-dot-size:${dotSize}px; background:${color};"></span>`,
+    className: `venue-cluster-pin venue-pin-${bucket}${isSelected ? " venue-cluster-pin-selected" : ""}${isTrending ? " venue-cluster-pin-trending" : ""}`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
     tooltipAnchor: [0, -30],
@@ -1526,16 +1534,20 @@ export function VenueMap({
       />
 
       <style jsx global>{`
-        .venue-pin-packed {
-          filter: drop-shadow(0 0 0 rgba(248, 113, 113, 0.35)) drop-shadow(0 0 12px rgba(248, 113, 113, 0.5));
+        .venue-pin-packed > .venue-pin-dot {
+          filter: drop-shadow(0 0 0 rgba(255, 91, 106, 0.35)) drop-shadow(0 0 12px rgba(255, 91, 106, 0.5));
         }
 
-        .venue-pin-moderate {
-          filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.4));
+        .venue-pin-moderate > .venue-pin-dot {
+          filter: drop-shadow(0 0 8px rgba(255, 176, 32, 0.4));
         }
 
-        .venue-pin-quiet {
+        .venue-pin-dead > .venue-pin-dot {
           filter: drop-shadow(0 0 8px rgba(92, 101, 115, 0.38));
+        }
+
+        .venue-pin-unknown > .venue-pin-dot {
+          filter: drop-shadow(0 0 6px rgba(68, 68, 68, 0.45));
         }
 
         .venue-pin-live-dot {

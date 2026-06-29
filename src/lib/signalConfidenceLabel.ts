@@ -1,21 +1,19 @@
 import type { VenueSignal } from "@/types";
 
-export function formatSignalConfidenceLabel(signal: Pick<VenueSignal, "busynessSource" | "sampleSize"> | null | undefined): string {
+type SignalConfidenceInput = Pick<VenueSignal, "busynessSource">;
+
+export function formatSignalConfidenceLabel(signal: SignalConfidenceInput | null | undefined): string {
   if (!signal || signal.busynessSource === "forecast") {
     return "BestTime forecast";
   }
 
   if (signal.busynessSource === "unavailable") {
-    return "No live crowd source available";
+    return "No live busyness source available";
   }
 
-  if (signal.busynessSource === "live" && signal.sampleSize <= 0) {
+  if (signal.busynessSource === "live") {
     return "Live venue data";
   }
 
-  if (signal.sampleSize >= 5) {
-    return `Based on ${signal.sampleSize} check-ins`;
-  }
-
-  return `Early data (${signal.sampleSize} check-in${signal.sampleSize === 1 ? "" : "s"})`;
+  return "Venue busyness data";
 }

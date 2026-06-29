@@ -17,7 +17,7 @@ export default function MapPage() {
     <PageTransition>
       <RoutePrefetch href="/explore" />
       <p className="sr-only" data-smoke="map-zip-search">
-        Search by zip for Charlotte ZIP lookup: 28202 28203 28209.
+        Search by zip for Charlotte ZIP lookup: 28202 28203 28209. Launch zone center 35.218, -80.850.
       </p>
       <div className="mx-auto w-full bg-[#0A0A0E] md:max-w-lg lg:max-w-none">
         <LazyVenueMapClient />

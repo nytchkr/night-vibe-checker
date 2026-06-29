@@ -1,6 +1,5 @@
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
-import { sql } from "@/lib/db";
 import { mapGoogleOpeningHours } from "@/lib/venueHours";
 import type { ConsumerVenue, VenueSignal } from "@/types";
 
@@ -11,8 +10,8 @@ export const CONSUMER_VENUE_SELECT = `
   phone, phone_number, website, google_maps_uri, editorial_summary, opening_hours, open_now, besttime_venue_id, hidden,
   updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
@@ -22,8 +21,8 @@ const CONSUMER_VENUE_SELECT_LEGACY = `
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url,
   open_now, hidden, updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
@@ -34,9 +33,7 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
     placeId: row.place_id as string,
     busyness0To100: (row.busyness_0_100 ?? null) as number | null,
     busynessSource: (row.busyness_source ?? null) as VenueSignal["busynessSource"],
-    mfRatio: (row.mf_ratio ?? null) as number | null,
     confidence0To1: Number(row.confidence_0_1 ?? 0),
-    sampleSize: Number(row.sample_size ?? 0),
     computedAt: row.computed_at as string,
     updatedAt: (row.updated_at ?? null) as string | null,
     lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
@@ -106,8 +103,6 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,
-    mf_ratio: signal?.mfRatio ?? null,
-    mf_sample_size: signal?.sampleSize ?? 0,
   };
 }
 
@@ -159,18 +154,6 @@ export async function getConsumerVenueById(id: string): Promise<ConsumerVenue | 
   }
 }
 
-export async function getLiveCheckInCountForVenueId(venueId: string, now = new Date()): Promise<number> {
-  const normalizedVenueId = normalizeVenueLookupId(venueId);
-  if (!normalizedVenueId) return 0;
-
-  const cutoff = new Date(now.getTime() - 2 * 60 * 60_000).toISOString();
-  const rows = (await sql`
-    SELECT COUNT(*)::int AS count
-    FROM check_ins
-    WHERE venue_id = ${normalizedVenueId}
-      AND hidden = false
-      AND created_at >= ${cutoff}
-  `) as Array<{ count: number }>;
-
-  return Math.max(0, Number(rows[0]?.count ?? 0));
+export async function getLiveCheckInCountForVenueId(_venueId: string): Promise<number> {
+  return 0;
 }

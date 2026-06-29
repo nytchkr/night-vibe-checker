@@ -179,7 +179,7 @@ describe("Profile saved spots", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Unsave Trio" }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith("/api/saved-venues", {
+      expect(fetch).toHaveBeenCalledWith("/api/user/saved-venues", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

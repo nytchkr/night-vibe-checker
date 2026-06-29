@@ -140,7 +140,7 @@ export default function ProfilePage() {
 
     setUnsavingId(venueId);
     try {
-      await fetch("/api/saved-venues", {
+      await fetch("/api/user/saved-venues", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

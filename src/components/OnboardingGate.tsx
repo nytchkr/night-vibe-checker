@@ -177,7 +177,7 @@ export function OnboardingGateProvider({ children }: { children: React.ReactNode
                 <h2 id="onboarding-gate-title" className="font-display mt-1 text-xl font-semibold text-[#F4F5F8]">
                   Sign in to keep going
                 </h2>
-                <p className="mt-1 text-sm text-white/50">{pendingAction?.label ?? "Unlock the full vibe."}</p>
+                <p className="mt-1 text-sm text-white/50">{pendingAction?.label ?? "Save favorite spots and alerts."}</p>
               </div>
               <button
                 type="button"

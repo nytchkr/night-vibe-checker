@@ -23,10 +23,8 @@ describe("venue share data", () => {
         venueId: baseVenue.id,
         placeId: baseVenue.placeId,
         busyness0To100: 72,
-        busynessSource: "crowd",
-        mfRatio: 61,
+        busynessSource: "live",
         confidence0To1: 0.8,
-        sampleSize: 7,
         computedAt: "2026-06-21T00:00:00.000Z",
         lastBusynessRefresh: "2026-06-21T00:00:00.000Z",
         updatedAt: "2026-06-21T00:00:00.000Z",
@@ -35,7 +33,7 @@ describe("venue share data", () => {
 
     expect(shareData).toEqual({
       title: "Bar X on nytchkr",
-      text: "Check out Bar X on nytchkr: packed right now · 61% M / 39% F. https://nytchkr.com/venues/bar-x",
+      text: "Check out Bar X on nytchkr: packed right now. https://nytchkr.com/venues/bar-x",
       url: "https://nytchkr.com/venues/bar-x",
     });
   });
@@ -48,9 +46,7 @@ describe("venue share data", () => {
         placeId: baseVenue.placeId,
         busyness0To100: 45,
         busynessSource: "forecast",
-        mfRatio: null,
         confidence0To1: 0.4,
-        sampleSize: 0,
         computedAt: "2026-06-21T00:00:00.000Z",
         lastBusynessRefresh: "2026-06-21T00:00:00.000Z",
         updatedAt: "2026-06-21T00:00:00.000Z",
@@ -62,17 +58,15 @@ describe("venue share data", () => {
     );
   });
 
-  it("does not share an M/F split below the minimum sample floor", () => {
+  it("does not include crowd split language", () => {
     const shareData = buildVenueShareData({
       ...baseVenue,
       signal: {
         venueId: baseVenue.id,
         placeId: baseVenue.placeId,
         busyness0To100: 72,
-        busynessSource: "crowd",
-        mfRatio: 50,
+        busynessSource: "live",
         confidence0To1: 0.5,
-        sampleSize: 4,
         computedAt: "2026-06-21T00:00:00.000Z",
         lastBusynessRefresh: "2026-06-21T00:00:00.000Z",
         updatedAt: "2026-06-21T00:00:00.000Z",
@@ -85,7 +79,7 @@ describe("venue share data", () => {
   it("does not invent a packed percentage when no signal is available", () => {
     expect(buildVenueShareData(baseVenue)).toEqual({
       title: "Bar X on nytchkr",
-      text: "Check out Bar X on nytchkr: live vibe not available yet. https://nytchkr.com/venues/bar-x",
+      text: "Check out Bar X on nytchkr: busyness data is not available yet. https://nytchkr.com/venues/bar-x",
       url: "https://nytchkr.com/venues/bar-x",
     });
   });

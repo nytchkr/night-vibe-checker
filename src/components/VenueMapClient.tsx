@@ -53,7 +53,7 @@ export default function VenueMapClient() {
     <section
       className="bg-[#0A0A0E] text-white"
       role="region"
-      aria-label="Charlotte launch zone venue map"
+      aria-label="Uptown and South End Charlotte launch zone venue map"
       style={getMapViewportStyle()}
     >
       <VenueMap city={selectedCity} onCityChange={handleCityChange} />

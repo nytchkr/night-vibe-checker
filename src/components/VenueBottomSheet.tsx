@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Clock3, MapPin, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
-import { MIN_SAMPLE_SIZE_FOR_RATIO, getMFRatioPercents } from "@/components/MFRatioBar";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveButton } from "@/components/SaveButton";
 import { ShareButton } from "@/components/ShareButton";
@@ -149,27 +148,6 @@ function SourceChip({ source }: { source: BusynessSource | null | undefined }) {
       />
       {label}
     </span>
-  );
-}
-
-function MiniMFRatio({ venue }: { venue: ConsumerVenue }) {
-  const sampleSize = venue.signal?.sampleSize ?? 0;
-  const percents = sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO ? getMFRatioPercents(venue.signal?.mfRatio) : null;
-
-  if (!percents) {
-    return null;
-  }
-
-  return (
-    <div className="flex min-w-0 items-center gap-2" role="img" aria-label={`${percents.male}% male, ${percents.female}% female`}>
-      <div className="flex h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
-        <span className="venue-fill-motion h-full bg-[#8B6CFF]" style={{ width: `${percents.male}%` }} />
-        <span className="venue-fill-motion h-full bg-[#F0568C]" style={{ width: `${percents.female}%` }} />
-      </div>
-      <span className="truncate text-[12px] font-semibold text-white/58">
-        {percents.male}% M · {percents.female}% F
-      </span>
-    </div>
   );
 }
 
@@ -398,8 +376,7 @@ export function VenueBottomSheet({ loading = false, venue, onClose }: VenueBotto
 
             {!isPeek && (
               <div className="mt-5 space-y-4 pb-4">
-                <div className="flex items-center justify-between gap-3">
-                  <MiniMFRatio venue={venue} />
+                <div className="flex items-center justify-end gap-3">
                   <div className="flex shrink-0 items-center gap-2">
                     <SaveButton
                       placeId={venue.placeId}

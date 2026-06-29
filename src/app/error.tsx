@@ -14,7 +14,7 @@ export default function Error({
         Something went wrong.
       </h1>
       <p className="mt-3 max-w-sm text-sm font-medium leading-6 text-white/60">
-        The vibe check hit an unexpected snag. Try again without losing your place.
+        nytchkr hit an unexpected snag. Try again without losing your place.
       </p>
       <button
         type="button"

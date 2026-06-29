@@ -60,16 +60,6 @@ export interface VibeReport {
 
 // --------------- Consumer domain types -----------------------
 
-export type ReportedBusyness = "dead" | "moderate" | "packed";
-export type CrowdFeel =
-  | "chill"
-  | "hyped"
-  | "mixed"
-  | "dead"
-  | "packed"
-  | "mostly_male"
-  | "mostly_female"
-  | "balanced";
 export type BusynessSource = "live" | "forecast" | "crowd" | "unavailable";
 
 export interface VenueSignal {
@@ -77,9 +67,9 @@ export interface VenueSignal {
   placeId: string;
   busyness0To100: number | null;
   busynessSource: BusynessSource | null;
-  mfRatio: number | null;
+  mfRatio?: number | null;
   confidence0To1: number;
-  sampleSize: number;
+  sampleSize?: number;
   computedAt: string;
   updatedAt: string | null;
   lastBusynessRefresh: string | null;
@@ -121,17 +111,4 @@ export interface ConsumerVenue {
   besttimeVenueId?: string;
   hidden: boolean;
   signal: VenueSignal | null;
-  mf_ratio?: number | null;
-  mf_sample_size?: number;
-}
-
-export interface ConsumerCheckIn {
-  id: string;
-  venueId: string;
-  placeId: string;
-  venueName?: string;
-  busyness: ReportedBusyness;
-  crowdFeel: CrowdFeel;
-  note?: string;
-  createdAt: string;
 }

@@ -103,11 +103,6 @@ function compactExplanationFacts(facts: AISuggestExplanationFacts): Record<strin
     compact.busyness_bucket = facts.busynessBucket;
     compact.busyness_source = facts.busynessSource;
   }
-  if (facts.mfRatio != null) {
-    compact.male_percent = Math.round(facts.mfRatio * 100);
-    compact.female_percent = 100 - Math.round(facts.mfRatio * 100);
-    compact.check_in_sample_size = facts.mfSampleSize;
-  }
   return compact;
 }
 

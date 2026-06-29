@@ -3,15 +3,12 @@
 // Returns the current VenueSignal row for a venue.
 //
 // Response shape:
-//   { venueId, busyness, busynessSource, mfRatio, confidence, sampleSize, computedAt }
-//
-// mfRatio is null when sampleSize < 5 (not enough crowd reports).
+//   { venueId, busyness, busynessSource, confidence, computedAt }
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/apiRateLimit";
 import { sql } from "@/lib/db";
-import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { v4 as uuidv4 } from "uuid";
 import type { APIResponse } from "@/types";
@@ -20,9 +17,7 @@ export interface VenueSignalResponse {
   venueId: string;
   busyness: number | null;
   busynessSource: "live" | "forecast" | "crowd" | "unavailable" | null;
-  mfRatio: number | null;
   confidence: number;
-  sampleSize: number;
   computedAt: string | null;
 }
 
@@ -66,22 +61,17 @@ export async function GET(
   }
 
   const [signal] = (await sql`
-    SELECT venue_id, busyness_0_100, busyness_source, mf_ratio, confidence_0_1, sample_size, computed_at
+    SELECT venue_id, busyness_0_100, busyness_source, confidence_0_1, computed_at
     FROM venue_signals
     WHERE venue_id = ${venue.id as string}
     LIMIT 1
   `) as Array<Record<string, unknown>>;
 
-  const sampleSize = Number(signal?.sample_size ?? 0);
-
   const response: VenueSignalResponse = {
     venueId: venue.id as string,
     busyness: signal?.busyness_0_100 != null ? Number(signal.busyness_0_100) : null,
     busynessSource: (signal?.busyness_source ?? null) as VenueSignalResponse["busynessSource"],
-    // Only expose mf_ratio when there is enough crowd depth
-    mfRatio: sampleSize >= MIN_SAMPLE_SIZE_FOR_RATIO ? (signal?.mf_ratio != null ? Number(signal.mf_ratio) : null) : null,
     confidence: Number(signal?.confidence_0_1 ?? 0),
-    sampleSize,
     computedAt: (signal?.computed_at ?? null) as string | null,
   };
 

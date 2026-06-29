@@ -65,8 +65,6 @@ interface VenueCardProps {
   crowdBadge?: CrowdLevel;
   /** ISO string of most recent signal update */
   lastReportedAt?: string;
-  /** Number of reports in the time window */
-  reportCount?: number;
 }
 
 // --------------- Compact card (map popup) -------------------
@@ -180,13 +178,11 @@ function FullCard({
   priority = false,
   crowdBadge,
   lastReportedAt,
-  reportCount,
 }: Omit<VenueCardProps, "variant">) {
   const crowd = crowdBadge ? CROWD_CFG[crowdBadge] : null;
   const meta: string[] = [];
   const googleRatingData = getGoogleRatingData(venue);
   if (lastReportedAt) meta.push(timeAgo(lastReportedAt));
-  if (reportCount != null && reportCount > 0) meta.push(`${reportCount} report${reportCount === 1 ? "" : "s"}`);
 
   return (
     <div
@@ -228,7 +224,7 @@ function FullCard({
         </div>
       ) : (
         <div className="flex min-h-[32px] w-full items-center border-b border-white/[0.06] px-4">
-          <span className="text-[11px] text-white/30">No reports yet — be first</span>
+          <span className="text-[11px] text-white/30">Busyness unavailable</span>
         </div>
       )}
 
@@ -266,7 +262,7 @@ function FullCard({
 
 export function VenueCard({ variant = "full", ...props }: VenueCardProps) {
   if (variant === "compact") {
-    const { crowdBadge: _cb, lastReportedAt: _lr, reportCount: _rc, ...compactProps } = props;
+    const { crowdBadge: _cb, lastReportedAt: _lr, ...compactProps } = props;
     return <CompactCard {...compactProps} />;
   }
   return <FullCard {...props} />;

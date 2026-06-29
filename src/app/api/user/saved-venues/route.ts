@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { getAuthenticatedUserId } from "@/lib/apiAuth";
 import { getConsumerVenueById } from "@/lib/consumerVenue";
 import { sql } from "@/lib/db";
@@ -41,6 +42,21 @@ type SavedVenuesResponse = APIResponse<SavedVenuesPayload> & {
   place_ids: string[];
 };
 
+type SavedVenueMutationResponse = APIResponse<{ venueId: string; saved: boolean }> & {
+  venueId: string;
+  saved: boolean;
+};
+
+const BodySchema = z
+  .object({
+    place_id: z.string().trim().min(1).max(200).optional(),
+    venueId: z.string().trim().min(1).max(200).optional(),
+  })
+  .transform((body) => ({ venueId: body.venueId ?? body.place_id }))
+  .refine((body): body is { venueId: string } => Boolean(body.venueId), {
+    message: "venueId is required.",
+  });
+
 function readPhotoUrls(venue: ConsumerVenue | null): string[] {
   const urls = new Set<string>();
   if (venue?.photoUrl) urls.add(venue.photoUrl);
@@ -52,6 +68,26 @@ function readPhotoUrls(venue: ConsumerVenue | null): string[] {
 
 async function getUserId(req: NextRequest): Promise<string | null> {
   return getAuthenticatedUserId(req);
+}
+
+async function readVenueId(req: NextRequest) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return {
+      response: NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 }),
+    };
+  }
+
+  const parsed = BodySchema.safeParse(body);
+  if (!parsed.success) {
+    return {
+      response: NextResponse.json({ error: "venueId is required." }, { status: 400 }),
+    };
+  }
+
+  return { venueId: parsed.data.venueId };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse<SavedVenuesResponse | { error: string }>> {
@@ -97,4 +133,26 @@ export async function GET(req: NextRequest): Promise<NextResponse<SavedVenuesRes
     data: { savedVenues, savedVenueIds, placeIds },
     meta: { cached: false, generatedAt: new Date().toISOString() },
   }, { headers: { "Cache-Control": "no-store" } });
+}
+
+export async function DELETE(req: NextRequest): Promise<NextResponse<SavedVenueMutationResponse | { error: string }>> {
+  const userId = await getUserId(req);
+  if (!userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+
+  const parsed = await readVenueId(req);
+  if (parsed.response) return parsed.response;
+
+  await sql`
+    DELETE FROM saved_venues
+    WHERE user_id = ${userId}
+      AND venue_id = ${parsed.venueId}
+  `;
+
+  return NextResponse.json({
+    status: "success",
+    venueId: parsed.venueId,
+    saved: false,
+    data: { venueId: parsed.venueId, saved: false },
+    meta: { cached: false, generatedAt: new Date().toISOString() },
+  });
 }

@@ -1,7 +1,6 @@
 // ============================================================
 // GET /api/venues/trending
-// Top visible launch-zone venues by weighted busyness, recent check-ins,
-// and open-now state.
+// Top visible launch-zone venues by weighted busyness and open-now state.
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server";

@@ -27,8 +27,8 @@ const VENUE_SELECT = `
   phone, phone_number, website, google_maps_uri, editorial_summary, opening_hours, open_now, besttime_venue_id,
   updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
@@ -38,8 +38,8 @@ const VENUE_SELECT_LEGACY = `
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url, hidden,
   open_now, updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
@@ -103,9 +103,7 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
     placeId: row.place_id as string,
     busyness0To100: (row.busyness_0_100 ?? null) as number | null,
     busynessSource: (row.busyness_source ?? null) as VenueSignal["busynessSource"],
-    mfRatio: (row.mf_ratio ?? null) as number | null,
     confidence0To1: Number(row.confidence_0_1 ?? 0),
-    sampleSize: Number(row.sample_size ?? 0),
     computedAt: row.computed_at as string,
     updatedAt: null,
     lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
@@ -174,8 +172,6 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,
-    mf_ratio: signal?.mfRatio ?? null,
-    mf_sample_size: signal?.sampleSize ?? 0,
   };
 }
 

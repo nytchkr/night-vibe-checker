@@ -140,9 +140,8 @@ describe("GET /api/zones/[zoneId]/trending", () => {
       name: "One",
       busyness: 100,
       openNow: true,
-      checkInsLast2h: 4,
     });
-    expect(json.venues[0].score).toBeCloseTo(1.5);
+    expect(json.venues[0].score).toBeCloseTo(0.7);
     expect(mockSql).toHaveBeenCalledTimes(1);
   });
 

@@ -1,7 +1,6 @@
 import type { ConsumerVenue } from "@/types";
 import { getBusynessState } from "@/lib/busyness";
 import { getVenuePublicUrl } from "@/lib/seo";
-import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 
 export type VenueShareData = {
   title: string;
@@ -9,23 +8,14 @@ export type VenueShareData = {
   url: string;
 };
 
-function getVenueShareMfText(signal: ConsumerVenue["signal"]): string | null {
-  if (!signal || signal.sampleSize < MIN_SAMPLE_SIZE_FOR_RATIO || signal.mfRatio == null || !Number.isFinite(signal.mfRatio)) return null;
-
-  const male = Math.min(100, Math.max(0, Math.round(signal.mfRatio)));
-  return `${male}% M / ${100 - male}% F`;
-}
-
 export function getVenueShareText(venue: Pick<ConsumerVenue, "id" | "slug" | "name" | "signal">): string {
   const url = getVenueShareUrl(venue);
   const busyness = venue.signal?.busyness0To100;
-  if (busyness == null || !Number.isFinite(busyness)) return `Check out ${venue.name} on nytchkr: live vibe not available yet. ${url}`;
+  if (busyness == null || !Number.isFinite(busyness)) return `Check out ${venue.name} on nytchkr: busyness data is not available yet. ${url}`;
 
   const busynessLabel = getBusynessState(busyness).level ?? "unknown";
-  const mfText = getVenueShareMfText(venue.signal);
-  const signalText = [`${busynessLabel} right now`, mfText].filter(Boolean).join(" · ");
 
-  return `Check out ${venue.name} on nytchkr: ${signalText}. ${url}`;
+  return `Check out ${venue.name} on nytchkr: ${busynessLabel} right now. ${url}`;
 }
 
 export function getVenueShareUrl(venue: Pick<ConsumerVenue, "id" | "slug">): string {

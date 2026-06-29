@@ -5,7 +5,6 @@ import { sql } from "@/lib/db";
 import type { ConsumerVenue } from "@/types";
 
 export const TRENDING_VENUE_LIMIT = 5;
-const RECENT_CHECK_IN_WINDOW_MS = 2 * 60 * 60 * 1000;
 const QUERY_LIMIT = 100;
 const LAUNCH_ZONE_IDS = LAUNCH_ZONES.map((zone) => zone.id);
 
@@ -16,11 +15,8 @@ const TRENDING_VENUE_SELECT = `
   phone, phone_number, website, google_maps_uri, editorial_summary, opening_hours, open_now, besttime_venue_id, hidden,
   updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
-  ),
-  check_ins (
-    venue_id, created_at, hidden
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
@@ -30,23 +26,17 @@ const TRENDING_VENUE_SELECT_LEGACY = `
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url,
   open_now, hidden, updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
-  ),
-  check_ins (
-    venue_id, created_at, hidden
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
 export type TrendingVenueScore = {
   venue: ConsumerVenue;
-  checkInsLast2h: number;
   score: number;
 };
 
-type TrendingVenueRow = Record<string, unknown> & {
-  check_ins?: unknown;
-};
+type TrendingVenueRow = Record<string, unknown>;
 
 function isMissingOptionalVenueColumn(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String((error as { message?: unknown } | null)?.message ?? "");
@@ -70,17 +60,6 @@ function isMissingOptionalVenueColumn(error: unknown): boolean {
     message.includes("venues.neighborhood") ||
     message.includes("venues.besttime_venue_id")
   );
-}
-
-function isRecentVisibleCheckIn(row: unknown): row is { created_at: string; hidden?: boolean | null } {
-  if (!row || typeof row !== "object") return false;
-  const checkIn = row as { created_at?: unknown; hidden?: unknown };
-  return typeof checkIn.created_at === "string" && checkIn.hidden !== true;
-}
-
-function countRecentCheckIns(row: TrendingVenueRow): number {
-  if (!Array.isArray(row.check_ins)) return 0;
-  return row.check_ins.filter(isRecentVisibleCheckIn).length;
 }
 
 function getBusyness0To100(venue: ConsumerVenue): number {
@@ -107,15 +86,11 @@ function getNightHoursMultiplier(now = new Date()): number {
 
 export function scoreTrendingVenue(
   venue: ConsumerVenue,
-  checkInsLast2h: number,
-  maxCheckIns: number,
   now = new Date(),
 ): number {
   const busynessScore = (getBusyness0To100(venue) / 100) * 0.5;
-  const checkInScore = maxCheckIns > 0 ? (checkInsLast2h / maxCheckIns) * 0.3 : 0;
   const openNowScore = venue.openNow === true ? 0.2 : 0;
-  const baseScore = (busynessScore + checkInScore + openNowScore) * getNightHoursMultiplier(now);
-  return checkInsLast2h > 0 ? baseScore * 1.5 : baseScore;
+  return (busynessScore + openNowScore) * getNightHoursMultiplier(now);
 }
 
 export function rankTrendingVenueRows(
@@ -128,20 +103,16 @@ export function rankTrendingVenueRows(
     .filter((row) => row.open_now !== false)
     .map((row) => ({
       venue: mapConsumerVenue(row),
-      checkInsLast2h: countRecentCheckIns(row),
     }))
     .filter((item) => item.venue.openNow !== false);
-
-  const maxCheckIns = mapped.reduce((max, item) => Math.max(max, item.checkInsLast2h), 0);
 
   return mapped
     .map((item) => ({
       ...item,
-      score: scoreTrendingVenue(item.venue, item.checkInsLast2h, maxCheckIns, now),
+      score: scoreTrendingVenue(item.venue, now),
     }))
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      if (b.checkInsLast2h !== a.checkInsLast2h) return b.checkInsLast2h - a.checkInsLast2h;
       const busynessDelta = getBusyness0To100(b.venue) - getBusyness0To100(a.venue);
       if (busynessDelta !== 0) return busynessDelta;
       const aRating = a.venue.rating ?? a.venue.googleRating ?? null;
@@ -154,44 +125,28 @@ export function rankTrendingVenueRows(
     .slice(0, limit);
 }
 
-async function fetchTrendingRows(_select: string, sinceIso: string) {
+async function fetchTrendingRows(_select: string) {
   const data = await sql`
     SELECT
       v.*,
-      to_jsonb(vs) AS venue_signals,
-      COALESCE(
-        jsonb_agg(
-          jsonb_build_object(
-            'venue_id', ci.venue_id,
-            'created_at', ci.created_at,
-            'hidden', ci.hidden
-          )
-        ) FILTER (WHERE ci.id IS NOT NULL),
-        '[]'::jsonb
-      ) AS check_ins
+      to_jsonb(vs) AS venue_signals
     FROM venues v
     LEFT JOIN venue_signals vs ON vs.venue_id = v.id
-    LEFT JOIN check_ins ci
-      ON ci.venue_id = v.id
-      AND ci.created_at >= ${sinceIso}
-      AND ci.hidden = false
     WHERE COALESCE(v.hidden, false) = false
       AND v.zone_id = ANY(${LAUNCH_ZONE_IDS}::text[])
-    GROUP BY v.id, vs.venue_id
     LIMIT ${QUERY_LIMIT}
   `;
   return { data, error: null };
 }
 
 export async function getTrendingVenues(now = new Date()): Promise<ConsumerVenue[]> {
-  const sinceIso = new Date(now.getTime() - RECENT_CHECK_IN_WINDOW_MS).toISOString();
-  const primaryResult = await fetchTrendingRows(TRENDING_VENUE_SELECT, sinceIso);
+  const primaryResult = await fetchTrendingRows(TRENDING_VENUE_SELECT);
 
   let rows = primaryResult.data as TrendingVenueRow[] | null;
   let error = primaryResult.error;
 
   if (error && isMissingOptionalVenueColumn(error)) {
-    const legacyResult = await fetchTrendingRows(TRENDING_VENUE_SELECT_LEGACY, sinceIso);
+    const legacyResult = await fetchTrendingRows(TRENDING_VENUE_SELECT_LEGACY);
     rows = legacyResult.data as TrendingVenueRow[] | null;
     error = legacyResult.error;
   }

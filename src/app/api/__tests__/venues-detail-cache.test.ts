@@ -105,7 +105,7 @@ describe("GET /api/venues/[id] cache headers", () => {
     expect(json.data.venue.id).toBe("venue-1");
   });
 
-  it("uses live check-in ratio when the cached venue signal ratio is null", async () => {
+  it("does not compute live check-in ratio for venue details", async () => {
     mockFindVisibleVenueByIdOrPlaceId.mockResolvedValueOnce({
       data: venue(),
       error: null,
@@ -120,14 +120,14 @@ describe("GET /api/venues/[id] cache headers", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(mockComputeVenueMfRatioFromCheckIns).toHaveBeenCalledWith("venue-1");
-    expect(json.data.venue.signal.mfRatio).toBe(60);
-    expect(json.data.venue.signal.sampleSize).toBe(5);
-    expect(json.data.venue.mf_ratio).toBe(60);
-    expect(json.data.venue.mf_sample_size).toBe(5);
+    expect(mockComputeVenueMfRatioFromCheckIns).not.toHaveBeenCalled();
+    expect(json.data.venue.signal.mfRatio).toBeUndefined();
+    expect(json.data.venue.signal.sampleSize).toBeUndefined();
+    expect(json.data.venue.mf_ratio).toBeUndefined();
+    expect(json.data.venue.mf_sample_size).toBeUndefined();
   });
 
-  it("hides stale cached ratio when live check-ins are below the ratio sample floor", async () => {
+  it("omits cached M/F ratio fields from venue details", async () => {
     mockFindVisibleVenueByIdOrPlaceId.mockResolvedValueOnce({
       data: venue({
         venue_signals: [
@@ -157,9 +157,9 @@ describe("GET /api/venues/[id] cache headers", () => {
 
     expect(res.status).toBe(200);
     expect(json.data.venue.signal.busyness0To100).toBe(72);
-    expect(json.data.venue.signal.mfRatio).toBeNull();
-    expect(json.data.venue.signal.sampleSize).toBe(4);
-    expect(json.data.venue.mf_ratio).toBeNull();
+    expect(json.data.venue.signal.mfRatio).toBeUndefined();
+    expect(json.data.venue.signal.sampleSize).toBeUndefined();
+    expect(json.data.venue.mf_ratio).toBeUndefined();
   });
 
   it("hydrates missing venue photos from Google Places details server-side", async () => {

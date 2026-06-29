@@ -18,7 +18,7 @@ export default function UpgradePage() {
           More real signals are coming.
         </h1>
         <p className="mt-4 text-sm font-medium leading-6 text-white/75">
-          The free MVP is focused on South End venue discovery, live check-ins, saved spots, and honest empty states.
+          The free MVP is focused on South End venue discovery, saved spots, and honest empty states.
         </p>
 
         <div className="mt-8 rounded-[18px] border border-white/[0.06] bg-white/[0.035] p-5 shadow-lg shadow-black/10 backdrop-blur-sm">

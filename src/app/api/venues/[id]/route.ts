@@ -5,9 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
-import { computeVenueMfRatioFromCheckIns, type ComputedMfRatio } from "@/lib/mfRatio";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
-import { MIN_SAMPLE_SIZE_FOR_RATIO } from "@/lib/signalThresholds";
 import { findVisibleVenueByIdOrPlaceId, normalizeVenueLookupId } from "@/lib/venueLookup";
 import { getVenueRatingAggregate } from "@/lib/venueRatingAggregate";
 import { mapGoogleOpeningHours } from "@/lib/venueHours";
@@ -24,8 +22,8 @@ const VENUE_SELECT = `
   phone, phone_number, website, google_maps_uri, editorial_summary, opening_hours, open_now, besttime_venue_id, hidden,
   updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
@@ -35,8 +33,8 @@ const VENUE_SELECT_LEGACY = `
   rating, google_rating, total_ratings, price_level, photo_reference, photo_url,
   open_now, hidden, updated_at,
   venue_signals (
-    venue_id, place_id, busyness_0_100, busyness_source, mf_ratio,
-    confidence_0_1, sample_size, computed_at, last_busyness_refresh
+    venue_id, place_id, busyness_0_100, busyness_source,
+    confidence_0_1, computed_at, last_busyness_refresh
   )
 `;
 
@@ -45,7 +43,6 @@ export const dynamic = "force-dynamic";
 const EDGE_CACHE_HEADERS = {
   "Cache-Control": "s-maxage=120, stale-while-revalidate=600",
 };
-const MF_RATIO_SIGNAL_MAX_AGE_MS = 24 * 60 * 60_000;
 
 function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null {
   if (!row) return null;
@@ -54,42 +51,10 @@ function mapSignal(row: Record<string, unknown> | undefined): VenueSignal | null
     placeId: row.place_id as string,
     busyness0To100: (row.busyness_0_100 ?? null) as number | null,
     busynessSource: (row.busyness_source ?? null) as VenueSignal["busynessSource"],
-    mfRatio: (row.mf_ratio ?? null) as number | null,
     confidence0To1: Number(row.confidence_0_1 ?? 0),
-    sampleSize: Number(row.sample_size ?? 0),
     computedAt: row.computed_at as string,
     updatedAt: (row.updated_at ?? null) as string | null,
     lastBusynessRefresh: (row.last_busyness_refresh ?? null) as string | null,
-  };
-}
-
-function isMfRatioSignalMissingOrStale(signal: VenueSignal | null): boolean {
-  if (!signal || signal.mfRatio == null || signal.sampleSize < MIN_SAMPLE_SIZE_FOR_RATIO) return true;
-  const computedAtMs = new Date(signal.computedAt).getTime();
-  return !Number.isFinite(computedAtMs) || Date.now() - computedAtMs > MF_RATIO_SIGNAL_MAX_AGE_MS;
-}
-
-function applyComputedMfRatio(venue: ConsumerVenue, computed: ComputedMfRatio): ConsumerVenue {
-  const signal: VenueSignal = {
-    ...(venue.signal ?? {
-      venueId: venue.id,
-      placeId: venue.placeId,
-      busyness0To100: null,
-      busynessSource: null,
-      confidence0To1: 0,
-      updatedAt: null,
-      lastBusynessRefresh: null,
-    }),
-    mfRatio: computed.mfRatio,
-    sampleSize: computed.sampleSize,
-    computedAt: computed.computedAt,
-  };
-
-  return {
-    ...venue,
-    signal,
-    mf_ratio: computed.mfRatio,
-    mf_sample_size: computed.sampleSize,
   };
 }
 
@@ -226,30 +191,11 @@ function mapVenue(row: Record<string, unknown>): ConsumerVenue {
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,
-    mf_ratio: signal?.mfRatio ?? null,
-    mf_sample_size: signal?.sampleSize ?? 0,
   };
 }
 
-async function mapVenueWithLiveMfRatio(row: Record<string, unknown>): Promise<ConsumerVenue> {
-  const venue = mapVenue(row);
-  if (!isMfRatioSignalMissingOrStale(venue.signal)) return venue;
-
-  try {
-    const computed = await computeVenueMfRatioFromCheckIns(venue.id);
-    return applyComputedMfRatio(venue, computed);
-  } catch (error) {
-    console.warn("[venues detail] live M/F ratio lookup failed; hiding ratio:", error);
-    return applyComputedMfRatio(venue, {
-      mfRatio: null,
-      sampleSize: 0,
-      computedAt: new Date().toISOString(),
-    });
-  }
-}
-
 async function mapVenueWithLiveAggregates(row: Record<string, unknown>): Promise<ConsumerVenue> {
-  const venue = await mapVenueWithLiveMfRatio(row);
+  const venue = mapVenue(row);
 
   try {
     const aggregate = await getVenueRatingAggregate(venue.id);

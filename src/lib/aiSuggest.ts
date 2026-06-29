@@ -39,9 +39,6 @@ export type AISuggestExplanationFacts = {
   rating: number | null;
   busynessBucket: "dead" | "moderate" | "packed" | null;
   busynessSource: string | null;
-  mfRatio: number | null;
-  mfSampleSize: number;
-  mfConfidence: number;
 };
 
 export type AISuggestPick = {
@@ -85,8 +82,6 @@ export const DEFAULT_AI_SUGGEST_FILTER: AISuggestFilter = {
 };
 
 const MAX_DISTANCE_KM_LIMIT = 25;
-const MIN_MF_SAMPLE_SIZE = 5;
-const MIN_MF_CONFIDENCE = 0.6;
 const VIBE_ADJECTIVE_BLOCKLIST = [
   "cozy",
   "romantic",
@@ -102,7 +97,6 @@ const VIBE_ADJECTIVE_BLOCKLIST = [
 ] as const;
 
 const BUSYNESS_LANGUAGE = /\b(dead|quiet|moderate|busy|packed|busyness|crowded|crowd|line|wait)\b/i;
-const MF_LANGUAGE = /\b(m\/f|male|female|men|women|gender|ratio)\b/i;
 
 function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -371,12 +365,6 @@ export function filterAndRankVenues(
 
 export function buildExplanationFacts(ranked: AISuggestRankedVenue): AISuggestExplanationFacts {
   const signal = ranked.venue.signal;
-  const mfRatio = signal?.mfRatio ?? null;
-  const mfAllowed =
-    mfRatio != null &&
-    Number.isFinite(mfRatio) &&
-    (signal?.sampleSize ?? 0) >= MIN_MF_SAMPLE_SIZE &&
-    (signal?.confidence0To1 ?? 0) >= MIN_MF_CONFIDENCE;
 
   return {
     name: ranked.venue.name,
@@ -386,9 +374,6 @@ export function buildExplanationFacts(ranked: AISuggestRankedVenue): AISuggestEx
     rating: getRating(ranked.venue),
     busynessBucket: getBusynessBucket(signal?.busyness0To100),
     busynessSource: signal?.busynessSource ?? null,
-    mfRatio: mfAllowed ? mfRatio : null,
-    mfSampleSize: signal?.sampleSize ?? 0,
-    mfConfidence: signal?.confidence0To1 ?? 0,
   };
 }
 
@@ -401,11 +386,6 @@ export function buildTemplateExplanation(facts: AISuggestExplanationFacts): stri
   if (facts.busynessBucket && facts.busynessSource) {
     reasons.push(`${facts.busynessBucket} right now from ${facts.busynessSource}`);
   }
-  if (facts.mfRatio != null) {
-    const male = Math.round(facts.mfRatio * 100);
-    reasons.push(`${male}% M / ${100 - male}% F from recent check-ins`);
-  }
-
   const fallback = facts.category ? `${facts.category} with real venue data` : "real venue data";
   return `Picked for: ${reasons.length >= 2 ? reasons.join(", ") : fallback}.`;
 }
@@ -418,7 +398,6 @@ export function validateExplanation(
   const normalized = text.toLowerCase();
   const blocked = VIBE_ADJECTIVE_BLOCKLIST.find((term) => normalized.includes(term));
   const missingBusyness = !facts.busynessBucket && BUSYNESS_LANGUAGE.test(text);
-  const missingMf = facts.mfRatio == null && MF_LANGUAGE.test(text);
 
   let term: string | null = null;
   let reason: string | null = null;
@@ -428,9 +407,6 @@ export function validateExplanation(
   } else if (missingBusyness) {
     term = text.match(BUSYNESS_LANGUAGE)?.[0] ?? "busyness";
     reason = "missing_busyness_fact";
-  } else if (missingMf) {
-    term = text.match(MF_LANGUAGE)?.[0] ?? "crowd";
-    reason = "missing_mf_fact";
   }
 
   if (!term || !reason) return { text, event: null };

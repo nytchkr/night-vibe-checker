@@ -6,7 +6,6 @@ import Script from "next/script";
 import { AuthSessionProvider } from "@/components/AuthSessionProvider";
 import { BottomNav, SidebarNav } from "@/components/BottomNav";
 import { OnboardingGateProvider } from "@/components/OnboardingGate";
-import { OnboardingWizard } from "@/components/OnboardingWizard";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { RoutePrefetch } from "@/components/RoutePrefetch";
 import { ToastProvider } from "@/hooks/useToast";
@@ -14,7 +13,7 @@ import "./globals.css";
 
 const siteUrl = "https://nytchkr.com";
 const title = "nytchkr — Find your spot tonight";
-const description = "Real busyness. Real vibes. Bars and restaurants in Charlotte.";
+const description = "Real busyness signals for bars and restaurants in Charlotte.";
 const themeColor = "#0A0A0E";
 const canonicalUrl = "https://nytchkr.com";
 const ogImageUrl = `${canonicalUrl}/og-image.png`;
@@ -151,7 +150,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 >
                   {children}
                 </main>
-                <OnboardingWizard />
               </OnboardingGateProvider>
             </div>
             <PWAInstallPrompt />

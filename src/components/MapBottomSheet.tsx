@@ -66,11 +66,30 @@ function BusynessBadge({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
+function SelectedVenueSourceBadge({ venue }: { venue: ConsumerVenue }) {
+  const source = venue.signal?.busynessSource;
+  const label = source === "live" || source === "crowd" ? "LIVE" : source === "forecast" ? "FORECAST" : "NO DATA";
+  const className = source === "live" || source === "crowd"
+    ? "border-[#00F5D4]/35 bg-[#00F5D4]/12 text-[#00F5D4]"
+    : source === "forecast"
+      ? "border-[#FFB020]/35 bg-[#FFB020]/12 text-[#FFB020]"
+      : "border-white/[0.08] bg-white/[0.035] text-white/45";
+
+  return (
+    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-black tracking-normal ${className}`}>
+      {label}
+    </span>
+  );
+}
+
 function venueHref(venue: ConsumerVenue) {
-  return `/venues/${encodeURIComponent(venue.slug || venue.id)}`;
+  return `/venues/${encodeURIComponent(venue.id)}`;
 }
 
 function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
+  const busyness = venue.signal?.busyness0To100;
+  const busynessState = getBusynessState(busyness ?? null);
+
   return (
     <section className="rounded-[18px] border border-white/[0.08] bg-[rgba(255,255,255,0.035)] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
       <div className="flex items-start justify-between gap-3">
@@ -79,11 +98,16 @@ function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
             {venue.name}
           </h2>
           <p className="mt-1 truncate text-sm font-black text-white/72">{venue.category}</p>
-          <p className="mt-1 line-clamp-2 text-sm font-semibold leading-5 text-white/55">
-            {venue.address}
-          </p>
         </div>
-        <BusynessBadge venue={venue} />
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <SelectedVenueSourceBadge venue={venue} />
+          <span
+            className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-black text-white/55"
+            style={busynessState.level ? { borderColor: `${busynessState.color}59`, backgroundColor: `${busynessState.color}26`, color: busynessState.color } : undefined}
+          >
+            {busynessState.label}
+          </span>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-2">

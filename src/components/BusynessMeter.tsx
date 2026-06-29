@@ -5,7 +5,6 @@ import type { BusynessSource } from "@/types";
 interface BusynessMeterProps {
   value: number | null;
   source: BusynessSource | null;
-  sampleSize?: number;
   computedAt?: string | null;
   className?: string;
 }
@@ -20,8 +19,8 @@ function getBusynessConfig(value: number) {
   return { label: "Packed", color: "#FF5B6A" };
 }
 
-export function BusynessMeter({ value, source, sampleSize = 0, computedAt = null, className }: BusynessMeterProps) {
-  const confidenceLabel = formatSignalConfidenceLabel({ busynessSource: source, sampleSize });
+export function BusynessMeter({ value, source, computedAt = null, className }: BusynessMeterProps) {
+  const confidenceLabel = formatSignalConfidenceLabel({ busynessSource: source });
 
   if (value == null || !Number.isFinite(value)) {
     return (

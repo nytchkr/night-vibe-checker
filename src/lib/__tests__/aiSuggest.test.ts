@@ -49,10 +49,9 @@ describe("aiSuggest real-data guardrails", () => {
     expect(result.pick.explanation).toBe("This bar is close and rated 4.5.");
     expect(result.pick.explanation).not.toMatch(/\b(busyness|crowd|packed|male|female|m\/f)\b/i);
     expect(result.pick.facts.busynessBucket).toBeNull();
-    expect(result.pick.facts.mfRatio).toBeNull();
   });
 
-  it("uses stored busyness and blocks M/F explanation language", async () => {
+  it("uses stored busyness and blocks unsupported crowd explanation language", async () => {
     const result = await explainRankedVenue(
       ranked(
         venue({
@@ -61,24 +60,21 @@ describe("aiSuggest real-data guardrails", () => {
             placeId: "place-venue-1",
             busyness0To100: 74,
             busynessSource: "live",
-            mfRatio: null,
             confidence0To1: 0.8,
-            sampleSize: 12,
             computedAt: "2026-06-26T20:00:00.000Z",
             updatedAt: null,
             lastBusynessRefresh: "2026-06-26T20:00:00.000Z",
           },
         }),
       ),
-      async (facts) => `${facts.name} is ${facts.busynessBucket} right now from ${facts.busynessSource}, with a balanced M/F ratio.`,
+      async (facts) => `${facts.name} is ${facts.busynessBucket} right now from ${facts.busynessSource}, with a friendly crowd.`,
     );
 
-    expect(result.blocklistEvent?.reason).toBe("missing_mf_fact");
+    expect(result.blocklistEvent?.reason).toBe("unsupported_vibe_adjective");
     expect(result.pick.facts.busynessBucket).toBe("packed");
     expect(result.pick.facts.busynessSource).toBe("live");
-    expect(result.pick.facts.mfRatio).toBeNull();
     expect(result.pick.explanation).toContain("packed right now from live");
-    expect(result.pick.explanation).not.toMatch(/\b(M\/F|male|female|men|women)\b/i);
+    expect(result.pick.explanation).not.toMatch(/\b(M\/F|male|female|men|women|friendly crowd)\b/i);
   });
 
   it("degrades vague vibes-only intent to default real filters", async () => {
