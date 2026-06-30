@@ -1,40 +1,25 @@
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import type { ConsumerVenue } from "@/types";
 
-const generatedAt = new Date().toISOString();
-
-type GoldenPathVenue = {
-  id: string;
-  name: string;
-  signal?: {
-    busyness0To100: number | null;
-    busynessSource: "live" | "forecast" | null;
-  } | null;
+type VenueApiBody = {
+  data?: {
+    venues?: ConsumerVenue[];
+  };
 };
 
-const venues = [
-  {
-    id: "golden-path-live",
-    placeId: "place-golden-path-live",
-    zoneId: "south-end-charlotte",
-    name: "Golden Path Club",
-    address: "100 Golden Path Ave",
-    lat: 35.2178,
-    lng: -80.8597,
-    category: "night_club",
-    photoUrl: null,
-    openNow: true,
-    hidden: false,
-    signal: {
-      venueId: "golden-path-live",
-      placeId: "place-golden-path-live",
-      busyness0To100: 87,
-      busynessSource: "live",
-      confidence0To1: 0.86,
-      computedAt: generatedAt,
-      lastBusynessRefresh: generatedAt,
-    },
-  },
-];
+function hasPhoto(venue: ConsumerVenue): boolean {
+  return Boolean(venue.photoUrl ?? venue.photoUrls?.[0] ?? venue.photo_urls?.[0]);
+}
+
+function hasBusyness(venue: ConsumerVenue): boolean {
+  return typeof venue.signal?.busyness0To100 === "number";
+}
+
+function getBusynessLabel(value: number): "Packed" | "Moderate" | "Dead" {
+  if (value >= 67) return "Packed";
+  if (value >= 34) return "Moderate";
+  return "Dead";
+}
 
 async function markOnboarded(page: Page) {
   await page.addInitScript(() => {
@@ -42,69 +27,136 @@ async function markOnboarded(page: Page) {
   });
 }
 
-async function mockVenueList(page: Page) {
-  await page.route("**/api/venues**", async (route) => {
-    const request = route.request();
-    const url = new URL(request.url());
+async function getGoldenPathVenue(request: APIRequestContext): Promise<ConsumerVenue> {
+  const res = await request.get("/api/venues");
+  expect(res.ok()).toBeTruthy();
 
-    if (request.method() !== "GET" || url.pathname !== "/api/venues") {
-      return route.continue();
-    }
+  const body = (await res.json()) as VenueApiBody;
+  const venues = body.data?.venues?.filter((venue) => !venue.hidden) ?? [];
+  expect(venues.length, "golden path needs at least one visible seeded venue").toBeGreaterThan(0);
 
+  const venue =
+    venues.find((candidate) => hasPhoto(candidate) && hasBusyness(candidate) && candidate.address && candidate.category) ??
+    venues.find((candidate) => hasBusyness(candidate) && candidate.address && candidate.category) ??
+    venues[0];
+
+  expect(venue?.id, "selected venue should have an id").toBeTruthy();
+  expect(venue?.name, "selected venue should have a name").toBeTruthy();
+  expect(venue?.category, "selected venue should have a category").toBeTruthy();
+  expect(venue?.address, "selected venue should have an address").toBeTruthy();
+  expect(venue?.signal?.busyness0To100, "selected venue should have a busyness value").toEqual(expect.any(Number));
+
+  return venue;
+}
+
+async function mockVenueFeeds(page: Page, venues: ConsumerVenue[]) {
+  await page.route("**/api/venues/trending", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "success",
+        data: { venues: venues.slice(0, 1) },
+        meta: { cached: true, generatedAt: new Date().toISOString() },
+      }),
+    });
+  });
+
+  await page.route("**/api/venues/*/tips", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ status: "success", data: { tips: [] } }),
+    });
+  });
+
+  await page.route("**/api/track", async (route) => {
+    return route.fulfill({
+      status: 204,
+      contentType: "application/json",
+      body: "",
+    });
+  });
+
+  await page.route("**/api/venues", async (route) => {
+    if (route.request().method() !== "GET") return route.continue();
     return route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         status: "success",
         data: { venues },
-        meta: { cached: true, generatedAt, requestId: "golden-path" },
+        meta: { cached: true, generatedAt: new Date().toISOString(), requestId: "golden-path" },
       }),
     });
   });
 }
 
-async function getSeededVenues(request: APIRequestContext): Promise<GoldenPathVenue[]> {
-  const res = await request.get("/api/venues");
-  expect(res.ok()).toBeTruthy();
-
-  const body = await res.json();
-  return body?.data?.venues ?? [];
-}
-
-test.describe("golden path", () => {
-  test("@smoke map loads with venue pins", async ({ page }) => {
+test.describe("nytchkr discovery golden path", () => {
+  test("@smoke app redirects to Explore and shows seeded venue cards", async ({ request, page }) => {
+    const venue = await getGoldenPathVenue(request);
     await markOnboarded(page);
-    await mockVenueList(page);
+    await mockVenueFeeds(page, [venue]);
+
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    await expect(page).toHaveURL(/\/explore$/);
+    await expect(page.getByRole("heading", { name: "Explore Charlotte" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Venue results" })).toBeVisible();
+
+    const venueLink = page.getByRole("link", { name: new RegExp(`Open ${venue.name}`, "i") }).first();
+    await expect(venueLink).toBeVisible();
+    await expect(venueLink.getByRole("heading", { name: venue.name })).toBeVisible();
+    await expect(venueLink.getByText(venue.category, { exact: false })).toBeVisible();
+
+    const busyness = venue.signal?.busyness0To100;
+    expect(busyness).toEqual(expect.any(Number));
+    await expect(venueLink.getByText(getBusynessLabel(busyness as number))).toBeVisible();
+  });
+
+  test("@smoke tapping a venue card opens a detail page with identity, address, photo, and busyness", async ({ request, page }) => {
+    const venue = await getGoldenPathVenue(request);
+    await markOnboarded(page);
+    await mockVenueFeeds(page, [venue]);
+
+    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await page.getByRole("link", { name: new RegExp(`Open ${venue.name}`, "i") }).first().click();
+
+    await expect(page).toHaveURL(new RegExp(`/venues/${venue.id}`));
+    await expect(page.getByRole("heading", { name: venue.name }).first()).toBeVisible();
+    await expect(page.getByRole("group", { name: `${venue.name} photos` })).toBeVisible();
+    await expect(page.getByText(venue.address, { exact: false })).toBeVisible();
+    await expect(page.getByRole("region", { name: "BestTime busyness meter" })).toBeVisible();
+    await expect(page.getByText(`${venue.signal?.busyness0To100}%`)).toBeVisible();
+  });
+
+  test("@smoke Map tab renders pins and opens the venue bottom sheet from a pin", async ({ request, page }) => {
+    const venue = await getGoldenPathVenue(request);
+    await markOnboarded(page);
+    await mockVenueFeeds(page, [venue]);
 
     await page.goto("/map", { waitUntil: "domcontentloaded" });
 
-    await expect(page.locator(".leaflet-container")).toBeVisible({ timeout: 15000 });
+    await expect(page.locator(".leaflet-container")).toBeVisible({ timeout: 15_000 });
+    const pin = page.getByRole("button", { name: `Open ${venue.name} details` }).first();
+    await expect(pin).toBeVisible({ timeout: 15_000 });
+    await pin.click();
+
+    const sheet = page.getByRole("region", { name: /Charlotte venues|South End venues/i });
+    await expect(sheet.getByRole("heading", { name: venue.name })).toBeVisible();
+    await expect(sheet.getByText(venue.address, { exact: false })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: /View details/i })).toBeVisible();
   });
 
-  test("explore shows venues", async ({ page }) => {
+  test("@smoke You tab shows the signed-out prompt", async ({ page }) => {
     await markOnboarded(page);
-    await mockVenueList(page);
 
-    await page.goto("/explore", { waitUntil: "domcontentloaded" });
+    await page.goto("/you", { waitUntil: "domcontentloaded" });
 
-    const venueCard = page.locator("[data-testid='venue-card']").first();
-    const venueLink = page.getByRole("link", { name: /Open Golden Path Club/i }).first();
-    const emptyState = page.getByText(/no venues|coming soon/i).first();
-    await expect(venueCard.or(venueLink).or(emptyState)).toBeVisible({ timeout: 10000 });
-  });
-
-  test("venue detail shows source badge", async ({ request, page }) => {
-    const seededVenues = await getSeededVenues(request);
-    const venue =
-      seededVenues.find((candidate) => /^(live|forecast)$/.test(candidate.signal?.busynessSource ?? "")) ??
-      seededVenues.find((candidate) => candidate.signal?.busyness0To100 == null) ??
-      seededVenues[0];
-    if (!venue) return;
-
-    await page.goto(`/venues/${venue.id}`, { waitUntil: "domcontentloaded" });
-
-    const badge = page.getByText(/LIVE|FORECAST/i).first();
-    const noData = page.getByText(/no live reads|no busyness data|no reads yet/i).first();
-    await expect(badge.or(noData)).toBeVisible({ timeout: 10000 });
+    await expect(page).toHaveURL(/\/profile$/);
+    await expect(page.getByRole("heading", { name: "Sign in to save your favorite spots" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   });
 });
