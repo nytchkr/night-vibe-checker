@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { sql } from "@/lib/db";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/upstashRateLimit";
+import { redis } from "@/lib/upstashRedis";
 import { LAUNCH_ZONE, LAUNCH_ZONES } from "@/lib/launchZone";
 import { inferCanonicalOpenNow } from "@/lib/openNow";
 import { mapGoogleOpeningHours } from "@/lib/venueHours";
@@ -43,8 +44,10 @@ const VENUE_SELECT_LEGACY = `
   )
 `;
 
-const PUBLIC_CACHE_CONTROL = "s-maxage=60, stale-while-revalidate=300";
+const PUBLIC_CACHE_CONTROL = "s-maxage=120, stale-while-revalidate=300";
 const PRIVATE_CACHE_CONTROL = "private, no-cache";
+const VENUE_LIST_CACHE_KEY = "nv:venues:list";
+const VENUE_LIST_CACHE_TTL_SECONDS = 120;
 
 type VenueQueryResult = {
   data: Record<string, unknown>[] | null;
@@ -54,6 +57,11 @@ type VenueQueryResult = {
 type VenueSearchRow = {
   id: string;
   search_rank: number;
+};
+
+type VenueListPayload = {
+  zone: typeof LAUNCH_ZONE;
+  venues: ConsumerVenue[];
 };
 
 function isAuthenticatedRequest(req: NextRequest): boolean {
@@ -70,6 +78,35 @@ function cacheHeaders(authenticated: boolean, etag?: string): Record<string, str
 function createVenueListEtag(venues: ConsumerVenue[]): string {
   const digest = createHash("sha256").update(JSON.stringify(venues)).digest("base64url");
   return `"venues-${digest}"`;
+}
+
+function normalizeCachedVenueList(value: unknown): VenueListPayload | null {
+  if (!value || typeof value !== "object") return null;
+  const payload = value as { zone?: unknown; venues?: unknown };
+  if (!Array.isArray(payload.venues)) return null;
+  return {
+    zone: LAUNCH_ZONE,
+    venues: payload.venues as ConsumerVenue[],
+  };
+}
+
+async function readCachedVenueList(): Promise<VenueListPayload | null> {
+  if (!redis) return null;
+  try {
+    return normalizeCachedVenueList(await redis.get(VENUE_LIST_CACHE_KEY));
+  } catch (error) {
+    console.warn("[venues] Redis cache read failed; falling back to DB.", error);
+    return null;
+  }
+}
+
+async function writeCachedVenueList(payload: VenueListPayload): Promise<void> {
+  if (!redis) return;
+  try {
+    await redis.set(VENUE_LIST_CACHE_KEY, payload, { ex: VENUE_LIST_CACHE_TTL_SECONDS });
+  } catch (error) {
+    console.warn("[venues] Redis cache write failed.", error);
+  }
 }
 
 function parseOptionalNumber(value: string | null): number | null {
@@ -219,7 +256,7 @@ async function loadVenueRows(
       AND (${params.category}::text IS NULL OR v.category ILIKE ${params.category})
       AND (${params.searchIds}::uuid[] IS NULL OR v.id = ANY(${params.searchIds}::uuid[]))
     ORDER BY v.name ASC
-    LIMIT 100
+    LIMIT 200
   `;
 
   return { data: rows as Record<string, unknown>[], error: null };
@@ -258,6 +295,32 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const lng = parseOptionalNumber(searchParams.get("lng"));
     const radiusMeters = parseOptionalNumber(searchParams.get("radius"));
     const hasRadiusFilter = lat !== null && lng !== null && radiusMeters !== null && radiusMeters > 0;
+    const canUseVenueListCache =
+      !authenticated &&
+      !searchQuery &&
+      !category &&
+      !requestedZone &&
+      !hasRadiusFilter;
+
+    if (canUseVenueListCache) {
+      const cached = await readCachedVenueList();
+      if (cached) {
+        const etag = createVenueListEtag(cached.venues);
+        const responseHeaders = { ...headers, ...cacheHeaders(false, etag) };
+        if (req.headers.get("if-none-match") === etag) {
+          return new NextResponse(null, { status: 304, headers: responseHeaders });
+        }
+
+        return NextResponse.json<APIResponse<VenueListPayload>>(
+          {
+            status: "success",
+            data: cached,
+            meta: { cached: true, generatedAt, requestId },
+          },
+          { headers: responseHeaders }
+        );
+      }
+    }
     let searchRankById = new Map<string, number>();
     let searchIds: string[] | null = null;
 
@@ -291,7 +354,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           return new NextResponse(null, { status: 304, headers: responseHeaders });
         }
 
-        return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
+        return NextResponse.json<APIResponse<VenueListPayload>>({
           status: "success",
           data: { zone: LAUNCH_ZONE, venues },
           meta: { cached: false, generatedAt, requestId },
@@ -361,9 +424,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return new NextResponse(null, { status: 304, headers: responseHeaders });
     }
 
-    return NextResponse.json<APIResponse<{ zone: typeof LAUNCH_ZONE; venues: ConsumerVenue[] }>>({
+    const payload = { zone: LAUNCH_ZONE, venues };
+    if (canUseVenueListCache) await writeCachedVenueList(payload);
+
+    return NextResponse.json<APIResponse<VenueListPayload>>({
       status: "success",
-      data: { zone: LAUNCH_ZONE, venues },
+      data: payload,
       meta: { cached: false, generatedAt, requestId },
     }, { headers: responseHeaders });
   } catch (error) {

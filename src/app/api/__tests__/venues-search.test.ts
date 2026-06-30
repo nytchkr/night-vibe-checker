@@ -2,8 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mockSql = vi.hoisted(() => vi.fn());
+const { mockRedisGet, mockRedisSet } = vi.hoisted(() => ({
+  mockRedisGet: vi.fn(),
+  mockRedisSet: vi.fn(),
+}));
 
 vi.mock("@/lib/db", () => ({ sql: mockSql }));
+vi.mock("@/lib/upstashRateLimit", () => ({
+  checkRateLimit: vi.fn(async () => ({ allowed: true, limit: 0, remaining: 0 })),
+  rateLimitHeaders: vi.fn(() => ({})),
+}));
+vi.mock("@/lib/upstashRedis", () => ({
+  redis: {
+    get: mockRedisGet,
+    set: mockRedisSet,
+  },
+}));
 
 function venue(id: string, name: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -38,6 +52,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.resetModules();
   mockSql.mockResolvedValue([]);
+  mockRedisGet.mockResolvedValue(null);
+  mockRedisSet.mockResolvedValue("OK");
 });
 
 describe("GET /api/venues search", () => {
@@ -54,9 +70,11 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=300");
     expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
     expect(mockSql).toHaveBeenCalledTimes(2);
+    expect(mockRedisGet).not.toHaveBeenCalled();
+    expect(mockRedisSet).not.toHaveBeenCalled();
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-b", "venue-a"]);
   });
 
@@ -128,8 +146,15 @@ describe("GET /api/venues search", () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=300");
     expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
+    expect(mockRedisGet).toHaveBeenCalledWith("nv:venues:list");
+    expect(mockRedisSet).toHaveBeenCalledWith(
+      "nv:venues:list",
+      expect.objectContaining({ venues: expect.any(Array) }),
+      { ex: 120 }
+    );
+    expect(mockSql.mock.calls[0][0].join("")).toContain("LIMIT 200");
     expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual([
       "venue-b",
       "venue-c",
@@ -150,6 +175,28 @@ describe("GET /api/venues search", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("private, no-cache");
     expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
+    expect(mockRedisGet).not.toHaveBeenCalled();
+    expect(mockRedisSet).not.toHaveBeenCalled();
+  });
+
+  it("returns the cached public venue list without hitting the DB", async () => {
+    mockRedisGet.mockResolvedValueOnce({
+      zone: { id: "south-end-charlotte" },
+      venues: [venue("venue-a", "Alpha")],
+    });
+
+    const { GET } = await import("../venues/route");
+    const res = await GET(new NextRequest("http://localhost/api/venues"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=300");
+    expect(res.headers.get("ETag")).toMatch(/^"venues-.+"$/);
+    expect(mockSql).not.toHaveBeenCalled();
+    expect(mockRedisGet).toHaveBeenCalledWith("nv:venues:list");
+    expect(mockRedisSet).not.toHaveBeenCalled();
+    expect(json.meta.cached).toBe(true);
+    expect(json.data.venues.map((item: { id: string }) => item.id)).toEqual(["venue-a"]);
   });
 
   it("returns 304 when If-None-Match matches the venue list etag", async () => {
@@ -169,7 +216,7 @@ describe("GET /api/venues search", () => {
     );
 
     expect(second.status).toBe(304);
-    expect(second.headers.get("Cache-Control")).toBe("s-maxage=60, stale-while-revalidate=300");
+    expect(second.headers.get("Cache-Control")).toBe("s-maxage=120, stale-while-revalidate=300");
     expect(second.headers.get("ETag")).toBe(etag);
     expect(await second.text()).toBe("");
   });
