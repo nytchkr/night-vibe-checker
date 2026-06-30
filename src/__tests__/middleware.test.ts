@@ -76,8 +76,6 @@ describe("middleware route protection", () => {
   it("protects authenticated-only page routes and nested paths", () => {
     expect(isProtectedPageRoute("/admin")).toBe(true);
     expect(isProtectedPageRoute("/admin/dashboard")).toBe(true);
-    expect(isProtectedPageRoute("/notifications")).toBe(true);
-    expect(isProtectedPageRoute("/notifications/settings")).toBe(true);
     expect(isProtectedPageRoute("/saved")).toBe(true);
   });
 
@@ -98,23 +96,8 @@ describe("middleware route protection", () => {
     expect(isProtectedApiRequest(request("POST", "/api/widget/venue-1"))).toBe(false);
   });
 
-  it("redirects share target POST requests to the share confirmation page", async () => {
-    const body = new URLSearchParams({
-      title: "Tonight",
-      text: "Try this spot",
-      url: "https://nytchkr.com/map",
-    });
-    const response = await callMiddleware(
-      new NextRequest("http://localhost/share", {
-        method: "POST",
-        body,
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-      })
-    );
-
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost/share?title=Tonight&text=Try+this+spot&url=https%3A%2F%2Fnytchkr.com%2Fmap"
-    );
+  it("does not special-case removed standalone share page requests", async () => {
+    const response = await callMiddleware(new NextRequest("http://localhost/share", { method: "POST" }));
+    expect(response.status).toBe(200);
   });
 });

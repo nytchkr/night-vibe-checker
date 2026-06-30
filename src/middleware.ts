@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 
-const PROTECTED_PAGE_ROUTES = ["/admin", "/profile", "/saved", "/notifications"] as const;
+const PROTECTED_PAGE_ROUTES = ["/admin", "/profile", "/saved"] as const;
 const PROTECTED_API_ROUTES = [
   "/api/ratings",
   "/api/venue-ratings",
@@ -98,25 +98,6 @@ function unauthorized(nonce: string): MiddlewareResponse {
   return withSecurityHeaders(NextResponse.json({ error: "Unauthorized" }, { status: 401 }), nonce);
 }
 
-async function shareRedirect(req: NextRequest, nonce: string): Promise<MiddlewareResponse> {
-  const redirectUrl = req.nextUrl.clone();
-  redirectUrl.search = "";
-
-  try {
-    const formData = await req.formData();
-    for (const key of ["title", "text", "url"]) {
-      const value = formData.get(key);
-      if (typeof value === "string" && value) {
-        redirectUrl.searchParams.set(key, value);
-      }
-    }
-  } catch {
-    redirectUrl.search = "";
-  }
-
-  return withSecurityHeaders(NextResponse.redirect(redirectUrl, 303), nonce);
-}
-
 async function handleMiddleware(req: NextRequest & { auth?: unknown }): Promise<MiddlewareResponse> {
   const nonce = createNonce();
   const upgradeInsecureRequests = shouldUpgradeInsecureRequests(req);
@@ -137,10 +118,6 @@ async function handleMiddleware(req: NextRequest & { auth?: unknown }): Promise<
     },
   });
   applySecurityHeaders(response, nonce, upgradeInsecureRequests);
-
-  if (req.nextUrl.pathname === "/share" && req.method === "POST") {
-    return shareRedirect(req, nonce);
-  }
 
   if (req.auth) return response;
   if (isProtectedApiRequest(req)) return unauthorized(nonce);

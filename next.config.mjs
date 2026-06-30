@@ -65,6 +65,20 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/discover/:path*",
+        destination: "/explore",
+        permanent: true,
+      },
+      {
+        source: "/you/:path*",
+        destination: "/profile",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -84,22 +98,6 @@ const nextConfig = {
             key: "Cache-Control",
             value: "private, no-store",
           },
-        ],
-      },
-      {
-        source: "/widget/:path*",
-        has: [
-          {
-            type: "query",
-            key: "embed",
-            value: "1",
-          },
-        ],
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=()" },
         ],
       },
     ];
