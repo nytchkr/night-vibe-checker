@@ -17,6 +17,7 @@ type SaveVenueButtonProps = {
   initialSaved?: boolean;
   className?: string;
   includeVenueNameInLabel?: boolean;
+  apiPath?: "/api/saved-venues" | "/api/favorites";
   onSavedChange?: (venueId: string, saved: boolean) => void;
 };
 
@@ -35,6 +36,7 @@ export function SaveVenueButton({
   initialSaved = false,
   className,
   includeVenueNameInLabel = true,
+  apiPath = "/api/saved-venues",
   onSavedChange,
 }: SaveVenueButtonProps) {
   const { data: session } = useSession();
@@ -60,7 +62,7 @@ export function SaveVenueButton({
           return;
         }
 
-        const res = await fetch("/api/saved-venues", {
+        const res = await fetch(apiPath, {
           credentials: "include",
         });
         if (!res.ok) return;
@@ -101,7 +103,7 @@ export function SaveVenueButton({
     onSavedChange?.(venueId, nextSaved);
 
     try {
-      const res = await fetch("/api/saved-venues", {
+      const res = await fetch(apiPath, {
         method: nextSaved ? "POST" : "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -119,7 +121,7 @@ export function SaveVenueButton({
     } finally {
       setPending(false);
     }
-  }, [haptic, isAuthenticated, onSavedChange, saved, venueId]);
+  }, [apiPath, haptic, isAuthenticated, onSavedChange, saved, venueId]);
 
   useEffect(() => {
     if (!isAuthenticated || pending) return;

@@ -322,7 +322,9 @@ export function VenuePageClient({
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Hours</p>
                   <p className={`mt-1 text-base font-black ${statusColor}`}>{statusText}</p>
-                  <p className="mt-1 text-sm font-semibold leading-6 text-[#9CA2AE]">{todayHours ?? "Today's hours unavailable"}</p>
+                  <p className="mt-1 text-sm font-black leading-6 text-[#F4F5F8]">
+                    Today: <span className="text-[#9CA2AE]">{todayHours ?? "Hours unavailable"}</span>
+                  </p>
                 </div>
               </div>
             </SurfaceCard>
@@ -370,7 +372,7 @@ export function VenuePageClient({
             </SurfaceCard>
 
             <SurfaceCard aria-label="AI insider tips">
-              <VenueTips venueId={venue.id} title="AI insider tips" subtitle="AI-organized tips from real review text." maxTips={3} />
+              <VenueTips venueId={venue.id} title="AI tips" subtitle="from reviews" maxTips={3} />
             </SurfaceCard>
 
             <SurfaceCard aria-label="Save venue">
@@ -382,6 +384,7 @@ export function VenuePageClient({
                 <SaveVenueButton
                   venueId={venue.id}
                   venueName={venue.name}
+                  apiPath="/api/favorites"
                   onSavedChange={handleVenueSavedChange}
                   className="h-12 w-12 border-[#8B6CFF]/45 bg-[#8B6CFF]/15 text-[#8B6CFF]"
                 />
