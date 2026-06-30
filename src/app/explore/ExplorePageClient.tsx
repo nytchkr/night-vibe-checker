@@ -541,15 +541,7 @@ export function ExplorePageClient() {
     if (event.key === "Escape") setIsSuggestionsOpen(false);
   }
 
-  if (!venues) {
-    return (
-      <div className="min-h-screen-safe bg-[#0A0A0E] p-4 text-white">
-        <div className="mx-auto max-w-5xl space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-      </div>
-    );
-  }
+  const isLoading = venues === undefined;
 
   return (
     <div className="min-h-screen-safe bg-[#0A0A0E] pb-28 text-white">
@@ -562,9 +554,11 @@ export function ExplorePageClient() {
                 Explore Charlotte
               </h1>
             </div>
-            <p className="shrink-0 text-right text-sm font-semibold text-white/48">
-              {filteredVenues.length} {filteredVenues.length === 1 ? "venue" : "venues"}
-            </p>
+            {!isLoading && (
+              <p className="shrink-0 text-right text-sm font-semibold text-white/48">
+                {filteredVenues.length} {filteredVenues.length === 1 ? "venue" : "venues"}
+              </p>
+            )}
           </div>
 
           <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
@@ -714,17 +708,17 @@ export function ExplorePageClient() {
           </div>
         ) : null}
 
-        {isFetchingVenues && venues.length === 0 && !error ? (
+        {isLoading && !error ? (
           <div role="status" aria-label="Loading venues" className="space-y-3">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : null}
 
-        {!error && filteredVenues.length === 0 ? (
+        {!isLoading && !error && filteredVenues.length === 0 ? (
           <ExploreEmptyState hasActiveSearchOrFilter={hasActiveSearchOrFilter} onClear={clearFilters} />
         ) : null}
 
-        {!error && filteredVenues.length > 0 ? (
+        {!isLoading && !error && filteredVenues.length > 0 ? (
           <section role="region" aria-label="Venue results">
             <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredVenues.map((venue) => (
