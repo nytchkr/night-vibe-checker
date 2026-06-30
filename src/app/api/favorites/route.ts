@@ -1,1 +1,2 @@
-export { DELETE, GET, POST, dynamic } from "../saved-venues/route";
+export const dynamic = "force-dynamic";
+export { DELETE, GET, POST } from "../saved-venues/route";
