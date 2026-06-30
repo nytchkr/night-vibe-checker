@@ -19,13 +19,14 @@ export type VenueCategoryFilter = "All" | "Bar" | "Club" | "Lounge" | "Rooftop" 
 
 const COLLAPSED_HEIGHT = 120;
 const MID_RATIO = 0.4;
+const EXPANDED_RATIO = 0.68;
 export const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
 
 function getVisibleHeight(snap: MapSheetSnap) {
   if (typeof window === "undefined") return COLLAPSED_HEIGHT;
   if (snap === "collapsed") return COLLAPSED_HEIGHT;
   if (snap === "mid") return window.innerHeight * MID_RATIO;
-  return window.innerHeight * 0.85;
+  return window.innerHeight * EXPANDED_RATIO;
 }
 
 function NoDataChip() {
@@ -82,6 +83,21 @@ function SelectedVenueSourceBadge({ venue }: { venue: ConsumerVenue }) {
   );
 }
 
+function SelectedVenueOpenStatus({ openNow }: { openNow: boolean | null | undefined }) {
+  const label = openNow === true ? "Open now" : openNow === false ? "Closed" : "Hours unknown";
+  const className = openNow === true
+    ? "border-[#00F5D4]/35 bg-[#00F5D4]/12 text-[#00F5D4]"
+    : openNow === false
+      ? "border-[#FF5B6A]/35 bg-[#FF5B6A]/12 text-[#FF5B6A]"
+      : "border-white/[0.08] bg-white/[0.035] text-white/45";
+
+  return (
+    <span className={`inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-black tracking-normal ${className}`}>
+      {label}
+    </span>
+  );
+}
+
 function venueHref(venue: ConsumerVenue) {
   return `/venues/${encodeURIComponent(venue.id)}`;
 }
@@ -97,7 +113,10 @@ function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
           <h2 className="truncate font-display text-[22px] font-semibold leading-tight text-white">
             {venue.name}
           </h2>
-          <p className="mt-1 truncate text-sm font-black text-white/72">{venue.category}</p>
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+            <p className="min-w-0 truncate text-sm font-black text-white/72">{venue.category}</p>
+            <SelectedVenueOpenStatus openNow={venue.openNow ?? venue.open_now ?? venue.opening_hours?.open_now ?? null} />
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <SelectedVenueSourceBadge venue={venue} />
@@ -115,7 +134,7 @@ function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
           href={venueHref(venue)}
           className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-5 text-sm font-black text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
         >
-          View details →
+          View details
         </Link>
       </div>
     </section>
@@ -240,7 +259,7 @@ export default function MapBottomSheet({
   }, [selectedVenueId, snap]);
 
   function getTranslateForSnap(nextSnap: MapSheetSnap) {
-    const sheetHeight = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight * 0.85;
+    const sheetHeight = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight * EXPANDED_RATIO;
     return Math.max(0, sheetHeight - getVisibleHeight(nextSnap));
   }
 
@@ -272,7 +291,7 @@ export default function MapBottomSheet({
   }
 
   function updateMouseDrag(clientY: number) {
-    const sheetHeight = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight * 0.85;
+    const sheetHeight = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight * EXPANDED_RATIO;
     const maxTranslate = Math.max(0, sheetHeight - COLLAPSED_HEIGHT);
     const nextTranslate = Math.min(maxTranslate, Math.max(0, dragRef.current.startTranslate + clientY - dragRef.current.startY));
     dragRef.current.currentTranslate = nextTranslate;
@@ -344,7 +363,7 @@ export default function MapBottomSheet({
   }
 
   const transform =
-    dragTranslate == null ? `translateY(calc(100% - ${snap === "collapsed" ? "120px" : snap === "mid" ? "40dvh" : "85dvh"}))` : `translateY(${dragTranslate}px)`;
+    dragTranslate == null ? `translateY(calc(100% - ${snap === "collapsed" ? "120px" : snap === "mid" ? "40dvh" : "68dvh"}))` : `translateY(${dragTranslate}px)`;
   const visibleVenues = snap === "collapsed" ? topVenues : sortedVenues;
 
   return (
@@ -352,7 +371,7 @@ export default function MapBottomSheet({
       ref={sheetRef}
       aria-label={`${cityName} venues`}
       role="region"
-      className="bottom-sheet scroll-touch gpu-layer absolute inset-x-0 bottom-0 z-[1100] h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] max-h-[85dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[rgba(255,255,255,0.035)] shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
+      className="bottom-sheet scroll-touch gpu-layer absolute inset-x-0 bottom-0 z-[1100] h-[calc(100dvh_-_4rem_-_env(safe-area-inset-bottom))] max-h-[68dvh] rounded-t-[18px] border-t border-white/[0.08] bg-[rgba(255,255,255,0.035)] shadow-[0_-22px_70px_rgba(0,0,0,0.68)] backdrop-blur-xl"
       onPointerCancel={handlePointerUp}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

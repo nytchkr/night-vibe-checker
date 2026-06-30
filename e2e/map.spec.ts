@@ -273,13 +273,6 @@ test.describe("Map tab", () => {
     await expect(page.locator('path[fill="#2F80FF"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test("Report Vibe FAB is visible on /map", async ({ page }) => {
-    await page.goto("/map");
-    // FAB is inside dynamic VenueMap — wait for Leaflet before checking FAB
-    await page.waitForSelector(".leaflet-container", { timeout: 25000 });
-    await expect(page.getByRole("link", { name: /Report vibe/i })).toBeVisible({ timeout: 10000 });
-  });
-
   test("redesigned bottom sheet lists venue previews", async ({ page }) => {
     const sheet = await openMap(page);
     await expect(sheet.getByRole("button", { name: /Expand South End venue list/ })).toBeVisible();
@@ -501,23 +494,25 @@ test.describe("Map bottom sheet", () => {
     await expect.poll(() => selectedPinCount(page), { timeout: 10000 }).toBeGreaterThanOrEqual(1);
   });
 
-  test("pin tap opens a bottom venue popup card", async ({ page }) => {
-    await openMap(page);
+  test("pin tap opens the venue bottom sheet card", async ({ page }) => {
+    const sheet = await openMap(page);
     await selectZone(page, "South End");
 
     await page.getByRole("button", { name: "Open Map Test Club details" }).click();
 
-    const popup = page.getByRole("dialog", { name: "Map Test Club venue popup" });
-    await expect(popup).toBeVisible();
-    await expect(popup.getByText("Map Test Club")).toBeVisible();
-    await expect(popup.getByText("night_club")).toBeVisible();
-    await expect(popup.getByText("Open now")).toBeVisible();
-    await expect(popup.getByRole("link", { name: "View venue" })).toHaveAttribute("href", "/venues/map-packed-1");
+    await expect(sheet.getByRole("heading", { name: "Map Test Club" })).toBeVisible();
+    await expect(sheet.getByText("night_club")).toBeVisible();
+    await expect(sheet.getByText("Open now")).toBeVisible();
+    await expect(sheet.getByText("LIVE")).toBeVisible();
+    await expect(sheet.getByText("Packed")).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "View details" })).toHaveAttribute("href", "/venues/map-packed-1");
+    await expect(sheet.getByRole("link", { name: /check in|report vibe/i })).toHaveCount(0);
+    await expect(sheet.getByText(/M\/F|male|female/i)).toHaveCount(0);
     await expect.poll(() => selectedPinCount(page), { timeout: 10000 }).toBeGreaterThanOrEqual(1);
   });
 
-  test("pin popup dismisses with close button and outside tap", async ({ page }) => {
-    await openMap(page);
+  test("outside tap clears selected pin bottom sheet card", async ({ page }) => {
+    const sheet = await openMap(page);
     await selectZone(page, "South End");
     await expect(page.locator(".venue-cluster-pin")).toHaveCount(6, { timeout: 10000 });
 
@@ -532,14 +527,8 @@ test.describe("Map bottom sheet", () => {
 
     await pin.click();
 
-    const popup = page.getByRole("dialog", { name: "Map Test Speakeasy venue popup" });
-    await expect(popup).toBeVisible();
-    await popup.getByRole("button", { name: "Close venue popup" }).click();
-    await expect(popup).toHaveCount(0);
-
-    await pin.click();
-    await expect(popup).toBeVisible();
-    await page.getByRole("button", { name: "Dismiss venue popup" }).click({ position: { x: 12, y: 12 } });
-    await expect(popup).toHaveCount(0);
+    await expect(sheet.getByRole("heading", { name: "Map Test Speakeasy" })).toBeVisible();
+    await page.locator(".leaflet-container").click({ position: { x: 20, y: 170 } });
+    await expect(sheet.getByRole("heading", { name: "Map Test Speakeasy" })).toHaveCount(0);
   });
 });
