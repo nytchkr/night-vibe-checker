@@ -11,12 +11,17 @@ type RateLimitResult = {
   retryAfterMs?: number;
 };
 
+const PASS_THROUGH: RateLimitResult = { allowed: true, limit: 0, remaining: 0 };
+
 // Sliding window: 10 req/min per IP (public API default)
-export const apiRateLimit = new Ratelimit({
-  redis: redis as unknown as RatelimitRedis,
-  limiter: Ratelimit.slidingWindow(10, "1 m"),
-  prefix: "nv:rl:api",
-});
+// null when Upstash is not configured (CI / local without Redis)
+export const apiRateLimit: Ratelimit | null = redis
+  ? new Ratelimit({
+      redis: redis as unknown as RatelimitRedis,
+      limiter: Ratelimit.slidingWindow(10, "1 m"),
+      prefix: "nv:rl:api",
+    })
+  : null;
 
 const keyedLimiters = new Map<string, Ratelimit>();
 
@@ -41,6 +46,7 @@ function getKeyedLimiter(max: number, windowMs: number): Ratelimit {
 }
 
 export async function checkRateLimit(key: string, max: number, windowMs: number): Promise<RateLimitResult> {
+  if (!redis) return PASS_THROUGH;
   const rate = await getKeyedLimiter(max, windowMs).limit(key);
   return {
     allowed: rate.success,

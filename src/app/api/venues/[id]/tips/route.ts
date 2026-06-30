@@ -115,6 +115,7 @@ function normalizeCachedAiTips(value: unknown): string[] | null {
 }
 
 async function getCachedAiTips(cacheKey: string): Promise<string[] | null> {
+  if (!redis) return null;
   try {
     const cached = await redis.get(cacheKey);
     if (!cached) return null;
@@ -126,6 +127,7 @@ async function getCachedAiTips(cacheKey: string): Promise<string[] | null> {
 }
 
 async function setCachedAiTips(cacheKey: string, tips: string[]): Promise<void> {
+  if (!redis) return;
   try {
     await redis.set(cacheKey, { tips }, { ex: AI_TIPS_REDIS_TTL_SECONDS });
   } catch (error) {

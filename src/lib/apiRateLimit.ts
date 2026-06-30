@@ -17,6 +17,8 @@ export async function publicRateLimit(
     req?.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req?.headers.get("x-real-ip") ??
     "anonymous";
+  if (!apiRateLimit) return { headers: {}, response: null };
+
   const rate = await apiRateLimit.limit(`${keyPrefix}:${ip}`);
   const headers = {
     "X-RateLimit-Limit": String(rate.limit),

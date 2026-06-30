@@ -52,6 +52,7 @@ function normalizeCachedForecast(value: unknown): ForecastResponse | null {
 }
 
 async function getCachedForecast(cacheKey: string): Promise<ForecastResponse | null> {
+  if (!redis) return null;
   try {
     const cached = await redis.get(cacheKey);
     if (!cached) return null;
@@ -63,6 +64,7 @@ async function getCachedForecast(cacheKey: string): Promise<ForecastResponse | n
 }
 
 async function setCachedForecast(cacheKey: string, forecast: ForecastResponse): Promise<void> {
+  if (!redis) return;
   try {
     await redis.set(cacheKey, forecast, { ex: FORECAST_REDIS_TTL_SECONDS });
   } catch (error) {
