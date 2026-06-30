@@ -156,7 +156,7 @@ test.describe("nytchkr discovery golden path", () => {
     await page.goto("/you", { waitUntil: "domcontentloaded" });
 
     await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByRole("heading", { name: "Sign in to save your favorite spots" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Save your spots. Know before you go." })).toBeVisible();
     await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   });
 });

@@ -30,8 +30,8 @@ test.describe("Auth protection middleware", () => {
     await page.goto("/profile");
 
     await expect(page).toHaveURL(/\/profile$/);
-    await expect(page.getByRole("heading", { name: "Sign in to track your nights" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Save your spots. Know before you go." })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Continue with Google" })).toBeVisible();
   });
 
   test("unauthenticated: /venues/[id] is publicly accessible", async ({ page, request }) => {

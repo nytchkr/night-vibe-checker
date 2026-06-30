@@ -147,6 +147,7 @@ describe("Profile saved spots", () => {
     expect(screen.getByText("tester@example.com")).not.toBeNull();
     const venueLinks = screen.getAllByRole("link").filter((link) => link.getAttribute("href") === "/venues/venue-1");
     expect(venueLinks.length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "View" })).not.toBeNull();
     expect(screen.getByText("Packed")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Unsave Trio" })).not.toBeNull();
     expect(screen.queryByText("Total Check-ins")).toBeNull();
@@ -196,7 +197,8 @@ describe("Profile saved spots", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByText("You haven't saved any spots yet. Tap ♡ on a venue to save it.")).not.toBeNull();
+    expect(await screen.findByText("No saved spots yet — explore and save some.")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Explore spots" }).getAttribute("href")).toBe("/explore");
   });
 
   it("shows the Google sign-in prompt for guests", async () => {
@@ -204,8 +206,8 @@ describe("Profile saved spots", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByRole("heading", { name: "Sign in to save your favorite spots" })).not.toBeNull();
-    expect(screen.getByText("Save your favorite spots. Get notified when they're packed.")).not.toBeNull();
+    expect(await screen.findByRole("heading", { name: "Save your spots. Know before you go." })).not.toBeNull();
+    expect(screen.getByText("Sign in with Google to keep your saved venues in one place and get back to them fast.")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
 
