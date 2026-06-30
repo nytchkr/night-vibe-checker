@@ -13,8 +13,9 @@ import { useTrack } from "@/lib/useTrack";
 import type { BusynessSource, ConsumerVenue } from "@/types";
 
 type CategoryFilter = "all" | "bars" | "restaurants" | "lounges" | "clubs";
-type PriceFilter = 1 | 2 | 3 | null;
+type PriceFilter = 1 | 2 | 3 | 4 | null;
 type BusynessFilter = "any" | "busy" | "moderate" | "quiet";
+type SortOption = "distance" | "rating" | "busyness";
 type VenueSuggestion = {
   id: string;
   name: string;
@@ -23,6 +24,7 @@ type VenueSuggestion = {
 };
 
 const EXPLORE_SEARCH_STORAGE_KEY = "nytchkr_explore_search";
+const CHARLOTTE_LAUNCH_CENTER = { lat: 35.2123, lng: -80.8590 };
 
 const CATEGORY_FILTERS: Array<{ value: CategoryFilter; label: string }> = [
   { value: "all", label: "All" },
@@ -36,6 +38,7 @@ const PRICE_FILTERS: Array<{ value: PriceFilter; label: string }> = [
   { value: 1, label: "$" },
   { value: 2, label: "$$" },
   { value: 3, label: "$$$" },
+  { value: 4, label: "$$$$" },
 ];
 
 const BUSYNESS_FILTERS: Array<{ value: BusynessFilter; label: string }> = [
@@ -43,6 +46,12 @@ const BUSYNESS_FILTERS: Array<{ value: BusynessFilter; label: string }> = [
   { value: "busy", label: "Busy" },
   { value: "moderate", label: "Moderate" },
   { value: "quiet", label: "Quiet" },
+];
+
+const SORT_OPTIONS: Array<{ value: SortOption; label: string }> = [
+  { value: "distance", label: "Distance" },
+  { value: "rating", label: "Rating" },
+  { value: "busyness", label: "Busyness" },
 ];
 
 function trackAnalytics(event: string, properties: Record<string, string | number | boolean | null>) {
@@ -92,6 +101,12 @@ function getVenueReviewCount(venue: ConsumerVenue): number | null {
 function getVenueBusyness(venue: ConsumerVenue): number | null {
   const value = venue.signal?.busyness0To100 ?? venue.current_popularity ?? null;
   return value == null || !Number.isFinite(value) ? null : Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function getVenueDistanceFromLaunch(venue: ConsumerVenue): number {
+  const latDelta = venue.lat - CHARLOTTE_LAUNCH_CENTER.lat;
+  const lngDelta = venue.lng - CHARLOTTE_LAUNCH_CENTER.lng;
+  return Math.hypot(latDelta, lngDelta);
 }
 
 function getBusynessSourceLabel(source: BusynessSource | null | undefined): "LIVE" | "FORECAST" | null {
@@ -321,7 +336,9 @@ function ExploreEmptyState({ hasActiveSearchOrFilter, onClear }: { hasActiveSear
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#8B6CFF]/25 bg-[#8B6CFF]/10 text-[#8B6CFF]" aria-hidden="true">
         <SearchX className="h-6 w-6" strokeWidth={2.2} />
       </div>
-      <h2 className="mt-4 font-display text-[20px] font-black text-white">No venues found in this area yet — we&apos;re adding more soon.</h2>
+      <h2 className="mt-4 font-display text-[20px] font-black text-white">
+        {hasActiveSearchOrFilter ? "No venues match your filters." : "No venues are available in Charlotte yet."}
+      </h2>
       {hasActiveSearchOrFilter ? (
         <button
           type="button"
@@ -347,6 +364,7 @@ export function ExplorePageClient() {
   const [openNowOnly, setOpenNowOnly] = useState(false);
   const [priceFilter, setPriceFilter] = useState<PriceFilter>(null);
   const [busynessFilter, setBusynessFilter] = useState<BusynessFilter>("any");
+  const [sortBy, setSortBy] = useState<SortOption>("busyness");
   const [searchSuggestions, setSearchSuggestions] = useState<VenueSuggestion[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement | null>(null);
@@ -456,15 +474,28 @@ export function ExplorePageClient() {
         return venueMatchesBusyness(venue, busynessFilter);
       })
       .sort((a, b) => {
-        const aBusyness = getVenueBusyness(a) ?? -1;
-        const bBusyness = getVenueBusyness(b) ?? -1;
-        if (aBusyness !== bBusyness) return bBusyness - aBusyness;
+        if (sortBy === "distance") {
+          const distanceDelta = getVenueDistanceFromLaunch(a) - getVenueDistanceFromLaunch(b);
+          if (distanceDelta !== 0) return distanceDelta;
+        }
+
+        if (sortBy === "rating") {
+          const aRating = getVenueRating(a) ?? -1;
+          const bRating = getVenueRating(b) ?? -1;
+          if (aRating !== bRating) return bRating - aRating;
+        }
+
+        if (sortBy === "busyness") {
+          const aBusyness = getVenueBusyness(a) ?? -1;
+          const bBusyness = getVenueBusyness(b) ?? -1;
+          if (aBusyness !== bBusyness) return bBusyness - aBusyness;
+        }
 
         const aRating = getVenueRating(a) ?? -1;
         const bRating = getVenueRating(b) ?? -1;
         return bRating - aRating || a.name.localeCompare(b.name);
       });
-  }, [busynessFilter, categoryFilter, debouncedSearchQuery, openNowOnly, priceFilter, venues]);
+  }, [busynessFilter, categoryFilter, debouncedSearchQuery, openNowOnly, priceFilter, sortBy, venues]);
 
   const prefetchVenueDetail = useCallback((venueId: string) => {
     if (prefetchedVenueIdsRef.current.has(venueId)) return;
@@ -646,6 +677,22 @@ export function ExplorePageClient() {
                   }}
                 >
                   {filter.label}
+                </FilterPill>
+              ))}
+            </div>
+
+            <div className="scroll-touch flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Sort options">
+              {SORT_OPTIONS.map((option) => (
+                <FilterPill
+                  key={option.value}
+                  active={sortBy === option.value}
+                  ariaLabel={`Sort by ${option.label.toLowerCase()}`}
+                  onClick={() => {
+                    setSortBy(option.value);
+                    trackAnalytics("explore_sort_selected", { sort: option.value });
+                  }}
+                >
+                  {option.label}
                 </FilterPill>
               ))}
             </div>

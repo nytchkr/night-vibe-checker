@@ -45,9 +45,9 @@ vi.mock("@/lib/useTrack", () => ({
 }));
 
 const venues: ConsumerVenue[] = [
-  createVenue({ id: "sports-bar", name: "Sports Bar", category: "bar", rating: 4.6, priceLevel: 2, busyness: 72, source: "live" }),
-  createVenue({ id: "neon-lounge", name: "Neon Lounge", category: "lounge", rating: 4.5, priceLevel: 3, busyness: 48, source: "forecast" }),
-  createVenue({ id: "supper-club", name: "Supper Club", category: "restaurant", rating: 4.4, priceLevel: 1, busyness: 18, source: "forecast", openNow: false }),
+  createVenue({ id: "sports-bar", name: "Sports Bar", category: "bar", rating: 4.6, priceLevel: 2, busyness: 72, source: "live", lat: 35.25 }),
+  createVenue({ id: "neon-lounge", name: "Neon Lounge", category: "lounge", rating: 4.8, priceLevel: 3, busyness: 48, source: "forecast", lat: 35.2124 }),
+  createVenue({ id: "supper-club", name: "Supper Club", category: "restaurant", rating: 4.4, priceLevel: 1, busyness: 18, source: "forecast", openNow: false, lat: 35.22 }),
 ];
 
 function createSignal({
@@ -80,6 +80,8 @@ function createVenue({
   busyness,
   source,
   openNow = true,
+  lat = 35.2123,
+  lng = -80.859,
 }: {
   id: string;
   name: string;
@@ -89,6 +91,8 @@ function createVenue({
   busyness: number | null;
   source: VenueSignal["busynessSource"];
   openNow?: boolean;
+  lat?: number;
+  lng?: number;
 }): ConsumerVenue {
   return {
     id,
@@ -96,8 +100,8 @@ function createVenue({
     zoneId: "south-end-charlotte",
     name,
     address: "100 Camden Rd, Charlotte, NC",
-    lat: 35.2123,
-    lng: -80.859,
+    lat,
+    lng,
     neighborhood: "South End",
     category,
     rating,
@@ -238,8 +242,39 @@ describe("ExplorePageClient discovery feed", () => {
 
     await searchFor("zzzz");
 
-    expect(screen.getByRole("heading", { name: /No venues found in this area yet/ })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "No venues match your filters." })).toBeTruthy();
     expect(within(screen.getByRole("main")).queryByRole("link", { name: /^Open Sports Bar/ })).toBeNull();
+  });
+
+  it("sorts venue results by busyness, distance, and rating", async () => {
+    await renderExplore();
+
+    expect(within(venueResults()).getAllByRole("link", { name: /^Open / }).map((link) => link.textContent)).toEqual([
+      expect.stringContaining("Sports Bar"),
+      expect.stringContaining("Neon Lounge"),
+      expect.stringContaining("Supper Club"),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by distance" }));
+    expect(within(venueResults()).getAllByRole("link", { name: /^Open / }).map((link) => link.textContent)).toEqual([
+      expect.stringContaining("Neon Lounge"),
+      expect.stringContaining("Supper Club"),
+      expect.stringContaining("Sports Bar"),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by rating" }));
+    expect(within(venueResults()).getAllByRole("link", { name: /^Open / }).map((link) => link.textContent)).toEqual([
+      expect.stringContaining("Neon Lounge"),
+      expect.stringContaining("Sports Bar"),
+      expect.stringContaining("Supper Club"),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sort by busyness" }));
+    expect(within(venueResults()).getAllByRole("link", { name: /^Open / }).map((link) => link.textContent)).toEqual([
+      expect.stringContaining("Sports Bar"),
+      expect.stringContaining("Neon Lounge"),
+      expect.stringContaining("Supper Club"),
+    ]);
   });
 
   it("shows autocomplete suggestions and navigates to a selected venue", async () => {
