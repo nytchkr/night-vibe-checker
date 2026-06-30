@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getConsumerVenueById, getLiveCheckInCountForVenueId } from "@/lib/consumerVenue";
+import { getConsumerVenueById } from "@/lib/consumerVenue";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { DEFAULT_OG_IMAGE_PATH, absoluteUrl, getVenuePublicUrl } from "@/lib/seo";
 import { findVisibleVenueByIdOrPlaceId } from "@/lib/venueLookup";
@@ -176,7 +176,6 @@ export default async function VenuePage({ params }: VenuePageProps) {
   const { id } = await params;
   const venue = await getConsumerVenueById(id);
   if (!venue) notFound();
-  const initialLiveCheckInCount = await getLiveCheckInCountForVenueId(venue.id);
 
   return (
     <>
@@ -189,7 +188,6 @@ export default async function VenuePage({ params }: VenuePageProps) {
         <VenuePageClient
           venueId={id}
           initialVenue={venue}
-          initialLiveCheckInCount={initialLiveCheckInCount}
         />
       </PageTransition>
     </>

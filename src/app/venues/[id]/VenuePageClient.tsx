@@ -109,7 +109,6 @@ export function VenuePageClient({
 }: {
   venueId: string;
   initialVenue: ConsumerVenue | null;
-  initialLiveCheckInCount?: number;
 }) {
   const router = useRouter();
   const haptic = useHaptic();

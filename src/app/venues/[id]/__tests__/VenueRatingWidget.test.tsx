@@ -186,7 +186,6 @@ function renderVenuePage(venue: ConsumerVenue = makeVenue()) {
     <VenuePageClient
       venueId={venue.id}
       initialVenue={venue}
-      initialLiveCheckInCount={0}
     />,
   );
 }

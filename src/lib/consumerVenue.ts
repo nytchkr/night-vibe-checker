@@ -95,11 +95,13 @@ export function mapConsumerVenue(row: Record<string, unknown>): ConsumerVenue {
     googleMapsUri: (row.google_maps_uri ?? undefined) as string | undefined,
     editorialSummary: (row.editorial_summary ?? undefined) as string | undefined,
     openingHours: mapGoogleOpeningHours(row.opening_hours),
-    openNow: inferCanonicalOpenNow({
-      category: (row.category ?? row.venue_type) as string | null,
-      openingHours: row.opening_hours,
-      refreshedAt: row.updated_at,
-    }),
+    openNow: typeof row.open_now === "boolean"
+      ? row.open_now
+      : inferCanonicalOpenNow({
+          category: (row.category ?? row.venue_type) as string | null,
+          openingHours: row.opening_hours,
+          refreshedAt: row.updated_at,
+        }),
     besttimeVenueId: (row.besttime_venue_id ?? undefined) as string | undefined,
     hidden: Boolean(row.hidden),
     signal,
