@@ -176,6 +176,7 @@ export function inferOpenNow(category: string | null, charlotteTime: CharlotteTi
     if (isCurrentDayTwentyFourHours(openingHours, charlotteTime)) return true;
   }
 
+  // No cached Google hours means unknown, not closed. Health counts only true open_now rows.
   return null;
 }
 

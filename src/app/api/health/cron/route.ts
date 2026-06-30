@@ -17,7 +17,7 @@ type CronRunRow = {
 
 const JOBS: Array<{ name: JobName; expectedIntervalMinutes: number }> = [
   { name: "refresh-busyness", expectedIntervalMinutes: 16 * 60 },
-  { name: "refresh-open-now", expectedIntervalMinutes: 24 * 60 },
+  { name: "refresh-open-now", expectedIntervalMinutes: 60 },
   { name: "refresh-signals", expectedIntervalMinutes: 24 * 60 },
   { name: "send-alerts", expectedIntervalMinutes: 24 * 60 },
 ];

@@ -12,6 +12,8 @@ on:
     - cron: '0 3 * * *'
     - cron: '0 4 * * *'
     - cron: '0 5 * * *'
+    # refresh-open-now: hourly; open/closed badges should not stay stale until the next night.
+    - cron: '17 * * * *'
     # discover-zone: daily at 18:00 UTC
     - cron: '0 18 * * *'
   workflow_dispatch:
@@ -96,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'refresh-open-now' || github.event.inputs.job == 'all') ||
-      github.event_name == 'schedule' && github.event.schedule == '0 2 * * *'
+      github.event_name == 'schedule' && github.event.schedule == '17 * * * *'
     steps:
       - name: Trigger refresh-open-now cron
         run: |
