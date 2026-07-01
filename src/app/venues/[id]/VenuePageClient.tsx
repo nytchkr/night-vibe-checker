@@ -412,6 +412,8 @@ export function VenuePageClient({
             </SurfaceCard>
 
             <SurfaceCard aria-label="Insider tips" className="p-5">
+              <h2 className="sr-only">AI insider tips</h2>
+              <p className="sr-only">AI-organized tips from real review text.</p>
               <div className="mb-4 flex items-center gap-2">
                 <span className="text-xl leading-none text-[#8B6CFF]" aria-hidden="true">✦</span>
                 <h2 className="font-display text-xl font-black text-[#F4F5F8]">Insider tips</h2>
