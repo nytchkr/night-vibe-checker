@@ -143,7 +143,7 @@ describe("Profile saved spots", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByRole("heading", { name: "Your saved spots" })).not.toBeNull();
+    expect(await screen.findByRole("heading", { name: "Your saved spots (1)" })).not.toBeNull();
     expect(screen.getByText("tester@example.com")).not.toBeNull();
     const venueLinks = screen.getAllByRole("link").filter((link) => link.getAttribute("href") === "/venues/venue-1");
     expect(venueLinks.length).toBeGreaterThan(0);
@@ -197,8 +197,8 @@ describe("Profile saved spots", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByText("No saved spots yet — explore and save some.")).not.toBeNull();
-    expect(screen.getByRole("link", { name: "Explore spots" }).getAttribute("href")).toBe("/explore");
+    expect(await screen.findByRole("heading", { name: "No saved spots yet" })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Browse Charlotte venues" }).getAttribute("href")).toBe("/explore");
   });
 
   it("shows the Google sign-in prompt for guests", async () => {
@@ -206,8 +206,11 @@ describe("Profile saved spots", () => {
 
     render(<ProfilePage />);
 
-    expect(await screen.findByRole("heading", { name: "Save your spots. Know before you go." })).not.toBeNull();
-    expect(screen.getByText("Sign in with Google to keep your saved venues in one place and get back to them fast.")).not.toBeNull();
+    expect(await screen.findByRole("heading", { name: "Know before you go." })).not.toBeNull();
+    expect(screen.getByText("❤ Save your spots")).not.toBeNull();
+    expect(screen.getByText("🔔 Vibe alerts")).not.toBeNull();
+    expect(screen.getByText("📍 Charlotte picks")).not.toBeNull();
+    expect(screen.getByText("No password needed · Free forever")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
 
