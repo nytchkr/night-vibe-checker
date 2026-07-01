@@ -36,6 +36,10 @@ vi.mock("@vercel/analytics", () => ({
   track: vi.fn(),
 }));
 
+vi.mock("@/components/SaveVenueButton", () => ({
+  SaveVenueButton: () => <button type="button" aria-label="Save venue" />,
+}));
+
 vi.mock("@/components/VenuePhoto", () => ({
   VenuePhoto: ({ name }: { name: string }) => <div aria-label={`${name} photo`} />,
 }));
@@ -184,9 +188,10 @@ describe("ExplorePageClient discovery feed", () => {
     expect(within(sportsBar).getByText("Bar")).toBeTruthy();
     expect(within(sportsBar).getByText("4.6")).toBeTruthy();
     expect(within(sportsBar).getByText("1,240 reviews")).toBeTruthy();
-    expect(within(sportsBar).getByText("$$")).toBeTruthy();
+    expect(within(sportsBar).getByLabelText("Price level 2 of 4")).toBeTruthy();
     expect(within(sportsBar).getByText("Open")).toBeTruthy();
     expect(within(sportsBar).getByLabelText("LIVE Packed")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Save venue" })).toHaveLength(3);
   }, 15_000);
 
   it("filters venue results by category pills", async () => {
@@ -204,7 +209,7 @@ describe("ExplorePageClient discovery feed", () => {
   it("filters by open now, price, and busyness", async () => {
     await renderExplore();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open Now" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open now" }));
     expect(within(venueResults()).queryByRole("link", { name: /^Open Supper Club/ })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Price $$$" }));

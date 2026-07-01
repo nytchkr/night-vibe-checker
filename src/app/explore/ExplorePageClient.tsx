@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { Search, SearchX, Star, X } from "lucide-react";
-import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
+import { Search, SearchX, X } from "lucide-react";
+import { CategoryBadge } from "@/components/CategoryBadge";
+import { SaveVenueButton } from "@/components/SaveVenueButton";
 import SkeletonCard from "@/components/SkeletonCard";
 import { VenuePhoto } from "@/components/VenuePhoto";
 import { getBusynessState } from "@/lib/busyness";
@@ -240,6 +241,20 @@ function BusynessBadge({ value, source }: { value: number | null; source: Busyne
   );
 }
 
+function BusynessMeter({ value }: { value: number | null }) {
+  const state = getBusynessState(value);
+  const width = value == null ? 0 : value;
+
+  return (
+    <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
+      <div
+        className="h-full rounded-full transition-[width] duration-300 ease-out"
+        style={{ width: `${width}%`, backgroundColor: state.color }}
+      />
+    </div>
+  );
+}
+
 function GoogleRating({ rating, reviewCount }: { rating: number | null; reviewCount: number | null }) {
   if (rating == null) return null;
 
@@ -247,17 +262,29 @@ function GoogleRating({ rating, reviewCount }: { rating: number | null; reviewCo
 
   return (
     <span
-      className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-white/72"
+      className="inline-flex min-w-0 items-center gap-1.5 text-[13px] font-semibold text-[#9CA2AE]"
       aria-label={reviewLabel ? `Google rating ${rating.toFixed(1)} from ${reviewLabel}` : `Google rating ${rating.toFixed(1)}`}
     >
-      <Star className="h-3.5 w-3.5 shrink-0 fill-[#F8C14A] text-[#F8C14A]" strokeWidth={2.2} aria-hidden="true" />
-      <span className="shrink-0">{rating.toFixed(1)}</span>
+      <span className="shrink-0 text-[15px] leading-none text-[#F8C14A]" aria-hidden="true">★</span>
+      <span className="shrink-0 text-[#F4F5F8]">{rating.toFixed(1)}</span>
       {reviewLabel ? (
         <>
-          <span className="text-white/28" aria-hidden="true">{"\u00B7"}</span>
+          <span className="text-[#646B79]" aria-hidden="true">{"\u00B7"}</span>
           <span className="truncate">{reviewLabel}</span>
         </>
       ) : null}
+    </span>
+  );
+}
+
+function PriceDots({ priceLevel }: { priceLevel: ConsumerVenue["priceLevel"] }) {
+  if (!priceLevel) return null;
+
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[11px] leading-none text-[#9CA2AE]" aria-label={`Price level ${priceLevel} of 4`}>
+      {Array.from({ length: priceLevel }).map((_, index) => (
+        <span key={index} aria-hidden="true">●</span>
+      ))}
     </span>
   );
 }
@@ -276,7 +303,10 @@ function VenueDiscoveryCard({
   const busyness = getVenueBusyness(venue);
 
   return (
-    <li role="article">
+    <li
+      role="article"
+      className="group relative overflow-hidden rounded-[20px] border border-white/[0.08] bg-white/[0.035] shadow-[0_18px_42px_rgba(0,0,0,0.28)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[#8B6CFF]/35 hover:ring-1 hover:ring-[#8B6CFF]/30 hover:shadow-[0_22px_46px_rgba(0,0,0,0.34)] focus-within:ring-2 focus-within:ring-[#8B6CFF]/75 active:scale-[0.985]"
+    >
       <Link
         href={`/venues/${encodeURIComponent(venue.id)}`}
         prefetch={false}
@@ -286,10 +316,10 @@ function VenueDiscoveryCard({
         }}
         onTouchStart={() => onPrefetchVenue(venue.id)}
         onClick={() => trackAnalytics("explore_venue_card_tapped", { venueId: venue.id })}
-        className="group block overflow-hidden rounded-[8px] border border-white/[0.07] bg-[#14141A] shadow-[0_18px_42px_rgba(0,0,0,0.28)] transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[#8B6CFF]/35 hover:shadow-[0_22px_46px_rgba(0,0,0,0.34)] active:scale-[0.985] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75"
+        className="block focus:outline-none"
         aria-label={`Open ${venue.name}`}
       >
-        <div className="relative aspect-[16/10] overflow-hidden bg-[#0A0A0E]">
+        <div className="relative aspect-[4/3] overflow-hidden bg-[#0A0A0E]">
           <VenuePhoto
             name={venue.name}
             photoUrl={venue.photoUrl ?? venue.photoUrls?.[0] ?? venue.photo_urls?.[0]}
@@ -303,29 +333,43 @@ function VenueDiscoveryCard({
           <div className="absolute left-3 top-3">
             <CategoryBadge category={venue.category} />
           </div>
-          <div className="absolute right-3 top-3">
+          <div className="absolute bottom-3 left-3">
             <OpenStatusBadge openNow={venue.openNow ?? venue.open_now ?? venue.opening_hours?.open_now ?? null} />
           </div>
         </div>
 
         <div className="space-y-3 p-4">
           <div className="min-w-0">
-            <h2 className="font-display text-[20px] font-black leading-tight tracking-normal text-white">
+            <h2 className="font-display text-[20px] font-black leading-tight tracking-normal text-[#F4F5F8]">
               <HighlightText text={venue.name} query={searchQuery} />
             </h2>
-            <p className="mt-1 truncate text-[13px] font-medium text-white/45">{venue.address}</p>
+            <p className="mt-1 truncate text-[13px] font-medium text-[#9CA2AE]">{venue.address}</p>
+            {venue.neighborhood ? (
+              <span className="mt-2 inline-flex max-w-full items-center rounded-full border border-white/[0.08] bg-white/[0.05] px-2.5 py-1 text-[11px] font-semibold text-[#9CA2AE]">
+                <span className="truncate">{venue.neighborhood}</span>
+              </span>
+            ) : null}
           </div>
 
           <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
             <GoogleRating rating={rating} reviewCount={reviewCount} />
-            <PriceLevelDisplay priceLevel={venue.priceLevel} className="text-[13px]" />
+            <PriceDots priceLevel={venue.priceLevel} />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="space-y-2">
             <BusynessBadge value={busyness} source={venue.signal?.busynessSource ?? null} />
+            <BusynessMeter value={busyness} />
           </div>
         </div>
       </Link>
+      <div className="absolute right-2 top-2 z-10">
+        <SaveVenueButton
+          venueId={venue.id}
+          venueName={venue.name}
+          includeVenueNameInLabel={false}
+          className="h-10 w-10 border-white/15 bg-[#0A0A0E]/70 text-[#F4F5F8] shadow-[0_10px_24px_rgba(0,0,0,0.32)] backdrop-blur-md"
+        />
+      </div>
     </li>
   );
 }
@@ -547,21 +591,20 @@ export function ExplorePageClient() {
     <div className="min-h-screen-safe bg-[#0A0A0E] pb-28 text-white">
       <header className="border-b border-white/[0.06] bg-[#0A0A0E] px-4 pb-4 pt-8">
         <div className="mx-auto max-w-5xl">
-          <div className="flex items-end justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#8B6CFF]">nytchkr</p>
-              <h1 className="mt-1 font-display text-[32px] font-black leading-tight tracking-normal text-white sm:text-[40px]">
-                Explore Charlotte
-              </h1>
-            </div>
-            {!isLoading && (
-              <p className="shrink-0 text-right text-sm font-semibold text-white/48">
-                {filteredVenues.length} {filteredVenues.length === 1 ? "venue" : "venues"}
-              </p>
-            )}
+          <div className="min-w-0">
+            <p className="text-[12px] font-black uppercase tracking-[0.18em] text-[#8B6CFF]">nytchkr</p>
+            <h1 className="mt-1 font-display text-[32px] font-black leading-tight tracking-normal text-[#F4F5F8] sm:text-[40px]">
+              Explore Charlotte
+            </h1>
+            <p className="mt-1 text-sm font-semibold text-[#9CA2AE]">
+              {isLoading ? "Real venues · busyness updated live" : `${filteredVenues.length} real ${filteredVenues.length === 1 ? "venue" : "venues"} · busyness updated live`}
+            </p>
           </div>
+        </div>
+      </header>
 
-          <div className="sticky top-0 z-30 -mx-4 mt-5 space-y-3 border-y border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
+      <div className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#0A0A0E]/95 px-4 py-3 backdrop-blur">
+        <div className="mx-auto max-w-5xl space-y-3">
             <div ref={searchContainerRef} className="relative">
               <label htmlFor="venue-search" className="sr-only">
                 Search venues
@@ -646,7 +689,7 @@ export function ExplorePageClient() {
                   trackAnalytics("explore_open_now_filter_toggled", { enabled: !openNowOnly });
                 }}
               >
-                Open Now
+                Open now
               </FilterPill>
               {PRICE_FILTERS.map((filter) => (
                 <FilterPill
@@ -690,9 +733,8 @@ export function ExplorePageClient() {
                 </FilterPill>
               ))}
             </div>
-          </div>
         </div>
-      </header>
+      </div>
 
       <main className="mx-auto max-w-5xl px-4 pt-5">
         {error ? (
@@ -709,7 +751,7 @@ export function ExplorePageClient() {
         ) : null}
 
         {isLoading && !error ? (
-          <div role="status" aria-label="Loading venues" className="space-y-3">
+          <div role="status" aria-label="Loading venues" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : null}

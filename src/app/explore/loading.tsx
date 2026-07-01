@@ -3,7 +3,7 @@ import SkeletonCard from "@/components/SkeletonCard";
 export default function ExploreLoading() {
   return (
     <div className="min-h-screen-safe bg-[#0A0A0E] px-4 pb-24 pt-10 text-white" role="status" aria-label="Loading...">
-      <div className="mx-auto max-w-lg">
+      <div className="mx-auto max-w-5xl">
         <div className="mb-3 flex items-center justify-between">
           <div className="h-4 w-40 animate-pulse rounded bg-white/[0.06]" />
           <div className="h-4 w-16 animate-pulse rounded bg-white/[0.06]" />
@@ -20,7 +20,7 @@ export default function ExploreLoading() {
             <div key={i} className="h-9 min-w-24 animate-pulse rounded-full bg-white/[0.06]" />
           ))}
         </div>
-        <div className="mt-6 space-y-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       </div>
