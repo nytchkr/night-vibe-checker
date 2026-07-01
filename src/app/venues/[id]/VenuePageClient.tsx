@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { track } from "@vercel/analytics";
-import { ArrowLeft, Clock, MapPin } from "lucide-react";
+import { ArrowLeft, Clock, ExternalLink, MapPin } from "lucide-react";
 import { CategoryBadge, PriceLevelDisplay } from "@/components/CategoryBadge";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SkeletonVenueDetail } from "@/components/SkeletonVenueDetail";
@@ -37,6 +37,24 @@ function getBusynessLabel(percent: number): "Packed" | "Moderate" | "Dead" {
   if (percent >= 67) return "Packed";
   if (percent >= 34) return "Moderate";
   return "Dead";
+}
+
+function formatZoneLabel(zoneId: string | null | undefined): string {
+  if (!zoneId) return "Charlotte";
+  return zoneId
+    .split("-")
+    .filter((part) => part && part.toLowerCase() !== "charlotte")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatCategoryLabel(category: string | null | undefined): string {
+  const value = (category ?? "Venue").replace(/[_-]+/g, " ").trim();
+  if (!value) return "Venue";
+  return value
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 }
 
 type BestTimeSourceChip = {
@@ -180,8 +198,14 @@ export function VenuePageClient({
       : hoursSummary.hasHours
         ? hoursSummary.todayStatus
         : "Hours not available";
-  const statusColor = venue?.openNow === false ? "text-[#FF5B6A]" : venue?.openNow === true ? "text-[#20E58F]" : "text-[#9CA2AE]";
   const todayHours = hoursSummary.hasHours ? hoursSummary.weekHours.find((hour) => hour.day === hoursSummary.today)?.hours : null;
+  const hoursHeadline = hoursSummary.hasHours ? hoursSummary.todayStatus : statusText;
+  const statusColor = hoursHeadline === "Closed" || venue?.openNow === false
+    ? "text-[#FF5B6A]"
+    : hoursHeadline.startsWith("Open") || hoursHeadline.startsWith("Opens")
+      ? "text-[#20E58F]"
+      : "text-[#9CA2AE]";
+  const neighborhoodLabel = venue?.neighborhood || formatZoneLabel(venue?.zoneId);
 
   function goBackToMap() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -247,25 +271,22 @@ export function VenuePageClient({
 
       {!loading && !error && venue && (
         <>
-          {scrolled && (
-            <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-white/[0.08] bg-[#0A0A0E]/90 px-4 backdrop-blur-md transition-all duration-200">
-              <button
-                type="button"
-                onClick={goBackToMap}
-                aria-label="Go back"
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.06] text-white/70"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <span className="flex-1 truncate text-[15px] font-medium text-white">{venue.name}</span>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-black text-white/55">
-                nytchkr
-              </span>
-            </div>
-          )}
+          <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-white/[0.08] bg-[#0A0A0E]/80 px-4 backdrop-blur-xl transition-all duration-200">
+            <button
+              type="button"
+              onClick={goBackToMap}
+              aria-label="Go back"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.035] text-[#F4F5F8] transition-colors hover:border-[#8B6CFF]/45 hover:text-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <span className={`flex-1 truncate font-display text-[15px] font-semibold text-[#F4F5F8] transition-opacity duration-200 ${scrolled ? "opacity-100" : "opacity-0"}`}>
+              {venue.name}
+            </span>
+          </div>
 
           <section className="w-full bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div className="relative min-h-[360px] w-full overflow-hidden sm:min-h-[460px]">
+            <div className="relative aspect-[16/9] min-h-[360px] w-full overflow-hidden sm:min-h-[460px]">
               <VenuePhoto
                 name={venue.name}
                 photoUrl={venue.photoUrl}
@@ -277,38 +298,98 @@ export function VenuePageClient({
                 priority={true}
                 fetchPriority="high"
               />
-              <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.34),rgba(10,10,14,0.05)_45%,#0A0A0E_100%)]" aria-hidden="true" />
-              <button
-                type="button"
-                onClick={goBackToMap}
-                aria-label="Go back"
-                className="absolute left-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur transition-colors hover:bg-black/55 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
-              >
-                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-              </button>
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0A0A0E] via-[#0A0A0E]/60 to-transparent" aria-hidden="true" />
+              <div className="absolute inset-x-0 bottom-0 px-4 pb-6 pt-28 sm:px-6 sm:pb-8">
+                <div className="mx-auto max-w-lg" aria-label="Venue identity">
+                  <span className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.12] px-3 py-1.5 text-xs font-semibold text-[#F4F5F8] shadow-lg shadow-black/20 backdrop-blur-xl">
+                    {formatCategoryLabel(venue.category)}
+                  </span>
+                  <h1 className="mt-3 max-w-[14ch] font-display text-[42px] font-black leading-[0.98] tracking-normal text-[#F4F5F8] drop-shadow-2xl sm:max-w-[16ch] sm:text-6xl">
+                    {venue.name}
+                  </h1>
+                </div>
+              </div>
             </div>
           </section>
 
-          <main className="mx-auto max-w-lg space-y-5 px-4 pb-8 pt-5">
-            <section aria-label="Venue identity">
-              <h1 className="font-display text-4xl font-black leading-[1.04] text-[#F4F5F8] sm:text-5xl">{venue.name}</h1>
-              <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Venue category and price level">
-                <CategoryBadge category={venue.category} className="border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-[#F4F5F8]" />
+          <main className="mx-auto max-w-lg space-y-5 px-4 pb-8 pt-4">
+            <section className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Venue quick facts">
+              <div className="flex min-w-max items-center gap-2">
+                <CategoryBadge category={venue.category} className="border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-[#F4F5F8]" />
                 {venue.priceLevel ? (
-                  <PriceLevelDisplay priceLevel={venue.priceLevel} className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-[#9CA2AE]" />
+                  <PriceLevelDisplay priceLevel={venue.priceLevel} className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-xs text-[#9CA2AE]" />
                 ) : (
-                  <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs font-semibold text-[#9CA2AE]">
+                  <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-xs font-semibold text-[#9CA2AE]">
                     Price not listed
                   </span>
                 )}
+                <span className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-xs font-semibold text-[#9CA2AE]">
+                  {googleRatingData ? <StarRating {...googleRatingData} className="text-xs" /> : "Rating not listed"}
+                </span>
+                <span className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-2 text-xs font-semibold text-[#9CA2AE]">
+                  {neighborhoodLabel}
+                </span>
               </div>
             </section>
+
+            <div className="grid grid-cols-2 gap-3" aria-label="Venue actions">
+              <SaveVenueButton
+                venueId={venue.id}
+                venueName={venue.name}
+                apiPath="/api/favorites"
+                label="Save"
+                includeVenueNameInLabel={false}
+                onSavedChange={handleVenueSavedChange}
+                className="h-12 w-full border-[#8B6CFF] bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_28px_rgba(139,108,255,0.28)] hover:border-[#A896FF] hover:bg-[#A896FF]"
+              />
+              <a
+                href={mapsHref}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-5 text-sm font-black text-[#F4F5F8] transition-colors hover:border-[#8B6CFF]/45 hover:text-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+              >
+                <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                Directions
+              </a>
+            </div>
+
+            <SurfaceCard aria-label="BestTime busyness meter" className="p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
+              <p className="text-sm font-semibold text-[#9CA2AE]">BestTime busyness</p>
+              {hasBusynessRead ? (
+                <>
+                  <p className="mt-2 font-display text-[48px] font-black leading-none tracking-normal" style={{ color: busynessColor }}>
+                    {busynessPercent}%
+                  </p>
+                  <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
+                    <div className="h-full rounded-full transition-[width]" style={{ width: `${busynessPercent}%`, backgroundColor: busynessColor }} />
+                  </div>
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    {sourceChip ? (
+                      <span
+                        className={`rounded-full border px-3 py-1.5 text-xs font-black ${sourceChip.className}`}
+                        aria-label={`Busyness source ${sourceChip.label.toLowerCase()}`}
+                      >
+                        {sourceChip.label}
+                      </span>
+                    ) : null}
+                    <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-sm font-black" style={{ color: busynessColor }}>
+                      {busynessLabel}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-3 font-display text-2xl font-black text-[#F4F5F8]">No busyness data yet</p>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-[#9CA2AE]">{bestTimeEmptyCopy}</p>
+                </>
+              )}
+            </SurfaceCard>
 
             <a href={mapsHref} target="_blank" rel="noreferrer" className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70">
               <SurfaceCard className="flex gap-3">
                 <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
                 <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Address</p>
+                  <p className="text-sm font-semibold text-[#9CA2AE]">Address</p>
                   <p className="mt-1 text-sm font-semibold leading-6 text-[#F4F5F8] underline decoration-white/20 underline-offset-4">
                     {venue.address || "Open in Maps"}
                   </p>
@@ -320,75 +401,22 @@ export function VenuePageClient({
               <div className="flex items-start gap-3">
                 <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#8B6CFF]" aria-hidden="true" />
                 <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Hours</p>
-                  <p className={`mt-1 text-base font-black ${statusColor}`}>{statusText}</p>
-                  <p className="mt-1 text-sm font-black leading-6 text-[#F4F5F8]">
-                    Today: <span className="text-[#9CA2AE]">{todayHours ?? "Hours unavailable"}</span>
+                  <p className="text-sm font-semibold text-[#9CA2AE]">Hours</p>
+                  <p className={`mt-1 font-display text-2xl font-black leading-tight ${statusColor}`}>{hoursHeadline}</p>
+                  {statusText !== hoursHeadline ? <span className="sr-only">{statusText}</span> : null}
+                  <p className="mt-2 text-sm font-semibold leading-6 text-[#9CA2AE]">
+                    Today: <span className="text-[#F4F5F8]">{todayHours ?? "Hours unavailable"}</span>
                   </p>
                 </div>
               </div>
             </SurfaceCard>
 
-            <SurfaceCard aria-label="BestTime busyness meter">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">BestTime busyness</p>
-                  {hasBusynessRead ? (
-                    <p className="mt-2 text-3xl font-black text-[#F4F5F8]">{busynessPercent}%</p>
-                  ) : (
-                    <p className="mt-2 text-lg font-black text-[#F4F5F8]">No busyness data yet</p>
-                  )}
-                </div>
-                {sourceChip ? (
-                  <span
-                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-black ${sourceChip.className}`}
-                    aria-label={`Busyness source ${sourceChip.label.toLowerCase()}`}
-                  >
-                    {sourceChip.label}
-                  </span>
-                ) : null}
+            <SurfaceCard aria-label="Insider tips" className="p-5">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-xl leading-none text-[#8B6CFF]" aria-hidden="true">✦</span>
+                <h2 className="font-display text-xl font-black text-[#F4F5F8]">Insider tips</h2>
               </div>
-              {hasBusynessRead ? (
-                <>
-                  <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
-                    <div className="h-full rounded-full transition-[width]" style={{ width: `${busynessPercent}%`, backgroundColor: busynessColor }} />
-                  </div>
-                  <div className="mt-2 flex items-center justify-between text-xs font-bold text-[#9CA2AE]">
-                    <span>Dead</span>
-                    <span style={{ color: busynessColor }}>{busynessLabel}</span>
-                    <span>Packed</span>
-                  </div>
-                </>
-              ) : (
-                <p className="mt-3 text-sm font-semibold leading-6 text-[#9CA2AE]">{bestTimeEmptyCopy}</p>
-              )}
-            </SurfaceCard>
-
-            <SurfaceCard>
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9CA2AE]">Google rating</p>
-              <div className="mt-3 min-h-6 text-lg">
-                {googleRatingData ? <StarRating {...googleRatingData} className="text-base" /> : <span className="text-sm font-semibold text-[#9CA2AE]">Not listed</span>}
-              </div>
-            </SurfaceCard>
-
-            <SurfaceCard aria-label="AI insider tips">
-              <VenueTips venueId={venue.id} title="AI tips" subtitle="from reviews" maxTips={3} />
-            </SurfaceCard>
-
-            <SurfaceCard aria-label="Save venue">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="font-display text-xl font-black text-[#F4F5F8]">Save this spot</h2>
-                  <p className="mt-1 text-sm font-semibold text-[#9CA2AE]">Keep it on your list for later.</p>
-                </div>
-                <SaveVenueButton
-                  venueId={venue.id}
-                  venueName={venue.name}
-                  apiPath="/api/favorites"
-                  onSavedChange={handleVenueSavedChange}
-                  className="h-12 w-12 border-[#8B6CFF]/45 bg-[#8B6CFF]/15 text-[#8B6CFF]"
-                />
-              </div>
+              <VenueTips venueId={venue.id} title="" subtitle="Tips organized from real review text." maxTips={3} />
             </SurfaceCard>
           </main>
         </>

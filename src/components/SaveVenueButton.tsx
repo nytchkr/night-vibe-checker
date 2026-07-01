@@ -16,6 +16,7 @@ type SaveVenueButtonProps = {
   accessToken?: string | null;
   initialSaved?: boolean;
   className?: string;
+  label?: string;
   includeVenueNameInLabel?: boolean;
   apiPath?: "/api/saved-venues" | "/api/favorites";
   onSavedChange?: (venueId: string, saved: boolean) => void;
@@ -35,6 +36,7 @@ export function SaveVenueButton({
   accessToken,
   initialSaved = false,
   className,
+  label,
   includeVenueNameInLabel = true,
   apiPath = "/api/saved-venues",
   onSavedChange,
@@ -160,6 +162,7 @@ export function SaveVenueButton({
       } ${className ?? ""}`}
     >
       <Heart size={18} strokeWidth={2.4} fill={saved ? "currentColor" : "none"} aria-hidden="true" />
+      {label ? <span>{saved ? "Saved" : label}</span> : null}
     </button>
   );
 }

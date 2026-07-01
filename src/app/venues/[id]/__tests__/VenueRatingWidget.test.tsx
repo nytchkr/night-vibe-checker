@@ -205,7 +205,8 @@ describe("VenuePageClient decision layout", () => {
     renderVenuePage();
 
     expect(screen.getByRole("heading", { name: "Neon Lounge" })).toBeTruthy();
-    expect(screen.getByLabelText("Venue identity")).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Venue hero" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Venue quick facts" })).toBeTruthy();
     expect(screen.queryByRole("tablist")).toBeNull();
     expect(screen.queryByRole("button", { name: /Report the vibe/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /Check in/i })).toBeNull();
@@ -244,7 +245,7 @@ describe("VenuePageClient decision layout", () => {
       ],
     }));
 
-    expect(screen.getByText("bar")).toBeTruthy();
+    expect(screen.getAllByText("bar").length).toBeGreaterThan(0);
     expect(screen.getByText("$$")).toBeTruthy();
     expect(screen.getByText("Address")).toBeTruthy();
     expect(screen.getByText("100 Camden Rd, Charlotte, NC")).toBeTruthy();

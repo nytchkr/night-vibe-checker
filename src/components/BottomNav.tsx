@@ -52,11 +52,11 @@ function NavItem({
       aria-current={active ? "page" : undefined}
       className={`group relative flex h-16 flex-1 flex-col items-center justify-center gap-1 rounded-2xl transition-all duration-150 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
         active
-          ? "text-[#8B6CFF] drop-shadow-[0_0_12px_rgba(139,108,255,0.35)]"
+          ? "text-[#8B6CFF] drop-shadow-[0_0_12px_rgba(139,108,255,0.35)] before:absolute before:inset-0 before:rounded-2xl before:bg-[#8B6CFF]/10"
           : "text-[#9CA2AE] hover:bg-white/[0.04] hover:text-[#F4F5F8]"
       }`}
     >
-      <span className="relative transition-transform duration-150 ease-out group-hover:scale-105">
+      <span className="relative z-10 transition-transform duration-150 ease-out group-hover:scale-105">
         {children}
         {showBadge && <BadgeDot />}
         {active && (
@@ -66,7 +66,9 @@ function NavItem({
           />
         )}
       </span>
-      <span className="text-[11px] font-normal leading-[1.5]">{label}</span>
+      <span className={`relative z-10 text-[11px] leading-[1.5] ${active ? "font-semibold" : "font-normal"}`}>
+        {label}
+      </span>
     </Link>
   );
 }
@@ -158,7 +160,7 @@ export function BottomNav() {
     <nav
       role="navigation"
       aria-label="Main navigation"
-      className="app-bottom-nav tap-highlight-none fixed bottom-0 left-0 right-0 z-[1200] border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"
+      className="app-bottom-nav tap-highlight-none fixed bottom-0 left-0 right-0 z-[1200] border-t border-white/[0.06] bg-[#0A0A0E]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_rgba(255,255,255,0.06),0_-20px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl lg:hidden"
     >
       <div className="mx-auto flex h-16 w-full max-w-lg items-stretch px-3">
         <NavItem href="/map" label="Map" active={mapActive}>

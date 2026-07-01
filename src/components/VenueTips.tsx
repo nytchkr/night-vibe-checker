@@ -178,13 +178,19 @@ export function VenueTips({
   const visibleTipCount = Math.max(1, Math.min(MAX_VISIBLE_TIPS, Math.floor(maxTips)));
   const tipItems = useMemo(() => tips.slice(0, visibleTipCount), [tips, visibleTipCount]);
 
+  const showHeader = Boolean(title || subtitle);
+
   return (
-    <section className="space-y-3 border-t border-white/[0.06] pt-5" role="region" aria-label="Venue tips">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-lg font-bold text-white">{title}</h2>
-          <p className="mt-1 text-xs font-semibold text-white/40">{subtitle}</p>
-        </div>
+    <section className="space-y-3" role="region" aria-label="Venue tips">
+      <div className={`items-end justify-between gap-3 ${showHeader || (status === "authenticated" && session?.user?.id) ? "flex" : "hidden"}`}>
+        {showHeader ? (
+          <div>
+            {title ? <h2 className="font-display text-lg font-bold text-white">{title}</h2> : null}
+            {subtitle ? <p className="mt-1 text-xs font-semibold text-[#9CA2AE]">{subtitle}</p> : null}
+          </div>
+        ) : (
+          <span />
+        )}
         {status === "authenticated" && session?.user?.id ? (
           <Button
             type="button"
@@ -205,7 +211,7 @@ export function VenueTips({
       ) : tipItems.length > 0 ? (
         <ul className="space-y-2" aria-label="Venue tips list">
           {tipItems.map((tip) => (
-            <li key={tip.id} className="rounded-xl bg-white/5 p-3">
+            <li key={tip.id} className="rounded-[18px] border border-white/[0.08] border-l-[#8B6CFF] border-l-4 bg-white/[0.035] p-3">
               <div className="flex gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#8B6CFF] to-[#F0568C] text-xs font-black text-[#0A0A0E] shadow-[0_0_18px_rgba(139,108,255,0.25)]">
                   {tip.author_initials.slice(0, 2).toUpperCase()}
@@ -258,7 +264,7 @@ export function VenueTips({
         </ul>
       ) : (
         <div className="rounded-xl border border-[#8B6CFF]/20 bg-white/5 p-4">
-          <p className="text-sm font-semibold text-white/70">No tips yet — be the first!</p>
+          <p className="text-sm font-semibold text-white/70">No tips yet. Be the first!</p>
           {status === "authenticated" && session?.user?.id ? (
             <Button
               type="button"

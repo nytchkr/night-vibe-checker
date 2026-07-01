@@ -1,12 +1,5 @@
-function ShimmerBlock({ className }: { className: string }) {
-  return (
-    <div className={`relative overflow-hidden bg-white/[0.04] ${className}`}>
-      <span
-        className="absolute inset-0 bg-gradient-to-r from-white/[0.04] via-white/[0.08] to-white/[0.04] bg-[length:400%_100%] animate-shimmer"
-        aria-hidden="true"
-      />
-    </div>
-  );
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={`animate-pulse bg-white/[0.06] ${className}`} aria-hidden="true" />;
 }
 
 export default function SkeletonCard() {
@@ -20,28 +13,28 @@ export default function SkeletonCard() {
     >
       <span className="sr-only">Loading venue card</span>
       <div className="relative flex w-full flex-col gap-3 sm:flex-row sm:items-center">
-        <ShimmerBlock className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto" />
+        <SkeletonBlock className="aspect-video w-full shrink-0 rounded-xl sm:h-[72px] sm:w-[72px] sm:aspect-auto" />
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
           <div className="min-w-0 space-y-2">
             <div className="flex min-w-0 items-start justify-between gap-2">
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                <ShimmerBlock className="h-4 w-44 max-w-[70%] rounded" />
-                <ShimmerBlock className="h-5 w-16 shrink-0 rounded-full" />
+                <SkeletonBlock className="h-4 w-44 max-w-[70%] rounded" />
+                <SkeletonBlock className="h-5 w-16 shrink-0 rounded-full" />
               </div>
-              <ShimmerBlock className="h-5 w-20 shrink-0 rounded-full" />
+              <SkeletonBlock className="h-5 w-20 shrink-0 rounded-full" />
             </div>
-            <ShimmerBlock className="h-3 w-24 rounded" />
+            <SkeletonBlock className="h-3 w-24 rounded" />
             <div className="flex gap-2">
-              <ShimmerBlock className="h-5 w-20 rounded-full" />
-              <ShimmerBlock className="h-4 w-12 rounded" />
+              <SkeletonBlock className="h-5 w-20 rounded-full" />
+              <SkeletonBlock className="h-4 w-12 rounded" />
             </div>
           </div>
           <div className="flex gap-2">
-            <ShimmerBlock className="h-6 w-28 rounded-full" />
+            <SkeletonBlock className="h-6 w-28 rounded-full" />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <ShimmerBlock className="h-4 w-56 max-w-full rounded" />
-            <ShimmerBlock className="h-4 w-28 rounded-full" />
+            <SkeletonBlock className="h-4 w-56 max-w-full rounded" />
+            <SkeletonBlock className="h-4 w-28 rounded-full" />
           </div>
         </div>
       </div>
