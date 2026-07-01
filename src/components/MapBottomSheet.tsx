@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent, PointerEvent } from "react";
-import { Info } from "lucide-react";
+import { Info, MapPin } from "lucide-react";
 import { BusynessBadge as SourceBadge } from "@/components/BusynessBadge";
 import { OpenNowBadge } from "@/components/OpenNowBadge";
 import { SaveVenueButton } from "@/components/SaveVenueButton";
 import { SignalFreshnessLabel } from "@/components/SignalFreshnessLabel";
+import { VenuePhoto } from "@/components/VenuePhoto";
 import { getBusynessState } from "@/lib/busyness";
 import { getNeighborhood } from "@/lib/neighborhood";
 import { useHaptic } from "@/hooks/useHaptic";
@@ -17,10 +18,39 @@ import type { ConsumerVenue } from "@/types";
 export type MapSheetSnap = "collapsed" | "mid" | "expanded";
 export type VenueCategoryFilter = "All" | "Bar" | "Club" | "Lounge" | "Rooftop" | "Live Music" | "Sports Bar";
 
-const COLLAPSED_HEIGHT = 120;
+const COLLAPSED_HEIGHT = 210;
 const MID_RATIO = 0.4;
 const EXPANDED_RATIO = 0.68;
 export const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
+
+const BUSYNESS_ACCENT = {
+  packed: "#FF5B6A",
+  moderate: "#FFB020",
+  dead: "#5C6573",
+} as const;
+
+function getBusynessAccent(venue: ConsumerVenue): string | null {
+  const value = venue.signal?.busyness0To100;
+  if (value == null || !Number.isFinite(value)) return null;
+  const state = getBusynessState(value);
+  if (state.level === "packed") return BUSYNESS_ACCENT.packed;
+  if (state.level === "moderate") return BUSYNESS_ACCENT.moderate;
+  if (state.level === "dead") return BUSYNESS_ACCENT.dead;
+  return null;
+}
+
+function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter) {
+  if (filter === "All") return true;
+
+  const category = venue.category.toLowerCase();
+  const name = venue.name.toLowerCase();
+  if (filter === "Bar") return category.includes("bar") && !category.includes("sports") && !name.includes("rooftop");
+  if (filter === "Club") return category.includes("club") || category.includes("night_club");
+  if (filter === "Lounge") return category.includes("lounge") || name.includes("lounge");
+  if (filter === "Rooftop") return category.includes("rooftop") || name.includes("rooftop") || name.includes("sky bar");
+  if (filter === "Live Music") return category.includes("live") || category.includes("music") || name.includes("music");
+  return category.includes("sports") || name.includes("sports");
+}
 
 function getVisibleHeight(snap: MapSheetSnap) {
   if (typeof window === "undefined") return COLLAPSED_HEIGHT;
@@ -108,6 +138,13 @@ function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
 
   return (
     <section className="rounded-[18px] border border-white/[0.08] bg-[rgba(255,255,255,0.035)] p-4 shadow-[0_18px_45px_rgba(0,0,0,0.22)]">
+      <VenuePhoto
+        name={venue.name}
+        photoUrl={venue.photoUrl}
+        photoUrls={venue.photoUrls ?? venue.photo_urls}
+        className="mb-4 aspect-[16/9] w-full rounded-[14px]"
+        sizes="(max-width: 640px) calc(100vw - 2rem), 560px"
+      />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="truncate font-display text-[22px] font-semibold leading-tight text-white">
@@ -132,7 +169,7 @@ function SelectedVenueCard({ venue }: { venue: ConsumerVenue }) {
       <div className="mt-4 grid grid-cols-1 gap-2">
         <Link
           href={venueHref(venue)}
-          className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/[0.1] bg-white/[0.04] px-5 text-sm font-black text-white/72 transition-colors hover:bg-white/[0.08] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
+          className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] transition-colors hover:bg-[#9C85FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A0A0E]"
         >
           View details
         </Link>
@@ -151,6 +188,7 @@ function VenueRow({
   venue: ConsumerVenue;
 }) {
   const neighborhood = getNeighborhood(venue.lat, venue.lng);
+  const accentColor = getBusynessAccent(venue);
 
   return (
     <div className="relative">
@@ -162,7 +200,8 @@ function VenueRow({
           isSelected
             ? "border-white/35 bg-white/[0.1] ring-1 ring-[#8B6CFF]/60"
             : "border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07]"
-        }`}
+        } ${accentColor ? "border-l-[3px]" : ""}`}
+        style={accentColor ? { borderLeftColor: accentColor } : undefined}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -187,6 +226,44 @@ function VenueRow({
         includeVenueNameInLabel={false}
         className="absolute right-3 top-3 h-11 w-11"
       />
+    </div>
+  );
+}
+
+function CollapsedVenueRow({
+  onSelect,
+  venue,
+}: {
+  onSelect: () => void;
+  venue: ConsumerVenue;
+}) {
+  const busyness = getBusynessState(venue.signal?.busyness0To100 ?? null);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className="flex min-h-10 w-full items-center justify-between gap-3 rounded-[14px] border border-white/[0.08] bg-white/[0.035] px-3 text-left transition-colors hover:bg-white/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+    >
+      <span className="truncate text-sm font-black text-[#F4F5F8]">{venue.name}</span>
+      <span
+        className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black text-[#646B79]"
+        style={busyness.level ? { backgroundColor: `${busyness.color}22`, color: busyness.color } : undefined}
+      >
+        {busyness.label}
+      </span>
+    </button>
+  );
+}
+
+function EmptyVenueState() {
+  return (
+    <div className="rounded-[18px] border border-[#00F5D4]/20 bg-[#00F5D4]/[0.06] px-4 py-8 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[#00F5D4]/30 bg-[#00F5D4]/10 text-[#00F5D4]">
+        <MapPin className="h-5 w-5" aria-hidden="true" />
+      </div>
+      <p className="mt-3 font-display text-base font-semibold text-[#F4F5F8]">No venues found in this area</p>
+      <p className="mt-1 text-sm font-semibold text-[#9CA2AE]">Try moving the map or changing your filters.</p>
     </div>
   );
 }
@@ -231,6 +308,7 @@ export default function MapBottomSheet({
   const haptic = useHaptic();
   const prefersReduced = useReducedMotion();
   const [dragTranslate, setDragTranslate] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<VenueCategoryFilter>("All");
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ pointerId: -1, startY: 0, startTranslate: 0, currentTranslate: 0 });
   const itemRefs = useRef(new Map<string, HTMLDivElement>());
@@ -244,7 +322,11 @@ export default function MapBottomSheet({
       }),
     [venues],
   );
-  const topVenues = sortedVenues.slice(0, 5);
+  const filteredVenues = useMemo(
+    () => sortedVenues.filter((venue) => matchesCategoryFilter(venue, selectedCategory)),
+    [selectedCategory, sortedVenues],
+  );
+  const topVenues = filteredVenues.slice(0, 3);
   const openCount = venues.filter((venue) => venue.openNow).length;
   const selectedVenue = useMemo(
     () => venues.find((venue) => venue.id === selectedVenueId) ?? null,
@@ -363,8 +445,8 @@ export default function MapBottomSheet({
   }
 
   const transform =
-    dragTranslate == null ? `translateY(calc(100% - ${snap === "collapsed" ? "120px" : snap === "mid" ? "40dvh" : "68dvh"}))` : `translateY(${dragTranslate}px)`;
-  const visibleVenues = snap === "collapsed" ? topVenues : sortedVenues;
+    dragTranslate == null ? `translateY(calc(100% - ${snap === "collapsed" ? `${COLLAPSED_HEIGHT}px` : snap === "mid" ? "40dvh" : "68dvh"}))` : `translateY(${dragTranslate}px)`;
+  const visibleVenues = snap === "collapsed" ? topVenues : filteredVenues;
 
   return (
     <section
@@ -396,14 +478,39 @@ export default function MapBottomSheet({
           {loading ? (
             <span className="h-5 w-36 animate-pulse rounded-full bg-white/[0.06]" aria-hidden="true" />
           ) : (
-            `${cityName} · ${openCount} spots open`
+            <span className="inline-flex items-center gap-2">
+              {openCount > 0 && <span className="h-2 w-2 rounded-full bg-[#00F5D4] animate-pulse" aria-hidden="true" />}
+              <span>{cityName} · {openCount} spots open</span>
+            </span>
           )}
         </button>
       </div>
 
-      <div className="scroll-touch h-[calc(100%-120px)] overflow-y-auto overscroll-contain px-4 pb-6 [scrollbar-width:none] [will-change:scroll-position]">
+      <div className="scroll-touch flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
+        {CATEGORY_FILTERS.map((filter) => {
+          const isActive = selectedCategory === filter;
+
+          return (
+            <button
+              key={filter}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => setSelectedCategory(filter)}
+              className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                isActive
+                  ? "border-[#8B6CFF] bg-[#8B6CFF] text-[#0A0A0E]"
+                  : "border-white/[0.08] bg-[rgba(255,255,255,0.035)] text-[#9CA2AE] hover:bg-white/[0.07] hover:text-[#F4F5F8]"
+              }`}
+            >
+              {filter}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="scroll-touch h-[calc(100%-144px)] overflow-y-auto overscroll-contain px-4 pb-6 [scrollbar-width:none] [will-change:scroll-position]">
         <div className="mx-auto flex w-full max-w-xl flex-col gap-3">
-          {launchZoneNotice && (
+          {launchZoneNotice && snap !== "collapsed" && (
             <div className="rounded-2xl border border-[#8B6CFF]/20 bg-[#8B6CFF]/10 px-4 py-3 text-sm font-semibold leading-5 text-white/70">
               {launchZoneNotice}
             </div>
@@ -420,9 +527,23 @@ export default function MapBottomSheet({
               ))}
             </div>
           ) : venues.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <p className="text-sm font-medium text-[#9CA2AE]">No venues in this area. Try moving the map.</p>
+            <EmptyVenueState />
+          ) : visibleVenues.length === 0 ? (
+            <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] px-4 py-6 text-center text-sm font-semibold text-[#9CA2AE]">
+              No {selectedCategory.toLowerCase()} venues found in this area.
             </div>
+          ) : snap === "collapsed" ? (
+            visibleVenues.map((venue) => (
+              <CollapsedVenueRow
+                key={venue.id}
+                onSelect={() => {
+                  haptic.light();
+                  onVenueSelect(venue);
+                  snapTo("mid");
+                }}
+                venue={venue}
+              />
+            ))
           ) : (
             visibleVenues.map((venue) => (
               <div
