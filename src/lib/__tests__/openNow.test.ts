@@ -108,7 +108,8 @@ describe("inferCanonicalOpenNow", () => {
     ).toBe(false);
   });
 
-  it("returns null instead of computing from Google periods", () => {
+  it("computes open status from Google periods when no explicit open_now field", () => {
+    // now = Monday 10 PM EDT, sampleHours has Monday 5PM-2AM period → open
     expect(
       inferCanonicalOpenNow({
         category: "bar",
@@ -116,7 +117,7 @@ describe("inferCanonicalOpenNow", () => {
         refreshedAt: "2026-06-22T21:30:00.000-04:00",
         now,
       })
-    ).toBeNull();
+    ).toBe(true);
   });
 
   it("returns null for fresh Places hours without parseable periods", () => {

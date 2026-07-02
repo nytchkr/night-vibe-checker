@@ -193,9 +193,20 @@ export function isOpenNowFresh(refreshedAt: unknown, now = new Date()): boolean 
 }
 
 export function inferCanonicalOpenNow({
+  category,
   openingHours,
+  now,
 }: CanonicalOpenNowInput): boolean | null {
-  return isOpenNow(openingHours);
+  // Prefer explicit open_now field (old Places API v1 inline field)
+  const explicit = isOpenNow(openingHours);
+  if (explicit !== null) return explicit;
+  // Fall back to parsing periods from stored opening_hours JSON
+  try {
+    const charlotteTime = getCharlotteTimeParts(now instanceof Date ? now : undefined);
+    return inferOpenNow(category ?? null, charlotteTime, openingHours);
+  } catch {
+    return null;
+  }
 }
 
 export async function refreshOpenNow() {
