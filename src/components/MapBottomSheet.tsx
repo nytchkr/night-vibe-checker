@@ -17,11 +17,18 @@ import type { ConsumerVenue } from "@/types";
 
 export type MapSheetSnap = "collapsed" | "mid" | "expanded";
 export type VenueCategoryFilter = "All" | "Bar" | "Club" | "Lounge" | "Rooftop" | "Live Music" | "Sports Bar";
+type VenueZoneFilter = "all" | "south-end-charlotte" | "dilworth-charlotte" | "south-park-charlotte";
 
 const COLLAPSED_HEIGHT = 210;
 const MID_RATIO = 0.4;
 const EXPANDED_RATIO = 0.68;
 export const CATEGORY_FILTERS: VenueCategoryFilter[] = ["All", "Bar", "Club", "Lounge", "Rooftop", "Live Music", "Sports Bar"];
+const ZONE_FILTERS: { id: VenueZoneFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "south-end-charlotte", label: "South End" },
+  { id: "dilworth-charlotte", label: "Dilworth" },
+  { id: "south-park-charlotte", label: "SouthPark" },
+];
 
 const BUSYNESS_ACCENT = {
   packed: "#FF5B6A",
@@ -50,6 +57,14 @@ function matchesCategoryFilter(venue: ConsumerVenue, filter: VenueCategoryFilter
   if (filter === "Rooftop") return category.includes("rooftop") || name.includes("rooftop") || name.includes("sky bar");
   if (filter === "Live Music") return category.includes("live") || category.includes("music") || name.includes("music");
   return category.includes("sports") || name.includes("sports");
+}
+
+function getVenueZoneId(venue: ConsumerVenue) {
+  return venue.zoneId ?? (venue as ConsumerVenue & { zone_id?: string | null }).zone_id ?? null;
+}
+
+function matchesZoneFilter(venue: ConsumerVenue, filter: VenueZoneFilter) {
+  return filter === "all" || getVenueZoneId(venue) === filter;
 }
 
 function getVisibleHeight(snap: MapSheetSnap) {
@@ -308,6 +323,7 @@ export default function MapBottomSheet({
   const haptic = useHaptic();
   const prefersReduced = useReducedMotion();
   const [dragTranslate, setDragTranslate] = useState<number | null>(null);
+  const [selectedZone, setSelectedZone] = useState<VenueZoneFilter>("all");
   const [selectedCategory, setSelectedCategory] = useState<VenueCategoryFilter>("All");
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef({ pointerId: -1, startY: 0, startTranslate: 0, currentTranslate: 0 });
@@ -323,8 +339,11 @@ export default function MapBottomSheet({
     [venues],
   );
   const filteredVenues = useMemo(
-    () => sortedVenues.filter((venue) => matchesCategoryFilter(venue, selectedCategory)),
-    [selectedCategory, sortedVenues],
+    () =>
+      sortedVenues.filter(
+        (venue) => matchesZoneFilter(venue, selectedZone) && matchesCategoryFilter(venue, selectedCategory),
+      ),
+    [selectedCategory, selectedZone, sortedVenues],
   );
   const topVenues = filteredVenues.slice(0, 3);
   const openCount = venues.filter((venue) => venue.openNow).length;
@@ -447,6 +466,7 @@ export default function MapBottomSheet({
   const transform =
     dragTranslate == null ? `translateY(calc(100% - ${snap === "collapsed" ? `${COLLAPSED_HEIGHT}px` : snap === "mid" ? "40dvh" : "68dvh"}))` : `translateY(${dragTranslate}px)`;
   const visibleVenues = snap === "collapsed" ? topVenues : filteredVenues;
+  const selectedZoneLabel = ZONE_FILTERS.find((zone) => zone.id === selectedZone)?.label ?? "selected zone";
 
   return (
     <section
@@ -484,6 +504,28 @@ export default function MapBottomSheet({
             </span>
           )}
         </button>
+      </div>
+
+      <div className="scroll-touch flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
+        {ZONE_FILTERS.map((zone) => {
+          const isActive = selectedZone === zone.id;
+
+          return (
+            <button
+              key={zone.id}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => setSelectedZone(zone.id)}
+              className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-black transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70 ${
+                isActive
+                  ? "bg-[#8B6CFF] text-white"
+                  : "bg-white/[0.08] text-[#AAB2C0] hover:bg-white/[0.1]"
+              }`}
+            >
+              {zone.label}
+            </button>
+          );
+        })}
       </div>
 
       <div className="scroll-touch flex gap-2 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
@@ -530,7 +572,7 @@ export default function MapBottomSheet({
             <EmptyVenueState />
           ) : visibleVenues.length === 0 ? (
             <div className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] px-4 py-6 text-center text-sm font-semibold text-[#9CA2AE]">
-              No {selectedCategory.toLowerCase()} venues found in this area.
+              No {selectedCategory.toLowerCase()} venues found in {selectedZone === "all" ? "this area" : selectedZoneLabel}.
             </div>
           ) : snap === "collapsed" ? (
             visibleVenues.map((venue) => (
