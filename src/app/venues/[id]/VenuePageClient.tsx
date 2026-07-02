@@ -286,7 +286,7 @@ export function VenuePageClient({
           </div>
 
           <section className="w-full bg-[#0A0A0E]" role="region" aria-label="Venue hero">
-            <div className="relative aspect-[16/9] min-h-[360px] w-full overflow-hidden sm:min-h-[460px]">
+            <div className="relative aspect-[16/9] w-full overflow-hidden">
               <VenuePhoto
                 name={venue.name}
                 photoUrl={venue.photoUrl}
@@ -298,17 +298,18 @@ export function VenuePageClient({
                 priority={true}
                 fetchPriority="high"
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#0A0A0E] via-[#0A0A0E]/60 to-transparent" aria-hidden="true" />
-              <div className="absolute inset-x-0 bottom-0 px-4 pb-6 pt-28 sm:px-6 sm:pb-8">
-                <div className="mx-auto max-w-lg" aria-label="Venue identity">
-                  <span className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.12] px-3 py-1.5 text-xs font-semibold text-[#F4F5F8] shadow-lg shadow-black/20 backdrop-blur-xl">
-                    {formatCategoryLabel(venue.category)}
-                  </span>
-                  <h1 className="mt-3 max-w-[14ch] font-display text-[42px] font-black leading-[0.98] tracking-normal text-[#F4F5F8] drop-shadow-2xl sm:max-w-[16ch] sm:text-6xl">
-                    {venue.name}
-                  </h1>
-                </div>
-              </div>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-black/80" aria-hidden="true" />
+              <span className="absolute right-3 top-12 inline-flex items-center rounded-full bg-black/50 px-2 py-0.5 text-xs font-semibold text-white backdrop-blur-sm">
+                {neighborhoodLabel}
+              </span>
+              {venue.openNow === true ? (
+                <span className="absolute bottom-10 left-3 inline-flex items-center rounded-full border border-white/15 bg-black/50 px-3 py-1 text-xs font-black text-[#20E58F] shadow-lg shadow-black/30 backdrop-blur-sm">
+                  Open now
+                </span>
+              ) : null}
+              <h1 className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] truncate font-display text-2xl font-bold leading-tight text-white drop-shadow">
+                {venue.name}
+              </h1>
             </div>
           </section>
 
@@ -340,13 +341,13 @@ export function VenuePageClient({
                 label="Save"
                 includeVenueNameInLabel={false}
                 onSavedChange={handleVenueSavedChange}
-                className="h-12 w-full border-[#8B6CFF] bg-[#8B6CFF] px-5 text-sm font-black text-[#0A0A0E] shadow-[0_0_28px_rgba(139,108,255,0.28)] hover:border-[#A896FF] hover:bg-[#A896FF]"
+                className="h-auto w-full border-[#8B6CFF] bg-transparent px-5 py-3 text-sm font-black text-[#8B6CFF] shadow-none hover:border-[#A896FF] hover:bg-[#8B6CFF]/10 hover:text-[#A896FF]"
               />
               <a
                 href={mapsHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-5 text-sm font-black text-[#F4F5F8] transition-colors hover:border-[#8B6CFF]/45 hover:text-[#8B6CFF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-[#8B6CFF] bg-[#8B6CFF] px-5 py-3 text-sm font-black text-white transition-colors hover:border-[#A896FF] hover:bg-[#A896FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/70"
               >
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 Directions
@@ -357,13 +358,18 @@ export function VenuePageClient({
               <p className="text-sm font-semibold text-[#9CA2AE]">BestTime busyness</p>
               {hasBusynessRead ? (
                 <>
-                  <p className="mt-2 font-display text-[48px] font-black leading-none tracking-normal" style={{ color: busynessColor }}>
-                    {busynessPercent}%
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1" style={{ color: busynessColor }}>
+                    <span className="font-display text-5xl font-black leading-none tracking-normal">
+                      {busynessPercent}%
+                    </span>
+                    <span className="text-lg font-black">
+                      {busynessLabel}
+                    </span>
+                  </div>
                   <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-white/[0.08]" aria-hidden="true">
                     <div className="h-full rounded-full transition-[width]" style={{ width: `${busynessPercent}%`, backgroundColor: busynessColor }} />
                   </div>
-                  <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="mt-4 flex items-center gap-3">
                     {sourceChip ? (
                       <span
                         className={`rounded-full border px-3 py-1.5 text-xs font-black ${sourceChip.className}`}
@@ -372,9 +378,6 @@ export function VenuePageClient({
                         {sourceChip.label}
                       </span>
                     ) : null}
-                    <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-sm font-black" style={{ color: busynessColor }}>
-                      {busynessLabel}
-                    </span>
                   </div>
                 </>
               ) : (
@@ -403,7 +406,7 @@ export function VenuePageClient({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#9CA2AE]">Hours</p>
                   <p className={`mt-1 font-display text-2xl font-black leading-tight ${statusColor}`}>{hoursHeadline}</p>
-                  {statusText !== hoursHeadline ? <span className="sr-only">{statusText}</span> : null}
+                  {statusText !== hoursHeadline ? <span className="sr-only">Status: {statusText}</span> : null}
                   <p className="mt-2 text-sm font-semibold leading-6 text-[#9CA2AE]">
                     Today: <span className="text-[#F4F5F8]">{todayHours ?? "Hours unavailable"}</span>
                   </p>
