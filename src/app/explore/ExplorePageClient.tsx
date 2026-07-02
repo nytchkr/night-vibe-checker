@@ -174,10 +174,10 @@ function FilterPill({
       aria-pressed={active}
       onClick={onClick}
       className={[
-        "inline-flex min-h-[38px] shrink-0 items-center justify-center rounded-full border px-4 text-sm font-semibold transition-all duration-150 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75",
+        "inline-flex shrink-0 items-center justify-center rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8B6CFF]/75",
         active
-          ? "border-[#8B6CFF] bg-[#8B6CFF] text-[#0A0A0E] shadow-[0_0_20px_rgba(139,108,255,0.22)]"
-          : "border-white/[0.08] bg-[#14141A] text-white/72 hover:border-white/18 hover:bg-white/[0.09] hover:text-white",
+          ? "bg-[#8B6CFF] text-white"
+          : "bg-white/5 text-[#AAB2C0] hover:bg-white/10",
       ].join(" ")}
     >
       {children}
@@ -596,9 +596,10 @@ export function ExplorePageClient() {
             <h1 className="mt-1 font-display text-[32px] font-black leading-tight tracking-normal text-[#F4F5F8] sm:text-[40px]">
               Explore Charlotte
             </h1>
-            <p className="mt-1 text-sm font-semibold text-[#9CA2AE]">
-              {isLoading ? "Real venues · busyness updated live" : `${filteredVenues.length} real ${filteredVenues.length === 1 ? "venue" : "venues"} · busyness updated live`}
-            </p>
+            <p className="mt-1 text-sm font-semibold text-[#9CA2AE]">Real venues · busyness updated live</p>
+            {!isLoading && filteredVenues.length > 0 ? (
+              <p className="mt-1 text-sm text-[#646B79]">{filteredVenues.length} {filteredVenues.length === 1 ? "spot" : "spots"}</p>
+            ) : null}
           </div>
         </div>
       </header>
@@ -609,27 +610,29 @@ export function ExplorePageClient() {
               <label htmlFor="venue-search" className="sr-only">
                 Search venues
               </label>
-              <input
-                ref={searchInputRef}
-                aria-label="Search venues"
-                aria-autocomplete="list"
-                aria-controls="explore-search-suggestions"
-                aria-expanded={isSuggestionsOpen && searchSuggestions.length > 0}
-                id="venue-search"
-                type="search"
-                value={searchQuery}
-                onChange={(event) => {
-                  setSearchQuery(event.target.value);
-                  if (event.target.value.trim().length >= 2) setIsSuggestionsOpen(true);
-                }}
-                onFocus={() => {
-                  if (searchSuggestions.length > 0) setIsSuggestionsOpen(true);
-                }}
-                onKeyDown={handleSearchKeyDown}
-                placeholder="Search restaurants, bars, lounges..."
-                className="w-full rounded-[14px] border border-white/[0.08] bg-[#14141A] px-4 py-3 pl-11 pr-12 text-base font-semibold text-white placeholder:text-white/36 focus:border-[#8B6CFF]/60 focus:outline-none focus:ring-2 focus:ring-[#8B6CFF]/25"
-              />
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/42" strokeWidth={2.3} aria-hidden="true" />
+              <div className="relative h-11 rounded-xl border border-white/10 bg-[#1A1B21] transition-colors duration-150 focus-within:border-[#8B6CFF]/60">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#646B79]" strokeWidth={2.3} aria-hidden="true" />
+                <input
+                  ref={searchInputRef}
+                  aria-label="Search venues"
+                  aria-autocomplete="list"
+                  aria-controls="explore-search-suggestions"
+                  aria-expanded={isSuggestionsOpen && searchSuggestions.length > 0}
+                  id="venue-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    if (event.target.value.trim().length >= 2) setIsSuggestionsOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (searchSuggestions.length > 0) setIsSuggestionsOpen(true);
+                  }}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Search restaurants, bars, lounges..."
+                  className="h-full w-full rounded-xl bg-transparent pl-10 pr-12 text-base font-semibold text-white placeholder:text-[#646B79] focus:outline-none"
+                />
+              </div>
               {searchQuery.length > 0 ? (
                 <button
                   type="button"
