@@ -83,8 +83,7 @@ function shouldHideNavigation(pathname: string): boolean {
   return (
     pathname.startsWith("/internal") ||
     pathname.startsWith("/agent-board") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/login")
+    pathname.startsWith("/admin")
   );
 }
 
