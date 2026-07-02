@@ -49,19 +49,29 @@ describe("POST /api/cron/setup", () => {
 
     expect(res.status).toBe(200);
     expect(mockCreateSchedule).toHaveBeenCalledWith({
-      destination:
-        "https://nytchkr.com/api/cron/besttime-refresh",
-      cron: "0 */4 * * *",
+      destination: "https://nytchkr.com/api/cron/besttime-refresh",
+      cron: "0 * * * *",
       method: "POST",
       scheduleId: "nytchkr-besttime-refresh",
     });
-    expect(mockCreateSchedule).toHaveBeenCalledTimes(1);
+    expect(mockCreateSchedule).toHaveBeenCalledWith({
+      destination: "https://nytchkr.com/api/cron/refresh-open-now",
+      cron: "*/30 * * * *",
+      method: "POST",
+      scheduleId: "nytchkr-open-now-refresh",
+    });
+    expect(mockCreateSchedule).toHaveBeenCalledTimes(2);
     expect(json).toEqual({
       scheduled: [
         {
           id: "nytchkr-besttime-refresh",
-          cron: "0 */4 * * *",
+          cron: "0 * * * *",
           url: "https://nytchkr.com/api/cron/besttime-refresh",
+        },
+        {
+          id: "nytchkr-open-now-refresh",
+          cron: "*/30 * * * *",
+          url: "https://nytchkr.com/api/cron/refresh-open-now",
         },
       ],
     });

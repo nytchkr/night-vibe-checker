@@ -5,10 +5,17 @@ import { qstash } from "@/lib/qstash";
 export const dynamic = "force-dynamic";
 
 const SCHEDULES = [
+  // Busyness: every hour, all day. BestTime returns current-hour forecast so hourly is correct.
   {
     id: "nytchkr-besttime-refresh",
-    cron: "0 */4 * * *",
+    cron: "0 * * * *",
     path: "/api/cron/besttime-refresh",
+  },
+  // Open/closed status: every 30 min so badge freshness tracks bar hours
+  {
+    id: "nytchkr-open-now-refresh",
+    cron: "*/30 * * * *",
+    path: "/api/cron/refresh-open-now",
   },
 ] as const;
 

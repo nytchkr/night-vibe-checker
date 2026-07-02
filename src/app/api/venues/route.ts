@@ -255,7 +255,7 @@ async function loadVenueRows(
       AND COALESCE(v.hidden, false) = false
       AND (${params.category}::text IS NULL OR v.category ILIKE ${params.category})
       AND (${params.searchIds}::uuid[] IS NULL OR v.id = ANY(${params.searchIds}::uuid[]))
-    ORDER BY v.name ASC
+    ORDER BY vs.busyness_0_100 DESC NULLS LAST, v.name ASC
     LIMIT 200
   `;
 
