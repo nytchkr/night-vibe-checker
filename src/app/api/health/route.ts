@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { publicRateLimit } from "@/lib/apiRateLimit";
 import { LAUNCH_ZONES } from "@/lib/launchZone";
 import { sql } from "@/lib/db";
+import { inferCanonicalOpenNow } from "@/lib/openNow";
 
 type ZoneSignalCoverage = {
   zone_id: string;
@@ -54,6 +55,9 @@ async function countRows(table: "venues" | "venue_signals"): Promise<number | nu
 type VenueHealthRow = {
   zone_id: string | null;
   besttime_venue_id: string | null;
+  category: string | null;
+  venue_type: string | null;
+  opening_hours: unknown;
   open_now: boolean | null;
   venue_signals:
     | { busyness_0_100: number | null; last_busyness_refresh: string | null }
@@ -72,6 +76,9 @@ async function getVenueHealthRows(): Promise<VenueHealthRow[] | null> {
       SELECT
         v.zone_id,
         v.besttime_venue_id,
+        v.category,
+        v.venue_type,
+        v.opening_hours,
         v.open_now,
         to_jsonb(vs) AS venue_signals
       FROM venues v
@@ -139,6 +146,15 @@ function buildZoneSignalCoverage(rows: VenueHealthRow[] | null): {
   };
 }
 
+function computeOpenNow(row: VenueHealthRow): boolean | null {
+  const inferred = inferCanonicalOpenNow({
+    category: row.category ?? row.venue_type,
+    openingHours: row.opening_hours,
+  });
+
+  return inferred ?? row.open_now;
+}
+
 export async function GET(req?: NextRequest) {
   const rate = req ? await publicRateLimit(req, "health", 120) : null;
   if (rate?.response) return rate.response;
@@ -150,7 +166,7 @@ export async function GET(req?: NextRequest) {
     getVenueHealthRows(),
   ]);
 
-  const openNowCount = venueRows?.filter((row) => row.open_now === true).length ?? null;
+  const openNowCount = venueRows?.filter((row) => computeOpenNow(row) === true).length ?? null;
   const { zonesWithSignalCoverage, bestTimeCoverageByZone } = buildZoneSignalCoverage(venueRows);
   const refreshTimes = (venueRows ?? [])
     .map((row) => firstSignal(row)?.last_busyness_refresh)

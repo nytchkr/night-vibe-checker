@@ -11,11 +11,23 @@ function venueRow(lastBusynessRefresh: string, overrides: Record<string, unknown
   return {
     zone_id: "south-end-charlotte",
     besttime_venue_id: "bt-venue-1",
+    category: "bar",
+    venue_type: "bar",
+    opening_hours: null,
     open_now: true,
     venue_signals: { busyness_0_100: 72, last_busyness_refresh: lastBusynessRefresh },
     ...overrides,
   };
 }
+
+const openSundayNightHours = {
+  periods: [
+    {
+      open: { day: 0, hour: 17, minute: 0 },
+      close: { day: 1, hour: 2, minute: 0 },
+    },
+  ],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -145,6 +157,25 @@ describe("GET /api/health", () => {
         without_signal: 0,
       },
     ]);
+  });
+
+  it("computes openNowCount from Google periods when the DB open_now column is null", async () => {
+    mockSql
+      .mockResolvedValueOnce([{ count: 1 }])
+      .mockResolvedValueOnce([{ count: 1 }])
+      .mockResolvedValueOnce([
+        venueRow("2026-06-21T14:18:32.113Z", {
+          open_now: null,
+          opening_hours: openSundayNightHours,
+        }),
+      ]);
+
+    const { GET } = await import("../health/route");
+    const res = await GET(new NextRequest("http://localhost/api/health"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.openNowCount).toBe(1);
   });
 
   it("degrades when a full daily busyness refresh is missed", async () => {
