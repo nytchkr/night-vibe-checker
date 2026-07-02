@@ -76,7 +76,7 @@ describe("middleware route protection", () => {
   it("protects authenticated-only page routes and nested paths", () => {
     expect(isProtectedPageRoute("/admin")).toBe(true);
     expect(isProtectedPageRoute("/admin/dashboard")).toBe(true);
-    expect(isProtectedPageRoute("/saved")).toBe(true);
+    expect(isProtectedPageRoute("/profile")).toBe(true);
   });
 
   it("leaves public page routes open", () => {
@@ -89,11 +89,8 @@ describe("middleware route protection", () => {
 
   it("protects only POST requests for write APIs", () => {
     expect(isProtectedApiRequest(request("POST", "/api/ratings"))).toBe(true);
-    expect(isProtectedApiRequest(request("POST", "/api/venue-ratings"))).toBe(true);
-    expect(isProtectedApiRequest(request("POST", "/api/push/subscribe"))).toBe(true);
-    expect(isProtectedApiRequest(request("GET", "/api/venue-ratings"))).toBe(false);
     expect(isProtectedApiRequest(request("GET", "/api/venues"))).toBe(false);
-    expect(isProtectedApiRequest(request("POST", "/api/widget/venue-1"))).toBe(false);
+    expect(isProtectedApiRequest(request("POST", "/api/venues"))).toBe(false);
   });
 
   it("does not special-case removed standalone share page requests", async () => {

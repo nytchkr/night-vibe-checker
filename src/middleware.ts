@@ -1,12 +1,9 @@
 import { auth } from "@/auth";
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 
-const PROTECTED_PAGE_ROUTES = ["/admin", "/profile", "/saved"] as const;
+const PROTECTED_PAGE_ROUTES = ["/admin", "/profile"] as const;
 const PROTECTED_API_ROUTES = [
   "/api/ratings",
-  "/api/venue-ratings",
-  "/api/push/subscribe",
-  "/api/push/venue-alert",
 ] as const;
 const CANONICAL_HOST = "nytchkr.com";
 const CANONICAL_REDIRECT_HOSTS = new Set([
